@@ -15,6 +15,8 @@ const api: OrbiaApi = {
 
   courses: {
     selectSource: () => ipcRenderer.invoke('courses:select-source'),
+    selectZip: () => ipcRenderer.invoke('courses:select-zip'),
+    selectFolder: () => ipcRenderer.invoke('courses:select-folder'),
     extractZip: (zipPath: string) => ipcRenderer.invoke('courses:extract-zip', { zipPath }),
     scanFolder: (folderPath: string) => ipcRenderer.invoke('courses:scan-folder', { folderPath }),
     importCourse: (proposal, isExternal) => ipcRenderer.invoke('courses:import', { proposal, isExternal }),

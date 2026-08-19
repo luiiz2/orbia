@@ -30,6 +30,8 @@ export interface OrbiaApi {
   // Course scanning & management
   courses: {
     selectSource: () => Promise<SelectedCourseSource | null>
+    selectZip: () => Promise<SelectedCourseSource | null>
+    selectFolder: () => Promise<SelectedCourseSource | null>
     extractZip: (zipPath: string) => Promise<{ success: boolean; extractedPath?: string; suggestedTitle?: string; error?: string }>
     scanFolder: (folderPath: string) => Promise<{ success: boolean; proposal?: ProposedCourseStructure; error?: string }>
     importCourse: (proposal: ProposedCourseStructure, isExternal: boolean) => Promise<{ success: boolean; course?: Course; error?: string }>

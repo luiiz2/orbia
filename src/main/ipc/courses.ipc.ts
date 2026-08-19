@@ -19,16 +19,67 @@ function generateSlug(title: string): string {
 }
 
 export function registerCoursesIpc(): void {
-  // Select either a course folder OR a course .zip file
+  // Select a compressed .zip course file
+  ipcMain.handle('courses:select-zip', async () => {
+    try {
+      const result = await dialog.showOpenDialog({
+        title: 'Selecionar Arquivo .zip do Curso',
+        properties: ['openFile'],
+        filters: [
+          { name: 'Arquivos Compactados (*.zip)', extensions: ['zip'] },
+          { name: 'Todos os Arquivos (*.*)', extensions: ['*'] }
+        ]
+      })
+
+      if (result.canceled || result.filePaths.length === 0) {
+        return null
+      }
+
+      const selectedPath = result.filePaths[0]
+      return {
+        path: selectedPath,
+        name: path.basename(selectedPath, path.extname(selectedPath)),
+        isZip: true
+      }
+    } catch (err) {
+      logger.error('[IPC] courses:select-zip error:', err)
+      return null
+    }
+  })
+
+  // Select a course folder directory
+  ipcMain.handle('courses:select-folder', async () => {
+    try {
+      const result = await dialog.showOpenDialog({
+        title: 'Selecionar Pasta do Curso',
+        properties: ['openDirectory']
+      })
+
+      if (result.canceled || result.filePaths.length === 0) {
+        return null
+      }
+
+      const selectedPath = result.filePaths[0]
+      return {
+        path: selectedPath,
+        name: path.basename(selectedPath),
+        isZip: false
+      }
+    } catch (err) {
+      logger.error('[IPC] courses:select-folder error:', err)
+      return null
+    }
+  })
+
+  // Select either a course folder OR a course .zip file (fallback)
   ipcMain.handle('courses:select-source', async () => {
     try {
       const result = await dialog.showOpenDialog({
-        title: 'Select Course Folder or .zip Archive',
-        properties: ['openFile', 'openDirectory'],
+        title: 'Select Course .zip or Folder',
+        properties: ['openFile'],
         filters: [
-          { name: 'Course Sources (Folders & Zip)', extensions: ['zip'] },
-          { name: 'Zip Archives', extensions: ['zip'] },
-          { name: 'All Files', extensions: ['*'] }
+          { name: 'Arquivos Compactados (*.zip)', extensions: ['zip'] },
+          { name: 'Todos os Arquivos (*.*)', extensions: ['*'] }
         ]
       })
 

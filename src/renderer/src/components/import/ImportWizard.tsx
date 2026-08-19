@@ -96,12 +96,18 @@ export function ImportWizard({ open, onOpenChange }: ImportWizardProps): React.J
     }
   }
 
-  const handleSelectSource = async (): Promise<void> => {
+  const handleSelectZip = async (): Promise<void> => {
     setError(null)
-    const source = await window.api.courses.selectSource()
+    const source = await window.api.courses.selectZip()
     if (!source) return
+    await processSourcePath(source.path, true)
+  }
 
-    await processSourcePath(source.path, source.isZip)
+  const handleSelectFolder = async (): Promise<void> => {
+    setError(null)
+    const source = await window.api.courses.selectFolder()
+    if (!source) return
+    await processSourcePath(source.path, false)
   }
 
   const handleDrop = async (e: React.DragEvent<HTMLDivElement>): Promise<void> => {
@@ -179,19 +185,18 @@ export function ImportWizard({ open, onOpenChange }: ImportWizardProps): React.J
               onDrop={handleDrop}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
-              className={`py-10 px-4 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center text-center space-y-4 transition-all duration-200 cursor-pointer ${
+              className={`py-10 px-6 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center text-center space-y-4 transition-all duration-200 ${
                 isDragging
                   ? 'border-primary bg-primary/10 scale-[1.01]'
                   : 'border-border/80 bg-secondary/20 hover:border-primary/50 hover:bg-secondary/40'
               }`}
-              onClick={handleSelectSource}
             >
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-primary/15 border border-primary/30 flex items-center justify-center text-primary shadow-lg shadow-orange-500/10">
-                  <FolderOpen className="w-6 h-6" />
-                </div>
                 <div className="w-12 h-12 rounded-2xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-purple-400 shadow-lg shadow-purple-500/10">
                   <FileArchive className="w-6 h-6" />
+                </div>
+                <div className="w-12 h-12 rounded-2xl bg-primary/15 border border-primary/30 flex items-center justify-center text-primary shadow-lg shadow-orange-500/10">
+                  <FolderOpen className="w-6 h-6" />
                 </div>
               </div>
 
@@ -204,19 +209,30 @@ export function ImportWizard({ open, onOpenChange }: ImportWizardProps): React.J
                 </p>
               </div>
 
-              <Button
-                type="button"
-                variant="default"
-                size="sm"
-                className="mt-2 font-semibold shadow-lg shadow-orange-500/20 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-500 text-white rounded-xl"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  handleSelectSource()
-                }}
-              >
-                <FolderSearch className="w-4 h-4 mr-2" />
-                {t('vault.browse')}
-              </Button>
+              {/* Action Buttons: Dedicated Zip or Folder Picker */}
+              <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+                <Button
+                  type="button"
+                  variant="default"
+                  size="sm"
+                  className="font-semibold shadow-lg shadow-orange-500/20 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-500 text-white rounded-xl cursor-pointer"
+                  onClick={handleSelectZip}
+                >
+                  <FileArchive className="w-4 h-4 mr-2" />
+                  Selecionar Arquivo .zip
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="font-semibold border-border/80 hover:bg-secondary rounded-xl cursor-pointer"
+                  onClick={handleSelectFolder}
+                >
+                  <FolderSearch className="w-4 h-4 mr-2 text-primary" />
+                  Selecionar Pasta
+                </Button>
+              </div>
             </div>
           )}
 
