@@ -10,8 +10,11 @@ import type {
   WatchHistoryEntry,
   CourseProgressSummary,
   VaultStats,
-  LessonNote
+  LessonNote,
+  MergeCoursesResult,
+  ImportHistoryEntry
 } from '../../types'
+import { naturalCompare } from '../utils/natural-sort'
 
 export class DatabaseService {
   private db: Database.Database | null = null
@@ -156,6 +159,20 @@ export class DatabaseService {
         error_details     TEXT,
         is_reversible     INTEGER NOT NULL DEFAULT 1
       );
+
+      -- Import History
+      CREATE TABLE IF NOT EXISTS import_history (
+        id              TEXT PRIMARY KEY,
+        file_name       TEXT NOT NULL,
+        file_path       TEXT NOT NULL,
+        file_size       INTEGER NOT NULL DEFAULT 0,
+        status          TEXT NOT NULL DEFAULT 'completed',
+        course_id       TEXT,
+        course_title    TEXT,
+        extracted_files INTEGER NOT NULL DEFAULT 0,
+        created_at      INTEGER NOT NULL,
+        error_details   TEXT
+      );
     `)
 
     // 2. Safe column migrations for existing tables
@@ -198,7 +215,8 @@ export class DatabaseService {
       `CREATE INDEX IF NOT EXISTS idx_history_date ON watch_history(watched_at DESC);`,
       `CREATE INDEX IF NOT EXISTS idx_history_course_watched ON watch_history(course_id, watched_at DESC);`,
       `CREATE INDEX IF NOT EXISTS idx_journal_group ON file_operations(group_id);`,
-      `CREATE INDEX IF NOT EXISTS idx_journal_time ON file_operations(timestamp DESC);`
+      `CREATE INDEX IF NOT EXISTS idx_journal_time ON file_operations(timestamp DESC);`,
+      `CREATE INDEX IF NOT EXISTS idx_import_history_time ON import_history(created_at DESC);`
     ]
 
     for (const sql of indexMigrations) {
@@ -832,6 +850,304 @@ export class DatabaseService {
       completedLessons: row.completedLessons || 0,
       totalWatchedTime: row.totalWatchedTime || 0
     }
+  }
+
+  // --- Course Merging & Deduplication ---
+
+  public mergeDuplicateCourses(): MergeCoursesResult {
+    this.ensureConnected()
+
+    const allCourses = this.getAllCourses()
+    if (allCourses.length <= 1) {
+      return {
+        success: true,
+        mergedGroupsCount: 0,
+        removedCoursesCount: 0,
+        deduplicatedLessonsCount: 0,
+        details: []
+      }
+    }
+
+    const normalize = (str: string): string => {
+      return str
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+    }
+
+    // Group courses by normalized title
+    const groups = new Map<string, Course[]>()
+    for (const c of allCourses) {
+      const key = normalize(c.title) || c.title.toLowerCase().trim()
+      if (!groups.has(key)) {
+        groups.set(key, [])
+      }
+      groups.get(key)!.push(c)
+    }
+
+    let mergedGroupsCount = 0
+    let removedCoursesCount = 0
+    let deduplicatedLessonsCount = 0
+    const details: MergeCoursesResult['details'] = []
+
+    const mergeTransaction = this.db!.transaction(() => {
+      for (const [, courseList] of groups.entries()) {
+        if (courseList.length <= 1) continue
+
+        // Pick canonical course (prefer one with highest lessonCount, or oldest created_at)
+        courseList.sort((a, b) => b.lessonCount - a.lessonCount || a.createdAt - b.createdAt)
+        const canonical = courseList[0]
+        const secondaries = courseList.slice(1)
+
+        let groupRemovedLessons = 0
+
+        // Get canonical hierarchy
+        const canonicalHierarchy = this.getCourseById(canonical.id)
+        if (!canonicalHierarchy) continue
+
+        for (const secondary of secondaries) {
+          const secondaryHierarchy = this.getCourseById(secondary.id)
+          if (!secondaryHierarchy) continue
+
+          for (const secMod of secondaryHierarchy.modules) {
+            const secModNorm = normalize(secMod.title)
+
+            // Check if canonical course has a module with matching normalized title
+            const matchingCanMod = canonicalHierarchy.modules.find(
+              (cm) => normalize(cm.title) === secModNorm
+            )
+
+            if (matchingCanMod) {
+              // Merge lessons into matching canonical module
+              for (const secLesson of secMod.lessons) {
+                const secLessonNorm = normalize(secLesson.title)
+                const secFileBase = path.basename(secLesson.fileName, path.extname(secLesson.fileName)).toLowerCase()
+
+                const matchingCanLesson = matchingCanMod.lessons.find((cl) => {
+                  const clNorm = normalize(cl.title)
+                  const clFileBase = path.basename(cl.fileName, path.extname(cl.fileName)).toLowerCase()
+                  return clNorm === secLessonNorm || clFileBase === secFileBase || cl.filePath === secLesson.filePath
+                })
+
+                if (matchingCanLesson) {
+                  // Duplicate lesson: migrate progress / notes / history, then delete secondary lesson
+                  this.db!.prepare(`
+                    UPDATE OR IGNORE lesson_progress SET lesson_id = ?, course_id = ? WHERE lesson_id = ?
+                  `).run(matchingCanLesson.id, canonical.id, secLesson.id)
+
+                  this.db!.prepare(`
+                    UPDATE OR IGNORE lesson_notes SET lesson_id = ?, course_id = ? WHERE lesson_id = ?
+                  `).run(matchingCanLesson.id, canonical.id, secLesson.id)
+
+                  this.db!.prepare(`
+                    UPDATE OR IGNORE watch_history SET lesson_id = ?, course_id = ? WHERE lesson_id = ?
+                  `).run(matchingCanLesson.id, canonical.id, secLesson.id)
+
+                  this.db!.prepare(`DELETE FROM lessons WHERE id = ?`).run(secLesson.id)
+                  groupRemovedLessons++
+                  deduplicatedLessonsCount++
+                } else {
+                  // New lesson: reassign to canonical module & canonical course
+                  this.db!.prepare(`
+                    UPDATE lessons SET course_id = ?, module_id = ? WHERE id = ?
+                  `).run(canonical.id, matchingCanMod.id, secLesson.id)
+
+                  this.db!.prepare(`
+                    UPDATE lesson_progress SET course_id = ? WHERE lesson_id = ?
+                  `).run(canonical.id, secLesson.id)
+
+                  this.db!.prepare(`
+                    UPDATE lesson_notes SET course_id = ? WHERE lesson_id = ?
+                  `).run(canonical.id, secLesson.id)
+
+                  this.db!.prepare(`
+                    UPDATE watch_history SET course_id = ? WHERE lesson_id = ?
+                  `).run(canonical.id, secLesson.id)
+
+                  matchingCanMod.lessons.push({
+                    ...secLesson,
+                    moduleId: matchingCanMod.id,
+                    courseId: canonical.id
+                  })
+                }
+              }
+
+              // Delete empty secondary module
+              this.db!.prepare(`DELETE FROM modules WHERE id = ?`).run(secMod.id)
+            } else {
+              // Module does not exist in canonical course: transfer entire module
+              this.db!.prepare(`
+                UPDATE modules SET course_id = ? WHERE id = ?
+              `).run(canonical.id, secMod.id)
+
+              this.db!.prepare(`
+                UPDATE lessons SET course_id = ? WHERE module_id = ?
+              `).run(canonical.id, secMod.id)
+
+              this.db!.prepare(`
+                UPDATE lesson_progress SET course_id = ? WHERE course_id = ?
+              `).run(canonical.id, secondary.id)
+
+              this.db!.prepare(`
+                UPDATE lesson_notes SET course_id = ? WHERE course_id = ?
+              `).run(canonical.id, secondary.id)
+
+              this.db!.prepare(`
+                UPDATE watch_history SET course_id = ? WHERE course_id = ?
+              `).run(canonical.id, secondary.id)
+
+              canonicalHierarchy.modules.push({
+                ...secMod,
+                courseId: canonical.id
+              })
+            }
+          }
+
+          // Delete secondary course
+          this.db!.prepare(`DELETE FROM courses WHERE id = ?`).run(secondary.id)
+          removedCoursesCount++
+        }
+
+        // Re-index all modules and lessons of canonical course naturally
+        const updatedHierarchy = this.getCourseById(canonical.id)
+        if (updatedHierarchy) {
+          const sortedModules = [...updatedHierarchy.modules].sort((a, b) =>
+            naturalCompare(a.title, b.title)
+          )
+
+          let totalCourseLessons = 0
+          let totalCourseDuration = 0
+
+          for (let mIdx = 0; mIdx < sortedModules.length; mIdx++) {
+            const mod = sortedModules[mIdx]
+            const sortedLessons = [...mod.lessons].sort((a, b) =>
+              naturalCompare(a.title, b.title) || naturalCompare(a.fileName, b.fileName)
+            )
+
+            let modDuration = 0
+            for (let lIdx = 0; lIdx < sortedLessons.length; lIdx++) {
+              const les = sortedLessons[lIdx]
+              const lesDuration = les.duration || 0
+              modDuration += lesDuration
+              this.db!.prepare(`
+                UPDATE lessons SET order_index = ? WHERE id = ?
+              `).run(lIdx + 1, les.id)
+            }
+
+            totalCourseLessons += sortedLessons.length
+            totalCourseDuration += modDuration
+
+            this.db!.prepare(`
+              UPDATE modules SET order_index = ?, lesson_count = ?, duration = ? WHERE id = ?
+            `).run(mIdx + 1, sortedLessons.length, modDuration, mod.id)
+          }
+
+          this.db!.prepare(`
+            UPDATE courses SET module_count = ?, lesson_count = ?, total_duration = ?, updated_at = ? WHERE id = ?
+          `).run(
+            sortedModules.length,
+            totalCourseLessons,
+            totalCourseDuration,
+            Date.now(),
+            canonical.id
+          )
+
+          mergedGroupsCount++
+          details.push({
+            title: canonical.title,
+            canonicalCourseId: canonical.id,
+            mergedCoursesCount: courseList.length,
+            totalModules: sortedModules.length,
+            totalLessons: totalCourseLessons,
+            removedDuplicateLessons: groupRemovedLessons
+          })
+        }
+      }
+    })
+
+    mergeTransaction()
+
+    return {
+      success: true,
+      mergedGroupsCount,
+      removedCoursesCount,
+      deduplicatedLessonsCount,
+      details
+    }
+  }
+
+  // --- Import History ---
+
+  public recordImportHistory(entry: Omit<ImportHistoryEntry, 'id' | 'createdAt'>): ImportHistoryEntry {
+    this.ensureConnected()
+    const id = crypto.randomUUID()
+    const createdAt = Date.now()
+
+    const stmt = this.db!.prepare(`
+      INSERT INTO import_history (
+        id, file_name, file_path, file_size, status,
+        course_id, course_title, extracted_files, created_at, error_details
+      ) VALUES (
+        @id, @fileName, @filePath, @fileSize, @status,
+        @courseId, @courseTitle, @extractedFiles, @createdAt, @errorDetails
+      )
+    `)
+
+    stmt.run({
+      id,
+      fileName: entry.fileName,
+      filePath: entry.filePath,
+      fileSize: entry.fileSize,
+      status: entry.status || 'completed',
+      courseId: entry.courseId || null,
+      courseTitle: entry.courseTitle || null,
+      extractedFiles: entry.extractedFiles || 0,
+      createdAt,
+      errorDetails: entry.errorDetails || null
+    })
+
+    return {
+      id,
+      fileName: entry.fileName,
+      filePath: entry.filePath,
+      fileSize: entry.fileSize,
+      status: entry.status,
+      courseId: entry.courseId,
+      courseTitle: entry.courseTitle,
+      extractedFiles: entry.extractedFiles,
+      createdAt,
+      errorDetails: entry.errorDetails
+    }
+  }
+
+  public getImportHistory(limit = 100): ImportHistoryEntry[] {
+    this.ensureConnected()
+    const stmt = this.db!.prepare(`
+      SELECT
+        id,
+        file_name as fileName,
+        file_path as filePath,
+        file_size as fileSize,
+        status,
+        course_id as courseId,
+        course_title as courseTitle,
+        extracted_files as extractedFiles,
+        created_at as createdAt,
+        error_details as errorDetails
+      FROM import_history
+      ORDER BY created_at DESC
+      LIMIT ?
+    `)
+    return stmt.all(limit) as ImportHistoryEntry[]
+  }
+
+  public clearImportHistory(): boolean {
+    this.ensureConnected()
+    this.db!.prepare(`DELETE FROM import_history`).run()
+    return true
   }
 
   private ensureConnected(): void {

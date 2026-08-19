@@ -128,3 +128,31 @@ export interface ProposedCourseStructure {
   totalLessons: number
   totalFilesScanned: number
 }
+
+export interface MergeCoursesResult {
+  success: boolean
+  mergedGroupsCount: number
+  removedCoursesCount: number
+  deduplicatedLessonsCount: number
+  details: Array<{
+    title: string
+    canonicalCourseId: string
+    mergedCoursesCount: number
+    totalModules: number
+    totalLessons: number
+    removedDuplicateLessons: number
+  }>
+}
+
+export interface ImportHistoryEntry {
+  id: string
+  fileName: string
+  filePath: string
+  fileSize: number
+  status: 'completed' | 'failed' | 'in_progress'
+  courseId?: string
+  courseTitle?: string
+  extractedFiles: number
+  createdAt: number
+  errorDetails?: string
+}

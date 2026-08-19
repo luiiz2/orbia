@@ -50,3 +50,6 @@ export function formatFileSize(bytes: number): string {
 
   return `${formatted} ${units[i]}`
 }
+
+export const formatBytes = formatFileSize
+

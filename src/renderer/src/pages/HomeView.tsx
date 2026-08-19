@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   BookOpen,
@@ -8,14 +8,14 @@ import {
   Layers,
   Clock,
   CheckCircle2,
-  Star
+  Star,
+  Sparkles
 } from 'lucide-react'
 import { useLibraryStore } from '../stores/useLibraryStore'
 import { useVaultStore } from '../stores/useVaultStore'
 import { useNavigationStore } from '../stores/useNavigationStore'
 import { Button, Skeleton } from '../components/ui'
-import { CourseCard } from '../components/library/CourseCard'
-import { ContinueWatchingRail } from '../components/library/ContinueWatchingRail'
+import { CourseCard, ContinueWatchingRail, MergeCoursesModal } from '../components/library'
 import { matchesAnyField } from '../lib/search-utils'
 import appLogo from '../assets/icon.png'
 
@@ -33,6 +33,7 @@ export function HomeView(): React.JSX.Element {
   } = useLibraryStore()
   const { currentVault } = useVaultStore()
   const { setImportModalOpen, setVaultModalOpen } = useNavigationStore()
+  const [isMergeModalOpen, setIsMergeModalOpen] = useState<boolean>(false)
 
   useEffect(() => {
     if (currentVault) {
@@ -197,15 +198,28 @@ export function HomeView(): React.JSX.Element {
             </p>
           </div>
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setImportModalOpen(true)}
-            className="gap-1.5 text-xs rounded-xl border-border/80 bg-card hover:border-primary/40 hover:bg-secondary/70 shadow-sm self-start sm:self-auto cursor-pointer focus-visible:ring-2 focus-visible:ring-primary min-h-[36px]"
-          >
-            <FolderPlus className="h-4 w-4 text-primary" />
-            <span>{t('nav.importCourse')}</span>
-          </Button>
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsMergeModalOpen(true)}
+              className="gap-1.5 text-xs rounded-xl border-border/80 bg-card hover:border-primary/40 hover:bg-secondary/70 shadow-sm cursor-pointer focus-visible:ring-2 focus-visible:ring-primary min-h-[36px]"
+              title="Organizar e unir cursos com partes separadas"
+            >
+              <Sparkles className="h-4 w-4 text-amber-400" />
+              <span>{t('home.organizeAndMerge', 'Organizar & Unir')}</span>
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setImportModalOpen(true)}
+              className="gap-1.5 text-xs rounded-xl border-border/80 bg-card hover:border-primary/40 hover:bg-secondary/70 shadow-sm cursor-pointer focus-visible:ring-2 focus-visible:ring-primary min-h-[36px]"
+            >
+              <FolderPlus className="h-4 w-4 text-primary" />
+              <span>{t('nav.importCourse')}</span>
+            </Button>
+          </div>
         </div>
 
         {/* Filter Pills */}
@@ -360,6 +374,12 @@ export function HomeView(): React.JSX.Element {
           ))}
         </div>
       )}
+
+      {/* Merge & Organize Duplicate Courses Modal */}
+      <MergeCoursesModal
+        open={isMergeModalOpen}
+        onOpenChange={setIsMergeModalOpen}
+      />
     </div>
   )
 }

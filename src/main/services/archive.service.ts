@@ -6,6 +6,7 @@ import { logger } from './logger.service'
 export interface ExtractOptions {
   zipPath: string
   destinationDir: string
+  deleteSourceArchive?: boolean
   onProgress?: (percent: number, currentFile: string) => void
 }
 
@@ -29,7 +30,7 @@ export class ArchiveService {
    * Safely extract a zip archive preventing directory traversal (Zip Slip vulnerability)
    */
   public async extractZip(options: ExtractOptions): Promise<ExtractResult> {
-    const { zipPath, destinationDir, onProgress } = options
+    const { zipPath, destinationDir, deleteSourceArchive = false, onProgress } = options
 
     if (!fs.existsSync(zipPath)) {
       throw new Error(`Zip archive not found at path: ${zipPath}`)
@@ -95,6 +96,16 @@ export class ArchiveService {
     logger.info(
       `[ArchiveService] Extraction completed. Extracted ${extractedCount} files from ${totalEntries} entries.`
     )
+
+    // Optionally remove source archive to save disk space
+    if (deleteSourceArchive) {
+      try {
+        fs.unlinkSync(zipPath)
+        logger.info(`[ArchiveService] Source archive deleted: ${zipPath}`)
+      } catch (err) {
+        logger.warn(`[ArchiveService] Could not delete source archive ${zipPath}:`, err)
+      }
+    }
 
     // Inspect if the extracted directory has a single top-level root folder
     const finalRoot = this.detectInnerCourseRoot(extractTargetDir)

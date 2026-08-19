@@ -154,11 +154,19 @@ export function VideoPlayer({ className, onBack }: VideoPlayerProps): React.JSX.
 
       {/* Error Fallback Overlay */}
       {isVideoError && (
-        <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-black/90 p-6 text-center text-white">
-          <AlertCircle className="mb-3 h-12 w-12 text-destructive" />
-          <h3 className="mb-1 text-base font-semibold text-white">Playback Error</h3>
-          <p className="max-w-md text-xs text-zinc-400 mb-4">{errorMessage}</p>
-          <div className="flex gap-2">
+        <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-black/95 p-6 text-center text-white space-y-3">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-destructive/15 text-destructive border border-destructive/30 shadow-lg">
+            <AlertCircle className="h-7 w-7" />
+          </div>
+          <div className="space-y-1 max-w-md">
+            <h3 className="text-base font-bold text-white">
+              {t('player.errorTitle', 'Erro de Reprodução')}
+            </h3>
+            <p className="text-xs text-zinc-400 leading-relaxed">
+              {errorMessage || t('player.errorDesc', 'Não foi possível decodificar este vídeo ou o arquivo contém trechos corrompidos.')}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
             <Button
               variant="outline"
               size="sm"
@@ -169,13 +177,40 @@ export function VideoPlayer({ className, onBack }: VideoPlayerProps): React.JSX.
                   videoRef.current.play().catch(console.warn)
                 }
               }}
-              className="text-xs"
+              className="text-xs rounded-xl border-zinc-700 bg-zinc-900 text-white hover:bg-zinc-800 cursor-pointer"
             >
-              Retry
+              {t('player.retry', 'Tentar Novamente')}
             </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setIsVideoError(false)
+                if (videoRef.current) {
+                  const targetTime = (videoRef.current.currentTime || 0) + 1.0
+                  videoRef.current.currentTime = targetTime
+                  videoRef.current.load()
+                  videoRef.current.currentTime = targetTime
+                  videoRef.current.play().catch(console.warn)
+                }
+              }}
+              className="text-xs rounded-xl border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 cursor-pointer"
+            >
+              {t('player.skipGlitch', 'Pular 1s (Avançar)')}
+            </Button>
+
             {hasNextLesson && (
-              <Button variant="default" size="sm" onClick={() => nextLesson()} className="text-xs">
-                Skip to Next Lesson
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => {
+                  setIsVideoError(false)
+                  nextLesson()
+                }}
+                className="text-xs rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 text-white font-bold cursor-pointer"
+              >
+                {t('player.skipNext', 'Pular para Próxima Aula')}
               </Button>
             )}
           </div>

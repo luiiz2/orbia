@@ -15,6 +15,7 @@ export interface LibraryState {
   progressSummaries: Record<string, CourseProgressSummary>
   searchQuery: string
   filterStatus: 'all' | 'in_progress' | 'completed' | 'favorites'
+  importHistory: import('@shared').ImportHistoryEntry[]
   isLoading: boolean
   error: string | null
 
@@ -28,6 +29,9 @@ export interface LibraryState {
   importBatch: (
     items: { proposal: ProposedCourseStructure; isExternal: boolean }[]
   ) => Promise<{ success: boolean; courses?: Course[]; error?: string }>
+  mergeDuplicateCourses: () => Promise<import('@shared').MergeCoursesResult>
+  fetchImportHistory: () => Promise<void>
+  clearImportHistory: () => Promise<void>
   updateCourseCover: (courseId: string, coverPath: string) => Promise<boolean>
   updateLessonCover: (lessonId: string, coverPath: string) => Promise<boolean>
   deleteCourse: (id: string, deleteFiles: boolean) => Promise<{ success: boolean; error?: string }>
@@ -46,6 +50,7 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
   progressSummaries: {},
   searchQuery: '',
   filterStatus: 'all',
+  importHistory: [],
   isLoading: false,
   error: null,
 
@@ -137,6 +142,48 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
       const errorMsg = err instanceof Error ? err.message : String(err)
       set({ error: errorMsg, isLoading: false })
       return { success: false, error: errorMsg }
+    }
+  },
+
+  mergeDuplicateCourses: async () => {
+    set({ isLoading: true, error: null })
+    try {
+      const res = await window.api.courses.mergeDuplicateCourses()
+      if (res.success) {
+        await get().fetchCourses()
+        set({ isLoading: false, error: null })
+      } else {
+        set({ isLoading: false, error: 'Falha ao unir cursos duplicados' })
+      }
+      return res
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : String(err)
+      set({ error: errorMsg, isLoading: false })
+      return {
+        success: false,
+        mergedGroupsCount: 0,
+        removedCoursesCount: 0,
+        deduplicatedLessonsCount: 0,
+        details: []
+      }
+    }
+  },
+
+  fetchImportHistory: async () => {
+    try {
+      const history = await window.api.courses.getImportHistory()
+      set({ importHistory: history || [] })
+    } catch (err) {
+      console.warn('Could not fetch import history:', err)
+    }
+  },
+
+  clearImportHistory: async () => {
+    try {
+      await window.api.courses.clearImportHistory()
+      set({ importHistory: [] })
+    } catch (err) {
+      console.warn('Could not clear import history:', err)
     }
   },
 

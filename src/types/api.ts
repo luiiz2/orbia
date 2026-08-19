@@ -33,10 +33,14 @@ export interface OrbiaApi {
     selectSource: () => Promise<SelectedCourseSource[] | null>
     selectZip: () => Promise<SelectedCourseSource[] | null>
     selectFolder: () => Promise<SelectedCourseSource[] | null>
-    extractZip: (zipPath: string) => Promise<{ success: boolean; extractedPath?: string; suggestedTitle?: string; error?: string }>
+    extractZip: (zipPath: string, deleteSourceArchive?: boolean) => Promise<{ success: boolean; extractedPath?: string; suggestedTitle?: string; error?: string }>
     scanFolder: (folderPath: string) => Promise<{ success: boolean; proposal?: ProposedCourseStructure; error?: string }>
     importCourse: (proposal: ProposedCourseStructure, isExternal: boolean) => Promise<{ success: boolean; course?: Course; error?: string }>
     importBatch: (items: { proposal: ProposedCourseStructure; isExternal: boolean }[]) => Promise<{ success: boolean; courses?: Course[]; error?: string }>
+    mergeDuplicateCourses: () => Promise<import('./course').MergeCoursesResult>
+    getImportHistory: () => Promise<import('./course').ImportHistoryEntry[]>
+    recordImportHistory: (entry: Omit<import('./course').ImportHistoryEntry, 'id' | 'createdAt'>) => Promise<import('./course').ImportHistoryEntry>
+    clearImportHistory: () => Promise<boolean>
     selectCoverImage: () => Promise<string | null>
     updateCourseCover: (courseId: string, coverPath: string) => Promise<{ success: boolean; error?: string }>
     updateLessonCover: (lessonId: string, coverPath: string) => Promise<{ success: boolean; error?: string }>

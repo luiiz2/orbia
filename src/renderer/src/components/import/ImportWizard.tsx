@@ -55,6 +55,7 @@ export function ImportWizard({ open, onOpenChange }: ImportWizardProps): React.J
   const [activeItemIndex, setActiveItemIndex] = useState(0)
   const [globalError, setGlobalError] = useState<string | null>(null)
   const [isDragging, setIsDragging] = useState(false)
+  const [deleteSourceZip, setDeleteSourceZip] = useState<boolean>(false)
 
   // Register extraction progress listener
   useEffect(() => {
@@ -116,7 +117,7 @@ export function ImportWizard({ open, onOpenChange }: ImportWizardProps): React.J
         setBatchItems([...updatedItems])
 
         try {
-          const extractRes = await window.api.courses.extractZip(item.sourcePath)
+          const extractRes = await window.api.courses.extractZip(item.sourcePath, deleteSourceZip)
           if (!extractRes.success || !extractRes.extractedPath) {
             throw new Error(extractRes.error || 'Falha ao extrair arquivo .zip.')
           }
@@ -364,6 +365,16 @@ export function ImportWizard({ open, onOpenChange }: ImportWizardProps): React.J
                   Selecionar Pastas de Cursos
                 </Button>
               </div>
+
+              <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer hover:text-foreground select-none pt-2">
+                <input
+                  type="checkbox"
+                  checked={deleteSourceZip}
+                  onChange={(e) => setDeleteSourceZip(e.target.checked)}
+                  className="rounded border-border bg-secondary text-primary focus:ring-primary h-4 w-4 cursor-pointer"
+                />
+                <span>Excluir arquivo(s) .zip original após importar (economizar espaço)</span>
+              </label>
             </div>
           )}
 

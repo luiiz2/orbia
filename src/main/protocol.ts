@@ -172,8 +172,15 @@ export function setupMediaProtocol(): void {
 
       const fileUrl = pathToFileURL(targetPath).toString()
 
+      // Forward request headers (specifically Range: bytes=...) for full byte-range streaming support
+      const fetchHeaders = new Headers()
+      request.headers.forEach((value, key) => {
+        fetchHeaders.set(key, value)
+      })
+
       // Chromium's internal net.fetch handles byte-range requests on file:// URLs
       return net.fetch(fileUrl, {
+        headers: fetchHeaders,
         bypassCustomProtocolHandlers: true
       })
     } catch (err) {

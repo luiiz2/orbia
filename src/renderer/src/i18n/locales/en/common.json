@@ -88,7 +88,22 @@
     "saveNote": "Save Note",
     "notesExported": "Notes exported (.md)",
     "autoPlayNext": "Autoplay next lesson",
-    "nextIn": "Next lesson starts in {{seconds}}s"
+    "nextIn": "Next lesson starts in {{seconds}}s",
+    "errorTitle": "Playback Error",
+    "errorDesc": "Unable to decode this video file or the file contains corrupt packets.",
+    "retry": "Retry",
+    "skipGlitch": "Skip 1s (Forward)",
+    "skipNext": "Skip to Next Lesson"
+  },
+  "merge": {
+    "title": "Organize & Merge Courses",
+    "subtitle": "Detect and unify separate parts of the same course into a single complete card.",
+    "action": "Merge and Organize Now",
+    "merging": "Merging Courses...",
+    "successTitle": "Library Successfully Organized!",
+    "cleanTitle": "Your library is already organized!",
+    "cleanDesc": "No duplicate course parts were detected at this time.",
+    "infoNotice": "Clicking 'Merge and Organize' will combine all modules and lessons from the parts above into the primary course and automatically deduplicate identical lessons."
   },
   "documents": {
     "title": "Document Viewer",
@@ -133,8 +148,10 @@
     "cancel": "Cancel"
   },
   "history": {
-    "title": "Watch History",
-    "empty": "No watch history yet. Start watching lessons to track your study sessions.",
+    "title": "History",
+    "watchHistory": "Watch History",
+    "importHistory": "Files & Imports",
+    "empty": "No history yet. Start watching lessons to track your study sessions.",
     "today": "Today",
     "yesterday": "Yesterday"
   },
@@ -160,6 +177,7 @@
     "cancel": "Cancel",
     "delete": "Delete",
     "edit": "Edit",
+    "close": "Close",
     "loading": "Loading...",
     "error": "Error",
     "success": "Success",

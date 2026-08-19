@@ -1,23 +1,30 @@
 import React, { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { History, Play, Clock, Calendar, BookOpen } from 'lucide-react'
+import { History, Play, Clock, Calendar, BookOpen, FileArchive, CheckCircle2, Trash2 } from 'lucide-react'
 import { useNavigationStore } from '../stores/useNavigationStore'
 import { usePlayerStore } from '../stores/usePlayerStore'
-import { formatTime } from '../lib/formatters'
+import { useLibraryStore } from '../stores/useLibraryStore'
+import { formatTime, formatBytes } from '../lib/formatters'
+import { Button } from '../components/ui'
 import type { WatchHistoryEntry } from '@shared'
 
 export function HistoryView(): React.JSX.Element {
   const { t } = useTranslation()
   const { navigateToPlayer } = useNavigationStore()
   const { loadHierarchy } = usePlayerStore()
+  const { importHistory, fetchImportHistory, clearImportHistory } = useLibraryStore()
 
+  const [activeTab, setActiveTab] = useState<'watch' | 'imports'>('watch')
   const [historyEntries, setHistoryEntries] = useState<WatchHistoryEntry[]>([])
   const [isLoading, setIsLoading] = useState<boolean>(true)
 
   useEffect(() => {
     const fetchHistory = async (): Promise<void> => {
       try {
-        const entries = await window.api.player.getWatchHistory(100)
+        const [entries] = await Promise.all([
+          window.api.player.getWatchHistory(100),
+          fetchImportHistory()
+        ])
         setHistoryEntries(entries || [])
       } catch (err) {
         console.error('Failed to load watch history:', err)
@@ -27,7 +34,7 @@ export function HistoryView(): React.JSX.Element {
     }
 
     fetchHistory().catch(console.warn)
-  }, [])
+  }, [fetchImportHistory])
 
   const handlePlayEntry = async (entry: WatchHistoryEntry): Promise<void> => {
     try {
@@ -74,17 +81,49 @@ export function HistoryView(): React.JSX.Element {
   return (
     <div className="container mx-auto max-w-4xl px-4 py-6 sm:px-6 space-y-6 animate-in fade-in duration-200">
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary border border-primary/20 shadow-sm">
-          <History className="h-5 w-5" />
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary border border-primary/20 shadow-sm">
+            <History className="h-5 w-5" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold tracking-tight text-foreground">
+              {t('history.title', 'Histórico')}
+            </h1>
+            <p className="text-xs text-muted-foreground">
+              {activeTab === 'watch'
+                ? `${historyEntries.length} aulas registradas`
+                : `${importHistory.length} arquivos importados`}
+            </p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-xl font-bold tracking-tight text-foreground">
-            {t('history.title')}
-          </h1>
-          <p className="text-xs text-muted-foreground">
-            {historyEntries.length} {historyEntries.length === 1 ? 'study session' : 'study sessions'} recorded
-          </p>
+
+        {/* Tab Switcher */}
+        <div className="flex items-center bg-secondary/60 p-1 rounded-xl border border-border/80 text-xs font-semibold">
+          <button
+            type="button"
+            onClick={() => setActiveTab('watch')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+              activeTab === 'watch'
+                ? 'bg-card text-foreground shadow-sm border border-border/50'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <Play className="h-3.5 w-3.5 text-primary fill-primary" />
+            <span>Aulas Assistidas</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('imports')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+              activeTab === 'imports'
+                ? 'bg-card text-foreground shadow-sm border border-border/50'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <FileArchive className="h-3.5 w-3.5 text-purple-400" />
+            <span>Arquivos & Importações</span>
+          </button>
         </div>
       </div>
 
@@ -94,7 +133,89 @@ export function HistoryView(): React.JSX.Element {
             <div key={n} className="h-16 rounded-2xl border border-border/40 bg-card/40 animate-pulse" />
           ))}
         </div>
+      ) : activeTab === 'imports' ? (
+        /* Import History Tab */
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+              Arquivos Enviados & Extraídos
+            </span>
+            {importHistory.length > 0 && (
+              <Button
+                variant="ghost"
+                size="xs"
+                onClick={() => clearImportHistory()}
+                className="text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 gap-1 rounded-lg"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                <span>Limpar Histórico de Arquivos</span>
+              </Button>
+            )}
+          </div>
+
+          {importHistory.length === 0 ? (
+            <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border p-12 text-center bg-card/30 space-y-3">
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-secondary/80 text-muted-foreground shadow-inner">
+                <FileArchive className="h-8 w-8 text-purple-400 opacity-60" />
+              </div>
+              <div className="space-y-1 max-w-md">
+                <h3 className="text-base font-bold text-foreground">Nenhum arquivo importado</h3>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Quando você importar arquivos .zip ou pastas de cursos, o histórico de envio e extração aparecerá aqui.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-border/80 bg-card divide-y divide-border/40 overflow-hidden shadow-sm">
+              {importHistory.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex items-center justify-between p-3.5 sm:p-4 hover:bg-secondary/40 transition-colors"
+                >
+                  <div className="flex items-center gap-3.5 overflow-hidden">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20 shadow-sm">
+                      <FileArchive className="h-4 w-4" />
+                    </div>
+                    <div className="flex flex-col overflow-hidden">
+                      <span className="text-sm font-semibold text-foreground truncate">
+                        {item.fileName}
+                      </span>
+                      <span className="text-xs text-muted-foreground truncate flex items-center gap-2 mt-0.5">
+                        {item.courseTitle && (
+                          <span className="flex items-center gap-1 text-primary">
+                            <BookOpen className="h-3 w-3" />
+                            <span>{item.courseTitle}</span>
+                          </span>
+                        )}
+                        {item.fileSize > 0 && <span>{formatBytes(item.fileSize)}</span>}
+                        {item.extractedFiles > 0 && (
+                          <span>• {item.extractedFiles} arquivos extraídos</span>
+                        )}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 shrink-0 text-xs text-muted-foreground">
+                    <span className="text-[11px] font-mono">
+                      {new Date(item.createdAt).toLocaleDateString(undefined, {
+                        day: '2-digit',
+                        month: 'short',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </span>
+                    <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                      <CheckCircle2 className="h-3 w-3" />
+                      <span>Concluído</span>
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       ) : historyEntries.length === 0 ? (
+        /* Watch History Empty */
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border p-12 text-center bg-card/30 space-y-3">
           <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-secondary/80 text-muted-foreground shadow-inner">
             <History className="h-8 w-8 text-primary opacity-60" />
@@ -105,6 +226,7 @@ export function HistoryView(): React.JSX.Element {
           </div>
         </div>
       ) : (
+        /* Watch History Grouped by Date */
         <div className="space-y-6">
           {Object.entries(groupedEntries).map(([groupTitle, entries]) => (
             <div key={groupTitle} className="space-y-2">

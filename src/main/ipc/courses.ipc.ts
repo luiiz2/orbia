@@ -173,7 +173,7 @@ export function registerCoursesIpc(): void {
   })
 
   // Extract a .zip course archive into the Vault's Inbox
-  ipcMain.handle('courses:extract-zip', async (event, payload: { zipPath: string }) => {
+  ipcMain.handle('courses:extract-zip', async (event, payload: { zipPath: string; deleteSourceArchive?: boolean }) => {
     try {
       if (!payload || typeof payload.zipPath !== 'string' || !payload.zipPath.trim()) {
         return { success: false, error: 'Zip archive path is required' }
@@ -196,10 +196,31 @@ export function registerCoursesIpc(): void {
       const result = await archiveService.extractZip({
         zipPath: trimmedZipPath,
         destinationDir: inboxDir,
+        deleteSourceArchive: payload.deleteSourceArchive,
         onProgress: (percent, currentFile) => {
           event.sender.send('courses:extract-progress', { percent, currentFile, zipPath: trimmedZipPath })
         }
       })
+
+      // Record in import history
+      try {
+        let size = 0
+        try {
+          size = fs.statSync(trimmedZipPath).size
+        } catch {
+          size = 0
+        }
+        databaseService.recordImportHistory({
+          fileName: path.basename(trimmedZipPath),
+          filePath: trimmedZipPath,
+          fileSize: size,
+          status: 'completed',
+          courseTitle: result.suggestedCourseName,
+          extractedFiles: result.totalExtractedFiles
+        })
+      } catch (err) {
+        logger.warn('[IPC] Could not record import history:', err)
+      }
 
       return {
         success: true,
@@ -212,6 +233,54 @@ export function registerCoursesIpc(): void {
         success: false,
         error: err instanceof Error ? err.message : String(err)
       }
+    }
+  })
+
+  // Merge Duplicate Courses with same or equivalent titles
+  ipcMain.handle('courses:merge-duplicates', async () => {
+    try {
+      const result = databaseService.mergeDuplicateCourses()
+      return result
+    } catch (err: unknown) {
+      logger.error('[IPC] courses:merge-duplicates error:', err)
+      return {
+        success: false,
+        mergedGroupsCount: 0,
+        removedCoursesCount: 0,
+        deduplicatedLessonsCount: 0,
+        details: [],
+        error: err instanceof Error ? err.message : String(err)
+      }
+    }
+  })
+
+  // Get Import History
+  ipcMain.handle('courses:get-import-history', async () => {
+    try {
+      return databaseService.getImportHistory()
+    } catch (err) {
+      logger.error('[IPC] courses:get-import-history error:', err)
+      return []
+    }
+  })
+
+  // Record Import History Entry
+  ipcMain.handle('courses:record-import-history', async (_event, payload: any) => {
+    try {
+      return databaseService.recordImportHistory(payload)
+    } catch (err) {
+      logger.error('[IPC] courses:record-import-history error:', err)
+      throw err
+    }
+  })
+
+  // Clear Import History
+  ipcMain.handle('courses:clear-import-history', async () => {
+    try {
+      return databaseService.clearImportHistory()
+    } catch (err) {
+      logger.error('[IPC] courses:clear-import-history error:', err)
+      return false
     }
   })
 

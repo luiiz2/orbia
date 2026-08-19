@@ -88,7 +88,22 @@
     "saveNote": "Salvar Nota",
     "notesExported": "Anotações exportadas (.md)",
     "autoPlayNext": "Avançar para a próxima aula automaticamente",
-    "nextIn": "Próxima aula inicia em {{seconds}}s"
+    "nextIn": "Próxima aula inicia em {{seconds}}s",
+    "errorTitle": "Erro de Reprodução",
+    "errorDesc": "Não foi possível decodificar este vídeo ou o arquivo contém trechos corrompidos.",
+    "retry": "Tentar Novamente",
+    "skipGlitch": "Pular 1s (Avançar)",
+    "skipNext": "Pular para Próxima Aula"
+  },
+  "merge": {
+    "title": "Organizar & Unir Cursos",
+    "subtitle": "Detecte e una partes separadas do mesmo curso em um único card completo.",
+    "action": "Unir e Organizar Agora",
+    "merging": "Unindo Cursos...",
+    "successTitle": "Biblioteca Organizada com Sucesso!",
+    "cleanTitle": "Sua biblioteca já está organizada!",
+    "cleanDesc": "Nenhum curso com nome duplicado foi detectado no momento.",
+    "infoNotice": "Ao clicar em 'Unir e Organizar', todos os módulos e aulas das partes acima serão reunidos no curso principal e aulas idênticas serão deduplicadas automaticamente."
   },
   "documents": {
     "title": "Visualizador de Documentos",
@@ -133,7 +148,9 @@
     "cancel": "Cancelar"
   },
   "history": {
-    "title": "Histórico de Aulas",
+    "title": "Histórico",
+    "watchHistory": "Aulas Assistidas",
+    "importHistory": "Arquivos & Importações",
     "empty": "Nenhum histórico ainda. Assista às aulas para registrar suas sessões de estudo.",
     "today": "Hoje",
     "yesterday": "Ontem"
@@ -160,6 +177,7 @@
     "cancel": "Cancelar",
     "delete": "Excluir",
     "edit": "Editar",
+    "close": "Fechar",
     "loading": "Carregando...",
     "error": "Erro",
     "success": "Sucesso",
