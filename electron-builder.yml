@@ -16,7 +16,7 @@ asarUnpack:
 win:
   executableName: orbia
   icon: build/icon.ico
-  signAndEditExecutable: false
+  signExecutable: false
   forceCodeSigning: false
 nsis:
   artifactName: ${name}-${version}-setup.${ext}

@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow } from 'electron'
+import { app, shell, BrowserWindow, nativeImage } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
@@ -44,6 +44,21 @@ if (!gotTheLock) {
 
   function createWindow(): BrowserWindow {
     logger.info('[Main] Creating BrowserWindow...')
+    let windowIcon: any = icon
+    try {
+      const icoPath = join(__dirname, '../../resources/icon.ico')
+      const pngPath = join(__dirname, '../../resources/icon.png')
+      const nImg = nativeImage.createFromPath(icoPath)
+      if (!nImg.isEmpty()) {
+        windowIcon = nImg
+      } else {
+        const pngImg = nativeImage.createFromPath(pngPath)
+        if (!pngImg.isEmpty()) windowIcon = pngImg
+      }
+    } catch {
+      windowIcon = icon
+    }
+
     const win = new BrowserWindow({
       width: 1280,
       height: 850,
@@ -54,7 +69,7 @@ if (!gotTheLock) {
       autoHideMenuBar: true,
       title: 'Orbia',
       backgroundColor: '#080b11',
-      icon,
+      icon: windowIcon,
       webPreferences: {
         preload: join(__dirname, '../preload/index.js'),
         sandbox: false,
