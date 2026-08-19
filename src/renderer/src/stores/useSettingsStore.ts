@@ -27,17 +27,31 @@ function applyTheme(theme: 'dark' | 'light' | 'system'): void {
   if (typeof document === 'undefined') return
 
   const root = document.documentElement
+  if (!root) return
+
   const isLight =
     theme === 'system'
-      ? typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: light)').matches
+      ? typeof window !== 'undefined' &&
+        typeof window.matchMedia === 'function' &&
+        window.matchMedia('(prefers-color-scheme: light)').matches
       : theme === 'light'
 
-  if (isLight) {
-    root.classList.add('light')
-    root.classList.remove('dark')
-  } else {
-    root.classList.add('dark')
-    root.classList.remove('light')
+  if (root.classList) {
+    if (isLight) {
+      root.classList.remove('dark')
+      root.classList.add('light')
+    } else {
+      root.classList.remove('light')
+      root.classList.add('dark')
+    }
+  }
+
+  if (typeof root.setAttribute === 'function') {
+    root.setAttribute('data-theme', isLight ? 'light' : 'dark')
+  }
+
+  if (root.style) {
+    root.style.colorScheme = isLight ? 'light' : 'dark'
   }
 
   try {

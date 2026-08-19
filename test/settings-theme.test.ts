@@ -12,6 +12,8 @@ describe('Settings & Theme Engine', () => {
     const mockDocument = {
       documentElement: {
         className: '',
+        style: { colorScheme: '' },
+        setAttribute: vi.fn(),
         classList: {
           add: (cls: string) => classListSet.add(cls),
           remove: (cls: string) => classListSet.delete(cls),

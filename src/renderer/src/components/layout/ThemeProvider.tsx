@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect } from 'react'
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react'
 import { useSettingsStore } from '../../stores/useSettingsStore'
 
 type Theme = 'dark' | 'light' | 'system'
@@ -11,47 +11,67 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
 
+export function applyThemeToDOM(theme: Theme): 'dark' | 'light' {
+  if (typeof document === 'undefined') return 'dark'
+
+  const root = document.documentElement
+  const isLight =
+    theme === 'system'
+      ? typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: light)').matches
+      : theme === 'light'
+
+  const resolved = isLight ? 'light' : 'dark'
+
+  if (isLight) {
+    root.classList.remove('dark')
+    root.classList.add('light')
+    root.setAttribute('data-theme', 'light')
+    root.style.colorScheme = 'light'
+  } else {
+    root.classList.remove('light')
+    root.classList.add('dark')
+    root.setAttribute('data-theme', 'dark')
+    root.style.colorScheme = 'dark'
+  }
+
+  try {
+    localStorage.setItem('orbia_theme', theme)
+  } catch {}
+
+  return resolved
+}
+
 export function ThemeProvider({ children }: { children: React.ReactNode }): React.JSX.Element {
   const { settings, setTheme: storeSetTheme, init } = useSettingsStore()
-  const currentTheme = settings.theme || 'dark'
+  const currentTheme: Theme = (settings?.theme as Theme) || 'dark'
 
-  const [resolvedTheme, setResolvedTheme] = React.useState<'dark' | 'light'>(() => {
-    if (typeof window === 'undefined') return 'dark'
-    if (currentTheme === 'system') {
-      return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'
-    }
-    return currentTheme
+  const [resolvedTheme, setResolvedTheme] = useState<'dark' | 'light'>(() => {
+    return applyThemeToDOM(currentTheme)
   })
+
+  const handleSetTheme = useCallback(
+    async (newTheme: Theme) => {
+      const resolved = applyThemeToDOM(newTheme)
+      setResolvedTheme(resolved)
+      await storeSetTheme(newTheme)
+    },
+    [storeSetTheme]
+  )
 
   useEffect(() => {
     init().catch((err) => console.warn('Failed to init settings store in ThemeProvider:', err))
   }, [init])
 
   useEffect(() => {
-    const root = document.documentElement
-
-    const updateClass = (): void => {
-      const isLight =
-        currentTheme === 'system'
-          ? window.matchMedia('(prefers-color-scheme: light)').matches
-          : currentTheme === 'light'
-
-      setResolvedTheme(isLight ? 'light' : 'dark')
-
-      if (isLight) {
-        root.classList.add('light')
-        root.classList.remove('dark')
-      } else {
-        root.classList.add('dark')
-        root.classList.remove('light')
-      }
-    }
-
-    updateClass()
+    const resolved = applyThemeToDOM(currentTheme)
+    setResolvedTheme(resolved)
 
     if (currentTheme === 'system') {
       const mediaQuery = window.matchMedia('(prefers-color-scheme: light)')
-      const handleChange = (): void => updateClass()
+      const handleChange = (): void => {
+        const newResolved = applyThemeToDOM('system')
+        setResolvedTheme(newResolved)
+      }
       mediaQuery.addEventListener('change', handleChange)
       return () => mediaQuery.removeEventListener('change', handleChange)
     }
@@ -60,7 +80,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }): Reac
   }, [currentTheme])
 
   return (
-    <ThemeContext.Provider value={{ theme: currentTheme, setTheme: storeSetTheme, resolvedTheme }}>
+    <ThemeContext.Provider value={{ theme: currentTheme, setTheme: handleSetTheme, resolvedTheme }}>
       {children}
     </ThemeContext.Provider>
   )

@@ -1,26 +1,25 @@
 @import "tailwindcss";
 
-@theme {
-  --color-background: hsl(var(--background));
-  --color-foreground: hsl(var(--foreground));
-  --color-card: hsl(var(--card));
-  --color-card-foreground: hsl(var(--card-foreground));
-  --color-popover: hsl(var(--popover));
-  --color-popover-foreground: hsl(var(--popover-foreground));
-  --color-primary: hsl(var(--primary));
-  --color-primary-foreground: hsl(var(--primary-foreground));
-  --color-secondary: hsl(var(--secondary));
-  --color-secondary-foreground: hsl(var(--secondary-foreground));
-  --color-muted: hsl(var(--muted));
-  --color-muted-foreground: hsl(var(--muted-foreground));
-  --color-accent: hsl(var(--accent));
-  --color-accent-foreground: hsl(var(--accent-foreground));
-  --color-destructive: hsl(var(--destructive));
-  --color-destructive-foreground: hsl(var(--destructive-foreground));
-  --color-border: hsl(var(--border));
-  --color-input: hsl(var(--input));
-
-  --color-ring: hsl(var(--ring));
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
 
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -28,86 +27,117 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
-@layer base {
-  :root,
-  .dark {
-    /* Dark Theme Default — Orbia Cosmic Sunset Palette */
-    --background: 225 35% 5%; /* #080b11 */
-    --foreground: 213 31% 96%; /* #f1f5f9 */
+:root {
+  /* Dark Theme Default — Orbia Cosmic Sunset Palette */
+  --background: #080b11;
+  --foreground: #f1f5f9;
 
-    --muted: 223 30% 12%; /* #131926 */
-    --muted-foreground: 215 20% 65%; /* #94a3b8 */
+  --muted: #131926;
+  --muted-foreground: #94a3b8;
 
-    --popover: 224 35% 7%; /* #0c101a */
-    --popover-foreground: 213 31% 96%;
+  --popover: #0c101a;
+  --popover-foreground: #f1f5f9;
 
-    --card: 224 33% 8%; /* #0e1320 */
-    --card-foreground: 213 31% 96%;
+  --card: #0e1320;
+  --card-foreground: #f1f5f9;
 
-    --border: 222 28% 18%; /* #1e2638 */
-    --input: 222 28% 18%;
+  --border: #1e2638;
+  --input: #1e2638;
 
-    /* Brand Primary Accent: Vibrant Sunset Orange */
-    --primary: 24 100% 50%; /* #ff6b00 */
-    --primary-foreground: 0 0% 100%;
+  /* Brand Primary: Vibrant Sunset Orange */
+  --primary: #ff6b00;
+  --primary-foreground: #ffffff;
 
-    /* Brand Secondary: Cosmic Indigo / Purple */
-    --secondary: 224 30% 13%; /* #151b2b */
-    --secondary-foreground: 213 31% 96%;
+  /* Brand Secondary: Cosmic Indigo */
+  --secondary: #151b2b;
+  --secondary-foreground: #f1f5f9;
 
-    --accent: 270 75% 55%; /* #9333ea */
-    --accent-foreground: 0 0% 100%;
+  --accent: #9333ea;
+  --accent-foreground: #ffffff;
 
-    --destructive: 0 75% 55%;
-    --destructive-foreground: 0 0% 100%;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
 
-    --ring: 24 100% 50%;
-    --radius: 0.625rem;
-  }
+  --ring: #ff6b00;
+  --radius: 0.625rem;
+}
 
-  .light {
-    --background: 30 25% 98%;
-    --foreground: 225 35% 10%;
+html.dark,
+.dark {
+  --background: #080b11;
+  --foreground: #f1f5f9;
 
-    --muted: 30 20% 92%;
-    --muted-foreground: 220 15% 45%;
+  --muted: #131926;
+  --muted-foreground: #94a3b8;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 225 35% 10%;
+  --popover: #0c101a;
+  --popover-foreground: #f1f5f9;
 
-    --card: 0 0% 100%;
-    --card-foreground: 225 35% 10%;
+  --card: #0e1320;
+  --card-foreground: #f1f5f9;
 
-    --border: 30 15% 88%;
-    --input: 30 15% 88%;
+  --border: #1e2638;
+  --input: #1e2638;
 
-    --primary: 24 100% 48%;
-    --primary-foreground: 0 0% 100%;
+  --primary: #ff6b00;
+  --primary-foreground: #ffffff;
 
-    --secondary: 30 20% 94%;
-    --secondary-foreground: 225 35% 15%;
+  --secondary: #151b2b;
+  --secondary-foreground: #f1f5f9;
 
-    --accent: 270 75% 55%;
-    --accent-foreground: 0 0% 100%;
+  --accent: #9333ea;
+  --accent-foreground: #ffffff;
 
-    --destructive: 0 75% 55%;
-    --destructive-foreground: 0 0% 100%;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
 
-    --ring: 24 100% 50%;
-    --radius: 0.625rem;
-  }
+  --ring: #ff6b00;
+}
 
-  * {
-    border-color: hsl(var(--border));
-  }
+html.light,
+.light {
+  /* Light Theme — Clean Slate & Warm Paper */
+  --background: #f8fafc;
+  --foreground: #0f172a;
 
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-    user-select: none;
-    background-color: hsl(var(--background));
-    color: hsl(var(--foreground));
-    overflow-x: hidden;
-  }
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+
+  --border: #e2e8f0;
+  --input: #e2e8f0;
+
+  --primary: #ea580c;
+  --primary-foreground: #ffffff;
+
+  --secondary: #f1f5f9;
+  --secondary-foreground: #0f172a;
+
+  --accent: #9333ea;
+  --accent-foreground: #ffffff;
+
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+
+  --ring: #ea580c;
+}
+
+* {
+  border-color: var(--border);
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  user-select: none;
+  background-color: var(--background);
+  color: var(--foreground);
+  overflow-x: hidden;
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 /* Orbia Brand Gradient Helpers */
