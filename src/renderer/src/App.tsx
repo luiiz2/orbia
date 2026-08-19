@@ -1,6 +1,7 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import { ThemeProvider } from './components/layout/ThemeProvider'
 import { AppShell } from './components/layout/AppShell'
+import { SplashScreen } from './components/layout/SplashScreen'
 import { HomeView } from './pages/HomeView'
 import { CourseView } from './pages/CourseView'
 import { PlayerView } from './pages/PlayerView'
@@ -14,21 +15,29 @@ import { useVaultStore } from './stores/useVaultStore'
 import { useSettingsStore } from './stores/useSettingsStore'
 import { useLibraryStore } from './stores/useLibraryStore'
 import { TooltipProvider } from './components/ui/tooltip'
-import { Loader2 } from 'lucide-react'
 
 export function App(): React.JSX.Element {
   const { currentView, isImportModalOpen, setImportModalOpen } = useNavigationStore()
-  const { init: initVault, currentVault, isLoading: isVaultLoading } = useVaultStore()
+  const { init: initVault, currentVault } = useVaultStore()
   const { init: initSettings } = useSettingsStore()
   const { fetchCourses } = useLibraryStore()
+  const [isAppReady, setIsAppReady] = useState(false)
+  const [isSplashDone, setIsSplashDone] = useState(false)
 
   useEffect(() => {
-    initSettings().catch(console.warn)
-    initVault()
-      .then(() => {
-        fetchCourses().catch(console.warn)
-      })
-      .catch(console.warn)
+    async function preloadData(): Promise<void> {
+      try {
+        await initSettings()
+        await initVault()
+        await fetchCourses()
+      } catch (err) {
+        console.warn('[App] Preload error:', err)
+      } finally {
+        setIsAppReady(true)
+      }
+    }
+
+    preloadData()
   }, [initSettings, initVault, fetchCourses])
 
   const renderActiveView = (): React.ReactNode => {
@@ -45,18 +54,16 @@ export function App(): React.JSX.Element {
         return <SettingsView />
       default:
         return <HomeView />
-      }
+    }
   }
 
   return (
     <ThemeProvider>
       <TooltipProvider delayDuration={150}>
-        {isVaultLoading && !currentVault ? (
-          <div className="min-h-screen w-full flex flex-col items-center justify-center bg-background text-muted-foreground gap-3">
-            <Loader2 className="w-8 h-8 text-primary animate-spin" />
-            <span className="text-xs font-mono">Loading Orbia...</span>
-          </div>
-        ) : !currentVault ? (
+        {!isSplashDone && (
+          <SplashScreen isReady={isAppReady} onFinish={() => setIsSplashDone(true)} />
+        )}
+        {!currentVault ? (
           <VaultSelector />
         ) : (
           <>
@@ -71,3 +78,4 @@ export function App(): React.JSX.Element {
 }
 
 export default App
+

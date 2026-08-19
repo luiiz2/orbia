@@ -3,6 +3,13 @@
     "name": "Orbia",
     "tagline": "Sua biblioteca pessoal de cursos"
   },
+  "splash": {
+    "tagline": "Sua plataforma pessoal de cursos e estudos",
+    "loadingConfig": "Carregando configurações e preferências...",
+    "loadingVault": "Acessando cofre de estudos...",
+    "loadingCourses": "Preparando cursos e progresso...",
+    "ready": "Tudo pronto!"
+  },
   "nav": {
     "home": "Início",
     "library": "Biblioteca",
