@@ -57,6 +57,7 @@ export class DatabaseService {
   private runMigrations(): void {
     if (!this.db) throw new Error('Database is not connected to any vault.')
 
+    // 1. Create base tables
     this.db.exec(`
       -- Courses
       CREATE TABLE IF NOT EXISTS courses (
@@ -77,11 +78,6 @@ export class DatabaseService {
         last_accessed_at INTEGER
       );
 
-      CREATE INDEX IF NOT EXISTS idx_courses_slug ON courses(slug);
-      CREATE INDEX IF NOT EXISTS idx_courses_accessed ON courses(last_accessed_at);
-      CREATE INDEX IF NOT EXISTS idx_courses_accessed_created ON courses(last_accessed_at DESC, created_at DESC);
-      CREATE INDEX IF NOT EXISTS idx_courses_favorite ON courses(is_favorite);
-
       -- Modules
       CREATE TABLE IF NOT EXISTS modules (
         id           TEXT PRIMARY KEY,
@@ -93,9 +89,6 @@ export class DatabaseService {
         lesson_count INTEGER NOT NULL DEFAULT 0,
         created_at   INTEGER NOT NULL
       );
-
-      CREATE INDEX IF NOT EXISTS idx_modules_course ON modules(course_id);
-      CREATE INDEX IF NOT EXISTS idx_modules_order ON modules(course_id, order_index);
 
       -- Lessons
       CREATE TABLE IF NOT EXISTS lessons (
@@ -115,11 +108,6 @@ export class DatabaseService {
         created_at     INTEGER NOT NULL
       );
 
-      CREATE INDEX IF NOT EXISTS idx_lessons_module ON lessons(module_id);
-      CREATE INDEX IF NOT EXISTS idx_lessons_course ON lessons(course_id);
-      CREATE INDEX IF NOT EXISTS idx_lessons_order ON lessons(module_id, order_index);
-      CREATE INDEX IF NOT EXISTS idx_lessons_course_module_order ON lessons(course_id, module_id, order_index);
-
       -- Lesson Progress
       CREATE TABLE IF NOT EXISTS lesson_progress (
         lesson_id    TEXT PRIMARY KEY REFERENCES lessons(id) ON DELETE CASCADE,
@@ -129,10 +117,6 @@ export class DatabaseService {
         completed    INTEGER NOT NULL DEFAULT 0,
         updated_at   INTEGER NOT NULL
       );
-
-      CREATE INDEX IF NOT EXISTS idx_progress_course ON lesson_progress(course_id);
-      CREATE INDEX IF NOT EXISTS idx_progress_course_completed ON lesson_progress(course_id, completed);
-      CREATE INDEX IF NOT EXISTS idx_progress_course_updated ON lesson_progress(course_id, updated_at DESC);
 
       -- Lesson Notes
       CREATE TABLE IF NOT EXISTS lesson_notes (
@@ -144,12 +128,6 @@ export class DatabaseService {
         created_at        INTEGER NOT NULL,
         updated_at        INTEGER NOT NULL
       );
-
-      CREATE INDEX IF NOT EXISTS idx_notes_lesson ON lesson_notes(lesson_id);
-      CREATE INDEX IF NOT EXISTS idx_notes_course ON lesson_notes(course_id);
-      CREATE INDEX IF NOT EXISTS idx_notes_course_time ON lesson_notes(course_id, timestamp_seconds);
-      CREATE INDEX IF NOT EXISTS idx_notes_lesson_time ON lesson_notes(lesson_id, timestamp_seconds, created_at);
-      CREATE INDEX IF NOT EXISTS idx_notes_course_created ON lesson_notes(course_id, created_at);
 
       -- Watch History
       CREATE TABLE IF NOT EXISTS watch_history (
@@ -163,11 +141,6 @@ export class DatabaseService {
         duration     REAL NOT NULL DEFAULT 0,
         current_time REAL NOT NULL DEFAULT 0
       );
-
-      CREATE INDEX IF NOT EXISTS idx_history_lesson ON watch_history(lesson_id);
-      CREATE INDEX IF NOT EXISTS idx_history_course ON watch_history(course_id);
-      CREATE INDEX IF NOT EXISTS idx_history_date ON watch_history(watched_at DESC);
-      CREATE INDEX IF NOT EXISTS idx_history_course_watched ON watch_history(course_id, watched_at DESC);
 
       -- File Operation Journal
       CREATE TABLE IF NOT EXISTS file_operations (
@@ -183,32 +156,56 @@ export class DatabaseService {
         error_details     TEXT,
         is_reversible     INTEGER NOT NULL DEFAULT 1
       );
-
-      CREATE INDEX IF NOT EXISTS idx_journal_group ON file_operations(group_id);
-      CREATE INDEX IF NOT EXISTS idx_journal_time ON file_operations(timestamp DESC);
     `)
 
-    // Safe schema & index migrations for existing vaults
-    const migrations = [
-      `ALTER TABLE lessons ADD COLUMN cover_path TEXT;`,
+    // 2. Safe column migrations for existing tables
+    const columnMigrations = [
       `ALTER TABLE courses ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0;`,
+      `ALTER TABLE lessons ADD COLUMN cover_path TEXT;`,
+      `ALTER TABLE watch_history ADD COLUMN cover_path TEXT;`
+    ]
+
+    for (const sql of columnMigrations) {
+      try {
+        this.db.exec(sql)
+      } catch {
+        // Ignored if column already exists
+      }
+    }
+
+    // 3. Safe index creations
+    const indexMigrations = [
+      `CREATE INDEX IF NOT EXISTS idx_courses_slug ON courses(slug);`,
+      `CREATE INDEX IF NOT EXISTS idx_courses_accessed ON courses(last_accessed_at);`,
       `CREATE INDEX IF NOT EXISTS idx_courses_accessed_created ON courses(last_accessed_at DESC, created_at DESC);`,
       `CREATE INDEX IF NOT EXISTS idx_courses_favorite ON courses(is_favorite);`,
+      `CREATE INDEX IF NOT EXISTS idx_modules_course ON modules(course_id);`,
+      `CREATE INDEX IF NOT EXISTS idx_modules_order ON modules(course_id, order_index);`,
+      `CREATE INDEX IF NOT EXISTS idx_lessons_module ON lessons(module_id);`,
+      `CREATE INDEX IF NOT EXISTS idx_lessons_course ON lessons(course_id);`,
+      `CREATE INDEX IF NOT EXISTS idx_lessons_order ON lessons(module_id, order_index);`,
       `CREATE INDEX IF NOT EXISTS idx_lessons_course_module_order ON lessons(course_id, module_id, order_index);`,
+      `CREATE INDEX IF NOT EXISTS idx_progress_course ON lesson_progress(course_id);`,
       `CREATE INDEX IF NOT EXISTS idx_progress_course_completed ON lesson_progress(course_id, completed);`,
       `CREATE INDEX IF NOT EXISTS idx_progress_course_updated ON lesson_progress(course_id, updated_at DESC);`,
+      `CREATE INDEX IF NOT EXISTS idx_notes_lesson ON lesson_notes(lesson_id);`,
+      `CREATE INDEX IF NOT EXISTS idx_notes_course ON lesson_notes(course_id);`,
       `CREATE INDEX IF NOT EXISTS idx_notes_course_time ON lesson_notes(course_id, timestamp_seconds);`,
       `CREATE INDEX IF NOT EXISTS idx_notes_lesson_time ON lesson_notes(lesson_id, timestamp_seconds, created_at);`,
       `CREATE INDEX IF NOT EXISTS idx_notes_course_created ON lesson_notes(course_id, created_at);`,
       `CREATE INDEX IF NOT EXISTS idx_history_lesson ON watch_history(lesson_id);`,
-      `CREATE INDEX IF NOT EXISTS idx_history_course_watched ON watch_history(course_id, watched_at DESC);`
+      `CREATE INDEX IF NOT EXISTS idx_history_course ON watch_history(course_id);`,
+      `CREATE INDEX IF NOT EXISTS idx_history_date ON watch_history(watched_at DESC);`,
+      `CREATE INDEX IF NOT EXISTS idx_history_course_watched ON watch_history(course_id, watched_at DESC);`,
+      `CREATE INDEX IF NOT EXISTS idx_journal_group ON file_operations(group_id);`,
+      `CREATE INDEX IF NOT EXISTS idx_journal_time ON file_operations(timestamp DESC);`
     ]
 
-    for (const sql of migrations) {
+    for (const sql of indexMigrations) {
       try {
         this.db.exec(sql)
       } catch {
-        // Ignored if column/index already exists
+        // Ignored if index already exists
       }
     }
   }
