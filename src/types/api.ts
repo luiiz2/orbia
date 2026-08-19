@@ -29,12 +29,16 @@ export interface OrbiaApi {
 
   // Course scanning & management
   courses: {
-    selectSource: () => Promise<SelectedCourseSource | null>
-    selectZip: () => Promise<SelectedCourseSource | null>
-    selectFolder: () => Promise<SelectedCourseSource | null>
+    selectSource: () => Promise<SelectedCourseSource[] | null>
+    selectZip: () => Promise<SelectedCourseSource[] | null>
+    selectFolder: () => Promise<SelectedCourseSource[] | null>
     extractZip: (zipPath: string) => Promise<{ success: boolean; extractedPath?: string; suggestedTitle?: string; error?: string }>
     scanFolder: (folderPath: string) => Promise<{ success: boolean; proposal?: ProposedCourseStructure; error?: string }>
     importCourse: (proposal: ProposedCourseStructure, isExternal: boolean) => Promise<{ success: boolean; course?: Course; error?: string }>
+    importBatch: (items: { proposal: ProposedCourseStructure; isExternal: boolean }[]) => Promise<{ success: boolean; courses?: Course[]; error?: string }>
+    selectCoverImage: () => Promise<string | null>
+    updateCourseCover: (courseId: string, coverPath: string) => Promise<{ success: boolean; error?: string }>
+    updateLessonCover: (lessonId: string, coverPath: string) => Promise<{ success: boolean; error?: string }>
     list: () => Promise<Course[]>
     getById: (courseId: string) => Promise<{ course: Course; modules: (Module & { lessons: Lesson[] })[] } | null>
     delete: (courseId: string, deleteFiles: boolean) => Promise<{ success: boolean; error?: string }>

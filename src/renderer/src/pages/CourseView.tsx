@@ -11,7 +11,10 @@ import {
   AlertTriangle,
   Layers,
   HardDrive,
-  Link as LinkIcon
+  Link as LinkIcon,
+  Image as ImageIcon,
+  Upload,
+  Video
 } from 'lucide-react'
 import { useLibraryStore } from '../stores/useLibraryStore'
 import { usePlayerStore } from '../stores/usePlayerStore'
@@ -40,7 +43,7 @@ import type { Lesson } from '@shared'
 export function CourseView(): React.JSX.Element {
   const { t } = useTranslation()
   const { selectedCourseId, navigateToHome, navigateToPlayer } = useNavigationStore()
-  const { activeCourseHierarchy, fetchCourseById, deleteCourse, isLoading } = useLibraryStore()
+  const { activeCourseHierarchy, fetchCourseById, deleteCourse, updateCourseCover, updateLessonCover, isLoading } = useLibraryStore()
   const { loadHierarchy } = usePlayerStore()
 
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState<boolean>(false)
@@ -81,6 +84,28 @@ export function CourseView(): React.JSX.Element {
     navigateToPlayer(course.id)
   }
 
+  const handleChangeCourseCover = async (): Promise<void> => {
+    try {
+      const selectedImg = await window.api.courses.selectCoverImage()
+      if (selectedImg) {
+        await updateCourseCover(course.id, selectedImg)
+      }
+    } catch (err) {
+      console.error('Failed to change course cover:', err)
+    }
+  }
+
+  const handleChangeLessonCover = async (lessonId: string): Promise<void> => {
+    try {
+      const selectedImg = await window.api.courses.selectCoverImage()
+      if (selectedImg) {
+        await updateLessonCover(lessonId, selectedImg)
+      }
+    } catch (err) {
+      console.error('Failed to change lesson cover:', err)
+    }
+  }
+
   const handleDeleteCourse = async (): Promise<void> => {
     setIsDeleting(true)
     try {
@@ -102,33 +127,49 @@ export function CourseView(): React.JSX.Element {
           variant="ghost"
           size="sm"
           onClick={navigateToHome}
-          className="gap-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/70 rounded-xl"
+          className="gap-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/70 rounded-xl cursor-pointer"
         >
           <ChevronLeft className="h-4 w-4" />
           <span>{t('nav.library')}</span>
         </Button>
 
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setIsDeleteDialogOpen(true)}
-          className="gap-1.5 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive rounded-xl"
-        >
-          <Trash2 className="h-4 w-4" />
-          <span>{t('course.deleteCourse')}</span>
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleChangeCourseCover}
+            className="gap-1.5 text-xs text-muted-foreground hover:text-primary hover:bg-secondary/70 rounded-xl cursor-pointer"
+          >
+            <ImageIcon className="h-3.5 w-3.5" />
+            <span>Trocar Capa do Curso</span>
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsDeleteDialogOpen(true)}
+            className="gap-1.5 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive rounded-xl cursor-pointer"
+          >
+            <Trash2 className="h-4 w-4" />
+            <span>{t('course.deleteCourse')}</span>
+          </Button>
+        </div>
       </div>
 
       {/* Course Hero Banner */}
       <div className="rounded-2xl border border-border/80 bg-gradient-to-br from-card via-card/95 to-primary/5 p-6 shadow-xl shadow-orange-500/5">
         <div className="flex flex-col md:flex-row gap-6 items-start">
           {/* Thumbnail / Cover */}
-          <div className="relative aspect-video w-full md:w-80 shrink-0 overflow-hidden rounded-2xl bg-secondary/70 flex items-center justify-center border border-border/80 shadow-md">
+          <div
+            onClick={handleChangeCourseCover}
+            className="relative aspect-video w-full md:w-80 shrink-0 overflow-hidden rounded-2xl bg-secondary/70 flex items-center justify-center border border-border/80 shadow-md group cursor-pointer"
+            title="Clique para alterar a capa do curso"
+          >
             {course.coverPath ? (
               <img
                 src={`media://${encodeURI(course.coverPath.replace(/\\/g, '/'))}`}
                 alt={course.title}
-                className="h-full w-full object-cover"
+                className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500"
               />
             ) : (
               <div className="flex flex-col items-center justify-center text-primary p-4">
@@ -136,8 +177,14 @@ export function CourseView(): React.JSX.Element {
               </div>
             )}
 
+            {/* Hover Change Cover Overlay */}
+            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white backdrop-blur-[2px]">
+              <Upload className="w-6 h-6 mb-1 text-white" />
+              <span className="text-xs font-semibold">Alterar Capa</span>
+            </div>
+
             {/* Source Badge on Cover */}
-            <div className="absolute top-2.5 right-2.5">
+            <div className="absolute top-2.5 right-2.5 z-10">
               {course.sourceType === 'local-ref' ? (
                 <Badge
                   variant="secondary"
@@ -301,13 +348,38 @@ export function CourseView(): React.JSX.Element {
                           onClick={() => handlePlayLesson(lesson)}
                           className="flex items-center justify-between py-2.5 px-3 rounded-xl hover:bg-secondary/60 cursor-pointer transition-colors group"
                         >
-                          <div className="flex items-center gap-3 overflow-hidden">
+                          <div className="flex items-center gap-3 overflow-hidden flex-1 min-w-0 mr-2">
                             {/* Completion Indicator */}
                             {isComplete ? (
                               <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
                             ) : (
                               <Circle className="h-4 w-4 text-muted-foreground/50 shrink-0 group-hover:text-primary transition-colors" />
                             )}
+
+                            {/* Lesson Thumbnail & Cover */}
+                            <div
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleChangeLessonCover(lesson.id)
+                              }}
+                              className="relative aspect-video w-14 sm:w-16 shrink-0 rounded-lg overflow-hidden bg-secondary border border-border/80 group/thumb shadow-xs"
+                              title="Trocar capa da aula"
+                            >
+                              {lesson.coverPath ? (
+                                <img
+                                  src={`media://${encodeURI(lesson.coverPath.replace(/\\/g, '/'))}`}
+                                  alt={lesson.title}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center bg-secondary/80 text-muted-foreground/60">
+                                  <Video className="w-3.5 h-3.5 text-primary/70" />
+                                </div>
+                              )}
+                              <div className="absolute inset-0 bg-black/60 opacity-0 group-hover/thumb:opacity-100 transition-opacity flex items-center justify-center text-white">
+                                <ImageIcon className="w-3.5 h-3.5" />
+                              </div>
+                            </div>
 
                             {/* Lesson Number & Title */}
                             <span className="text-xs font-mono text-muted-foreground w-6 shrink-0">
@@ -355,7 +427,7 @@ export function CourseView(): React.JSX.Element {
               variant="outline"
               onClick={() => setIsDeleteDialogOpen(false)}
               disabled={isDeleting}
-              className="rounded-xl text-xs"
+              className="rounded-xl text-xs cursor-pointer"
             >
               {t('common.cancel')}
             </Button>
@@ -363,7 +435,7 @@ export function CourseView(): React.JSX.Element {
               variant="destructive"
               onClick={handleDeleteCourse}
               disabled={isDeleting}
-              className="rounded-xl text-xs"
+              className="rounded-xl text-xs cursor-pointer"
             >
               {isDeleting ? t('common.loading') : t('common.delete')}
             </Button>
@@ -373,4 +445,3 @@ export function CourseView(): React.JSX.Element {
     </div>
   )
 }
-

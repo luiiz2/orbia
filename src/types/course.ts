@@ -68,6 +68,7 @@ export interface Lesson {
   duration: number // Duration in seconds (0 until probed/played)
   fileSize: number // In bytes
   availability: AvailabilityState
+  coverPath?: string // Thumbnail / cover image path
   createdAt: number
   subtitles?: SubtitleTrack[]
   resources?: AttachedResource[]
@@ -104,6 +105,7 @@ export interface ProposedLesson {
   mediaType: MediaType
   fileSize: number
   orderIndex: number
+  coverPath?: string // Thumbnail / cover image path
 }
 
 export interface ProposedModule {

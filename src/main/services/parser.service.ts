@@ -1,4 +1,5 @@
 import crypto from 'node:crypto'
+import path from 'node:path'
 import type {
   ProposedCourseStructure,
   ProposedModule,
@@ -7,7 +8,7 @@ import type {
 } from '../../types'
 import { cleanTitle, cleanCourseTitle, cleanModuleTitle } from '../utils/title-cleaner'
 import { naturalCompare } from '../utils/natural-sort'
-import { isMediaFile, isCoverImage, getMediaType } from '../utils/file-utils'
+import { isMediaFile, isCoverImage, isImageFile, getMediaType } from '../utils/file-utils'
 import type { ScannedDirectory, ScannedFile } from './scanner.service'
 
 /**
@@ -43,7 +44,7 @@ export class ParserService {
     // If root has loose media files AND there are subdirectories,
     // put root media files into an introductory module
     if (rootMediaFiles.length > 0 && sortedSubDirs.length > 0) {
-      const introLessons = this.buildLessons(rootMediaFiles)
+      const introLessons = this.buildLessons(rootMediaFiles, scannedDir.files)
       if (introLessons.length > 0) {
         proposedModules.push({
           id: crypto.randomUUID(),
@@ -77,7 +78,7 @@ export class ParserService {
 
     // If there were NO subdirectories with media, but root had media files (Flat course structure)
     if (proposedModules.length === 0 && rootMediaFiles.length > 0) {
-      const flatLessons = this.buildLessons(rootMediaFiles)
+      const flatLessons = this.buildLessons(rootMediaFiles, scannedDir.files)
       proposedModules.push({
         id: crypto.randomUUID(),
         title: suggestedTitle,
@@ -103,39 +104,42 @@ export class ParserService {
    * Recursively extracts media files from a directory and converts them to ProposedLessons.
    */
   private extractMediaFromDirectory(dir: ScannedDirectory): ProposedLesson[] {
-    const allMedia: ScannedFile[] = []
+    const allFiles: ScannedFile[] = this.collectAllFilesRecursive(dir)
+    const mediaFiles: ScannedFile[] = allFiles.filter((f) => isMediaFile(f.fullPath))
 
-    // Collect media in current directory
-    const directMedia = dir.files.filter((f) => isMediaFile(f.fullPath))
-    allMedia.push(...directMedia)
-
-    // Recursively collect media in nested subdirectories
-    for (const sub of dir.subDirectories) {
-      const nestedMedia = this.collectMediaRecursive(sub)
-      allMedia.push(...nestedMedia)
-    }
-
-    return this.buildLessons(allMedia)
+    return this.buildLessons(mediaFiles, allFiles)
   }
 
-  private collectMediaRecursive(dir: ScannedDirectory): ScannedFile[] {
-    const media: ScannedFile[] = dir.files.filter((f) => isMediaFile(f.fullPath))
+  private collectAllFilesRecursive(dir: ScannedDirectory): ScannedFile[] {
+    const files: ScannedFile[] = [...dir.files]
     for (const sub of dir.subDirectories) {
-      media.push(...this.collectMediaRecursive(sub))
+      files.push(...this.collectAllFilesRecursive(sub))
     }
-    return media
+    return files
   }
 
   /**
-   * Sorts files naturally and maps them to ProposedLesson items.
+   * Sorts files naturally and maps them to ProposedLesson items, detecting companion thumbnail images.
    */
-  private buildLessons(files: ScannedFile[]): ProposedLesson[] {
-    // Sort files naturally by filename
-    const sortedFiles = [...files].sort((a, b) => naturalCompare(a.name, b.name))
+  private buildLessons(mediaFiles: ScannedFile[], allFiles: ScannedFile[] = []): ProposedLesson[] {
+    const sortedFiles = [...mediaFiles].sort((a, b) => naturalCompare(a.name, b.name))
+    const imageFiles = allFiles.filter((f) => isImageFile(f.fullPath))
 
     return sortedFiles.map((file, index) => {
       const mediaType: MediaType = getMediaType(file.fullPath)
       const title = cleanTitle(file.name)
+      const baseNameWithoutExt = path.basename(file.name, path.extname(file.name)).toLowerCase()
+
+      // Look for matching companion thumbnail image (e.g., "01 - Intro.jpg" for "01 - Intro.mp4")
+      const companionImg = imageFiles.find((img) => {
+        const imgBase = path.basename(img.name, path.extname(img.name)).toLowerCase()
+        return (
+          imgBase === baseNameWithoutExt ||
+          imgBase === `${baseNameWithoutExt}_thumb` ||
+          imgBase === `${baseNameWithoutExt}_cover` ||
+          imgBase === `${baseNameWithoutExt}_poster`
+        )
+      })
 
       return {
         id: crypto.randomUUID(),
@@ -145,7 +149,8 @@ export class ParserService {
         fileExtension: file.extension.replace(/^\./, ''),
         mediaType,
         fileSize: file.sizeBytes,
-        orderIndex: index + 1
+        orderIndex: index + 1,
+        coverPath: companionImg ? companionImg.fullPath : undefined
       }
     })
   }
@@ -154,8 +159,19 @@ export class ParserService {
    * Searches for a cover image file inside a directory.
    */
   private findCoverImage(dir: ScannedDirectory): string | undefined {
+    // 1. Explicit cover named files in root
     const coverFile = dir.files.find((f) => isCoverImage(f.fullPath))
-    return coverFile ? coverFile.fullPath : undefined
+    if (coverFile) return coverFile.fullPath
+
+    // 2. Check subdirectories for explicit cover
+    for (const sub of dir.subDirectories) {
+      const subCover = sub.files.find((f) => isCoverImage(f.fullPath))
+      if (subCover) return subCover.fullPath
+    }
+
+    // 3. Fallback to any general image in root
+    const anyImage = dir.files.find((f) => isImageFile(f.fullPath))
+    return anyImage ? anyImage.fullPath : undefined
   }
 
   /**

@@ -106,6 +106,7 @@ export class DatabaseService {
         duration       REAL NOT NULL DEFAULT 0,
         file_size      INTEGER NOT NULL DEFAULT 0,
         availability   TEXT NOT NULL DEFAULT 'local',
+        cover_path     TEXT,
         created_at     INTEGER NOT NULL
       );
 
@@ -159,6 +160,13 @@ export class DatabaseService {
       CREATE INDEX IF NOT EXISTS idx_journal_group ON file_operations(group_id);
       CREATE INDEX IF NOT EXISTS idx_journal_time ON file_operations(timestamp DESC);
     `)
+
+    // Safe schema migrations for existing vaults
+    try {
+      this.db.exec(`ALTER TABLE lessons ADD COLUMN cover_path TEXT;`)
+    } catch {
+      // Column already exists
+    }
   }
 
   // --- Course Operations ---
@@ -195,11 +203,11 @@ export class DatabaseService {
       INSERT INTO lessons (
         id, module_id, course_id, title, order_index,
         file_path, file_name, file_extension, media_type,
-        duration, file_size, availability, created_at
+        duration, file_size, availability, cover_path, created_at
       ) VALUES (
         @id, @moduleId, @courseId, @title, @orderIndex,
         @filePath, @fileName, @fileExtension, @mediaType,
-        @duration, @fileSize, @availability, @createdAt
+        @duration, @fileSize, @availability, @coverPath, @createdAt
       )
     `)
 
@@ -247,6 +255,7 @@ export class DatabaseService {
             duration: lesson.duration,
             fileSize: lesson.fileSize,
             availability: lesson.availability || 'local',
+            coverPath: lesson.coverPath || null,
             createdAt: lesson.createdAt
           })
         }
@@ -303,7 +312,8 @@ export class DatabaseService {
         id, module_id as moduleId, course_id as courseId, title,
         order_index as orderIndex, file_path as filePath, file_name as fileName,
         file_extension as fileExtension, media_type as mediaType,
-        duration, file_size as fileSize, availability, created_at as createdAt
+        duration, file_size as fileSize, availability, cover_path as coverPath,
+        created_at as createdAt
       FROM lessons
       WHERE course_id = ?
       ORDER BY module_id, order_index ASC
@@ -312,13 +322,34 @@ export class DatabaseService {
 
     const modulesWithLessons = modules.map((mod) => ({
       ...mod,
-      lessons: allLessons.filter((l) => l.moduleId === mod.id)
+      lessons: allLessons
+        .filter((l) => l.moduleId === mod.id)
+        .map((l) => ({
+          ...l,
+          coverPath: l.coverPath || undefined
+        }))
     }))
 
     return {
-      course,
+      course: {
+        ...course,
+        coverPath: course.coverPath || undefined
+      },
       modules: modulesWithLessons
     }
+  }
+
+  public updateCourseCover(courseId: string, coverPath: string): void {
+    this.ensureConnected()
+    const now = Date.now()
+    const stmt = this.db!.prepare(`UPDATE courses SET cover_path = ?, updated_at = ? WHERE id = ?`)
+    stmt.run(coverPath, now, courseId)
+  }
+
+  public updateLessonCover(lessonId: string, coverPath: string): void {
+    this.ensureConnected()
+    const stmt = this.db!.prepare(`UPDATE lessons SET cover_path = ? WHERE id = ?`)
+    stmt.run(coverPath, lessonId)
   }
 
   public deleteCourse(courseId: string): void {

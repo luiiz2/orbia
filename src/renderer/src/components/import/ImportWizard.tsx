@@ -7,9 +7,12 @@ import {
   AlertCircle,
   FileArchive,
   Sparkles,
-  FolderOpen
+  FolderOpen,
+  CheckCircle2,
+  XCircle,
+  Image as ImageIcon
 } from 'lucide-react'
-import type { ProposedCourseStructure } from '@shared'
+import type { ProposedCourseStructure, SelectedCourseSource } from '@shared'
 import {
   Dialog,
   DialogContent,
@@ -17,10 +20,25 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
-  Button
+  Button,
+  Badge
 } from '../ui'
 import { useLibraryStore, useNavigationStore } from '../../stores'
 import { ImportPreview } from './ImportPreview'
+
+interface BatchItem {
+  id: string
+  name: string
+  sourcePath: string
+  isZip: boolean
+  status: 'pending' | 'extracting' | 'scanning' | 'ready' | 'error'
+  extractProgress: number
+  currentExtractFile: string
+  proposal: ProposedCourseStructure | null
+  isExternal: boolean
+  selected: boolean
+  error: string | null
+}
 
 interface ImportWizardProps {
   open: boolean
@@ -29,27 +47,33 @@ interface ImportWizardProps {
 
 export function ImportWizard({ open, onOpenChange }: ImportWizardProps): React.JSX.Element {
   const { t } = useTranslation()
-  const { importCourse, isLoading } = useLibraryStore()
+  const { importBatch, importCourse, isLoading } = useLibraryStore()
   const { navigateToCourse } = useNavigationStore()
 
-  const [step, setStep] = useState<'select' | 'extracting' | 'scanning' | 'preview'>('select')
-  const [scannedProposal, setScannedProposal] = useState<ProposedCourseStructure | null>(null)
-  const [isExternal, setIsExternal] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  // Extraction Progress State
-  const [extractProgress, setExtractProgress] = useState<{ percent: number; currentFile: string }>({
-    percent: 0,
-    currentFile: ''
-  })
+  const [step, setStep] = useState<'select' | 'processing' | 'preview'>('select')
+  const [batchItems, setBatchItems] = useState<BatchItem[]>([])
+  const [activeItemIndex, setActiveItemIndex] = useState(0)
+  const [globalError, setGlobalError] = useState<string | null>(null)
   const [isDragging, setIsDragging] = useState(false)
 
   // Register extraction progress listener
   useEffect(() => {
     if (!window.api?.courses?.onExtractProgress) return
 
-    const unsubscribe = window.api.courses.onExtractProgress((progress) => {
-      setExtractProgress(progress)
+    const unsubscribe = window.api.courses.onExtractProgress((payload) => {
+      const anyPayload = payload as { percent: number; currentFile: string; zipPath?: string }
+      setBatchItems((prev) =>
+        prev.map((item) => {
+          if (item.status === 'extracting') {
+            return {
+              ...item,
+              extractProgress: anyPayload.percent,
+              currentExtractFile: anyPayload.currentFile
+            }
+          }
+          return item
+        })
+      )
     })
 
     return () => {
@@ -57,57 +81,99 @@ export function ImportWizard({ open, onOpenChange }: ImportWizardProps): React.J
     }
   }, [])
 
-  const processSourcePath = async (filePath: string, isZip: boolean): Promise<void> => {
-    setError(null)
-    let pathToScan = filePath
+  // Process the queue of batch items
+  const startBatchProcessing = async (sources: SelectedCourseSource[]): Promise<void> => {
+    if (sources.length === 0) return
 
-    if (isZip) {
-      setStep('extracting')
-      setExtractProgress({ percent: 0, currentFile: 'Preparing extraction...' })
+    const initialItems: BatchItem[] = sources.map((s, idx) => ({
+      id: `item-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 6)}`,
+      name: s.name,
+      sourcePath: s.path,
+      isZip: s.isZip,
+      status: 'pending',
+      extractProgress: 0,
+      currentExtractFile: '',
+      proposal: null,
+      isExternal: !s.isZip, // default external for folders, vault-managed for extracted zips
+      selected: true,
+      error: null
+    }))
+
+    setBatchItems(initialItems)
+    setStep('processing')
+    setGlobalError(null)
+
+    const updatedItems = [...initialItems]
+
+    for (let i = 0; i < updatedItems.length; i++) {
+      const item = updatedItems[i]
+      let pathToScan = item.sourcePath
+
+      if (item.isZip) {
+        item.status = 'extracting'
+        item.extractProgress = 0
+        item.currentExtractFile = 'Preparando extração...'
+        setBatchItems([...updatedItems])
+
+        try {
+          const extractRes = await window.api.courses.extractZip(item.sourcePath)
+          if (!extractRes.success || !extractRes.extractedPath) {
+            throw new Error(extractRes.error || 'Falha ao extrair arquivo .zip.')
+          }
+          pathToScan = extractRes.extractedPath
+          item.isExternal = false
+        } catch (err: unknown) {
+          item.status = 'error'
+          item.error = err instanceof Error ? err.message : 'Erro na extração'
+          setBatchItems([...updatedItems])
+          continue
+        }
+      }
+
+      item.status = 'scanning'
+      setBatchItems([...updatedItems])
 
       try {
-        const extractRes = await window.api.courses.extractZip(filePath)
-        if (!extractRes.success || !extractRes.extractedPath) {
-          throw new Error(extractRes.error || 'Failed to extract .zip archive.')
+        const scanRes = await window.api.courses.scanFolder(pathToScan)
+        if (scanRes.success && scanRes.proposal) {
+          item.proposal = scanRes.proposal
+          item.status = 'ready'
+        } else {
+          item.status = 'error'
+          item.error = scanRes.error || 'Falha ao analisar estrutura do curso.'
         }
-        pathToScan = extractRes.extractedPath
-        // Since it is extracted inside the Vault's Inbox, default to local-vault
-        setIsExternal(false)
       } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : 'Error extracting .zip archive')
-        setStep('select')
-        return
+        item.status = 'error'
+        item.error = err instanceof Error ? err.message : 'Erro no escaneamento'
       }
+
+      setBatchItems([...updatedItems])
     }
 
-    setStep('scanning')
-    try {
-      const result = await window.api.courses.scanFolder(pathToScan)
-      if (result.success && result.proposal) {
-        setScannedProposal(result.proposal)
-        setStep('preview')
-      } else {
-        setError(result.error || 'Failed to analyze course directory structure.')
-        setStep('select')
-      }
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Error scanning folder')
-      setStep('select')
+    // Set first ready item as active
+    const firstReadyIdx = updatedItems.findIndex((it) => it.status === 'ready')
+    setActiveItemIndex(firstReadyIdx >= 0 ? firstReadyIdx : 0)
+
+    const hasAnyReady = updatedItems.some((it) => it.status === 'ready')
+    if (hasAnyReady) {
+      setStep('preview')
+    } else {
+      setGlobalError('Nenhum curso válido pôde ser importado dos arquivos selecionados.')
     }
   }
 
   const handleSelectZip = async (): Promise<void> => {
-    setError(null)
-    const source = await window.api.courses.selectZip()
-    if (!source) return
-    await processSourcePath(source.path, true)
+    setGlobalError(null)
+    const sources = await window.api.courses.selectZip()
+    if (!sources || sources.length === 0) return
+    await startBatchProcessing(sources)
   }
 
   const handleSelectFolder = async (): Promise<void> => {
-    setError(null)
-    const source = await window.api.courses.selectFolder()
-    if (!source) return
-    await processSourcePath(source.path, false)
+    setGlobalError(null)
+    const sources = await window.api.courses.selectFolder()
+    if (!sources || sources.length === 0) return
+    await startBatchProcessing(sources)
   }
 
   const handleDrop = async (e: React.DragEvent<HTMLDivElement>): Promise<void> => {
@@ -115,11 +181,24 @@ export function ImportWizard({ open, onOpenChange }: ImportWizardProps): React.J
     setIsDragging(false)
 
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      const file = e.dataTransfer.files[0]
-      // In Electron, File objects have a .path property
-      const filePath = (file as unknown as { path?: string }).path || file.name
-      const isZip = filePath.toLowerCase().endsWith('.zip')
-      await processSourcePath(filePath, isZip)
+      const sources: SelectedCourseSource[] = []
+
+      for (let i = 0; i < e.dataTransfer.files.length; i++) {
+        const file = e.dataTransfer.files[i]
+        const filePath = (file as unknown as { path?: string }).path || file.name
+        const isZip = filePath.toLowerCase().endsWith('.zip')
+        const name = file.name.replace(/\.[^/.]+$/, '')
+
+        sources.push({
+          path: filePath,
+          name,
+          isZip
+        })
+      }
+
+      if (sources.length > 0) {
+        await startBatchProcessing(sources)
+      }
     }
   }
 
@@ -132,32 +211,83 @@ export function ImportWizard({ open, onOpenChange }: ImportWizardProps): React.J
     setIsDragging(false)
   }
 
-  const handleConfirmImport = async (): Promise<void> => {
-    if (!scannedProposal) return
+  const handleUpdateActiveProposal = (updated: ProposedCourseStructure): void => {
+    setBatchItems((prev) =>
+      prev.map((item, idx) => (idx === activeItemIndex ? { ...item, proposal: updated } : item))
+    )
+  }
 
-    setError(null)
-    const result = await importCourse(scannedProposal, isExternal)
-    if (result.success && result.course) {
-      onOpenChange(false)
-      setStep('select')
-      setScannedProposal(null)
-      // Navigate to the newly imported course
-      navigateToCourse(result.course.id)
-    } else {
-      setError(result.error || 'Failed to import course into library.')
+  const handleToggleActiveExternal = (isExternal: boolean): void => {
+    setBatchItems((prev) =>
+      prev.map((item, idx) => (idx === activeItemIndex ? { ...item, isExternal } : item))
+    )
+  }
+
+  const handleToggleItemSelection = (index: number): void => {
+    setBatchItems((prev) =>
+      prev.map((item, idx) => (idx === index ? { ...item, selected: !item.selected } : item))
+    )
+  }
+
+  const handleConfirmImport = async (): Promise<void> => {
+    const readyAndSelected = batchItems.filter(
+      (it) => it.status === 'ready' && it.proposal && it.selected
+    )
+
+    if (readyAndSelected.length === 0) {
+      setGlobalError('Selecione ao menos um curso para importar.')
+      return
     }
+
+    setGlobalError(null)
+
+    if (readyAndSelected.length === 1) {
+      const item = readyAndSelected[0]
+      const result = await importCourse(item.proposal!, item.isExternal)
+      if (result.success && result.course) {
+        onOpenChange(false)
+        resetWizard()
+        navigateToCourse(result.course.id)
+      } else {
+        setGlobalError(result.error || 'Falha ao importar curso.')
+      }
+    } else {
+      const importPayload = readyAndSelected.map((item) => ({
+        proposal: item.proposal!,
+        isExternal: item.isExternal
+      }))
+
+      const result = await importBatch(importPayload)
+      if (result.success && result.courses && result.courses.length > 0) {
+        onOpenChange(false)
+        resetWizard()
+        navigateToCourse(result.courses[0].id)
+      } else {
+        setGlobalError(result.error || 'Falha ao importar lote de cursos.')
+      }
+    }
+  }
+
+  const resetWizard = (): void => {
+    setStep('select')
+    setBatchItems([])
+    setActiveItemIndex(0)
+    setGlobalError(null)
   }
 
   const handleCancel = (): void => {
     onOpenChange(false)
-    setStep('select')
-    setScannedProposal(null)
-    setError(null)
+    resetWizard()
   }
+
+  const activeItem = batchItems[activeItemIndex]
+  const readySelectedCount = batchItems.filter(
+    (it) => it.status === 'ready' && it.proposal && it.selected
+  ).length
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[640px] max-h-[85vh] flex flex-col bg-card border-border text-foreground rounded-2xl">
+      <DialogContent className="sm:max-w-[760px] max-h-[90vh] flex flex-col bg-card border-border text-foreground rounded-2xl">
         <DialogHeader>
           <div className="flex items-center gap-2 text-primary">
             <FolderArchive className="w-5 h-5" />
@@ -165,27 +295,28 @@ export function ImportWizard({ open, onOpenChange }: ImportWizardProps): React.J
           </div>
           <DialogDescription className="text-xs text-muted-foreground">
             {step === 'preview'
-              ? t('import.previewSubtitle')
-              : step === 'extracting'
-                ? t('import.extracting')
-                : t('import.selectFolderSubtitle')}
+              ? `Revise os cursos detectados (${readySelectedCount} selecionados para importação).`
+              : step === 'processing'
+                ? 'Processando fila de arquivos e pastas selecionados...'
+                : 'Selecione ou arraste quantos cursos desejar (.zip ou pastas) de uma vez só.'}
           </DialogDescription>
         </DialogHeader>
 
-        {error && (
+        {globalError && (
           <div className="p-3 text-xs bg-destructive/15 border border-destructive/30 rounded-xl text-destructive flex items-start gap-2">
             <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-            <span>{error}</span>
+            <span>{globalError}</span>
           </div>
         )}
 
-        <div className="flex-1 overflow-y-auto py-2">
+        <div className="flex-1 overflow-y-auto py-2 space-y-4">
+          {/* STEP 1: SELECT FILES / FOLDERS / DRAG & DROP */}
           {step === 'select' && (
             <div
               onDrop={handleDrop}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
-              className={`py-10 px-6 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center text-center space-y-4 transition-all duration-200 ${
+              className={`py-12 px-6 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center text-center space-y-4 transition-all duration-200 ${
                 isDragging
                   ? 'border-primary bg-primary/10 scale-[1.01]'
                   : 'border-border/80 bg-secondary/20 hover:border-primary/50 hover:bg-secondary/40'
@@ -202,14 +333,14 @@ export function ImportWizard({ open, onOpenChange }: ImportWizardProps): React.J
 
               <div className="space-y-1.5 max-w-md">
                 <h4 className="text-sm font-bold text-foreground">
-                  {t('import.dropZone')}
+                  Arraste e Solte Múltiplos Cursos (.zip ou Pastas)
                 </h4>
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  {t('import.selectFolderSubtitle')}
+                  Você pode selecionar quantos cursos quiser de uma só vez para importação simultânea.
                 </p>
               </div>
 
-              {/* Action Buttons: Dedicated Zip or Folder Picker */}
+              {/* Action Buttons: Multi-selection zip or folder picker */}
               <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
                 <Button
                   type="button"
@@ -219,7 +350,7 @@ export function ImportWizard({ open, onOpenChange }: ImportWizardProps): React.J
                   onClick={handleSelectZip}
                 >
                   <FileArchive className="w-4 h-4 mr-2" />
-                  Selecionar Arquivo .zip
+                  Selecionar Arquivos .zip (Múltiplos)
                 </Button>
 
                 <Button
@@ -230,76 +361,165 @@ export function ImportWizard({ open, onOpenChange }: ImportWizardProps): React.J
                   onClick={handleSelectFolder}
                 >
                   <FolderSearch className="w-4 h-4 mr-2 text-primary" />
-                  Selecionar Pasta
+                  Selecionar Pastas de Cursos
                 </Button>
               </div>
             </div>
           )}
 
-          {step === 'extracting' && (
-            <div className="py-12 px-6 flex flex-col items-center justify-center text-center space-y-5">
-              <div className="relative flex items-center justify-center">
-                <div className="w-16 h-16 rounded-2xl bg-primary/15 border border-primary/30 flex items-center justify-center text-primary shadow-xl shadow-orange-500/10">
-                  <FileArchive className="w-8 h-8 animate-bounce" />
-                </div>
-              </div>
-
-              <div className="space-y-2 w-full max-w-sm">
-                <h4 className="text-sm font-bold text-foreground flex items-center justify-center gap-1.5">
-                  <Sparkles className="w-4 h-4 text-primary" />
-                  {t('import.extracting')}
-                </h4>
-
-                {/* Animated Progress Bar */}
-                <div className="h-2 w-full bg-secondary rounded-full overflow-hidden border border-border/60">
-                  <div
-                    className="h-full bg-gradient-to-r from-orange-500 via-amber-500 to-purple-600 transition-all duration-200 rounded-full"
-                    style={{ width: `${Math.max(5, extractProgress.percent)}%` }}
-                  />
-                </div>
-
-                <div className="flex items-center justify-between text-[11px] text-muted-foreground font-mono">
-                  <span className="truncate max-w-[240px]" title={extractProgress.currentFile}>
-                    {extractProgress.currentFile || 'Extracting files...'}
-                  </span>
-                  <span className="font-bold text-primary">{extractProgress.percent}%</span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {step === 'scanning' && (
-            <div className="py-16 flex flex-col items-center justify-center text-center space-y-4">
-              <Loader2 className="w-10 h-10 text-primary animate-spin" />
-              <div className="space-y-1">
-                <h4 className="text-sm font-bold text-foreground">
-                  {t('import.scanning')}
+          {/* STEP 2: PROCESSING QUEUE */}
+          {step === 'processing' && (
+            <div className="py-8 px-4 space-y-4">
+              <div className="text-center space-y-1">
+                <h4 className="text-sm font-bold text-foreground flex items-center justify-center gap-2">
+                  <Sparkles className="w-4 h-4 text-primary animate-spin" />
+                  Processando Fila de Cursos ({batchItems.length} itens)
                 </h4>
                 <p className="text-xs text-muted-foreground">
-                  Detecting modules, video lessons, natural sort order, and materials...
+                  Extraindo arquivos compactados e detectando módulos automaticamente...
                 </p>
+              </div>
+
+              <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1">
+                {batchItems.map((item) => (
+                  <div
+                    key={item.id}
+                    className="p-3 rounded-xl bg-card border border-border/80 flex items-center justify-between gap-3 text-xs"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                      {item.status === 'ready' ? (
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                      ) : item.status === 'error' ? (
+                        <XCircle className="w-4 h-4 text-destructive shrink-0" />
+                      ) : (
+                        <Loader2 className="w-4 h-4 text-primary animate-spin shrink-0" />
+                      )}
+
+                      <div className="min-w-0 flex-1">
+                        <div className="font-semibold text-foreground truncate">{item.name}</div>
+                        <div className="text-[11px] text-muted-foreground truncate font-mono">
+                          {item.status === 'extracting'
+                            ? item.currentExtractFile || 'Extraindo...'
+                            : item.status === 'scanning'
+                              ? 'Analisando hierarquia...'
+                              : item.status === 'ready'
+                                ? `${item.proposal?.totalLessons || 0} aulas detectadas`
+                                : item.error || 'Pendente...'}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="shrink-0">
+                      {item.status === 'extracting' && (
+                        <Badge variant="secondary" className="font-mono text-[10px]">
+                          {item.extractProgress}%
+                        </Badge>
+                      )}
+                      {item.status === 'ready' && (
+                        <Badge variant="outline" className="text-emerald-400 border-emerald-500/30 text-[10px]">
+                          Pronto
+                        </Badge>
+                      )}
+                      {item.status === 'error' && (
+                        <Badge variant="destructive" className="text-[10px]">
+                          Erro
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           )}
 
-          {step === 'preview' && scannedProposal && (
-            <ImportPreview
-              proposal={scannedProposal}
-              onUpdateProposal={setScannedProposal}
-              isExternal={isExternal}
-              onToggleExternal={setIsExternal}
-            />
+          {/* STEP 3: PREVIEW & REVIEW (Single or Multi-Course Tabs) */}
+          {step === 'preview' && (
+            <div className="space-y-4">
+              {/* If multiple courses were queued, render a compact selector bar */}
+              {batchItems.length > 1 && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground px-1">
+                    <span>Cursos na Fila ({batchItems.length})</span>
+                    <span>Selecione para revisar ou alternar</span>
+                  </div>
+
+                  <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
+                    {batchItems.map((item, idx) => {
+                      const isActive = idx === activeItemIndex
+                      const isReady = item.status === 'ready'
+
+                      return (
+                        <div
+                          key={item.id}
+                          onClick={() => isReady && setActiveItemIndex(idx)}
+                          className={`p-2.5 rounded-xl border flex items-center gap-2.5 min-w-[200px] max-w-[240px] shrink-0 transition-all cursor-pointer select-none ${
+                            isActive
+                              ? 'bg-primary/10 border-primary shadow-sm ring-1 ring-primary/40'
+                              : 'bg-card border-border/80 hover:bg-secondary/40'
+                          } ${!isReady ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={item.selected && isReady}
+                            disabled={!isReady}
+                            onChange={(e) => {
+                              e.stopPropagation()
+                              handleToggleItemSelection(idx)
+                            }}
+                            className="w-3.5 h-3.5 rounded text-primary focus:ring-0 cursor-pointer"
+                          />
+
+                          {/* Mini Cover or Icon */}
+                          <div className="w-8 h-8 rounded-lg overflow-hidden bg-secondary border border-border shrink-0 flex items-center justify-center">
+                            {item.proposal?.coverPath ? (
+                              <img
+                                src={`media://${encodeURI(item.proposal.coverPath.replace(/\\/g, '/'))}`}
+                                alt={item.name}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <ImageIcon className="w-4 h-4 text-muted-foreground opacity-50" />
+                            )}
+                          </div>
+
+                          <div className="min-w-0 flex-1">
+                            <div className="font-bold text-xs text-foreground truncate">
+                              {item.proposal?.suggestedTitle || item.name}
+                            </div>
+                            <div className="text-[10px] text-muted-foreground flex items-center gap-1.5">
+                              <span>{item.proposal?.modules.length || 0} mods</span>
+                              <span>•</span>
+                              <span>{item.proposal?.totalLessons || 0} aulas</span>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Active Course Preview View */}
+              {activeItem && activeItem.proposal && (
+                <ImportPreview
+                  proposal={activeItem.proposal}
+                  onUpdateProposal={handleUpdateActiveProposal}
+                  isExternal={activeItem.isExternal}
+                  onToggleExternal={handleToggleActiveExternal}
+                />
+              )}
+            </div>
           )}
         </div>
 
-        <DialogFooter className="border-t border-border pt-3">
+        <DialogFooter className="border-t border-border pt-3 flex items-center justify-between gap-2">
           <Button
             type="button"
             variant="ghost"
             size="sm"
             onClick={handleCancel}
             disabled={isLoading}
-            className="rounded-xl text-xs"
+            className="rounded-xl text-xs cursor-pointer"
           >
             {t('common.cancel')}
           </Button>
@@ -310,11 +530,13 @@ export function ImportWizard({ open, onOpenChange }: ImportWizardProps): React.J
               variant="default"
               size="sm"
               onClick={handleConfirmImport}
-              disabled={isLoading || !scannedProposal}
-              className="font-semibold shadow-lg shadow-orange-500/20 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-500 text-white rounded-xl"
+              disabled={isLoading || readySelectedCount === 0}
+              className="font-semibold shadow-lg shadow-orange-500/20 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-500 text-white rounded-xl cursor-pointer"
             >
               {isLoading && <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />}
-              {t('import.confirmImport')}
+              {readySelectedCount > 1
+                ? `Importar ${readySelectedCount} Cursos Selecionados`
+                : t('import.confirmImport')}
             </Button>
           )}
         </DialogFooter>

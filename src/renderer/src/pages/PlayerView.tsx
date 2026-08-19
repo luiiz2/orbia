@@ -172,7 +172,7 @@ export function PlayerView(): React.JSX.Element {
                                 : 'hover:bg-secondary/60 text-muted-foreground hover:text-foreground'
                             )}
                           >
-                            <div className="flex items-center gap-2.5 overflow-hidden">
+                            <div className="flex items-center gap-2 overflow-hidden flex-1 min-w-0 mr-1.5">
                               {/* Toggle completion on check click */}
                               <button
                                 type="button"
@@ -190,7 +190,18 @@ export function PlayerView(): React.JSX.Element {
                                 )}
                               </button>
 
-                              <span className="text-[11px] font-mono text-muted-foreground shrink-0 w-4">
+                              {/* Lesson mini thumbnail if present */}
+                              {lesson.coverPath ? (
+                                <div className="aspect-video w-10 shrink-0 rounded overflow-hidden bg-secondary border border-border/70">
+                                  <img
+                                    src={`media://${encodeURI(lesson.coverPath.replace(/\\/g, '/'))}`}
+                                    alt={lesson.title}
+                                    className="w-full h-full object-cover"
+                                  />
+                                </div>
+                              ) : null}
+
+                              <span className="text-[11px] font-mono text-muted-foreground shrink-0 w-3.5">
                                 {lIdx + 1}.
                               </span>
 

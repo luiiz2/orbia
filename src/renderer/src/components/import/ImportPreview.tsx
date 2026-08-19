@@ -11,7 +11,9 @@ import {
   Check,
   HardDrive,
   Link,
-  Layers
+  Layers,
+  Image as ImageIcon,
+  Upload
 } from 'lucide-react'
 import type { ProposedCourseStructure } from '@shared'
 import { Input, Badge, Button } from '../ui'
@@ -49,6 +51,41 @@ export function ImportPreview({
       ...proposal,
       suggestedTitle: newTitle
     })
+  }
+
+  const handleSelectCourseCover = async (): Promise<void> => {
+    try {
+      const selectedImg = await window.api.courses.selectCoverImage()
+      if (selectedImg) {
+        onUpdateProposal({
+          ...proposal,
+          coverPath: selectedImg
+        })
+      }
+    } catch (err) {
+      console.error('Failed to select course cover:', err)
+    }
+  }
+
+  const handleSelectLessonCover = async (moduleId: string, lessonId: string): Promise<void> => {
+    try {
+      const selectedImg = await window.api.courses.selectCoverImage()
+      if (selectedImg) {
+        const updatedModules = proposal.modules.map((m) => {
+          if (m.id !== moduleId) return m
+          const updatedLessons = m.lessons.map((l) =>
+            l.id === lessonId ? { ...l, coverPath: selectedImg } : l
+          )
+          return { ...m, lessons: updatedLessons }
+        })
+        onUpdateProposal({
+          ...proposal,
+          modules: updatedModules
+        })
+      }
+    } catch (err) {
+      console.error('Failed to select lesson thumbnail:', err)
+    }
   }
 
   const handleUpdateModuleTitle = (moduleId: string, newTitle: string): void => {
@@ -89,8 +126,8 @@ export function ImportPreview({
 
   return (
     <div className="space-y-4 animate-in fade-in duration-200">
-      {/* Course Title Editor Header */}
-      <div className="p-3.5 rounded-2xl bg-card border border-border/80 space-y-2 shadow-sm">
+      {/* Course Title & Cover Header Card */}
+      <div className="p-3.5 rounded-2xl bg-card border border-border/80 space-y-3 shadow-sm">
         <div className="flex items-center justify-between gap-2">
           <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
             {t('import.courseTitle')}
@@ -108,37 +145,79 @@ export function ImportPreview({
           </div>
         </div>
 
-        {editingTitle ? (
-          <div className="flex items-center gap-2">
-            <Input
-              value={proposal.suggestedTitle}
-              onChange={(e) => handleUpdateCourseTitle(e.target.value)}
-              className="text-sm font-bold text-foreground bg-background rounded-xl"
-              autoFocus
-            />
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setEditingTitle(false)}
-              className="shrink-0 rounded-xl"
+        {/* Title and Cover preview row */}
+        <div className="flex gap-3 items-start">
+          {/* Cover Preview & Change Button */}
+          <div className="relative aspect-video w-24 shrink-0 rounded-xl overflow-hidden bg-secondary border border-border/80 group">
+            {proposal.coverPath ? (
+              <img
+                src={`media://${encodeURI(proposal.coverPath.replace(/\\/g, '/'))}`}
+                alt={proposal.suggestedTitle}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full flex flex-col items-center justify-center text-muted-foreground/60 p-1 text-center bg-gradient-to-br from-secondary to-card">
+                <ImageIcon className="w-5 h-5 mb-0.5 opacity-50" />
+                <span className="text-[9px] font-medium leading-none">Sem Capa</span>
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={handleSelectCourseCover}
+              className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white cursor-pointer"
+              title="Trocar Capa do Curso"
             >
-              <Check className="w-4 h-4 text-emerald-400" />
-            </Button>
+              <Upload className="w-3.5 h-3.5 mb-0.5" />
+              <span className="text-[9px] font-semibold">Trocar Capa</span>
+            </button>
           </div>
-        ) : (
-          <div
-            className="flex items-center justify-between group cursor-pointer hover:text-primary transition-colors"
-            onClick={() => setEditingTitle(true)}
-          >
-            <h3 className="text-base font-bold text-foreground truncate">
-              {proposal.suggestedTitle}
-            </h3>
-            <Edit2 className="w-3.5 h-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-          </div>
-        )}
 
-        <div className="text-[11px] text-muted-foreground truncate font-mono bg-secondary/30 px-2 py-1 rounded-lg border border-border/40">
-          {proposal.rootPath}
+          <div className="flex-1 min-w-0 space-y-1.5">
+            {editingTitle ? (
+              <div className="flex items-center gap-2">
+                <Input
+                  value={proposal.suggestedTitle}
+                  onChange={(e) => handleUpdateCourseTitle(e.target.value)}
+                  className="text-sm font-bold text-foreground bg-background rounded-xl"
+                  autoFocus
+                />
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setEditingTitle(false)}
+                  className="shrink-0 rounded-xl"
+                >
+                  <Check className="w-4 h-4 text-emerald-400" />
+                </Button>
+              </div>
+            ) : (
+              <div
+                className="flex items-center justify-between group cursor-pointer hover:text-primary transition-colors"
+                onClick={() => setEditingTitle(true)}
+              >
+                <h3 className="text-base font-bold text-foreground truncate">
+                  {proposal.suggestedTitle}
+                </h3>
+                <Edit2 className="w-3.5 h-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
+            )}
+
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-[11px] text-muted-foreground truncate font-mono bg-secondary/30 px-2 py-0.5 rounded-lg border border-border/40 flex-1">
+                {proposal.rootPath}
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="xs"
+                onClick={handleSelectCourseCover}
+                className="text-[11px] h-6 px-2 text-primary hover:bg-primary/10 rounded-lg shrink-0 gap-1"
+              >
+                <ImageIcon className="w-3 h-3" />
+                <span>{proposal.coverPath ? 'Alterar Capa' : 'Adicionar Capa'}</span>
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -247,10 +326,32 @@ export function ImportPreview({
                     return (
                       <div
                         key={lesson.id}
-                        className="py-2 px-3 pl-8 flex items-center justify-between text-xs hover:bg-secondary/40 group transition-colors"
+                        className="py-2 px-3 pl-6 flex items-center justify-between text-xs hover:bg-secondary/40 group transition-colors"
                       >
+                        {/* Lesson Thumbnail & Title */}
                         <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                          {getMediaIcon(lesson.mediaType)}
+                          {/* Mini Thumbnail */}
+                          <div
+                            onClick={() => handleSelectLessonCover(mod.id, lesson.id)}
+                            className="relative aspect-video w-12 shrink-0 rounded-md overflow-hidden bg-secondary border border-border/70 group/thumb cursor-pointer"
+                            title="Trocar capa/miniatura da aula"
+                          >
+                            {lesson.coverPath ? (
+                              <img
+                                src={`media://${encodeURI(lesson.coverPath.replace(/\\/g, '/'))}`}
+                                alt={lesson.title}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center bg-secondary/80 text-muted-foreground/60">
+                                {getMediaIcon(lesson.mediaType)}
+                              </div>
+                            )}
+                            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover/thumb:opacity-100 transition-opacity flex items-center justify-center text-white">
+                              <ImageIcon className="w-3 h-3" />
+                            </div>
+                          </div>
+
                           <span className="text-muted-foreground font-mono text-[11px] shrink-0">
                             {String(lessonIdx + 1).padStart(2, '0')}
                           </span>
@@ -278,7 +379,7 @@ export function ImportPreview({
                           <Button
                             size="icon"
                             variant="ghost"
-                            className="h-5 w-5 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-foreground rounded"
+                            className="h-5 w-5 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-foreground rounded cursor-pointer"
                             onClick={() =>
                               setEditingLessonId(isEditingLesson ? null : lesson.id)
                             }
@@ -302,4 +403,3 @@ export function ImportPreview({
     </div>
   )
 }
-

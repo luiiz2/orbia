@@ -22,6 +22,11 @@ export interface LibraryState {
     proposal: ProposedCourseStructure,
     isExternal: boolean
   ) => Promise<{ success: boolean; course?: Course; error?: string }>
+  importBatch: (
+    items: { proposal: ProposedCourseStructure; isExternal: boolean }[]
+  ) => Promise<{ success: boolean; courses?: Course[]; error?: string }>
+  updateCourseCover: (courseId: string, coverPath: string) => Promise<boolean>
+  updateLessonCover: (lessonId: string, coverPath: string) => Promise<boolean>
   deleteCourse: (id: string, deleteFiles: boolean) => Promise<{ success: boolean; error?: string }>
   setSearchQuery: (query: string) => void
   setActiveCourse: (course: Course | null) => void
@@ -106,6 +111,79 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
       const errorMsg = err instanceof Error ? err.message : String(err)
       set({ error: errorMsg, isLoading: false })
       return { success: false, error: errorMsg }
+    }
+  },
+
+  importBatch: async (items: { proposal: ProposedCourseStructure; isExternal: boolean }[]) => {
+    set({ isLoading: true, error: null })
+    try {
+      const res = await window.api.courses.importBatch(items)
+      if (res.success && res.courses) {
+        await get().fetchCourses()
+        set({ isLoading: false, error: null })
+        return res
+      } else {
+        const errorMsg = res.error || 'Failed to import courses in batch'
+        set({ error: errorMsg, isLoading: false })
+        return { success: false, error: errorMsg }
+      }
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : String(err)
+      set({ error: errorMsg, isLoading: false })
+      return { success: false, error: errorMsg }
+    }
+  },
+
+  updateCourseCover: async (courseId: string, coverPath: string) => {
+    try {
+      const res = await window.api.courses.updateCourseCover(courseId, coverPath)
+      if (res.success) {
+        // Optimistically update courses list and active course
+        set((state) => ({
+          courses: state.courses.map((c) => (c.id === courseId ? { ...c, coverPath } : c)),
+          activeCourse:
+            state.activeCourse?.id === courseId
+              ? { ...state.activeCourse, coverPath }
+              : state.activeCourse,
+          activeCourseHierarchy:
+            state.activeCourseHierarchy?.course.id === courseId
+              ? {
+                  ...state.activeCourseHierarchy,
+                  course: { ...state.activeCourseHierarchy.course, coverPath }
+                }
+              : state.activeCourseHierarchy
+        }))
+        return true
+      }
+      return false
+    } catch {
+      return false
+    }
+  },
+
+  updateLessonCover: async (lessonId: string, coverPath: string) => {
+    try {
+      const res = await window.api.courses.updateLessonCover(lessonId, coverPath)
+      if (res.success) {
+        // Optimistically update activeCourseHierarchy
+        set((state) => {
+          if (!state.activeCourseHierarchy) return state
+          const updatedModules = state.activeCourseHierarchy.modules.map((mod) => ({
+            ...mod,
+            lessons: mod.lessons.map((l) => (l.id === lessonId ? { ...l, coverPath } : l))
+          }))
+          return {
+            activeCourseHierarchy: {
+              ...state.activeCourseHierarchy,
+              modules: updatedModules
+            }
+          }
+        })
+        return true
+      }
+      return false
+    } catch {
+      return false
     }
   },
 
