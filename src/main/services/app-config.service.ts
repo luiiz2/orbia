@@ -30,7 +30,14 @@ export class AppConfigService {
     }
   }
 
-  public init(): void {
+  public init(customPath?: string): void {
+    if (customPath) {
+      if (this.db) {
+        this.close()
+      }
+      this.dbPath = customPath
+    }
+
     if (this.db) return
 
     const dir = path.dirname(this.dbPath)
