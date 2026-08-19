@@ -21,6 +21,11 @@ process.on('unhandledRejection', (reason) => {
   logger.error('[Main] Unhandled Rejection:', reason)
 })
 
+// Performance optimization switches
+app.commandLine.appendSwitch('enable-gpu-rasterization')
+app.commandLine.appendSwitch('enable-zero-copy')
+app.commandLine.appendSwitch('disable-renderer-backgrounding')
+
 // CRITICAL: Register media scheme privileges BEFORE app.whenReady()
 registerMediaScheme()
 
@@ -35,8 +40,9 @@ if (!gotTheLock) {
     logger.info('[Main] Second instance launched. Focusing existing window.')
     if (mainWindow) {
       if (mainWindow.isMinimized()) mainWindow.restore()
-      mainWindow.show()
+      if (!mainWindow.isVisible()) mainWindow.show()
       mainWindow.focus()
+      mainWindow.moveTop()
     }
   })
 
@@ -47,7 +53,7 @@ if (!gotTheLock) {
       height: 850,
       minWidth: 900,
       minHeight: 600,
-      show: false,
+      show: true,
       center: true,
       autoHideMenuBar: true,
       title: 'Orbia',
@@ -62,12 +68,6 @@ if (!gotTheLock) {
     })
 
     mainWindow = win
-
-    win.on('ready-to-show', () => {
-      logger.info('[Main] Window ready-to-show fired. Showing window.')
-      win.show()
-      win.focus()
-    })
 
     win.on('closed', () => {
       logger.info('[Main] MainWindow closed')
