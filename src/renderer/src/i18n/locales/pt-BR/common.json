@@ -1,0 +1,109 @@
+{
+  "app": {
+    "name": "Orbia",
+    "tagline": "Sua biblioteca pessoal de cursos"
+  },
+  "nav": {
+    "home": "Início",
+    "library": "Biblioteca",
+    "history": "Histórico",
+    "settings": "Configurações",
+    "importCourse": "Importar Curso",
+    "changeVault": "Trocar Vault"
+  },
+  "vault": {
+    "title": "Selecione ou Crie um Study Vault",
+    "subtitle": "O seu vault guarda a organização dos cursos, progresso de estudo e metadados de forma portável.",
+    "createNew": "Criar Novo Vault",
+    "openExisting": "Abrir Vault Existente",
+    "recentVaults": "Vaults Recentes",
+    "vaultName": "Nome do Vault",
+    "vaultLocation": "Localização do Vault",
+    "browse": "Procurar...",
+    "create": "Criar Vault",
+    "cancel": "Cancelar",
+    "noRecent": "Nenhum vault recente encontrado. Crie ou abra um para começar."
+  },
+  "home": {
+    "continueStudying": "Continuar Estudando",
+    "allCourses": "Todos os Cursos",
+    "emptyTitle": "Sua Biblioteca está Vazia",
+    "emptySubtitle": "Importe sua primeira pasta de curso ou solte cursos na pasta Inbox do seu Vault para começar.",
+    "importFirstCourse": "Importar Primeiro Curso"
+  },
+  "course": {
+    "modules": "módulos",
+    "lessons": "aulas",
+    "totalDuration": "Duração total",
+    "completed": "Concluído",
+    "inProgress": "Em andamento",
+    "notStarted": "Não iniciado",
+    "resume": "Continuar",
+    "start": "Iniciar Curso",
+    "deleteCourse": "Remover Curso",
+    "deleteConfirmTitle": "Remover curso da biblioteca?",
+    "deleteConfirmDesc": "Isso removerá o curso e seu progresso do Orbia. Seus arquivos originais no disco não serão apagados."
+  },
+  "player": {
+    "nextLesson": "Próxima Aula",
+    "prevLesson": "Aula Anterior",
+    "markCompleted": "Marcar como Concluída",
+    "completed": "Concluída",
+    "speed": "Velocidade",
+    "curriculum": "Conteúdo",
+    "resources": "Materiais",
+    "notes": "Anotações",
+    "autoPlayNext": "Avançar para a próxima aula automaticamente",
+    "nextIn": "Próxima aula inicia em {{seconds}}s"
+  },
+  "import": {
+    "title": "Importar Curso",
+    "selectFolder": "Selecionar Pasta ou Arquivo .zip do Curso",
+    "selectFolderSubtitle": "Escolha uma pasta ou arquivo compactado .zip contendo videoaulas, módulos e materiais de estudo.",
+    "dropZone": "Arraste e solte uma pasta ou arquivo .zip aqui",
+    "orBrowse": "ou selecione no seu computador",
+    "extracting": "Extraindo arquivo .zip...",
+    "extractProgress": "Descompactando {{currentFile}} ({{percent}}%)",
+    "scanning": "Analisando estrutura do curso...",
+    "previewTitle": "Prévia da Estrutura do Curso",
+    "previewSubtitle": "Revise e personalize os módulos e aulas detectados antes de adicionar à sua biblioteca.",
+    "courseTitle": "Título do Curso",
+    "saveToVault": "Armazenar dentro do Vault (Courses/)",
+    "referenceExternal": "Vincular por Referência (manter local original)",
+    "confirmImport": "Adicionar à Biblioteca",
+    "cancel": "Cancelar"
+  },
+  "history": {
+    "title": "Histórico de Aulas",
+    "empty": "Nenhum histórico ainda. Assista às aulas para registrar suas sessões de estudo.",
+    "today": "Hoje",
+    "yesterday": "Ontem"
+  },
+  "settings": {
+    "title": "Configurações",
+    "general": "Geral",
+    "language": "Idioma",
+    "theme": "Tema",
+    "themeDark": "Escuro",
+    "themeLight": "Claro",
+    "themeSystem": "Sistema",
+    "playback": "Reprodução",
+    "defaultSpeed": "Velocidade Padrão",
+    "autoPlayNext": "Avançar automaticamente para a próxima aula",
+    "completionThreshold": "Marcar aula como concluída em",
+    "currentVault": "Vault Atual",
+    "about": "Sobre o Orbia",
+    "version": "Versão",
+    "license": "Licença: MIT (Código Aberto)"
+  },
+  "common": {
+    "save": "Salvar",
+    "cancel": "Cancelar",
+    "delete": "Excluir",
+    "edit": "Editar",
+    "loading": "Carregando...",
+    "error": "Erro",
+    "success": "Sucesso",
+    "search": "Buscar cursos, módulos, aulas..."
+  }
+}

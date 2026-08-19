@@ -1,0 +1,158 @@
+import fs from 'node:fs'
+import path from 'node:path'
+import crypto from 'node:crypto'
+import type { Vault, VaultStats } from '../../types'
+import { appConfigService } from './app-config.service'
+import { databaseService } from './database.service'
+
+export class VaultService {
+  private currentVault: Vault | null = null
+
+  /**
+   * Creates a new Vault on disk and initializes its SQLite database.
+   */
+  public async createVault(vaultPath: string, name: string): Promise<Vault> {
+    const trimmedPath = vaultPath.trim()
+    const trimmedName = name.trim() || path.basename(trimmedPath) || 'Study Vault'
+
+    // 1. Create main vault directory if missing
+    if (!fs.existsSync(trimmedPath)) {
+      await fs.promises.mkdir(trimmedPath, { recursive: true })
+    }
+
+    // 2. Create standard Orbia directory architecture
+    const inboxPath = path.join(trimmedPath, 'Inbox')
+    const coursesPath = path.join(trimmedPath, 'Courses')
+    const orbiaPath = path.join(trimmedPath, '.orbia')
+    const coversPath = path.join(orbiaPath, 'covers')
+
+    await fs.promises.mkdir(inboxPath, { recursive: true })
+    await fs.promises.mkdir(coursesPath, { recursive: true })
+    await fs.promises.mkdir(coversPath, { recursive: true })
+
+    // Create .gitignore inside .orbia
+    const gitignorePath = path.join(orbiaPath, '.gitignore')
+    if (!fs.existsSync(gitignorePath)) {
+      await fs.promises.writeFile(gitignorePath, '# Orbia local cache\n*.log\n*.tmp\n')
+    }
+
+    // 3. Connect and initialize library.db
+    databaseService.connect(trimmedPath)
+
+    // 4. Construct Vault domain entity
+    const now = Date.now()
+    const vault: Vault = {
+      id: crypto.randomUUID(),
+      name: trimmedName,
+      path: trimmedPath,
+      createdAt: now,
+      lastOpened: now
+    }
+
+    // 5. Register in App Config DB
+    appConfigService.registerVault(vault)
+    appConfigService.setSetting('lastVaultPath', trimmedPath)
+    this.currentVault = vault
+
+    return vault
+  }
+
+  /**
+   * Opens an existing Vault directory and connects to its library.db.
+   */
+  public async openVault(vaultPath: string): Promise<Vault> {
+    const trimmedPath = vaultPath.trim()
+
+    if (!fs.existsSync(trimmedPath)) {
+      throw new Error(`Directory does not exist: "${trimmedPath}"`)
+    }
+
+    const stat = await fs.promises.stat(trimmedPath)
+    if (!stat.isDirectory()) {
+      throw new Error(`The path "${trimmedPath}" is not a valid folder.`)
+    }
+
+    // Ensure .orbia structure exists
+    const orbiaPath = path.join(trimmedPath, '.orbia')
+    const inboxPath = path.join(trimmedPath, 'Inbox')
+    const coursesPath = path.join(trimmedPath, 'Courses')
+
+    if (!fs.existsSync(orbiaPath)) {
+      await fs.promises.mkdir(orbiaPath, { recursive: true })
+    }
+    if (!fs.existsSync(inboxPath)) {
+      await fs.promises.mkdir(inboxPath, { recursive: true })
+    }
+    if (!fs.existsSync(coursesPath)) {
+      await fs.promises.mkdir(coursesPath, { recursive: true })
+    }
+
+    // Connect DB
+    databaseService.connect(trimmedPath)
+
+    // Check if known in AppConfig, or register as new
+    let vault = appConfigService.getVaultByPath(trimmedPath)
+    const now = Date.now()
+
+    if (!vault) {
+      vault = {
+        id: crypto.randomUUID(),
+        name: path.basename(trimmedPath) || 'Study Vault',
+        path: trimmedPath,
+        createdAt: now,
+        lastOpened: now
+      }
+      appConfigService.registerVault(vault)
+    } else {
+      appConfigService.updateVaultLastOpened(trimmedPath)
+      vault.lastOpened = now
+    }
+
+    appConfigService.setSetting('lastVaultPath', trimmedPath)
+    this.currentVault = vault
+
+    return vault
+  }
+
+  /**
+   * Returns currently active Vault, or null if none is open.
+   */
+  public getCurrentVault(): Vault | null {
+    return this.currentVault
+  }
+
+  /**
+   * Returns list of recent vaults.
+   */
+  public getRecentVaults(): Vault[] {
+    return appConfigService.getRecentVaults()
+  }
+
+  /**
+   * Aggregates stats for the active vault.
+   */
+  public getVaultStats(): VaultStats {
+    if (!this.currentVault) {
+      return {
+        courseCount: 0,
+        moduleCount: 0,
+        lessonCount: 0,
+        totalDuration: 0,
+        completedLessons: 0,
+        totalWatchedTime: 0
+      }
+    }
+    return databaseService.getVaultStats()
+  }
+
+  /**
+   * Checks if a directory is a valid Orbia vault.
+   */
+  public isValidVault(folderPath: string): boolean {
+    if (!fs.existsSync(folderPath)) return false
+    const orbiaDb = path.join(folderPath, '.orbia', 'library.db')
+    return fs.existsSync(orbiaDb)
+  }
+}
+
+export const vaultService = new VaultService()

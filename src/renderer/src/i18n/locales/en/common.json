@@ -1,0 +1,109 @@
+{
+  "app": {
+    "name": "Orbia",
+    "tagline": "Your personal course library"
+  },
+  "nav": {
+    "home": "Home",
+    "library": "Library",
+    "history": "History",
+    "settings": "Settings",
+    "importCourse": "Import Course",
+    "changeVault": "Change Vault"
+  },
+  "vault": {
+    "title": "Select or Create a Study Vault",
+    "subtitle": "Your vault stores course organization, study progress, and metadata portably.",
+    "createNew": "Create New Vault",
+    "openExisting": "Open Existing Vault",
+    "recentVaults": "Recent Vaults",
+    "vaultName": "Vault Name",
+    "vaultLocation": "Vault Location",
+    "browse": "Browse...",
+    "create": "Create Vault",
+    "cancel": "Cancel",
+    "noRecent": "No recent vaults found. Create or open one to get started."
+  },
+  "home": {
+    "continueStudying": "Continue Studying",
+    "allCourses": "All Courses",
+    "emptyTitle": "Your Library is Empty",
+    "emptySubtitle": "Import your first course folder or drop courses into your Vault's Inbox to start learning.",
+    "importFirstCourse": "Import First Course"
+  },
+  "course": {
+    "modules": "modules",
+    "lessons": "lessons",
+    "totalDuration": "Total duration",
+    "completed": "Completed",
+    "inProgress": "In progress",
+    "notStarted": "Not started",
+    "resume": "Resume",
+    "start": "Start Course",
+    "deleteCourse": "Remove Course",
+    "deleteConfirmTitle": "Remove course from library?",
+    "deleteConfirmDesc": "This will remove the course and its progress from Orbia. Your original files on disk will not be deleted."
+  },
+  "player": {
+    "nextLesson": "Next Lesson",
+    "prevLesson": "Previous Lesson",
+    "markCompleted": "Mark as Completed",
+    "completed": "Completed",
+    "speed": "Speed",
+    "curriculum": "Curriculum",
+    "resources": "Resources",
+    "notes": "Notes",
+    "autoPlayNext": "Autoplay next lesson",
+    "nextIn": "Next lesson starts in {{seconds}}s"
+  },
+  "import": {
+    "title": "Import Course",
+    "selectFolder": "Select Course Folder or .zip Archive",
+    "selectFolderSubtitle": "Choose a course folder or .zip archive containing videos, modules, and study materials.",
+    "dropZone": "Drag & drop a folder or .zip archive here",
+    "orBrowse": "or browse from your computer",
+    "extracting": "Extracting .zip archive...",
+    "extractProgress": "Unpacking {{currentFile}} ({{percent}}%)",
+    "scanning": "Analyzing course structure...",
+    "previewTitle": "Course Structure Preview",
+    "previewSubtitle": "Review and customize the detected modules and lessons before adding to your library.",
+    "courseTitle": "Course Title",
+    "saveToVault": "Store inside Vault (Courses/)",
+    "referenceExternal": "Link by Reference (keep original location)",
+    "confirmImport": "Add to Library",
+    "cancel": "Cancel"
+  },
+  "history": {
+    "title": "Watch History",
+    "empty": "No watch history yet. Start watching lessons to track your study sessions.",
+    "today": "Today",
+    "yesterday": "Yesterday"
+  },
+  "settings": {
+    "title": "Settings",
+    "general": "General",
+    "language": "Language",
+    "theme": "Theme",
+    "themeDark": "Dark",
+    "themeLight": "Light",
+    "themeSystem": "System",
+    "playback": "Playback",
+    "defaultSpeed": "Default Playback Speed",
+    "autoPlayNext": "Autoplay next lesson automatically",
+    "completionThreshold": "Mark lesson complete at",
+    "currentVault": "Current Vault",
+    "about": "About Orbia",
+    "version": "Version",
+    "license": "License: MIT (Open Source)"
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "search": "Search courses, modules, lessons..."
+  }
+}

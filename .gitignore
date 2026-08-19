@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build Outputs
+dist/
+out/
+build/
+
+# Testing & Temp Directories
+tmp/
+tmp_*/
+test_vault*/
+coverage/
+*.log
+*.log.*
+out_test.txt
+err_test.txt
+stderr.txt
+
+# Databases & User Vaults
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+.orbia/
+
+# OS and Editor
+.DS_Store
+Thumbs.db
+.eslintcache
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
