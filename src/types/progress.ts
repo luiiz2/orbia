@@ -41,3 +41,6 @@ export interface ModuleProgressSummary {
   completedLessons: number
   percentage: number
 }
+
+export type { LessonNote } from './notes'
+

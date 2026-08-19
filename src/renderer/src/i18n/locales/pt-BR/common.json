@@ -26,10 +26,18 @@
   },
   "home": {
     "continueStudying": "Continuar Estudando",
+    "continueWatching": "Continuar Assistindo",
+    "continueLesson": "Continuar Aula",
     "allCourses": "Todos os Cursos",
     "emptyTitle": "Sua Biblioteca está Vazia",
     "emptySubtitle": "Importe sua primeira pasta de curso ou solte cursos na pasta Inbox do seu Vault para começar.",
-    "importFirstCourse": "Importar Primeiro Curso"
+    "importFirstCourse": "Importar Primeiro Curso",
+    "filters": {
+      "all": "Todos",
+      "inProgress": "Em Andamento",
+      "completed": "Concluídos",
+      "favorites": "Favoritos"
+    }
   },
   "course": {
     "modules": "módulos",
@@ -40,6 +48,12 @@
     "notStarted": "Não iniciado",
     "resume": "Continuar",
     "start": "Iniciar Curso",
+    "favorite": "Favoritar",
+    "favorited": "Favorito",
+    "toggleFavorite": "Alternar favorito",
+    "changeCover": "Trocar Capa",
+    "changeCourseCover": "Trocar Capa do Curso",
+    "changeLessonCover": "Trocar Capa da Aula",
     "deleteCourse": "Remover Curso",
     "deleteConfirmTitle": "Remover curso da biblioteca?",
     "deleteConfirmDesc": "Isso removerá o curso e seu progresso do Orbia. Seus arquivos originais no disco não serão apagados."
@@ -53,8 +67,46 @@
     "curriculum": "Conteúdo",
     "resources": "Materiais",
     "notes": "Anotações",
+    "subtitles": "Legendas",
+    "subtitlesOff": "Desativado",
+    "noSubtitlesAvailable": "Nenhuma legenda encontrada",
+    "pip": "Picture-in-Picture",
+    "addNoteAt": "Adicionar Nota em {{time}}",
+    "addNotePlaceholder": "Escreva sua anotação em Markdown...",
+    "noNotes": "Nenhuma anotação nesta aula ainda",
+    "noNotesSubtitle": "Crie anotações com marcação de tempo enquanto assiste para fixar seus estudos.",
+    "exportNotes": "Exportar Anotações (.md)",
+    "editNote": "Editar Nota",
+    "deleteNote": "Excluir Nota",
+    "saveNote": "Salvar Nota",
+    "notesExported": "Anotações exportadas (.md)",
     "autoPlayNext": "Avançar para a próxima aula automaticamente",
     "nextIn": "Próxima aula inicia em {{seconds}}s"
+  },
+  "documents": {
+    "title": "Visualizador de Documentos",
+    "viewDocument": "Visualizar Documento",
+    "openExternal": "Abrir em Nova Janela",
+    "download": "Baixar",
+    "close": "Fechar",
+    "nonPdfHint": "Este formato de documento pode ser visualizado abrindo no seu visualizador externo padrão."
+  },
+  "notes": {
+    "title": "Anotações da Aula",
+    "addNote": "Adicionar Anotação",
+    "takeNoteAt": "Anotar em {{timestamp}}",
+    "emptyNotes": "Nenhuma anotação nesta aula ainda. Clique acima para adicionar sua primeira anotação!",
+    "exportNotes": "Exportar Anotações",
+    "exportSuccess": "Anotações exportadas com sucesso",
+    "saveNote": "Salvar Anotação",
+    "editNote": "Editar Anotação",
+    "deleteNote": "Excluir Anotação"
+  },
+  "subtitles": {
+    "subtitles": "Legendas",
+    "off": "Desativado",
+    "selectSubtitle": "Selecionar Legenda",
+    "noSubtitles": "Nenhuma legenda disponível"
   },
   "import": {
     "title": "Importar Curso",

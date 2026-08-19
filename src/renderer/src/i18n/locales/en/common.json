@@ -26,10 +26,18 @@
   },
   "home": {
     "continueStudying": "Continue Studying",
+    "continueWatching": "Continue Watching",
+    "continueLesson": "Continue Lesson",
     "allCourses": "All Courses",
     "emptyTitle": "Your Library is Empty",
     "emptySubtitle": "Import your first course folder or drop courses into your Vault's Inbox to start learning.",
-    "importFirstCourse": "Import First Course"
+    "importFirstCourse": "Import First Course",
+    "filters": {
+      "all": "All",
+      "inProgress": "In Progress",
+      "completed": "Completed",
+      "favorites": "Favorites"
+    }
   },
   "course": {
     "modules": "modules",
@@ -40,6 +48,12 @@
     "notStarted": "Not started",
     "resume": "Resume",
     "start": "Start Course",
+    "favorite": "Add to Favorites",
+    "favorited": "Favorited",
+    "toggleFavorite": "Toggle favorite",
+    "changeCover": "Change Cover",
+    "changeCourseCover": "Change Course Cover",
+    "changeLessonCover": "Change Lesson Cover",
     "deleteCourse": "Remove Course",
     "deleteConfirmTitle": "Remove course from library?",
     "deleteConfirmDesc": "This will remove the course and its progress from Orbia. Your original files on disk will not be deleted."
@@ -53,8 +67,46 @@
     "curriculum": "Curriculum",
     "resources": "Resources",
     "notes": "Notes",
+    "subtitles": "Subtitles",
+    "subtitlesOff": "Off",
+    "noSubtitlesAvailable": "No subtitles detected",
+    "pip": "Picture-in-Picture",
+    "addNoteAt": "Add Note at {{time}}",
+    "addNotePlaceholder": "Write your note in Markdown...",
+    "noNotes": "No notes yet for this lesson",
+    "noNotesSubtitle": "Take timestamped notes while watching to retain your learning.",
+    "exportNotes": "Export Notes (.md)",
+    "editNote": "Edit Note",
+    "deleteNote": "Delete Note",
+    "saveNote": "Save Note",
+    "notesExported": "Notes exported (.md)",
     "autoPlayNext": "Autoplay next lesson",
     "nextIn": "Next lesson starts in {{seconds}}s"
+  },
+  "documents": {
+    "title": "Document Viewer",
+    "viewDocument": "View Document",
+    "openExternal": "Open in New Window",
+    "download": "Download",
+    "close": "Close",
+    "nonPdfHint": "This document format can be viewed by opening it in your default external application."
+  },
+  "notes": {
+    "title": "Lesson Notes",
+    "addNote": "Add Note",
+    "takeNoteAt": "Take note at {{timestamp}}",
+    "emptyNotes": "No notes yet for this lesson. Click above to add your first note!",
+    "exportNotes": "Export Notes",
+    "exportSuccess": "Notes exported successfully",
+    "saveNote": "Save Note",
+    "editNote": "Edit Note",
+    "deleteNote": "Delete Note"
+  },
+  "subtitles": {
+    "subtitles": "Subtitles",
+    "off": "Off",
+    "selectSubtitle": "Select Subtitle",
+    "noSubtitles": "No subtitles available"
   },
   "import": {
     "title": "Import Course",

@@ -9,11 +9,13 @@ import {
   Minimize,
   CheckCircle2,
   Circle,
-  Tv
+  Tv,
+  PictureInPicture2
 } from 'lucide-react'
 import { ProgressBar } from './ProgressBar'
 import { VolumeControl } from './VolumeControl'
 import { SpeedMenu } from './SpeedMenu'
+import { SubtitleMenu } from './SubtitleMenu'
 import { Button } from '../ui/button'
 import { formatTime } from '../../lib/formatters'
 import { cn } from '../../lib/utils'
@@ -26,6 +28,7 @@ export interface PlayerControlsProps {
   isMuted: boolean
   playbackRate: number
   isFullscreen: boolean
+  isPiP?: boolean
   theaterMode?: boolean
   isCompleted?: boolean
   hasNextLesson: boolean
@@ -37,6 +40,7 @@ export interface PlayerControlsProps {
   onToggleMute: () => void
   onRateChange: (rate: number) => void
   onToggleFullscreen: () => void
+  onTogglePiP?: () => void
   onToggleTheater?: () => void
   onToggleCompletion: () => void
   onNextLesson: () => void
@@ -52,6 +56,7 @@ export function PlayerControls({
   isMuted,
   playbackRate,
   isFullscreen,
+  isPiP,
   theaterMode,
   isCompleted,
   hasNextLesson,
@@ -63,6 +68,7 @@ export function PlayerControls({
   onToggleMute,
   onRateChange,
   onToggleFullscreen,
+  onTogglePiP,
   onToggleTheater,
   onToggleCompletion,
   onNextLesson,
@@ -149,7 +155,7 @@ export function PlayerControls({
           </div>
         </div>
 
-        {/* Right: Actions, Speed & Display Mode */}
+        {/* Right: Actions, Speed, Subtitles, PiP & Display Mode */}
         <div className="flex items-center gap-1.5 sm:gap-2">
           {/* Mark Complete Toggle */}
           <Button
@@ -173,6 +179,26 @@ export function PlayerControls({
               {isCompleted ? t('player.completed') : t('player.markCompleted')}
             </span>
           </Button>
+
+          {/* Subtitles Menu */}
+          <SubtitleMenu />
+
+          {/* Picture-in-Picture Toggle */}
+          {onTogglePiP && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onTogglePiP}
+              className={cn(
+                'h-8 w-8 text-white/90 hover:bg-white/10 hover:text-white transition-colors',
+                isPiP && 'text-primary'
+              )}
+              title={`${t('player.pip')} (P)`}
+              aria-label={t('player.pip')}
+            >
+              <PictureInPicture2 className="h-4 w-4" />
+            </Button>
+          )}
 
           {/* Speed Selector */}
           <SpeedMenu playbackRate={playbackRate} onRateChange={onRateChange} />

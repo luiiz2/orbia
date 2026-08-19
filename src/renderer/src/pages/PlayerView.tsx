@@ -6,9 +6,12 @@ import {
   Circle,
   ChevronRight,
   ChevronLeft,
-  Tv
+  Tv,
+  Eye
 } from 'lucide-react'
 import { VideoPlayer } from '../components/player/VideoPlayer'
+import { NotesPanel } from '../components/player/NotesPanel'
+import { PdfViewerModal } from '../components/documents/PdfViewerModal'
 import { usePlayerStore } from '../stores/usePlayerStore'
 import { useNavigationStore } from '../stores/useNavigationStore'
 import { useCourseProgress } from '../hooks/useCourseProgress'
@@ -16,6 +19,7 @@ import { Button } from '../components/ui/button'
 import { Progress } from '../components/ui/progress'
 import { formatTime, formatFileSize } from '../lib/formatters'
 import { cn } from '../lib/utils'
+import type { AttachedResource } from '@shared'
 
 export function PlayerView(): React.JSX.Element {
   const { t } = useTranslation()
@@ -23,6 +27,7 @@ export function PlayerView(): React.JSX.Element {
     activeCourse,
     activeLesson,
     modulesWithLessons,
+    notes,
     loadLesson,
     toggleComplete,
     theaterMode,
@@ -30,8 +35,10 @@ export function PlayerView(): React.JSX.Element {
   } = usePlayerStore()
 
   const { setView } = useNavigationStore()
-  const [activeTab, setActiveTab] = useState<'curriculum' | 'resources'>('curriculum')
+  const [activeTab, setActiveTab] = useState<'curriculum' | 'notes' | 'resources'>('curriculum')
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true)
+  const [selectedResource, setSelectedResource] = useState<AttachedResource | null>(null)
+  const [isPdfModalOpen, setIsPdfModalOpen] = useState<boolean>(false)
 
   const progressData = useCourseProgress({
     courseId: activeCourse?.id,
@@ -54,7 +61,7 @@ export function PlayerView(): React.JSX.Element {
         </div>
       </div>
 
-      {/* Side Curriculum Panel (collapsible drawer) */}
+      {/* Side Panel (collapsible drawer) */}
       {!isFullscreen && (
         <aside
           className={cn(
@@ -100,7 +107,7 @@ export function PlayerView(): React.JSX.Element {
               />
             </div>
 
-            {/* Curriculum / Resources Tabs */}
+            {/* Curriculum / Notes / Resources Tabs */}
             <div className="flex rounded-xl bg-secondary/80 p-1 text-xs">
               <button
                 type="button"
@@ -113,6 +120,23 @@ export function PlayerView(): React.JSX.Element {
                 )}
               >
                 {t('player.curriculum')}
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('notes')}
+                className={cn(
+                  'flex-1 py-1.5 text-center font-semibold rounded-lg transition-all cursor-pointer relative',
+                  activeTab === 'notes'
+                    ? 'bg-card text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                {t('player.notes')}
+                {notes.length > 0 && (
+                  <span className="ml-1.5 rounded-full bg-primary/20 px-1.5 py-0.2 text-[10px] font-bold text-primary">
+                    {notes.length}
+                  </span>
+                )}
               </button>
               <button
                 type="button"
@@ -136,7 +160,7 @@ export function PlayerView(): React.JSX.Element {
 
           {/* Side Panel Content */}
           <div className="flex-1 overflow-y-auto p-3 space-y-3">
-            {activeTab === 'curriculum' ? (
+            {activeTab === 'curriculum' && (
               modulesWithLessons.map((module, modIdx) => {
                 const modInfo = progressData.moduleProgress[module.id]
 
@@ -177,7 +201,7 @@ export function PlayerView(): React.JSX.Element {
                               <button
                                 type="button"
                                 onClick={(e) => {
-                                  e.stopPropagation()
+                                   e.stopPropagation()
                                   toggleComplete(lesson.id)
                                 }}
                                 className="cursor-pointer shrink-0 hover:scale-110 active:scale-95 transition-transform"
@@ -218,8 +242,13 @@ export function PlayerView(): React.JSX.Element {
                   </div>
                 )
               })
-            ) : (
-              /* Resources Tab */
+            )}
+
+            {activeTab === 'notes' && (
+              <NotesPanel />
+            )}
+
+            {activeTab === 'resources' && (
               <div className="space-y-2">
                 {resources.length === 0 ? (
                   <div className="text-center py-12 px-4 space-y-2">
@@ -232,19 +261,28 @@ export function PlayerView(): React.JSX.Element {
                   resources.map((res) => (
                     <div
                       key={res.id}
-                      className="flex items-center justify-between p-3 rounded-xl border border-border/80 bg-secondary/30 text-xs hover:bg-secondary/60 transition-colors shadow-sm"
+                      onClick={() => {
+                        setSelectedResource(res)
+                        setIsPdfModalOpen(true)
+                      }}
+                      className="flex items-center justify-between p-3 rounded-xl border border-border/80 bg-secondary/30 text-xs hover:bg-secondary/70 hover:border-primary/40 cursor-pointer transition-all shadow-sm group"
+                      title={t('documents.viewDocument', 'Visualizar documento')}
                     >
                       <div className="flex items-center gap-2.5 overflow-hidden">
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white transition-colors">
                           <FileText className="h-4 w-4" />
                         </div>
                         <div className="flex flex-col overflow-hidden">
-                          <span className="font-semibold text-foreground truncate">{res.name}</span>
+                          <span className="font-semibold text-foreground truncate group-hover:text-primary transition-colors">
+                            {res.name}
+                          </span>
                           <span className="text-[10px] text-muted-foreground font-mono">
                             {formatFileSize(res.fileSize)} • {res.fileExtension}
                           </span>
                         </div>
                       </div>
+
+                      <Eye className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 group-hover:text-primary transition-all shrink-0 ml-2" />
                     </div>
                   ))
                 )}
@@ -267,7 +305,16 @@ export function PlayerView(): React.JSX.Element {
           <ChevronLeft className="h-5 w-5" />
         </Button>
       )}
+
+      {/* PDF / Document Viewer Modal */}
+      <PdfViewerModal
+        resource={selectedResource}
+        isOpen={isPdfModalOpen}
+        onClose={() => {
+          setIsPdfModalOpen(false)
+          setSelectedResource(null)
+        }}
+      />
     </div>
   )
 }
-

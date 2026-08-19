@@ -1,5 +1,6 @@
 import { dialog, ipcMain } from 'electron'
 import path from 'node:path'
+import fs from 'node:fs'
 import crypto from 'node:crypto'
 import type { Course, Module, Lesson, ProposedCourseStructure, SelectedCourseSource } from '../../types'
 import { scannerService } from '../services/scanner.service'
@@ -8,6 +9,7 @@ import { databaseService } from '../services/database.service'
 import { vaultService } from '../services/vault.service'
 import { archiveService } from '../services/archive.service'
 import { logger } from '../services/logger.service'
+import { convertSrtToVtt } from '../utils/subtitle-utils'
 
 function generateSlug(title: string): string {
   return title
@@ -388,4 +390,28 @@ export function registerCoursesIpc(): void {
       }
     }
   )
+
+  ipcMain.handle('courses:toggle-favorite', async (_event, payload: { courseId: string }) => {
+    try {
+      return databaseService.toggleCourseFavorite(payload.courseId)
+    } catch (err) {
+      logger.error('[IPC] courses:toggle-favorite error:', err)
+      return false
+    }
+  })
+
+  ipcMain.handle('courses:convert-srt-to-vtt', async (_event, payload: { srtPath: string }) => {
+    try {
+      if (!fs.existsSync(payload.srtPath)) {
+        return { success: false, error: `Subtitle file not found at path: ${payload.srtPath}` }
+      }
+      const srtContent = fs.readFileSync(payload.srtPath, 'utf-8')
+      const vttContent = convertSrtToVtt(srtContent)
+      return { success: true, vttContent }
+    } catch (err: unknown) {
+      logger.error('[IPC] courses:convert-srt-to-vtt error:', err)
+      return { success: false, error: err instanceof Error ? err.message : String(err) }
+    }
+  })
 }
+

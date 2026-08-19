@@ -27,6 +27,8 @@ const api: OrbiaApi = {
     list: () => ipcRenderer.invoke('courses:list'),
     getById: (courseId: string) => ipcRenderer.invoke('courses:get-by-id', { courseId }),
     delete: (courseId: string, deleteFiles: boolean) => ipcRenderer.invoke('courses:delete', { courseId, deleteFiles }),
+    toggleFavorite: (courseId: string) => ipcRenderer.invoke('courses:toggle-favorite', { courseId }),
+    convertSrtToVtt: (srtPath: string) => ipcRenderer.invoke('courses:convert-srt-to-vtt', { srtPath }),
     onExtractProgress: (callback: (progress: ExtractProgressPayload) => void) => {
       const listener = (_event: IpcRendererEvent, progress: ExtractProgressPayload): void => {
         callback(progress)
@@ -46,7 +48,12 @@ const api: OrbiaApi = {
     toggleLessonCompletion: (lessonId: string, courseId: string) =>
       ipcRenderer.invoke('player:toggle-lesson-completion', { lessonId, courseId }),
     getWatchHistory: (limit?: number) => ipcRenderer.invoke('player:get-watch-history', { limit }),
-    addWatchHistory: (entry) => ipcRenderer.invoke('player:add-watch-history', entry)
+    addWatchHistory: (entry) => ipcRenderer.invoke('player:add-watch-history', entry),
+    getLessonNotes: (lessonId: string) => ipcRenderer.invoke('player:get-lesson-notes', { lessonId }),
+    addLessonNote: (note) => ipcRenderer.invoke('player:add-lesson-note', note),
+    updateLessonNote: (id: string, content: string) => ipcRenderer.invoke('player:update-lesson-note', { id, content }),
+    deleteLessonNote: (id: string) => ipcRenderer.invoke('player:delete-lesson-note', { id }),
+    exportCourseNotes: (courseId: string) => ipcRenderer.invoke('player:export-course-notes', { courseId })
   },
 
   settings: {

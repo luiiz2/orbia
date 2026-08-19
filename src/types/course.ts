@@ -28,6 +28,7 @@ export interface Course {
   totalDuration: number // In seconds
   moduleCount: number
   lessonCount: number
+  isFavorite?: boolean
   createdAt: number // Unix timestamp ms
   updatedAt: number
   lastAccessedAt?: number

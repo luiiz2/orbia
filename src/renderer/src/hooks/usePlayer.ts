@@ -15,6 +15,7 @@ export interface UsePlayerReturn {
   isMuted: boolean
   playbackRate: number
   isFullscreen: boolean
+  isPiP: boolean
   showControls: boolean
   autoAdvanceCountdown: number | null
   nextLessonTitle: string | null
@@ -29,6 +30,8 @@ export interface UsePlayerReturn {
   toggleMute: () => void
   setPlaybackRate: (rate: number) => void
   toggleFullscreen: () => void
+  togglePiP: () => void
+  toggleSubtitles: () => void
   toggleCompletion: () => void
   nextLesson: () => Promise<boolean>
   prevLesson: () => Promise<boolean>
@@ -51,6 +54,9 @@ export function usePlayer({ videoRef, containerRef }: UsePlayerProps): UsePlayer
     isMuted,
     playbackRate,
     isFullscreen,
+    isPiP,
+    activeSubtitleTrack,
+    subtitleTracks,
     progressMap,
     play: storePlay,
     pause: storePause,
@@ -59,6 +65,8 @@ export function usePlayer({ videoRef, containerRef }: UsePlayerProps): UsePlayer
     toggleMute: storeToggleMute,
     setPlaybackRate: storeSetPlaybackRate,
     setFullscreen: storeSetFullscreen,
+    setPiP: storeSetPiP,
+    setSubtitleTrack: storeSetSubtitleTrack,
     setCurrentTime: storeSetCurrentTime,
     setDuration: storeSetDuration,
     toggleComplete,
@@ -249,6 +257,35 @@ export function usePlayer({ videoRef, containerRef }: UsePlayerProps): UsePlayer
   }, [containerRef, videoRef, storeSetFullscreen])
 
   /**
+   * Picture-in-Picture
+   */
+  const togglePiP = useCallback(async () => {
+    const video = videoRef.current
+    if (!video) return
+
+    try {
+      if (document.pictureInPictureElement) {
+        await document.exitPictureInPicture()
+      } else if (document.pictureInPictureEnabled) {
+        await video.requestPictureInPicture()
+      }
+    } catch (err) {
+      console.warn('PiP error:', err)
+    }
+  }, [videoRef])
+
+  /**
+   * Subtitle toggle
+   */
+  const toggleSubtitles = useCallback(() => {
+    if (activeSubtitleTrack !== null) {
+      storeSetSubtitleTrack(null)
+    } else if (subtitleTracks.length > 0) {
+      storeSetSubtitleTrack(subtitleTracks[0].id)
+    }
+  }, [activeSubtitleTrack, subtitleTracks, storeSetSubtitleTrack])
+
+  /**
    * Auto-advance countdown
    */
   const cancelAutoAdvance = useCallback(() => {
@@ -302,6 +339,28 @@ export function usePlayer({ videoRef, containerRef }: UsePlayerProps): UsePlayer
   }, [activeLesson?.id, videoRef, cancelAutoAdvance, playbackRate, volume, isMuted])
 
   /**
+   * Synchronize active subtitle track with video TextTracks
+   */
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video || !video.textTracks) return
+
+    const activeTrackObj = subtitleTracks.find((t) => t.id === activeSubtitleTrack)
+
+    for (let i = 0; i < video.textTracks.length; i++) {
+      const textTrack = video.textTracks[i]
+      if (
+        activeTrackObj &&
+        (textTrack.label === activeTrackObj.label || textTrack.id === activeTrackObj.id)
+      ) {
+        textTrack.mode = 'showing'
+      } else {
+        textTrack.mode = 'hidden'
+      }
+    }
+  }, [videoRef, activeSubtitleTrack, subtitleTracks])
+
+  /**
    * Listen to fullscreen change events
    */
   useEffect(() => {
@@ -315,6 +374,25 @@ export function usePlayer({ videoRef, containerRef }: UsePlayerProps): UsePlayer
       document.removeEventListener('fullscreenchange', handleFullscreenChange)
     }
   }, [storeSetFullscreen])
+
+  /**
+   * Listen to Picture-in-Picture change events
+   */
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video) return
+
+    const handleEnterPiP = (): void => storeSetPiP(true)
+    const handleLeavePiP = (): void => storeSetPiP(false)
+
+    video.addEventListener('enterpictureinpicture', handleEnterPiP)
+    video.addEventListener('leavepictureinpicture', handleLeavePiP)
+
+    return () => {
+      video.removeEventListener('enterpictureinpicture', handleEnterPiP)
+      video.removeEventListener('leavepictureinpicture', handleLeavePiP)
+    }
+  }, [videoRef, storeSetPiP])
 
   /**
    * Keyboard shortcuts
@@ -377,6 +455,18 @@ export function usePlayer({ videoRef, containerRef }: UsePlayerProps): UsePlayer
           toggleFullscreen()
           break
 
+        case 'c':
+        case 'C':
+          e.preventDefault()
+          toggleSubtitles()
+          break
+
+        case 'p':
+        case 'P':
+          e.preventDefault()
+          togglePiP()
+          break
+
         case 'ArrowUp':
           e.preventDefault()
           setVolume(Math.min(1, volume + 0.1))
@@ -392,14 +482,6 @@ export function usePlayer({ videoRef, containerRef }: UsePlayerProps): UsePlayer
           e.preventDefault()
           if (hasNextLesson) {
             storeNextLesson()
-          }
-          break
-
-        case 'p':
-        case 'P':
-          e.preventDefault()
-          if (hasPrevLesson) {
-            storePrevLesson()
           }
           break
 
@@ -440,14 +522,14 @@ export function usePlayer({ videoRef, containerRef }: UsePlayerProps): UsePlayer
     seekRelative,
     toggleMute,
     toggleFullscreen,
+    toggleSubtitles,
+    togglePiP,
     setVolume,
     volume,
     playbackRate,
     setPlaybackRate,
     hasNextLesson,
-    hasPrevLesson,
-    storeNextLesson,
-    storePrevLesson
+    storeNextLesson
   ])
 
   /**
@@ -563,6 +645,7 @@ export function usePlayer({ videoRef, containerRef }: UsePlayerProps): UsePlayer
     isMuted,
     playbackRate,
     isFullscreen,
+    isPiP,
     showControls,
     autoAdvanceCountdown,
     nextLessonTitle,
@@ -577,6 +660,8 @@ export function usePlayer({ videoRef, containerRef }: UsePlayerProps): UsePlayer
     toggleMute,
     setPlaybackRate,
     toggleFullscreen,
+    togglePiP,
+    toggleSubtitles,
     toggleCompletion: () => toggleComplete(),
     nextLesson: storeNextLesson,
     prevLesson: storePrevLesson,

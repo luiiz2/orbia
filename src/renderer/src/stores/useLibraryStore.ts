@@ -6,12 +6,15 @@ export interface CourseHierarchy {
   modules: (Module & { lessons: Lesson[] })[]
 }
 
+export type CourseFilterStatus = 'all' | 'in_progress' | 'completed' | 'favorites'
+
 export interface LibraryState {
   courses: Course[]
   activeCourse: Course | null
   activeCourseHierarchy: CourseHierarchy | null
   progressSummaries: Record<string, CourseProgressSummary>
   searchQuery: string
+  filterStatus: 'all' | 'in_progress' | 'completed' | 'favorites'
   isLoading: boolean
   error: string | null
 
@@ -28,7 +31,9 @@ export interface LibraryState {
   updateCourseCover: (courseId: string, coverPath: string) => Promise<boolean>
   updateLessonCover: (lessonId: string, coverPath: string) => Promise<boolean>
   deleteCourse: (id: string, deleteFiles: boolean) => Promise<{ success: boolean; error?: string }>
+  toggleFavorite: (courseId: string) => Promise<boolean>
   setSearchQuery: (query: string) => void
+  setFilterStatus: (status: 'all' | 'in_progress' | 'completed' | 'favorites') => void
   setActiveCourse: (course: Course | null) => void
   clearActiveCourse: () => void
   clearError: () => void
@@ -40,6 +45,7 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
   activeCourseHierarchy: null,
   progressSummaries: {},
   searchQuery: '',
+  filterStatus: 'all',
   isLoading: false,
   error: null,
 
@@ -218,8 +224,77 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
     }
   },
 
+  toggleFavorite: async (courseId: string) => {
+    const current = get().courses.find((c) => c.id === courseId) || get().activeCourse
+    const newFavoriteState = current ? !current.isFavorite : true
+
+    // Optimistically update courses, activeCourse, and activeCourseHierarchy
+    set((state) => ({
+      courses: state.courses.map((c) =>
+        c.id === courseId ? { ...c, isFavorite: newFavoriteState } : c
+      ),
+      activeCourse:
+        state.activeCourse?.id === courseId
+          ? { ...state.activeCourse, isFavorite: newFavoriteState }
+          : state.activeCourse,
+      activeCourseHierarchy:
+        state.activeCourseHierarchy?.course.id === courseId
+          ? {
+              ...state.activeCourseHierarchy,
+              course: { ...state.activeCourseHierarchy.course, isFavorite: newFavoriteState }
+            }
+          : state.activeCourseHierarchy
+    }))
+
+    try {
+      const actualFavoriteState = await window.api.courses.toggleFavorite(courseId)
+      if (actualFavoriteState !== newFavoriteState) {
+        set((state) => ({
+          courses: state.courses.map((c) =>
+            c.id === courseId ? { ...c, isFavorite: actualFavoriteState } : c
+          ),
+          activeCourse:
+            state.activeCourse?.id === courseId
+              ? { ...state.activeCourse, isFavorite: actualFavoriteState }
+              : state.activeCourse,
+          activeCourseHierarchy:
+            state.activeCourseHierarchy?.course.id === courseId
+              ? {
+                  ...state.activeCourseHierarchy,
+                  course: { ...state.activeCourseHierarchy.course, isFavorite: actualFavoriteState }
+                }
+              : state.activeCourseHierarchy
+        }))
+      }
+      return actualFavoriteState
+    } catch {
+      // Revert on error
+      set((state) => ({
+        courses: state.courses.map((c) =>
+          c.id === courseId ? { ...c, isFavorite: !newFavoriteState } : c
+        ),
+        activeCourse:
+          state.activeCourse?.id === courseId
+            ? { ...state.activeCourse, isFavorite: !newFavoriteState }
+            : state.activeCourse,
+        activeCourseHierarchy:
+          state.activeCourseHierarchy?.course.id === courseId
+            ? {
+                ...state.activeCourseHierarchy,
+                course: { ...state.activeCourseHierarchy.course, isFavorite: !newFavoriteState }
+              }
+            : state.activeCourseHierarchy
+      }))
+      return false
+    }
+  },
+
   setSearchQuery: (searchQuery: string) => {
     set({ searchQuery })
+  },
+
+  setFilterStatus: (filterStatus: 'all' | 'in_progress' | 'completed' | 'favorites') => {
+    set({ filterStatus })
   },
 
   setActiveCourse: (course: Course | null) => {

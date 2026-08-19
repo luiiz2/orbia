@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { Course, Module, Lesson, LessonProgress } from '@shared'
+import type { Course, Module, Lesson, LessonProgress, LessonNote } from '@shared'
 
 export interface PlayerModuleWithLessons extends Module {
   lessons: Lesson[]
@@ -20,6 +20,17 @@ export interface PlayerState {
   theaterMode: boolean
   progressMap: Record<string, LessonProgress>
 
+  // Notes
+  notes: LessonNote[]
+  isLoadingNotes: boolean
+
+  // Subtitles
+  activeSubtitleTrack: string | null
+  subtitleTracks: { id: string; label: string; vttUrl: string }[]
+
+  // Picture-in-Picture
+  isPiP: boolean
+
   // Actions
   play: () => void
   pause: () => void
@@ -31,6 +42,8 @@ export interface PlayerState {
   setFullscreen: (fullscreen: boolean) => void
   toggleTheater: () => void
   setTheaterMode: (theater: boolean) => void
+  togglePiP: () => void
+  setPiP: (isPiP: boolean) => void
   loadHierarchy: (
     course: Course,
     modules: PlayerModuleWithLessons[],
@@ -43,6 +56,17 @@ export interface PlayerState {
   updateProgress: (currentTime: number, duration: number, completed?: boolean) => Promise<void>
   setCurrentTime: (currentTime: number) => void
   setDuration: (duration: number) => void
+
+  // Note actions
+  fetchNotes: (lessonId: string) => Promise<void>
+  addNote: (content: string) => Promise<void>
+  updateNote: (id: string, content: string) => Promise<void>
+  deleteNote: (id: string) => Promise<void>
+  exportNotes: (courseId: string) => Promise<string>
+
+  // Subtitle actions
+  setSubtitleTrack: (id: string | null) => void
+
   reset: () => void
 }
 
@@ -61,6 +85,17 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   theaterMode: false,
   progressMap: {},
 
+  // Notes state
+  notes: [],
+  isLoadingNotes: false,
+
+  // Subtitles state
+  activeSubtitleTrack: null,
+  subtitleTracks: [],
+
+  // PiP state
+  isPiP: false,
+
   play: () => {
     set({ isPlaying: true })
   },
@@ -73,13 +108,15 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
         progressMap[activeLesson.id]?.completed ||
         (duration > 0 && currentTime / duration >= 0.9)
 
-      window.api.player.saveProgress({
-        lessonId: activeLesson.id,
-        courseId: activeCourse.id,
-        currentTime,
-        duration,
-        completed: isCompleted
-      }).catch((err) => console.error('Failed to save progress on pause:', err))
+      window.api.player
+        .saveProgress({
+          lessonId: activeLesson.id,
+          courseId: activeCourse.id,
+          currentTime,
+          duration,
+          completed: isCompleted
+        })
+        .catch((err) => console.error('Failed to save progress on pause:', err))
     }
   },
 
@@ -92,13 +129,15 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
         progressMap[activeLesson.id]?.completed ||
         (duration > 0 && clampedTime / duration >= 0.9)
 
-      window.api.player.saveProgress({
-        lessonId: activeLesson.id,
-        courseId: activeCourse.id,
-        currentTime: clampedTime,
-        duration,
-        completed: isCompleted
-      }).catch((err) => console.error('Failed to save progress on seek:', err))
+      window.api.player
+        .saveProgress({
+          lessonId: activeLesson.id,
+          courseId: activeCourse.id,
+          currentTime: clampedTime,
+          duration,
+          completed: isCompleted
+        })
+        .catch((err) => console.error('Failed to save progress on seek:', err))
     }
   },
 
@@ -131,6 +170,14 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     set({ theaterMode })
   },
 
+  togglePiP: () => {
+    set((state) => ({ isPiP: !state.isPiP }))
+  },
+
+  setPiP: (isPiP: boolean) => {
+    set({ isPiP })
+  },
+
   loadHierarchy: async (course, modules, initialLessonId) => {
     set({
       activeCourse: course,
@@ -153,7 +200,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   },
 
   loadLesson: async (lessonId: string) => {
-    const { modulesWithLessons, activeCourse } = get()
+    const { modulesWithLessons, activeCourse, subtitleTracks: oldTracks } = get()
     let foundLesson: Lesson | null = null
     let foundModule: Module | null = null
 
@@ -169,6 +216,37 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     if (!foundLesson) {
       console.warn(`Lesson with id ${lessonId} not found in current hierarchy`)
       return
+    }
+
+    // Clean up previous blob URLs
+    for (const track of oldTracks) {
+      if (track.vttUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(track.vttUrl)
+      }
+    }
+
+    // Prepare subtitle tracks
+    const preparedTracks: { id: string; label: string; vttUrl: string }[] = []
+    if (foundLesson.subtitles && foundLesson.subtitles.length > 0) {
+      for (const sub of foundLesson.subtitles) {
+        let vttUrl = `media://${encodeURI(sub.filePath.replace(/\\/g, '/'))}`
+        if (sub.format === 'srt' || sub.filePath.toLowerCase().endsWith('.srt')) {
+          try {
+            const res = await window.api.courses.convertSrtToVtt(sub.filePath)
+            if (res.success && res.vttContent) {
+              const blob = new Blob([res.vttContent], { type: 'text/vtt' })
+              vttUrl = URL.createObjectURL(blob)
+            }
+          } catch (e) {
+            console.warn('Failed to convert SRT to VTT for subtitle:', sub.label, e)
+          }
+        }
+        preparedTracks.push({
+          id: sub.id,
+          label: sub.label || sub.language || 'Subtitles',
+          vttUrl
+        })
+      }
     }
 
     let initialTime = 0
@@ -202,20 +280,27 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       activeModule: foundModule,
       currentTime: initialTime,
       duration: lessonDuration,
-      isPlaying: true
+      isPlaying: true,
+      subtitleTracks: preparedTracks,
+      activeSubtitleTrack: preparedTracks.length > 0 ? preparedTracks[0].id : null
     })
+
+    // Fetch notes for the active lesson
+    await get().fetchNotes(foundLesson.id)
 
     // Record watch history
     if (activeCourse) {
-      window.api.player.addWatchHistory({
-        lessonId: foundLesson.id,
-        courseId: activeCourse.id,
-        lessonTitle: foundLesson.title,
-        courseTitle: activeCourse.title,
-        coverPath: activeCourse.coverPath,
-        duration: lessonDuration,
-        currentTime: initialTime
-      }).catch((err) => console.error('Failed to add watch history:', err))
+      window.api.player
+        .addWatchHistory({
+          lessonId: foundLesson.id,
+          courseId: activeCourse.id,
+          lessonTitle: foundLesson.title,
+          courseTitle: activeCourse.title,
+          coverPath: activeCourse.coverPath,
+          duration: lessonDuration,
+          currentTime: initialTime
+        })
+        .catch((err) => console.error('Failed to add watch history:', err))
     }
   },
 
@@ -340,7 +425,86 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     set({ duration })
   },
 
+  fetchNotes: async (lessonId: string) => {
+    set({ isLoadingNotes: true })
+    try {
+      const notes = await window.api.player.getLessonNotes(lessonId)
+      const sorted = (notes || []).slice().sort((a, b) => a.timestampSeconds - b.timestampSeconds)
+      set({ notes: sorted, isLoadingNotes: false })
+    } catch (err) {
+      console.error('Failed to fetch lesson notes:', err)
+      set({ notes: [], isLoadingNotes: false })
+    }
+  },
+
+  addNote: async (content: string) => {
+    const { activeLesson, activeCourse, currentTime } = get()
+    if (!activeLesson || !activeCourse || !content.trim()) return
+
+    try {
+      const newNote = await window.api.player.addLessonNote({
+        lessonId: activeLesson.id,
+        courseId: activeCourse.id,
+        timestampSeconds: Math.floor(currentTime),
+        content: content.trim()
+      })
+      set((state) => ({
+        notes: [...state.notes, newNote].sort((a, b) => a.timestampSeconds - b.timestampSeconds)
+      }))
+    } catch (err) {
+      console.error('Failed to add lesson note:', err)
+    }
+  },
+
+  updateNote: async (id: string, content: string) => {
+    try {
+      const success = await window.api.player.updateLessonNote(id, content.trim())
+      if (success) {
+        set((state) => ({
+          notes: state.notes.map((n) =>
+            n.id === id ? { ...n, content: content.trim(), updatedAt: Date.now() } : n
+          )
+        }))
+      }
+    } catch (err) {
+      console.error('Failed to update lesson note:', err)
+    }
+  },
+
+  deleteNote: async (id: string) => {
+    try {
+      const success = await window.api.player.deleteLessonNote(id)
+      if (success) {
+        set((state) => ({
+          notes: state.notes.filter((n) => n.id !== id)
+        }))
+      }
+    } catch (err) {
+      console.error('Failed to delete lesson note:', err)
+    }
+  },
+
+  exportNotes: async (courseId: string) => {
+    try {
+      return await window.api.player.exportCourseNotes(courseId)
+    } catch (err) {
+      console.error('Failed to export course notes:', err)
+      return ''
+    }
+  },
+
+  setSubtitleTrack: (id: string | null) => {
+    set({ activeSubtitleTrack: id })
+  },
+
   reset: () => {
+    const tracks = get().subtitleTracks
+    for (const track of tracks) {
+      if (track.vttUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(track.vttUrl)
+      }
+    }
+
     set({
       activeCourse: null,
       activeLesson: null,
@@ -350,7 +514,12 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       currentTime: 0,
       duration: 0,
       isFullscreen: false,
-      theaterMode: false
+      theaterMode: false,
+      notes: [],
+      isLoadingNotes: false,
+      activeSubtitleTrack: null,
+      subtitleTracks: [],
+      isPiP: false
     })
   }
 }))

@@ -14,12 +14,15 @@ import {
   Link as LinkIcon,
   Image as ImageIcon,
   Upload,
-  Video
+  Video,
+  Star,
+  FileText
 } from 'lucide-react'
 import { useLibraryStore } from '../stores/useLibraryStore'
 import { usePlayerStore } from '../stores/usePlayerStore'
 import { useNavigationStore } from '../stores/useNavigationStore'
 import { useCourseProgress } from '../hooks/useCourseProgress'
+import { PdfViewerModal } from '../components/documents/PdfViewerModal'
 import { Button } from '../components/ui/button'
 import { Progress } from '../components/ui/progress'
 import { Badge } from '../components/ui/badge'
@@ -38,16 +41,26 @@ import {
   DialogTitle
 } from '../components/ui/dialog'
 import { formatDurationHuman, formatTime } from '../lib/formatters'
-import type { Lesson } from '@shared'
+import type { Lesson, AttachedResource } from '@shared'
 
 export function CourseView(): React.JSX.Element {
   const { t } = useTranslation()
   const { selectedCourseId, navigateToHome, navigateToPlayer } = useNavigationStore()
-  const { activeCourseHierarchy, fetchCourseById, deleteCourse, updateCourseCover, updateLessonCover, isLoading } = useLibraryStore()
+  const {
+    activeCourseHierarchy,
+    fetchCourseById,
+    deleteCourse,
+    updateCourseCover,
+    updateLessonCover,
+    toggleFavorite,
+    isLoading
+  } = useLibraryStore()
   const { loadHierarchy } = usePlayerStore()
 
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState<boolean>(false)
   const [isDeleting, setIsDeleting] = useState<boolean>(false)
+  const [selectedResource, setSelectedResource] = useState<AttachedResource | null>(null)
+  const [isPdfModalOpen, setIsPdfModalOpen] = useState<boolean>(false)
 
   useEffect(() => {
     if (selectedCourseId) {
@@ -134,6 +147,30 @@ export function CourseView(): React.JSX.Element {
         </Button>
 
         <div className="flex items-center gap-2">
+          {/* Favorite Toggle Action Button */}
+          <Button
+            variant={course.isFavorite ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => toggleFavorite(course.id).catch(console.warn)}
+            className={`gap-1.5 text-xs rounded-xl cursor-pointer transition-all ${
+              course.isFavorite
+                ? 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 border border-amber-500/40 shadow-xs'
+                : 'text-muted-foreground hover:text-amber-400 hover:bg-secondary/70'
+            }`}
+            title={course.isFavorite ? t('course.favorited', 'Favorito') : t('course.favorite', 'Adicionar aos Favoritos')}
+          >
+            <Star
+              className={`h-3.5 w-3.5 ${
+                course.isFavorite ? 'fill-amber-400 text-amber-400' : ''
+              }`}
+            />
+            <span>
+              {course.isFavorite
+                ? t('course.favorited', 'Favorito')
+                : t('course.favorite', 'Favoritar')}
+            </span>
+          </Button>
+
           <Button
             variant="ghost"
             size="sm"
@@ -141,7 +178,7 @@ export function CourseView(): React.JSX.Element {
             className="gap-1.5 text-xs text-muted-foreground hover:text-primary hover:bg-secondary/70 rounded-xl cursor-pointer"
           >
             <ImageIcon className="h-3.5 w-3.5" />
-            <span>Trocar Capa do Curso</span>
+            <span>Trocar Capa</span>
           </Button>
 
           <Button
@@ -221,11 +258,40 @@ export function CourseView(): React.JSX.Element {
                 ) : (
                   <Badge variant="outline">{t('course.notStarted')}</Badge>
                 )}
+
+                {course.isFavorite && (
+                  <Badge
+                    variant="secondary"
+                    className="gap-1 bg-amber-500/15 text-amber-400 border-amber-500/30"
+                  >
+                    <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+                    <span>{t('course.favorited', 'Favorito')}</span>
+                  </Badge>
+                )}
               </div>
 
-              <h1 className="text-2xl font-extrabold tracking-tight text-foreground sm:text-3xl leading-tight">
-                {course.title}
-              </h1>
+              <div className="flex items-start justify-between gap-3">
+                <h1 className="text-2xl font-extrabold tracking-tight text-foreground sm:text-3xl leading-tight">
+                  {course.title}
+                </h1>
+                <button
+                  type="button"
+                  onClick={() => toggleFavorite(course.id).catch(console.warn)}
+                  className={`shrink-0 p-2 rounded-xl border transition-all duration-200 cursor-pointer ${
+                    course.isFavorite
+                      ? 'bg-amber-500/20 border-amber-500/40 text-amber-400 shadow-md shadow-amber-500/10 hover:bg-amber-500/30'
+                      : 'bg-secondary/50 border-border/80 text-muted-foreground hover:text-amber-400 hover:border-amber-500/30 hover:bg-secondary'
+                  }`}
+                  title={course.isFavorite ? t('course.favorited', 'Favorito') : t('course.favorite', 'Adicionar aos Favoritos')}
+                  aria-label="Toggle Favorite"
+                >
+                  <Star
+                    className={`h-5 w-5 transition-transform active:scale-125 ${
+                      course.isFavorite ? 'fill-amber-400 text-amber-400' : ''
+                    }`}
+                  />
+                </button>
+              </div>
 
               {course.description && (
                 <p className="text-xs sm:text-sm text-muted-foreground line-clamp-3 leading-relaxed">
@@ -341,6 +407,7 @@ export function CourseView(): React.JSX.Element {
                     {module.lessons.map((lesson, idx) => {
                       const isComplete = progressData.isLessonCompleted(lesson.id)
                       const lessonProgress = progressData.getLessonProgress(lesson.id)
+                      const lessonResources = lesson.resources || []
 
                       return (
                         <div
@@ -388,6 +455,28 @@ export function CourseView(): React.JSX.Element {
                             <span className="text-xs sm:text-sm font-medium text-foreground truncate group-hover:text-primary transition-colors">
                               {lesson.title}
                             </span>
+
+                            {/* Attached Resource Chips */}
+                            {lessonResources.length > 0 && (
+                              <div className="flex items-center gap-1.5 ml-2 shrink-0">
+                                {lessonResources.map((res) => (
+                                  <button
+                                    key={res.id}
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      setSelectedResource(res)
+                                      setIsPdfModalOpen(true)
+                                    }}
+                                    className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-secondary/90 hover:bg-primary/20 text-muted-foreground hover:text-primary border border-border/70 text-[10px] font-medium transition-colors cursor-pointer"
+                                    title={`Visualizar ${res.name}`}
+                                  >
+                                    <FileText className="w-3 h-3 text-primary" />
+                                    <span className="max-w-[80px] truncate">{res.name}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            )}
                           </div>
 
                           {/* Duration & Play icon */}
@@ -442,6 +531,16 @@ export function CourseView(): React.JSX.Element {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* PDF & Document Viewer Modal */}
+      <PdfViewerModal
+        resource={selectedResource}
+        isOpen={isPdfModalOpen}
+        onClose={() => {
+          setIsPdfModalOpen(false)
+          setSelectedResource(null)
+        }}
+      />
     </div>
   )
 }

@@ -1,6 +1,6 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
-import { Play, Layers, HardDrive, Link as LinkIcon, BookOpen, Clock, CheckCircle2 } from 'lucide-react'
+import { Play, Layers, HardDrive, Link as LinkIcon, BookOpen, Clock, CheckCircle2, Star } from 'lucide-react'
 import type { Course } from '@shared'
 import { Card, CardContent, Badge } from '../ui'
 import { useLibraryStore, useNavigationStore } from '../../stores'
@@ -12,7 +12,7 @@ interface CourseCardProps {
 
 export function CourseCard({ course }: CourseCardProps): React.JSX.Element {
   const { t } = useTranslation()
-  const { progressSummaries } = useLibraryStore()
+  const { progressSummaries, toggleFavorite } = useLibraryStore()
   const { navigateToCourse } = useNavigationStore()
 
   const summary = progressSummaries[course.id]
@@ -30,6 +30,28 @@ export function CourseCard({ course }: CourseCardProps): React.JSX.Element {
     >
       {/* Cover Aspect Ratio Container */}
       <div className="relative aspect-video w-full bg-secondary/60 overflow-hidden flex items-center justify-center border-b border-border/50">
+        {/* Favorite Button (Top Left) */}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation()
+            toggleFavorite(course.id).catch(console.warn)
+          }}
+          className={`absolute top-2.5 left-2.5 z-10 flex h-7 w-7 items-center justify-center rounded-lg backdrop-blur-md transition-all duration-200 cursor-pointer shadow-xs ${
+            course.isFavorite
+              ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40 opacity-100 shadow-amber-500/10'
+              : 'bg-black/60 text-white/70 hover:text-amber-400 hover:bg-black/80 border border-white/10 opacity-0 group-hover:opacity-100'
+          }`}
+          title={course.isFavorite ? t('course.favorited', 'Favorito') : t('course.favorite', 'Adicionar aos Favoritos')}
+          aria-label={course.isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+        >
+          <Star
+            className={`h-3.5 w-3.5 transition-transform active:scale-125 ${
+              course.isFavorite ? 'fill-amber-400 text-amber-400' : ''
+            }`}
+          />
+        </button>
+
         {coverUrl ? (
           <img
             src={coverUrl}

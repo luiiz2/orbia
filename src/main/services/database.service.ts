@@ -1,6 +1,7 @@
 import Database from 'better-sqlite3'
 import path from 'node:path'
 import fs from 'node:fs'
+import crypto from 'node:crypto'
 import type {
   Course,
   Module,
@@ -8,7 +9,8 @@ import type {
   LessonProgress,
   WatchHistoryEntry,
   CourseProgressSummary,
-  VaultStats
+  VaultStats,
+  LessonNote
 } from '../../types'
 
 export class DatabaseService {
@@ -69,6 +71,7 @@ export class DatabaseService {
         total_duration  REAL NOT NULL DEFAULT 0,
         module_count    INTEGER NOT NULL DEFAULT 0,
         lesson_count    INTEGER NOT NULL DEFAULT 0,
+        is_favorite     INTEGER NOT NULL DEFAULT 0,
         created_at      INTEGER NOT NULL,
         updated_at      INTEGER NOT NULL,
         last_accessed_at INTEGER
@@ -126,6 +129,20 @@ export class DatabaseService {
 
       CREATE INDEX IF NOT EXISTS idx_progress_course ON lesson_progress(course_id);
 
+      -- Lesson Notes
+      CREATE TABLE IF NOT EXISTS lesson_notes (
+        id                TEXT PRIMARY KEY,
+        lesson_id         TEXT NOT NULL REFERENCES lessons(id) ON DELETE CASCADE,
+        course_id         TEXT NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+        timestamp_seconds REAL NOT NULL DEFAULT 0,
+        content           TEXT NOT NULL,
+        created_at        INTEGER NOT NULL,
+        updated_at        INTEGER NOT NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_notes_lesson ON lesson_notes(lesson_id);
+      CREATE INDEX IF NOT EXISTS idx_notes_course ON lesson_notes(course_id);
+
       -- Watch History
       CREATE TABLE IF NOT EXISTS watch_history (
         id           TEXT PRIMARY KEY,
@@ -167,6 +184,12 @@ export class DatabaseService {
     } catch {
       // Column already exists
     }
+
+    try {
+      this.db.exec(`ALTER TABLE courses ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0;`)
+    } catch {
+      // Column already exists
+    }
   }
 
   // --- Course Operations ---
@@ -181,11 +204,11 @@ export class DatabaseService {
       INSERT INTO courses (
         id, title, slug, source_type, root_path, is_external,
         cover_path, description, total_duration, module_count,
-        lesson_count, created_at, updated_at, last_accessed_at
+        lesson_count, is_favorite, created_at, updated_at, last_accessed_at
       ) VALUES (
         @id, @title, @slug, @sourceType, @rootPath, @isExternal,
         @coverPath, @description, @totalDuration, @moduleCount,
-        @lessonCount, @createdAt, @updatedAt, @lastAccessedAt
+        @lessonCount, @isFavorite, @createdAt, @updatedAt, @lastAccessedAt
       )
     `)
 
@@ -224,6 +247,7 @@ export class DatabaseService {
         totalDuration: course.totalDuration,
         moduleCount: course.moduleCount,
         lessonCount: course.lessonCount,
+        isFavorite: course.isFavorite ? 1 : 0,
         createdAt: course.createdAt,
         updatedAt: course.updatedAt,
         lastAccessedAt: course.lastAccessedAt || null
@@ -272,11 +296,17 @@ export class DatabaseService {
         id, title, slug, source_type as sourceType, root_path as rootPath,
         cover_path as coverPath, description, total_duration as totalDuration,
         module_count as moduleCount, lesson_count as lessonCount,
+        is_favorite as isFavorite,
         created_at as createdAt, updated_at as updatedAt, last_accessed_at as lastAccessedAt
       FROM courses
       ORDER BY last_accessed_at DESC NULLS LAST, created_at DESC
     `)
-    return stmt.all() as Course[]
+    const rows = stmt.all() as (Omit<Course, 'isFavorite'> & { isFavorite: number })[]
+    return rows.map((r) => ({
+      ...r,
+      coverPath: r.coverPath || undefined,
+      isFavorite: Boolean(r.isFavorite)
+    }))
   }
 
   public getCourseById(
@@ -289,11 +319,12 @@ export class DatabaseService {
         id, title, slug, source_type as sourceType, root_path as rootPath,
         cover_path as coverPath, description, total_duration as totalDuration,
         module_count as moduleCount, lesson_count as lessonCount,
+        is_favorite as isFavorite,
         created_at as createdAt, updated_at as updatedAt, last_accessed_at as lastAccessedAt
       FROM courses
       WHERE id = ?
     `)
-    const course = courseStmt.get(courseId) as Course | undefined
+    const course = courseStmt.get(courseId) as (Omit<Course, 'isFavorite'> & { isFavorite: number }) | undefined
     if (!course) return null
 
     const modulesStmt = this.db!.prepare(`
@@ -333,10 +364,29 @@ export class DatabaseService {
     return {
       course: {
         ...course,
-        coverPath: course.coverPath || undefined
+        coverPath: course.coverPath || undefined,
+        isFavorite: Boolean(course.isFavorite)
       },
       modules: modulesWithLessons
     }
+  }
+
+  public toggleCourseFavorite(courseId: string): boolean {
+    this.ensureConnected()
+    const getStmt = this.db!.prepare(`SELECT is_favorite FROM courses WHERE id = ?`)
+    const row = getStmt.get(courseId) as { is_favorite: number } | undefined
+    if (!row) {
+      throw new Error(`Course with id "${courseId}" not found.`)
+    }
+    const newStatus = row.is_favorite ? 0 : 1
+    const now = Date.now()
+    const updateStmt = this.db!.prepare(`
+      UPDATE courses
+      SET is_favorite = ?, updated_at = ?
+      WHERE id = ?
+    `)
+    updateStmt.run(newStatus, now, courseId)
+    return Boolean(newStatus)
   }
 
   public updateCourseCover(courseId: string, coverPath: string): void {
@@ -538,6 +588,82 @@ export class DatabaseService {
       LIMIT ?
     `)
     return stmt.all(limit) as WatchHistoryEntry[]
+  }
+
+  // --- Lesson Notes Operations ---
+
+  public getLessonNotes(lessonId: string): LessonNote[] {
+    this.ensureConnected()
+    const stmt = this.db!.prepare(`
+      SELECT
+        id,
+        lesson_id as lessonId,
+        course_id as courseId,
+        timestamp_seconds as timestampSeconds,
+        content,
+        created_at as createdAt,
+        updated_at as updatedAt
+      FROM lesson_notes
+      WHERE lesson_id = ?
+      ORDER BY timestamp_seconds ASC, created_at ASC
+    `)
+    return stmt.all(lessonId) as LessonNote[]
+  }
+
+  public addLessonNote(note: Omit<LessonNote, 'id' | 'createdAt' | 'updatedAt'>): LessonNote {
+    this.ensureConnected()
+    const now = Date.now()
+    const id = crypto.randomUUID()
+    const stmt = this.db!.prepare(`
+      INSERT INTO lesson_notes (
+        id, lesson_id, course_id, timestamp_seconds, content, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)
+    `)
+    stmt.run(id, note.lessonId, note.courseId, note.timestampSeconds, note.content, now, now)
+    return {
+      id,
+      lessonId: note.lessonId,
+      courseId: note.courseId,
+      timestampSeconds: note.timestampSeconds,
+      content: note.content,
+      createdAt: now,
+      updatedAt: now
+    }
+  }
+
+  public updateLessonNote(id: string, content: string): void {
+    this.ensureConnected()
+    const now = Date.now()
+    const stmt = this.db!.prepare(`
+      UPDATE lesson_notes
+      SET content = ?, updated_at = ?
+      WHERE id = ?
+    `)
+    stmt.run(content, now, id)
+  }
+
+  public deleteLessonNote(id: string): void {
+    this.ensureConnected()
+    const stmt = this.db!.prepare(`DELETE FROM lesson_notes WHERE id = ?`)
+    stmt.run(id)
+  }
+
+  public getCourseNotes(courseId: string): LessonNote[] {
+    this.ensureConnected()
+    const stmt = this.db!.prepare(`
+      SELECT
+        id,
+        lesson_id as lessonId,
+        course_id as courseId,
+        timestamp_seconds as timestampSeconds,
+        content,
+        created_at as createdAt,
+        updated_at as updatedAt
+      FROM lesson_notes
+      WHERE course_id = ?
+      ORDER BY created_at ASC
+    `)
+    return stmt.all(courseId) as LessonNote[]
   }
 
   // --- Vault Aggregated Stats ---

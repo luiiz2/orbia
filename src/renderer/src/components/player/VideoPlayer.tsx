@@ -18,7 +18,15 @@ export function VideoPlayer({ className, onBack }: VideoPlayerProps): React.JSX.
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const containerRef = useRef<HTMLDivElement | null>(null)
 
-  const { activeCourse, activeLesson, activeModule, theaterMode, toggleTheater } = usePlayerStore()
+  const {
+    activeCourse,
+    activeLesson,
+    activeModule,
+    theaterMode,
+    toggleTheater,
+    subtitleTracks,
+    activeSubtitleTrack
+  } = usePlayerStore()
   const { setView } = useNavigationStore()
 
   const [bufferedEnd, setBufferedEnd] = useState<number>(0)
@@ -33,6 +41,7 @@ export function VideoPlayer({ className, onBack }: VideoPlayerProps): React.JSX.
     isMuted,
     playbackRate,
     isFullscreen,
+    isPiP,
     showControls,
     autoAdvanceCountdown,
     nextLessonTitle,
@@ -44,6 +53,7 @@ export function VideoPlayer({ className, onBack }: VideoPlayerProps): React.JSX.
     toggleMute,
     setPlaybackRate,
     toggleFullscreen,
+    togglePiP,
     toggleCompletion,
     nextLesson,
     prevLesson,
@@ -125,14 +135,14 @@ export function VideoPlayer({ className, onBack }: VideoPlayerProps): React.JSX.
           playsInline
           className="h-full w-full object-contain bg-black"
         >
-          {activeLesson?.subtitles?.map((sub) => (
+          {subtitleTracks.map((sub) => (
             <track
               key={sub.id}
+              id={sub.id}
               kind="subtitles"
               label={sub.label}
-              srcLang={sub.language}
-              src={`media://${encodeURI(sub.filePath.replace(/\\/g, '/'))}`}
-              default={sub.language === 'en' || sub.language === 'pt-BR'}
+              src={sub.vttUrl}
+              default={activeSubtitleTrack === sub.id}
             />
           ))}
         </video>
@@ -267,6 +277,7 @@ export function VideoPlayer({ className, onBack }: VideoPlayerProps): React.JSX.
         isMuted={isMuted}
         playbackRate={playbackRate}
         isFullscreen={isFullscreen}
+        isPiP={isPiP}
         theaterMode={theaterMode}
         isCompleted={Boolean(isCompleted)}
         hasNextLesson={hasNextLesson}
@@ -278,6 +289,7 @@ export function VideoPlayer({ className, onBack }: VideoPlayerProps): React.JSX.
         onToggleMute={toggleMute}
         onRateChange={setPlaybackRate}
         onToggleFullscreen={toggleFullscreen}
+        onTogglePiP={togglePiP}
         onToggleTheater={toggleTheater}
         onToggleCompletion={toggleCompletion}
         onNextLesson={() => nextLesson()}

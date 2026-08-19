@@ -1,6 +1,7 @@
 import type { Course, Module, Lesson, ProposedCourseStructure } from './course'
 import type { Vault, AppSettings, VaultStats } from './vault'
 import type { LessonProgress, WatchHistoryEntry, CourseProgressSummary } from './progress'
+import type { LessonNote } from './notes'
 
 export interface SelectedCourseSource {
   path: string
@@ -42,6 +43,8 @@ export interface OrbiaApi {
     list: () => Promise<Course[]>
     getById: (courseId: string) => Promise<{ course: Course; modules: (Module & { lessons: Lesson[] })[] } | null>
     delete: (courseId: string, deleteFiles: boolean) => Promise<{ success: boolean; error?: string }>
+    toggleFavorite: (courseId: string) => Promise<boolean>
+    convertSrtToVtt: (srtPath: string) => Promise<{ success: boolean; vttContent?: string; error?: string }>
     onExtractProgress: (callback: (progress: ExtractProgressPayload) => void) => () => void
   }
 
@@ -54,6 +57,11 @@ export interface OrbiaApi {
     toggleLessonCompletion: (lessonId: string, courseId: string) => Promise<boolean>
     getWatchHistory: (limit?: number) => Promise<WatchHistoryEntry[]>
     addWatchHistory: (entry: Omit<WatchHistoryEntry, 'id' | 'watchedAt'>) => Promise<void>
+    getLessonNotes: (lessonId: string) => Promise<LessonNote[]>
+    addLessonNote: (note: { lessonId: string; courseId: string; timestampSeconds: number; content: string }) => Promise<LessonNote>
+    updateLessonNote: (id: string, content: string) => Promise<boolean>
+    deleteLessonNote: (id: string) => Promise<boolean>
+    exportCourseNotes: (courseId: string) => Promise<string>
   }
 
   // App Settings
