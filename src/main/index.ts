@@ -36,20 +36,24 @@ if (!gotTheLock) {
     if (mainWindow) {
       if (mainWindow.isMinimized()) mainWindow.restore()
       mainWindow.show()
+      mainWindow.setAlwaysOnTop(true)
       mainWindow.focus()
+      mainWindow.setAlwaysOnTop(false)
     }
   })
 
-  function createWindow(): void {
+  function createWindow(): BrowserWindow {
     logger.info('[Main] Creating BrowserWindow...')
     const win = new BrowserWindow({
-      width: 1200,
-      height: 800,
+      width: 1280,
+      height: 850,
       minWidth: 900,
       minHeight: 600,
-      show: true, // Show immediately
+      show: true,
+      center: true,
       autoHideMenuBar: true,
-      backgroundColor: '#0b0f17',
+      title: 'Orbia',
+      backgroundColor: '#080b11',
       icon,
       webPreferences: {
         preload: join(__dirname, '../preload/index.js'),
@@ -62,7 +66,9 @@ if (!gotTheLock) {
     mainWindow = win
 
     win.show()
+    win.setAlwaysOnTop(true)
     win.focus()
+    win.setAlwaysOnTop(false)
 
     win.on('closed', () => {
       logger.info('[Main] MainWindow closed')
@@ -94,6 +100,8 @@ if (!gotTheLock) {
       logger.info('[Main] Loading packaged HTML:', htmlPath)
       win.loadFile(htmlPath)
     }
+
+    return win
   }
 
   app.whenReady().then(async () => {
@@ -128,19 +136,19 @@ if (!gotTheLock) {
       logger.error('[Main] IPC register error:', err)
     }
 
-    // 4. Auto-open last active vault if exists
+    // 4. Create main window immediately (zero delay)
+    createWindow()
+
+    // 5. Auto-open last active vault in background if exists
     try {
       const settings = appConfigService.getSettings()
       if (settings.lastVaultPath) {
-        logger.info('[Main] Auto-opening last vault:', settings.lastVaultPath)
+        logger.info('[Main] Auto-opening last vault in background:', settings.lastVaultPath)
         await vaultService.openVault(settings.lastVaultPath)
       }
     } catch (err) {
       logger.warn('[Main] Could not auto-open last vault:', err)
     }
-
-    // 5. Create main window
-    createWindow()
 
     app.on('activate', function () {
       if (BrowserWindow.getAllWindows().length === 0) createWindow()
