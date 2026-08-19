@@ -12,6 +12,7 @@ export interface VaultState {
   init: () => Promise<void>
   openVault: (path: string) => Promise<{ success: boolean; vault?: Vault; error?: string }>
   createVault: (path: string, name: string) => Promise<{ success: boolean; vault?: Vault; error?: string }>
+  deleteVault: (path: string, deleteFiles: boolean) => Promise<{ success: boolean; error?: string }>
   selectDirectory: () => Promise<string | null>
   refreshStats: () => Promise<void>
   setCurrentVault: (vault: Vault | null) => void
@@ -105,6 +106,50 @@ export const useVaultStore = create<VaultState>((set, get) => ({
         return res
       } else {
         const errorMsg = res.error || 'Failed to create vault'
+        set({ error: errorMsg, isLoading: false })
+        return { success: false, error: errorMsg }
+      }
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : String(err)
+      set({ error: errorMsg, isLoading: false })
+      return { success: false, error: errorMsg }
+    }
+  },
+
+  deleteVault: async (path: string, deleteFiles: boolean) => {
+    set({ isLoading: true, error: null })
+    try {
+      const res = await window.api.vault.delete(path, deleteFiles)
+      if (res.success) {
+        const recentVaults = await window.api.vault.getRecent()
+        const { currentVault } = get()
+        const wasActive = currentVault?.path === path
+
+        let newActiveVault = wasActive ? null : currentVault
+        let stats = wasActive ? null : get().stats
+
+        if (wasActive && recentVaults && recentVaults.length > 0) {
+          try {
+            const openRes = await window.api.vault.open(recentVaults[0].path)
+            if (openRes.success && openRes.vault) {
+              newActiveVault = openRes.vault
+              stats = await window.api.vault.getStats().catch(() => null)
+            }
+          } catch (openErr) {
+            console.warn('Could not open next recent vault:', openErr)
+          }
+        }
+
+        set({
+          currentVault: newActiveVault,
+          recentVaults: recentVaults || [],
+          stats,
+          isLoading: false,
+          error: null
+        })
+        return { success: true }
+      } else {
+        const errorMsg = res.error || 'Failed to delete vault'
         set({ error: errorMsg, isLoading: false })
         return { success: false, error: errorMsg }
       }

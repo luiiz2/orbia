@@ -29,7 +29,16 @@
     "browse": "Procurar...",
     "create": "Criar Vault",
     "cancel": "Cancelar",
-    "noRecent": "Nenhum vault recente encontrado. Crie ou abra um para começar."
+    "noRecent": "Nenhum vault recente encontrado. Crie ou abra um para começar.",
+    "unlinkOrDelete": "Desvincular / Excluir",
+    "deletePermanentTitle": "Excluir Vault e Arquivos",
+    "unlinkTitle": "Desvincular Vault do Orbia",
+    "deleteSubtitle": "Escolha se deseja apenas desvincular ou apagar permanentemente.",
+    "deleteFilesCheckbox": "Excluir permanentemente todos os arquivos do disco",
+    "deleteFilesWarning": "Atenção: Todos os vídeos, apostilas e pastas dentro deste diretório serão apagados permanentemente!",
+    "unlinkExpl": "Ao desmarcar, o vault é apenas removido do Orbia. Seus arquivos originais no computador permanecem 100% seguros e intactos.",
+    "confirmDeleteFiles": "Apagar Permanentemente",
+    "confirmUnlink": "Desvincular Vault"
   },
   "home": {
     "continueStudying": "Continuar Estudando",

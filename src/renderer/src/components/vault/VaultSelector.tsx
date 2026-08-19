@@ -6,11 +6,14 @@ import {
   Clock,
   ChevronRight,
   HardDrive,
-  Loader2
+  Loader2,
+  Trash2
 } from 'lucide-react'
-import { Card, CardHeader, CardTitle, CardDescription } from '../ui'
+import type { Vault } from '@shared'
+import { Card, CardHeader, CardTitle, CardDescription, Button } from '../ui'
 import { useVaultStore } from '../../stores'
 import { VaultCreator } from './VaultCreator'
+import { DeleteVaultModal } from './DeleteVaultModal'
 import appLogo from '../../assets/icon.png'
 
 export function VaultSelector(): React.JSX.Element {
@@ -18,6 +21,8 @@ export function VaultSelector(): React.JSX.Element {
   const { recentVaults, openVault, selectDirectory, isLoading, error } = useVaultStore()
   const [creatorOpen, setCreatorOpen] = useState(false)
   const [openingPath, setOpeningPath] = useState<string | null>(null)
+  const [vaultToDelete, setVaultToDelete] = useState<Vault | null>(null)
+  const [deleteModalOpen, setDeleteModalOpen] = useState<boolean>(false)
 
   const handleOpenExisting = async (): Promise<void> => {
     const selected = await selectDirectory()
@@ -124,14 +129,12 @@ export function VaultSelector(): React.JSX.Element {
               {recentVaults.map((vault) => {
                 const isOpening = openingPath === vault.path && isLoading
                 return (
-                  <button
-                    key={vault.id}
-                    type="button"
+                  <div
+                    key={vault.id || vault.path}
                     onClick={() => handleOpenRecent(vault.path)}
-                    disabled={isLoading}
                     className="w-full text-left p-3 rounded-xl bg-card border border-border hover:border-primary/40 hover:bg-secondary/50 transition-all flex items-center justify-between group cursor-pointer"
                   >
-                    <div className="flex items-center gap-3 min-w-0">
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
                       <div className="w-8 h-8 rounded-lg bg-secondary flex items-center justify-center text-muted-foreground shrink-0 group-hover:text-primary transition-colors">
                         <HardDrive className="w-4 h-4" />
                       </div>
@@ -154,8 +157,21 @@ export function VaultSelector(): React.JSX.Element {
                       ) : (
                         <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
                       )}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setVaultToDelete(vault)
+                          setDeleteModalOpen(true)
+                        }}
+                        className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg cursor-pointer transition-colors ml-1"
+                        title={t('common.delete', 'Excluir / Desvincular')}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
                     </div>
-                  </button>
+                  </div>
                 )
               })}
             </div>
@@ -166,6 +182,12 @@ export function VaultSelector(): React.JSX.Element {
       <VaultCreator
         open={creatorOpen}
         onOpenChange={setCreatorOpen}
+      />
+
+      <DeleteVaultModal
+        vault={vaultToDelete}
+        open={deleteModalOpen}
+        onOpenChange={setDeleteModalOpen}
       />
     </div>
   )

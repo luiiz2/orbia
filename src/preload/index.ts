@@ -7,6 +7,7 @@ const api: OrbiaApi = {
   vault: {
     create: (path: string, name: string) => ipcRenderer.invoke('vault:create', { path, name }),
     open: (path: string) => ipcRenderer.invoke('vault:open', { path }),
+    delete: (path: string, deleteFiles: boolean) => ipcRenderer.invoke('vault:delete', { path, deleteFiles }),
     getRecent: () => ipcRenderer.invoke('vault:get-recent'),
     getCurrent: () => ipcRenderer.invoke('vault:get-current'),
     getStats: () => ipcRenderer.invoke('vault:get-stats'),

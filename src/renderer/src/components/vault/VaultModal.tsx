@@ -6,11 +6,14 @@ import {
   FolderOpen,
   AlertCircle,
   Loader2,
-  Check
+  Check,
+  Trash2
 } from 'lucide-react'
+import type { Vault } from '@shared'
 import { useVaultStore } from '../../stores/useVaultStore'
 import { useNavigationStore } from '../../stores/useNavigationStore'
 import { useLibraryStore } from '../../stores/useLibraryStore'
+import { DeleteVaultModal } from './DeleteVaultModal'
 import {
   Dialog,
   DialogContent,
@@ -33,6 +36,8 @@ export function VaultModal(): React.JSX.Element {
   const [vaultLocation, setVaultLocation] = useState<string>('')
   const [isProcessing, setIsProcessing] = useState<boolean>(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [vaultToDelete, setVaultToDelete] = useState<Vault | null>(null)
+  const [deleteModalOpen, setDeleteModalOpen] = useState<boolean>(false)
 
   const handleBrowseLocation = async (): Promise<void> => {
     try {
@@ -185,16 +190,31 @@ export function VaultModal(): React.JSX.Element {
                         </div>
                       </div>
 
-                      {isActive ? (
-                        <span className="flex items-center gap-1 text-[11px] font-bold text-primary shrink-0">
-                          <Check className="h-3.5 w-3.5" />
-                          Active
-                        </span>
-                      ) : (
-                        <Button variant="ghost" size="xs" className="h-7 text-[11px] rounded-lg">
-                          Open
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {isActive ? (
+                          <span className="flex items-center gap-1 text-[11px] font-bold text-primary mr-1">
+                            <Check className="h-3.5 w-3.5" />
+                            Active
+                          </span>
+                        ) : (
+                          <Button variant="ghost" size="xs" className="h-7 text-[11px] rounded-lg">
+                            Open
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setVaultToDelete(vault)
+                            setDeleteModalOpen(true)
+                          }}
+                          className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg cursor-pointer transition-colors"
+                          title={t('common.delete', 'Excluir / Desvincular')}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
                         </Button>
-                      )}
+                      </div>
                     </div>
                   )
                 })}
@@ -279,6 +299,13 @@ export function VaultModal(): React.JSX.Element {
           )}
         </DialogFooter>
       </DialogContent>
+
+      {/* Delete / Unlink Vault Modal */}
+      <DeleteVaultModal
+        vault={vaultToDelete}
+        open={deleteModalOpen}
+        onOpenChange={setDeleteModalOpen}
+      />
     </Dialog>
   )
 }

@@ -22,6 +22,7 @@ export interface OrbiaApi {
   vault: {
     create: (path: string, name: string) => Promise<{ success: boolean; vault?: Vault; error?: string }>
     open: (path: string) => Promise<{ success: boolean; vault?: Vault; error?: string }>
+    delete: (path: string, deleteFiles: boolean) => Promise<{ success: boolean; error?: string }>
     getRecent: () => Promise<Vault[]>
     getCurrent: () => Promise<Vault | null>
     getStats: () => Promise<VaultStats>

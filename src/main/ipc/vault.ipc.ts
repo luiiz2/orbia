@@ -88,4 +88,18 @@ export function registerVaultIpc(): void {
       return null
     }
   })
+
+  ipcMain.handle('vault:delete', async (_event, payload: { path: string; deleteFiles: boolean }) => {
+    try {
+      if (!payload || typeof payload.path !== 'string' || !payload.path.trim()) {
+        return { success: false, error: 'Vault path is required.' }
+      }
+      const trimmedPath = payload.path.trim()
+      const success = await vaultService.deleteVault(trimmedPath, Boolean(payload.deleteFiles))
+      return { success }
+    } catch (err: unknown) {
+      logger.error('[IPC] vault:delete error:', err)
+      return { success: false, error: err instanceof Error ? err.message : String(err) }
+    }
+  })
 }

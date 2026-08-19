@@ -29,7 +29,16 @@
     "browse": "Browse...",
     "create": "Create Vault",
     "cancel": "Cancel",
-    "noRecent": "No recent vaults found. Create or open one to get started."
+    "noRecent": "No recent vaults found. Create or open one to get started.",
+    "unlinkOrDelete": "Unlink / Delete",
+    "deletePermanentTitle": "Delete Vault and Files",
+    "unlinkTitle": "Unlink Vault from Orbia",
+    "deleteSubtitle": "Choose whether to only unlink or permanently delete files.",
+    "deleteFilesCheckbox": "Permanently delete all files from disk",
+    "deleteFilesWarning": "Warning: All videos, materials, and folders within this directory will be permanently deleted!",
+    "unlinkExpl": "When unchecked, the vault is only removed from Orbia. Your original files on disk remain 100% safe and intact.",
+    "confirmDeleteFiles": "Permanently Delete",
+    "confirmUnlink": "Unlink Vault"
   },
   "home": {
     "continueStudying": "Continue Studying",

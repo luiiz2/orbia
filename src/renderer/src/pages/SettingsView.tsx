@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Settings,
@@ -8,7 +8,8 @@ import {
   Info,
   Check,
   ShieldCheck,
-  FolderOpen
+  FolderOpen,
+  Trash2
 } from 'lucide-react'
 import { useSettingsStore } from '../stores/useSettingsStore'
 import { useVaultStore } from '../stores/useVaultStore'
@@ -16,6 +17,7 @@ import { useNavigationStore } from '../stores/useNavigationStore'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card'
 import { Slider } from '../components/ui/slider'
+import { DeleteVaultModal } from '../components/vault/DeleteVaultModal'
 import appLogo from '../assets/icon.png'
 
 export function SettingsView(): React.JSX.Element {
@@ -23,6 +25,7 @@ export function SettingsView(): React.JSX.Element {
   const { settings, setLanguage, setTheme, updateSetting } = useSettingsStore()
   const { currentVault } = useVaultStore()
   const { setVaultModalOpen } = useNavigationStore()
+  const [deleteVaultModalOpen, setDeleteVaultModalOpen] = useState<boolean>(false)
 
   const languages = [
     { code: 'en' as const, label: 'English (US)' },
@@ -213,15 +216,28 @@ export function SettingsView(): React.JSX.Element {
                   {currentVault?.path || 'N/A'}
                 </p>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setVaultModalOpen(true)}
-                className="text-xs shrink-0 rounded-xl gap-1.5"
-              >
-                <FolderOpen className="h-3.5 w-3.5 text-primary" />
-                <span>{t('nav.changeVault')}</span>
-              </Button>
+              <div className="flex items-center gap-2 shrink-0">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setVaultModalOpen(true)}
+                  className="text-xs rounded-xl gap-1.5 cursor-pointer"
+                >
+                  <FolderOpen className="h-3.5 w-3.5 text-primary" />
+                  <span>{t('nav.changeVault')}</span>
+                </Button>
+                {currentVault && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setDeleteVaultModalOpen(true)}
+                    className="text-xs rounded-xl gap-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10 cursor-pointer"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    <span>{t('vault.unlinkOrDelete', 'Desvincular / Excluir')}</span>
+                  </Button>
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -260,6 +276,12 @@ export function SettingsView(): React.JSX.Element {
           </CardContent>
         </Card>
       </div>
+
+      <DeleteVaultModal
+        vault={currentVault}
+        open={deleteVaultModalOpen}
+        onOpenChange={setDeleteVaultModalOpen}
+      />
     </div>
   )
 }

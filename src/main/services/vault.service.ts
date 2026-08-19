@@ -153,6 +153,33 @@ export class VaultService {
     const orbiaDb = path.join(folderPath, '.orbia', 'library.db')
     return fs.existsSync(orbiaDb)
   }
+
+  /**
+   * Removes a vault from registry, and optionally deletes physical files from disk.
+   */
+  public async deleteVault(vaultPath: string, deleteFiles: boolean): Promise<boolean> {
+    const trimmedPath = vaultPath.trim()
+
+    // 1. If currently connected to this vault, close the DB connection
+    if (
+      this.currentVault?.path === trimmedPath ||
+      databaseService.getCurrentVaultPath() === trimmedPath
+    ) {
+      databaseService.close()
+      this.currentVault = null
+      appConfigService.setSetting('lastVaultPath', '')
+    }
+
+    // 2. Remove from AppConfig registry
+    appConfigService.removeVault(trimmedPath)
+
+    // 3. If deleteFiles is true, delete the folder from disk
+    if (deleteFiles && fs.existsSync(trimmedPath)) {
+      await fs.promises.rm(trimmedPath, { recursive: true, force: true })
+    }
+
+    return true
+  }
 }
 
 export const vaultService = new VaultService()
