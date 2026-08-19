@@ -15,7 +15,7 @@ asarUnpack:
   - '**/*.node'
 win:
   executableName: orbia
-  icon: resources/icon.png
+  icon: build/icon.ico
   signAndEditExecutable: false
   forceCodeSigning: false
 nsis:
