@@ -64,6 +64,8 @@ export class AppConfigService {
         last_opened INTEGER NOT NULL
       );
 
+      CREATE INDEX IF NOT EXISTS idx_vaults_last_opened ON vaults(last_opened DESC);
+
       CREATE TABLE IF NOT EXISTS app_settings (
         key   TEXT PRIMARY KEY,
         value TEXT NOT NULL

@@ -4,8 +4,8 @@ import path from 'node:path'
  * Platform and source metadata prefixes to remove
  */
 const PLATFORM_PATTERNS = [
-  /^\[(?:udemy|coursera|alura|hotmart|rocketseat|frontend\s*masters|pluralsight|edx|skillshare|origamid|devmedia|balta(?:\.io)?)\]\s*/i,
-  /^(?:udemy|coursera|alura|hotmart|rocketseat|frontend\s*masters|pluralsight|edx|skillshare|origamid|devmedia|balta(?:\.io)?)\s*[-–—:]\s*/i
+  /^\s*\[+(?:udemy|coursera|alura|hotmart|rocketseat|frontend\s*masters|pluralsight|edx|skillshare|origamid|devmedia|balta(?:\.io)?|udacity|domestika|ebac|nlw|ignite|bootcamp|maratona|jornada|workshop)\]+\s*/i,
+  /^\s*(?:udemy|coursera|alura|hotmart|rocketseat|frontend\s*masters|pluralsight|edx|skillshare|origamid|devmedia|balta(?:\.io)?|udacity|domestika|ebac|nlw|ignite|bootcamp|maratona|jornada|workshop)\s*[-–—:]\s*/i
 ]
 
 /**
@@ -14,17 +14,22 @@ const PLATFORM_PATTERNS = [
 const QUALITY_METADATA_PATTERNS = [
   /\[?\b(?:720p|1080p|1440p|2160p|4k|fhd|uhd|hd)\b\]?/gi,
   /\[?\b(?:x264|x265|h264|h265|hevc|avc|10bit|8bit|aac|mp3|webrip|web-dl|bluray|hdrip|dvdrip)\b\]?/gi,
-  /\[\s*(?:complete|completo|full\s*course|curso\s*completo)\s*\]|\(\s*(?:complete|completo|full\s*course|curso\s*completo)\s*\)/gi,
-  /\[?\b(?:19|20)\d{2}\b\]?|\((?:19|20)\d{2}\)/g // [2024], (2024), 2024
+  /\[\s*(?:complete|completo|full\s*course|curso\s*completo)\s*\]|\(\s*(?:complete|completo|full\s*course|curso\s*completo)\s*\)|\{\s*(?:complete|completo|full\s*course|curso\s*completo)\s*\}/gi,
+  /\[?\b(?:19|20)\d{2}\b\]?|\((?:19|20)\d{2}\)|\{(?:19|20)\d{2}\}/g // [2024], (2024), 2024
 ]
+
+const KEYWORD_PREFIXES = 'aula|lesson|capitulo|capítulo|secao|seção|modulo|módulo|parte|part|licao|lição|section'
 
 /**
  * Common lesson / section prefix patterns
- * e.g. "01 - ", "001. ", "Aula 01 - ", "Lesson 02: ", "Section 03 - "
+ * e.g. "01 - ", "001. ", "01.5 - ", "Aula 01 - ", "Aula 10a - ", "Lesson 02: ", "Lição 03 - "
  */
 const LESSON_PREFIX_PATTERNS = [
-  /^(?:aula|lesson|capitulo|capítulo|secao|seção|modulo|módulo|parte|part)\s*\d+[\s.:–—_-]+\s*/i,
-  /^\d+[\s.:–—_-]+\s*/ // e.g. "01 - ", "001. ", "1. ", "01_ "
+  new RegExp(
+    `^([^\\w\\s]*\\s*)(?:${KEYWORD_PREFIXES})\\s*\\d+(?:\\.\\d+)?[a-zA-Z]?(?:\\s*[-–—:_]\\s*|\\s*\\.\\s+|\\s+)(?=\\S)`,
+    'i'
+  ),
+  /^([^\w\s]*\s*)\d+(?:\.\d+)?[a-zA-Z]?(?:\s*[-–—:_]\s*|\s*\.\s+|\s+)(?=\S)/
 ]
 
 /**
@@ -44,48 +49,54 @@ function stripFileExtension(fileName: string): string {
  * Preserves essential context while stripping junk metadata.
  */
 export function cleanTitle(rawName: string): string {
-  if (!rawName || typeof rawName !== 'string') {
+  if (!rawName || typeof rawName !== 'string' || !rawName.trim()) {
     return ''
   }
 
   // 1. Strip file extension safely
   let title = stripFileExtension(rawName.trim())
 
-  // 2. Normalize underscores and hyphens to spaces with boundary padding so word boundaries work
+  // 2. Normalize underscores to spaces
   title = title.replace(/_+/g, ' ')
 
-  // 3. Remove platform tags
-  for (const pattern of PLATFORM_PATTERNS) {
-    title = title.replace(pattern, '')
+  // 3. Iteratively remove platform tags and quality/release metadata
+  let previous = ''
+  while (previous !== title) {
+    previous = title
+
+    for (const pattern of PLATFORM_PATTERNS) {
+      pattern.lastIndex = 0
+      title = title.replace(pattern, '')
+    }
+
+    for (const pattern of QUALITY_METADATA_PATTERNS) {
+      pattern.lastIndex = 0
+      title = title.replace(pattern, '')
+    }
+
+    title = title.replace(/\[\s*\]|\(\s*\)|\{\s*\}/g, '')
+    title = title.replace(/^[-–—:\s]+/, '').trim()
   }
 
-  // 4. Remove quality, codec, year, and release tags
-  for (const pattern of QUALITY_METADATA_PATTERNS) {
-    title = title.replace(pattern, '')
-  }
-
-  // 5. Remove empty brackets leftover from stripping
-  title = title.replace(/\[\s*\]|\(\s*\)/g, '')
-
-  // 6. Check if stripping numbering prefixes leaves something meaningful
+  // 7. Check if stripping numbering prefixes leaves something meaningful
   let strippedTitle = title
   for (const pattern of LESSON_PREFIX_PATTERNS) {
-    strippedTitle = strippedTitle.replace(pattern, '')
+    strippedTitle = strippedTitle.replace(pattern, '$1')
   }
 
-  // If stripping left meaningful content, use the stripped version.
-  if (strippedTitle.trim().length > 0) {
+  // If stripping left meaningful content (more than just preserved symbol/whitespace), use it
+  if (strippedTitle.replace(/[^\w\p{L}\p{N}]/gu, '').trim().length > 0) {
     title = strippedTitle
   }
 
-  // 7. Clean punctuation and multiple spaces
+  // 8. Clean punctuation and whitespace (preserving hyphenated compound words like front-end)
   title = title
-    .replace(/\s*[-–—]\s*/g, ' - ')
+    .replace(/\s+[-–—]+\s*|\s*[-–—]+\s+/g, ' - ')
     .replace(/\s+/g, ' ')
-    .replace(/^[-–—:\s]+|[-–—:\s]+$/g, '')
+    .replace(/^[-–—:.\s]+|[-–—:.\s]+$/g, '')
     .trim()
 
-  // 8. Fallback: if everything was stripped, return the sanitized original base
+  // 9. Fallback: if everything was stripped, return the sanitized original base
   if (!title) {
     const fallbackBase = stripFileExtension(rawName.trim())
     return fallbackBase || 'Untitled'
@@ -98,22 +109,30 @@ export function cleanTitle(rawName: string): string {
  * Cleans a course title specifically (e.g. from folder name)
  */
 export function cleanCourseTitle(rawFolderName: string): string {
+  if (!rawFolderName || typeof rawFolderName !== 'string' || !rawFolderName.trim()) {
+    return 'Untitled Course'
+  }
+
   let title = cleanTitle(rawFolderName)
 
   // Remove leading numbers commonly found in organized folders (e.g. "01. Python Masterclass" -> "Python Masterclass")
-  title = title.replace(/^\d+[\s.:–—_-]+\s*/, '').trim()
+  title = title.replace(/^([^\w\s]*\s*)\d+(?:\.\d+)?[a-zA-Z]?(?:\s*[-–—:_]\s*|\s*\.\s+|\s+)/, '$1').trim()
 
-  return title || rawFolderName
+  return title || rawFolderName.trim() || 'Untitled Course'
 }
 
 /**
  * Cleans a module title specifically
  */
 export function cleanModuleTitle(rawModuleName: string, defaultIndex: number): string {
+  if (!rawModuleName || typeof rawModuleName !== 'string' || !rawModuleName.trim()) {
+    return `Module ${String(defaultIndex).padStart(2, '0')}`
+  }
+
   let title = cleanTitle(rawModuleName)
 
-  // If module name is empty or just generic numbers, provide a clear title
-  if (!title || /^\d+$/.test(title)) {
+  // If module name is empty or just generic numbers/decimals, provide a clear fallback title
+  if (!title || /^[\d.a-zA-Z\s_-]+$/.test(title) && /^\d+(?:\.\d+)?[a-zA-Z]?$/.test(title.trim())) {
     return `Module ${String(defaultIndex).padStart(2, '0')}`
   }
 

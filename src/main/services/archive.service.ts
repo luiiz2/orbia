@@ -62,9 +62,11 @@ export class ArchiveService {
 
       // Prevent Zip Slip vulnerability
       const entryPath = entry.entryName
+      const targetDirResolved = path.resolve(extractTargetDir)
       const resolvedDest = path.resolve(extractTargetDir, entryPath)
+      const relative = path.relative(targetDirResolved, resolvedDest)
 
-      if (!resolvedDest.startsWith(path.resolve(extractTargetDir))) {
+      if (relative.startsWith('..') || path.isAbsolute(relative) || entryPath.includes('..')) {
         logger.warn(`[ArchiveService] Skipped unsafe Zip Slip path: ${entryPath}`)
         continue
       }

@@ -8,6 +8,13 @@ describe('Natural Sort Utility', () => {
     expect(naturalCompare('Module 01', 'Module 1')).toBe(0)
   })
 
+  it('compares mixed alphanumeric and decimal patterns', () => {
+    expect(naturalCompare('Aula 1', 'Aula 1.5')).toBeLessThan(0)
+    expect(naturalCompare('Aula 1.5', 'Aula 2')).toBeLessThan(0)
+    expect(naturalCompare('Aula 10', 'Aula 10a')).toBeLessThan(0)
+    expect(naturalCompare('Aula 10a', 'Aula 10b')).toBeLessThan(0)
+  })
+
   it('sorts an array of filenames in natural order', () => {
     const input = [
       '10.mp4',
@@ -32,6 +39,30 @@ describe('Natural Sort Utility', () => {
     expect(naturalSort(input)).toEqual(expected)
   })
 
+  it('sorts mixed alphanumeric patterns with decimals and suffixes', () => {
+    const input = [
+      'Aula 10b.mp4',
+      'Aula 1.mp4',
+      'Aula 1.5.mp4',
+      'Aula 10.mp4',
+      'Aula 10a.mp4',
+      'Aula 2.mp4',
+      'Aula 20.mp4'
+    ]
+
+    const expected = [
+      'Aula 1.mp4',
+      'Aula 1.5.mp4',
+      'Aula 2.mp4',
+      'Aula 10.mp4',
+      'Aula 10a.mp4',
+      'Aula 10b.mp4',
+      'Aula 20.mp4'
+    ]
+
+    expect(naturalSort(input)).toEqual(expected)
+  })
+
   it('sorts objects by key naturally', () => {
     const items = [
       { name: 'Modulo 10' },
@@ -49,10 +80,14 @@ describe('Natural Sort Utility', () => {
     ])
   })
 
-  it('extracts leading numbers correctly', () => {
+  it('extracts leading numbers correctly including prefixes and decimals', () => {
     expect(extractLeadingNumber('01 - Intro')).toBe(1)
     expect(extractLeadingNumber('007. GoldenEye')).toBe(7)
     expect(extractLeadingNumber('123_test')).toBe(123)
+    expect(extractLeadingNumber('Aula 05 - Test')).toBe(5)
+    expect(extractLeadingNumber('Lesson 1.5 - Setup')).toBe(1.5)
+    expect(extractLeadingNumber('Módulo 10 - Deploy')).toBe(10)
     expect(extractLeadingNumber('Intro without numbers')).toBeNull()
+    expect(extractLeadingNumber('')).toBeNull()
   })
 })

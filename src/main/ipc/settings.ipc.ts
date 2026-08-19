@@ -1,13 +1,23 @@
 import { ipcMain, app } from 'electron'
 import type { AppSettings } from '../../types'
 import { appConfigService } from '../services/app-config.service'
+import { logger } from '../services/logger.service'
+
+const ALLOWED_SETTING_KEYS = new Set<string>([
+  'language',
+  'theme',
+  'defaultPlaybackSpeed',
+  'autoPlayNext',
+  'completionThreshold',
+  'lastVaultPath'
+])
 
 export function registerSettingsIpc(): void {
   ipcMain.handle('settings:get', async () => {
     try {
       return appConfigService.getSettings()
     } catch (err) {
-      console.error('[IPC] settings:get error:', err)
+      logger.error('[IPC] settings:get error:', err)
       return {
         language: 'en',
         theme: 'dark',
@@ -25,14 +35,22 @@ export function registerSettingsIpc(): void {
       payload: { key: K; value: AppSettings[K] }
     ) => {
       try {
+        if (!payload || typeof payload.key !== 'string' || !ALLOWED_SETTING_KEYS.has(payload.key)) {
+          return
+        }
         appConfigService.setSetting(payload.key, payload.value)
       } catch (err) {
-        console.error('[IPC] settings:set error:', err)
+        logger.error('[IPC] settings:set error:', err)
       }
     }
   )
 
   ipcMain.handle('system:get-locale', async () => {
-    return app.getLocale() || 'en'
+    try {
+      return app.getLocale() || 'en'
+    } catch (err) {
+      logger.error('[IPC] system:get-locale error:', err)
+      return 'en'
+    }
   })
 }

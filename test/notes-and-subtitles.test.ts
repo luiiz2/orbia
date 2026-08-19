@@ -257,5 +257,24 @@ Test subtitle with non-padded milliseconds.`
       expect(vttOutput).toContain('00:01:05.500 --> 00:01:08.500')
       expect(vttOutput).toContain('Test subtitle with non-padded milliseconds.')
     })
+
+    it('strips UTF-8 BOM and normalizes single digit hours', () => {
+      const srtInput = `\uFEFF1\n1:02:03,456 --> 1:02:05,789\nSingle digit hour subtitle.`
+      const vttOutput = convertSrtToVtt(srtInput)
+
+      expect(vttOutput.startsWith('WEBVTT\n\n')).toBe(true)
+      expect(vttOutput).not.toContain('\uFEFF')
+      expect(vttOutput).toContain('01:02:03.456 --> 01:02:05.789')
+      expect(vttOutput).toContain('Single digit hour subtitle.')
+    })
+
+    it('strips unsupported font tags while keeping styling text', () => {
+      const srtInput = `1\n00:00:01,000 --> 00:00:03,000\n<font color="#00ff00">Green text</font>`
+      const vttOutput = convertSrtToVtt(srtInput)
+
+      expect(vttOutput).not.toContain('<font')
+      expect(vttOutput).not.toContain('</font>')
+      expect(vttOutput).toContain('Green text')
+    })
   })
 })

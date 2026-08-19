@@ -591,4 +591,312 @@ describe('DatabaseService Core Engine', () => {
     expect(stats.completedLessons).toBe(1)
     expect(stats.totalWatchedTime).toBe(1400) // 1000 + 400
   })
+
+  it('creates and verifies all optimized composite indexes and foreign key indexes', () => {
+    dbService.connect(tempVaultDir)
+    // Access internal SQLite db for index reflection
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const internalDb = (dbService as any).db
+
+    const indicesStmt = internalDb.prepare(`
+      SELECT name, tbl_name FROM sqlite_master WHERE type = 'index' AND name NOT LIKE 'sqlite_autoindex_%'
+    `)
+    const indices = indicesStmt.all() as { name: string; tbl_name: string }[]
+    const indexNames = indices.map((i) => i.name)
+
+    // Verify critical performance and foreign-key indexes
+    expect(indexNames).toContain('idx_courses_accessed_created')
+    expect(indexNames).toContain('idx_lessons_course_module_order')
+    expect(indexNames).toContain('idx_progress_course_completed')
+    expect(indexNames).toContain('idx_progress_course_updated')
+    expect(indexNames).toContain('idx_notes_course_time')
+    expect(indexNames).toContain('idx_notes_lesson_time')
+    expect(indexNames).toContain('idx_notes_course_created')
+    expect(indexNames).toContain('idx_history_lesson')
+    expect(indexNames).toContain('idx_history_course_watched')
+
+    // Verify EXPLAIN QUERY PLAN uses composite indexes
+    const explainLessons = internalDb.prepare(`
+      EXPLAIN QUERY PLAN
+      SELECT id FROM lessons WHERE course_id = ? ORDER BY module_id, order_index ASC
+    `).all('c-test') as { detail: string }[]
+    const lessonsPlanText = explainLessons.map((p) => p.detail).join(' ')
+    expect(lessonsPlanText).toContain('idx_lessons_course_module_order')
+
+    const explainNotes = internalDb.prepare(`
+      EXPLAIN QUERY PLAN
+      SELECT id FROM lesson_notes WHERE course_id = ? ORDER BY timestamp_seconds
+    `).all('c-test') as { detail: string }[]
+    const notesPlanText = explainNotes.map((p) => p.detail).join(' ')
+    expect(notesPlanText).toContain('idx_notes_course_time')
+
+    const explainHistory = internalDb.prepare(`
+      EXPLAIN QUERY PLAN
+      SELECT id FROM watch_history WHERE course_id = ? ORDER BY watched_at DESC
+    `).all('c-test') as { detail: string }[]
+    const historyPlanText = explainHistory.map((p) => p.detail).join(' ')
+    expect(historyPlanText).toContain('idx_history_course_watched')
+  })
+
+  it('optimizes getAllProgressSummaries into a single high-performance SQL aggregate query across multiple courses', () => {
+    dbService.connect(tempVaultDir)
+    const now = Date.now()
+
+    // Setup 5 courses with diverse progress states
+    for (let c = 1; c <= 5; c++) {
+      const courseId = `course-bench-${c}`
+      const lessonCount = c === 5 ? 0 : 4 // Course 5 has no lessons
+
+      const modules: (Module & { lessons: Lesson[] })[] = lessonCount > 0 ? [
+        {
+          id: `mod-${c}-1`,
+          courseId,
+          title: `Module ${c}`,
+          orderIndex: 1,
+          duration: 4000,
+          lessonCount: 4,
+          createdAt: now,
+          lessons: [
+            { id: `l-${c}-1`, moduleId: `mod-${c}-1`, courseId, title: `L${c}.1`, orderIndex: 1, filePath: `/f1.mp4`, fileName: `f1.mp4`, fileExtension: 'mp4', mediaType: 'video', duration: 1000, fileSize: 100, availability: 'local', createdAt: now },
+            { id: `l-${c}-2`, moduleId: `mod-${c}-1`, courseId, title: `L${c}.2`, orderIndex: 2, filePath: `/f2.mp4`, fileName: `f2.mp4`, fileExtension: 'mp4', mediaType: 'video', duration: 1000, fileSize: 100, availability: 'local', createdAt: now },
+            { id: `l-${c}-3`, moduleId: `mod-${c}-1`, courseId, title: `L${c}.3`, orderIndex: 3, filePath: `/f3.mp4`, fileName: `f3.mp4`, fileExtension: 'mp4', mediaType: 'video', duration: 1000, fileSize: 100, availability: 'local', createdAt: now },
+            { id: `l-${c}-4`, moduleId: `mod-${c}-1`, courseId, title: `L${c}.4`, orderIndex: 4, filePath: `/f4.mp4`, fileName: `f4.mp4`, fileExtension: 'mp4', mediaType: 'video', duration: 1000, fileSize: 100, availability: 'local', createdAt: now }
+          ]
+        }
+      ] : []
+
+      dbService.saveCourseWithHierarchy(
+        {
+          id: courseId,
+          title: `Course ${c}`,
+          slug: `course-${c}`,
+          sourceType: 'local-vault',
+          rootPath: `/path/${c}`,
+          totalDuration: lessonCount * 1000,
+          moduleCount: lessonCount > 0 ? 1 : 0,
+          lessonCount,
+          createdAt: now,
+          updatedAt: now
+        },
+        modules
+      )
+    }
+
+    // Course 1: No progress recorded
+    // Course 2: 1 of 4 completed (25%)
+    dbService.saveLessonProgress({ lessonId: 'l-2-1', courseId: 'course-bench-2', currentTime: 1000, duration: 1000, completed: true })
+
+    // Course 3: 2 of 4 completed (50%)
+    dbService.saveLessonProgress({ lessonId: 'l-3-1', courseId: 'course-bench-3', currentTime: 1000, duration: 1000, completed: true })
+    dbService.saveLessonProgress({ lessonId: 'l-3-2', courseId: 'course-bench-3', currentTime: 1000, duration: 1000, completed: true })
+
+    // Course 4: 4 of 4 completed (100%), with sequential progress updates to verify lastPlayed ranking
+    dbService.saveLessonProgress({ lessonId: 'l-4-1', courseId: 'course-bench-4', currentTime: 1000, duration: 1000, completed: true })
+    dbService.saveLessonProgress({ lessonId: 'l-4-2', courseId: 'course-bench-4', currentTime: 1000, duration: 1000, completed: true })
+    dbService.saveLessonProgress({ lessonId: 'l-4-3', courseId: 'course-bench-4', currentTime: 1000, duration: 1000, completed: true })
+    dbService.saveLessonProgress({ lessonId: 'l-4-4', courseId: 'course-bench-4', currentTime: 1000, duration: 1000, completed: true })
+
+    // Execute bulk aggregate
+    const allSummaries = dbService.getAllProgressSummaries()
+
+    // Verify Course 1
+    expect(allSummaries['course-bench-1']).toBeDefined()
+    expect(allSummaries['course-bench-1'].totalLessons).toBe(4)
+    expect(allSummaries['course-bench-1'].completedLessons).toBe(0)
+    expect(allSummaries['course-bench-1'].percentage).toBe(0)
+    expect(allSummaries['course-bench-1'].totalDuration).toBe(4000)
+    expect(allSummaries['course-bench-1'].remainingDuration).toBe(4000)
+    expect(allSummaries['course-bench-1'].lastPlayedLessonId).toBeUndefined()
+
+    // Verify Course 2
+    expect(allSummaries['course-bench-2']).toBeDefined()
+    expect(allSummaries['course-bench-2'].totalLessons).toBe(4)
+    expect(allSummaries['course-bench-2'].completedLessons).toBe(1)
+    expect(allSummaries['course-bench-2'].percentage).toBe(25)
+    expect(allSummaries['course-bench-2'].remainingDuration).toBe(3000)
+    expect(allSummaries['course-bench-2'].lastPlayedLessonId).toBe('l-2-1')
+    expect(allSummaries['course-bench-2'].lastPlayedLessonTitle).toBe('L2.1')
+
+    // Verify Course 3
+    expect(allSummaries['course-bench-3']).toBeDefined()
+    expect(allSummaries['course-bench-3'].completedLessons).toBe(2)
+    expect(allSummaries['course-bench-3'].percentage).toBe(50)
+    expect(allSummaries['course-bench-3'].remainingDuration).toBe(2000)
+
+    // Verify Course 4
+    expect(allSummaries['course-bench-4']).toBeDefined()
+    expect(allSummaries['course-bench-4'].completedLessons).toBe(4)
+    expect(allSummaries['course-bench-4'].percentage).toBe(100)
+    expect(allSummaries['course-bench-4'].remainingDuration).toBe(0)
+    expect(allSummaries['course-bench-4'].lastPlayedLessonId).toBe('l-4-4')
+    expect(allSummaries['course-bench-4'].lastPlayedLessonTitle).toBe('L4.4')
+
+    // Course 5 (0 lessons) should not be present
+    expect(allSummaries['course-bench-5']).toBeUndefined()
+
+    // Verify that getAllProgressSummaries() matches individual getCourseProgressSummary() exactly
+    for (let c = 1; c <= 4; c++) {
+      const single = dbService.getCourseProgressSummary(`course-bench-${c}`)
+      expect(allSummaries[`course-bench-${c}`]).toEqual(single)
+    }
+  })
+
+  it('executes unified getVaultStats in a single query with exact data aggregation', () => {
+    dbService.connect(tempVaultDir)
+    const now = Date.now()
+
+    // Empty DB stats
+    const emptyStats = dbService.getVaultStats()
+    expect(emptyStats).toEqual({
+      courseCount: 0,
+      moduleCount: 0,
+      lessonCount: 0,
+      totalDuration: 0,
+      completedLessons: 0,
+      totalWatchedTime: 0
+    })
+
+    // Populate with 2 courses
+    dbService.saveCourseWithHierarchy(
+      {
+        id: 'c-v1',
+        title: 'Vault Course 1',
+        slug: 'v-1',
+        sourceType: 'local-vault',
+        rootPath: '/path1',
+        totalDuration: 3600,
+        moduleCount: 1,
+        lessonCount: 2,
+        createdAt: now,
+        updatedAt: now
+      },
+      [
+        {
+          id: 'm-v1',
+          courseId: 'c-v1',
+          title: 'Mod 1',
+          orderIndex: 1,
+          duration: 3600,
+          lessonCount: 2,
+          createdAt: now,
+          lessons: [
+            { id: 'l-v1-1', moduleId: 'm-v1', courseId: 'c-v1', title: 'L1', orderIndex: 1, filePath: '/1.mp4', fileName: '1.mp4', fileExtension: 'mp4', mediaType: 'video', duration: 1800, fileSize: 100, availability: 'local', createdAt: now },
+            { id: 'l-v1-2', moduleId: 'm-v1', courseId: 'c-v1', title: 'L2', orderIndex: 2, filePath: '/2.mp4', fileName: '2.mp4', fileExtension: 'mp4', mediaType: 'video', duration: 1800, fileSize: 100, availability: 'local', createdAt: now }
+          ]
+        }
+      ]
+    )
+
+    dbService.saveCourseWithHierarchy(
+      {
+        id: 'c-v2',
+        title: 'Vault Course 2',
+        slug: 'v-2',
+        sourceType: 'local-vault',
+        rootPath: '/path2',
+        totalDuration: 1200,
+        moduleCount: 1,
+        lessonCount: 1,
+        createdAt: now,
+        updatedAt: now
+      },
+      [
+        {
+          id: 'm-v2',
+          courseId: 'c-v2',
+          title: 'Mod 2',
+          orderIndex: 1,
+          duration: 1200,
+          lessonCount: 1,
+          createdAt: now,
+          lessons: [
+            { id: 'l-v2-1', moduleId: 'm-v2', courseId: 'c-v2', title: 'L2.1', orderIndex: 1, filePath: '/3.mp4', fileName: '3.mp4', fileExtension: 'mp4', mediaType: 'video', duration: 1200, fileSize: 100, availability: 'local', createdAt: now }
+          ]
+        }
+      ]
+    )
+
+    dbService.saveLessonProgress({ lessonId: 'l-v1-1', courseId: 'c-v1', currentTime: 1800, duration: 1800, completed: true })
+    dbService.saveLessonProgress({ lessonId: 'l-v1-2', courseId: 'c-v1', currentTime: 600, duration: 1800, completed: false })
+    dbService.saveLessonProgress({ lessonId: 'l-v2-1', courseId: 'c-v2', currentTime: 1200, duration: 1200, completed: true })
+
+    const stats = dbService.getVaultStats()
+    expect(stats).toEqual({
+      courseCount: 2,
+      moduleCount: 2,
+      lessonCount: 3,
+      totalDuration: 4800,
+      completedLessons: 2,
+      totalWatchedTime: 3600 // 1800 + 600 + 1200
+    })
+  })
+
+  it('supports lesson notes CRUD and indexed ordering', () => {
+    dbService.connect(tempVaultDir)
+    const now = Date.now()
+
+    dbService.saveCourseWithHierarchy(
+      {
+        id: 'c-notes',
+        title: 'Notes Course',
+        slug: 'notes-course',
+        sourceType: 'local-vault',
+        rootPath: '/path',
+        totalDuration: 600,
+        moduleCount: 1,
+        lessonCount: 1,
+        createdAt: now,
+        updatedAt: now
+      },
+      [
+        {
+          id: 'm-notes',
+          courseId: 'c-notes',
+          title: 'Mod',
+          orderIndex: 1,
+          duration: 600,
+          lessonCount: 1,
+          createdAt: now,
+          lessons: [
+            { id: 'l-notes-1', moduleId: 'm-notes', courseId: 'c-notes', title: 'L1', orderIndex: 1, filePath: '/1.mp4', fileName: '1.mp4', fileExtension: 'mp4', mediaType: 'video', duration: 600, fileSize: 100, availability: 'local', createdAt: now }
+          ]
+        }
+      ]
+    )
+
+    const note1 = dbService.addLessonNote({
+      lessonId: 'l-notes-1',
+      courseId: 'c-notes',
+      timestampSeconds: 120,
+      content: 'Second note in time'
+    })
+
+    const note2 = dbService.addLessonNote({
+      lessonId: 'l-notes-1',
+      courseId: 'c-notes',
+      timestampSeconds: 30,
+      content: 'First note in time'
+    })
+
+    // Retrieve notes ordered by timestamp_seconds ASC
+    const lessonNotes = dbService.getLessonNotes('l-notes-1')
+    expect(lessonNotes.length).toBe(2)
+    expect(lessonNotes[0].id).toBe(note2.id)
+    expect(lessonNotes[0].timestampSeconds).toBe(30)
+    expect(lessonNotes[1].id).toBe(note1.id)
+    expect(lessonNotes[1].timestampSeconds).toBe(120)
+
+    // Update note
+    dbService.updateLessonNote(note1.id, 'Updated note content')
+    const updatedNotes = dbService.getLessonNotes('l-notes-1')
+    expect(updatedNotes.find((n) => n.id === note1.id)?.content).toBe('Updated note content')
+
+    // Course notes query
+    const courseNotes = dbService.getCourseNotes('c-notes')
+    expect(courseNotes.length).toBe(2)
+
+    // Delete note
+    dbService.deleteLessonNote(note2.id)
+    expect(dbService.getLessonNotes('l-notes-1').length).toBe(1)
+  })
 })

@@ -2,7 +2,7 @@
  * Formats seconds to MM:SS or HH:MM:SS
  */
 export function formatTime(seconds: number): string {
-  if (isNaN(seconds) || seconds < 0) return '00:00'
+  if (isNaN(seconds) || seconds <= 0 || !isFinite(seconds)) return '00:00'
 
   const totalSeconds = Math.floor(seconds)
   const hours = Math.floor(totalSeconds / 3600)
@@ -25,7 +25,7 @@ export const formatDuration = formatTime
  * Formats duration in seconds to a human-readable string (e.g. "1h 45m" or "25m")
  */
 export function formatDurationHuman(seconds: number): string {
-  if (isNaN(seconds) || seconds <= 0) return '0m'
+  if (isNaN(seconds) || seconds <= 0 || !isFinite(seconds)) return '0m'
 
   const totalMinutes = Math.round(seconds / 60)
   const hours = Math.floor(totalMinutes / 60)
@@ -39,14 +39,14 @@ export function formatDurationHuman(seconds: number): string {
 }
 
 /**
- * Formats file size in bytes to human-readable string
+ * Formats file size in bytes to human-readable string (B, KB, MB, GB, TB, PB)
  */
 export function formatFileSize(bytes: number): string {
-  if (isNaN(bytes) || bytes <= 0) return '0 B'
+  if (isNaN(bytes) || bytes <= 0 || !isFinite(bytes)) return '0 B'
 
-  const units = ['B', 'KB', 'MB', 'GB', 'TB']
-  const i = Math.floor(Math.log(bytes) / Math.log(1024))
-  const size = (bytes / Math.pow(1024, i)).toFixed(i === 0 ? 0 : 1)
+  const units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']
+  const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1)
+  const formatted = parseFloat((bytes / Math.pow(1024, i)).toFixed(i === 0 ? 0 : 1))
 
-  return `${size} ${units[i]}`
+  return `${formatted} ${units[i]}`
 }

@@ -10,6 +10,7 @@ import { vaultService } from '../services/vault.service'
 import { archiveService } from '../services/archive.service'
 import { logger } from '../services/logger.service'
 import { convertSrtToVtt } from '../utils/subtitle-utils'
+import { isSubtitleFile } from '../utils/file-utils'
 
 function generateSlug(title: string): string {
   return title
@@ -136,7 +137,15 @@ export function registerCoursesIpc(): void {
   // Update course cover
   ipcMain.handle('courses:update-course-cover', async (_event, payload: { courseId: string; coverPath: string }) => {
     try {
-      databaseService.updateCourseCover(payload.courseId, payload.coverPath)
+      if (
+        !payload ||
+        typeof payload.courseId !== 'string' ||
+        !payload.courseId.trim() ||
+        typeof payload.coverPath !== 'string'
+      ) {
+        return { success: false, error: 'Valid courseId and coverPath are required' }
+      }
+      databaseService.updateCourseCover(payload.courseId.trim(), payload.coverPath.trim())
       return { success: true }
     } catch (err: unknown) {
       logger.error('[IPC] courses:update-course-cover error:', err)
@@ -147,7 +156,15 @@ export function registerCoursesIpc(): void {
   // Update lesson cover / thumbnail
   ipcMain.handle('courses:update-lesson-cover', async (_event, payload: { lessonId: string; coverPath: string }) => {
     try {
-      databaseService.updateLessonCover(payload.lessonId, payload.coverPath)
+      if (
+        !payload ||
+        typeof payload.lessonId !== 'string' ||
+        !payload.lessonId.trim() ||
+        typeof payload.coverPath !== 'string'
+      ) {
+        return { success: false, error: 'Valid lessonId and coverPath are required' }
+      }
+      databaseService.updateLessonCover(payload.lessonId.trim(), payload.coverPath.trim())
       return { success: true }
     } catch (err: unknown) {
       logger.error('[IPC] courses:update-lesson-cover error:', err)
@@ -158,6 +175,17 @@ export function registerCoursesIpc(): void {
   // Extract a .zip course archive into the Vault's Inbox
   ipcMain.handle('courses:extract-zip', async (event, payload: { zipPath: string }) => {
     try {
+      if (!payload || typeof payload.zipPath !== 'string' || !payload.zipPath.trim()) {
+        return { success: false, error: 'Zip archive path is required' }
+      }
+      const trimmedZipPath = payload.zipPath.trim()
+      if (!archiveService.isZipFile(trimmedZipPath)) {
+        return { success: false, error: 'Selected file is not a valid .zip archive' }
+      }
+      if (!fs.existsSync(trimmedZipPath)) {
+        return { success: false, error: `Zip archive not found at path: ${trimmedZipPath}` }
+      }
+
       const currentVault = vaultService.getCurrentVault()
       if (!currentVault) {
         return { success: false, error: 'No active vault is open to extract archive.' }
@@ -166,10 +194,10 @@ export function registerCoursesIpc(): void {
       const inboxDir = path.join(currentVault.path, 'Inbox')
 
       const result = await archiveService.extractZip({
-        zipPath: payload.zipPath,
+        zipPath: trimmedZipPath,
         destinationDir: inboxDir,
         onProgress: (percent, currentFile) => {
-          event.sender.send('courses:extract-progress', { percent, currentFile, zipPath: payload.zipPath })
+          event.sender.send('courses:extract-progress', { percent, currentFile, zipPath: trimmedZipPath })
         }
       })
 
@@ -189,11 +217,18 @@ export function registerCoursesIpc(): void {
 
   ipcMain.handle('courses:scan-folder', async (_event, payload: { folderPath: string }) => {
     try {
-      if (!payload.folderPath) {
+      if (!payload || typeof payload.folderPath !== 'string' || !payload.folderPath.trim()) {
         return { success: false, error: 'Folder path is required' }
       }
+      const trimmedFolderPath = payload.folderPath.trim()
+      if (!fs.existsSync(trimmedFolderPath)) {
+        return { success: false, error: `Directory does not exist: "${trimmedFolderPath}"` }
+      }
+      if (!fs.statSync(trimmedFolderPath).isDirectory()) {
+        return { success: false, error: `Path is not a directory: "${trimmedFolderPath}"` }
+      }
 
-      const scannedDir = await scannerService.scanDirectory(payload.folderPath)
+      const scannedDir = await scannerService.scanDirectory(trimmedFolderPath)
       const proposal = parserService.parseCourseHierarchy(scannedDir)
 
       return { success: true, proposal }
@@ -211,6 +246,15 @@ export function registerCoursesIpc(): void {
       payload: { proposal: ProposedCourseStructure; isExternal: boolean }
     ) => {
       try {
+        if (
+          !payload ||
+          !payload.proposal ||
+          typeof payload.proposal.suggestedTitle !== 'string' ||
+          !payload.proposal.suggestedTitle.trim() ||
+          !Array.isArray(payload.proposal.modules)
+        ) {
+          return { success: false, error: 'Valid course proposal is required' }
+        }
         const { proposal, isExternal } = payload
         const currentVault = vaultService.getCurrentVault()
         if (!currentVault) {
@@ -223,33 +267,33 @@ export function registerCoursesIpc(): void {
 
         const course: Course = {
           id: courseId,
-          title: proposal.suggestedTitle,
+          title: proposal.suggestedTitle.trim(),
           slug,
           sourceType: isExternal ? 'local-ref' : 'local-vault',
-          rootPath: proposal.rootPath,
+          rootPath: proposal.rootPath || '',
           coverPath: proposal.coverPath,
-          totalDuration: 0,
+          totalDuration: typeof proposal.totalDuration === 'number' ? proposal.totalDuration : 0,
           moduleCount: proposal.modules.length,
-          lessonCount: proposal.totalLessons,
+          lessonCount: typeof proposal.totalLessons === 'number' ? proposal.totalLessons : 0,
           createdAt: now,
           updatedAt: now
         }
 
         const modulesWithLessons: (Module & { lessons: Lesson[] })[] = proposal.modules.map(
-          (mod) => {
+          (mod, modIdx) => {
             const moduleId = mod.id || crypto.randomUUID()
-            const lessons: Lesson[] = mod.lessons.map((l) => ({
+            const lessons: Lesson[] = (mod.lessons || []).map((l, lIdx) => ({
               id: l.id || crypto.randomUUID(),
               moduleId,
               courseId,
-              title: l.title,
-              orderIndex: l.orderIndex,
-              filePath: l.filePath,
-              fileName: l.originalFileName,
-              fileExtension: l.fileExtension,
-              mediaType: l.mediaType,
-              duration: 0,
-              fileSize: l.fileSize,
+              title: l.title || `Lesson ${lIdx + 1}`,
+              orderIndex: typeof l.orderIndex === 'number' ? l.orderIndex : lIdx + 1,
+              filePath: l.filePath || '',
+              fileName: l.originalFileName || '',
+              fileExtension: l.fileExtension || '',
+              mediaType: l.mediaType || 'video',
+              duration: typeof l.duration === 'number' ? l.duration : 0,
+              fileSize: typeof l.fileSize === 'number' ? l.fileSize : 0,
               availability: 'local',
               coverPath: l.coverPath,
               createdAt: now
@@ -258,10 +302,10 @@ export function registerCoursesIpc(): void {
             return {
               id: moduleId,
               courseId,
-              title: mod.title,
-              orderIndex: mod.orderIndex,
+              title: mod.title || `Module ${modIdx + 1}`,
+              orderIndex: typeof mod.orderIndex === 'number' ? mod.orderIndex : modIdx + 1,
               folderPath: mod.folderPath,
-              duration: 0,
+              duration: typeof mod.duration === 'number' ? mod.duration : 0,
               lessonCount: lessons.length,
               createdAt: now,
               lessons
@@ -287,6 +331,10 @@ export function registerCoursesIpc(): void {
       payload: { items: { proposal: ProposedCourseStructure; isExternal: boolean }[] }
     ) => {
       try {
+        if (!payload || !Array.isArray(payload.items) || payload.items.length === 0) {
+          return { success: false, error: 'Items array is required and must not be empty.' }
+        }
+
         const currentVault = vaultService.getCurrentVault()
         if (!currentVault) {
           return { success: false, error: 'No active vault is open.' }
@@ -296,39 +344,47 @@ export function registerCoursesIpc(): void {
         const now = Date.now()
 
         for (const item of payload.items) {
+          if (
+            !item ||
+            !item.proposal ||
+            typeof item.proposal.suggestedTitle !== 'string' ||
+            !Array.isArray(item.proposal.modules)
+          ) {
+            continue
+          }
           const { proposal, isExternal } = item
           const courseId = crypto.randomUUID()
           const slug = `${generateSlug(proposal.suggestedTitle)}-${courseId.substring(0, 6)}`
 
           const course: Course = {
             id: courseId,
-            title: proposal.suggestedTitle,
+            title: proposal.suggestedTitle.trim(),
             slug,
             sourceType: isExternal ? 'local-ref' : 'local-vault',
-            rootPath: proposal.rootPath,
+            rootPath: proposal.rootPath || '',
             coverPath: proposal.coverPath,
-            totalDuration: 0,
+            totalDuration: typeof proposal.totalDuration === 'number' ? proposal.totalDuration : 0,
             moduleCount: proposal.modules.length,
-            lessonCount: proposal.totalLessons,
+            lessonCount: typeof proposal.totalLessons === 'number' ? proposal.totalLessons : 0,
             createdAt: now,
             updatedAt: now
           }
 
           const modulesWithLessons: (Module & { lessons: Lesson[] })[] = proposal.modules.map(
-            (mod) => {
+            (mod, modIdx) => {
               const moduleId = mod.id || crypto.randomUUID()
-              const lessons: Lesson[] = mod.lessons.map((l) => ({
+              const lessons: Lesson[] = (mod.lessons || []).map((l, lIdx) => ({
                 id: l.id || crypto.randomUUID(),
                 moduleId,
                 courseId,
-                title: l.title,
-                orderIndex: l.orderIndex,
-                filePath: l.filePath,
-                fileName: l.originalFileName,
-                fileExtension: l.fileExtension,
-                mediaType: l.mediaType,
-                duration: 0,
-                fileSize: l.fileSize,
+                title: l.title || `Lesson ${lIdx + 1}`,
+                orderIndex: typeof l.orderIndex === 'number' ? l.orderIndex : lIdx + 1,
+                filePath: l.filePath || '',
+                fileName: l.originalFileName || '',
+                fileExtension: l.fileExtension || '',
+                mediaType: l.mediaType || 'video',
+                duration: typeof l.duration === 'number' ? l.duration : 0,
+                fileSize: typeof l.fileSize === 'number' ? l.fileSize : 0,
                 availability: 'local',
                 coverPath: l.coverPath,
                 createdAt: now
@@ -337,10 +393,10 @@ export function registerCoursesIpc(): void {
               return {
                 id: moduleId,
                 courseId,
-                title: mod.title,
-                orderIndex: mod.orderIndex,
+                title: mod.title || `Module ${modIdx + 1}`,
+                orderIndex: typeof mod.orderIndex === 'number' ? mod.orderIndex : modIdx + 1,
                 folderPath: mod.folderPath,
-                duration: 0,
+                duration: typeof mod.duration === 'number' ? mod.duration : 0,
                 lessonCount: lessons.length,
                 createdAt: now,
                 lessons
@@ -371,7 +427,10 @@ export function registerCoursesIpc(): void {
 
   ipcMain.handle('courses:get-by-id', async (_event, payload: { courseId: string }) => {
     try {
-      return databaseService.getCourseById(payload.courseId)
+      if (!payload || typeof payload.courseId !== 'string' || !payload.courseId.trim()) {
+        return null
+      }
+      return databaseService.getCourseById(payload.courseId.trim())
     } catch (err) {
       logger.error('[IPC] courses:get-by-id error:', err)
       return null
@@ -382,7 +441,10 @@ export function registerCoursesIpc(): void {
     'courses:delete',
     async (_event, payload: { courseId: string; deleteFiles: boolean }) => {
       try {
-        databaseService.deleteCourse(payload.courseId)
+        if (!payload || typeof payload.courseId !== 'string' || !payload.courseId.trim()) {
+          return { success: false, error: 'Course ID is required' }
+        }
+        databaseService.deleteCourse(payload.courseId.trim())
         return { success: true }
       } catch (err: unknown) {
         logger.error('[IPC] courses:delete error:', err)
@@ -393,7 +455,10 @@ export function registerCoursesIpc(): void {
 
   ipcMain.handle('courses:toggle-favorite', async (_event, payload: { courseId: string }) => {
     try {
-      return databaseService.toggleCourseFavorite(payload.courseId)
+      if (!payload || typeof payload.courseId !== 'string' || !payload.courseId.trim()) {
+        return false
+      }
+      return databaseService.toggleCourseFavorite(payload.courseId.trim())
     } catch (err) {
       logger.error('[IPC] courses:toggle-favorite error:', err)
       return false
@@ -402,10 +467,17 @@ export function registerCoursesIpc(): void {
 
   ipcMain.handle('courses:convert-srt-to-vtt', async (_event, payload: { srtPath: string }) => {
     try {
-      if (!fs.existsSync(payload.srtPath)) {
-        return { success: false, error: `Subtitle file not found at path: ${payload.srtPath}` }
+      if (!payload || typeof payload.srtPath !== 'string' || !payload.srtPath.trim()) {
+        return { success: false, error: 'Subtitle file path is required' }
       }
-      const srtContent = fs.readFileSync(payload.srtPath, 'utf-8')
+      const trimmedPath = payload.srtPath.trim()
+      if (!isSubtitleFile(trimmedPath)) {
+        return { success: false, error: 'File is not a supported subtitle file (.srt, .vtt, .sub, .ass)' }
+      }
+      if (!fs.existsSync(trimmedPath)) {
+        return { success: false, error: `Subtitle file not found at path: ${trimmedPath}` }
+      }
+      const srtContent = fs.readFileSync(trimmedPath, 'utf-8')
       const vttContent = convertSrtToVtt(srtContent)
       return { success: true, vttContent }
     } catch (err: unknown) {

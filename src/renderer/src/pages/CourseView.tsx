@@ -23,23 +23,25 @@ import { usePlayerStore } from '../stores/usePlayerStore'
 import { useNavigationStore } from '../stores/useNavigationStore'
 import { useCourseProgress } from '../hooks/useCourseProgress'
 import { PdfViewerModal } from '../components/documents/PdfViewerModal'
-import { Button } from '../components/ui/button'
-import { Progress } from '../components/ui/progress'
-import { Badge } from '../components/ui/badge'
 import {
+  Button,
+  Progress,
+  Badge,
+  Skeleton,
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
   Accordion,
   AccordionContent,
   AccordionItem,
-  AccordionTrigger
-} from '../components/ui/accordion'
-import {
+  AccordionTrigger,
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle
-} from '../components/ui/dialog'
+} from '../components/ui'
 import { formatDurationHuman, formatTime } from '../lib/formatters'
 import type { Lesson, AttachedResource } from '@shared'
 
@@ -75,8 +77,53 @@ export function CourseView(): React.JSX.Element {
 
   if (isLoading || !activeCourseHierarchy) {
     return (
-      <div className="flex h-96 items-center justify-center">
-        <p className="text-sm text-muted-foreground animate-pulse">{t('common.loading')}</p>
+      <div className="container mx-auto max-w-5xl px-4 py-6 sm:px-6 space-y-6 animate-in fade-in duration-200" aria-label="Loading course details">
+        {/* Top Nav Skeleton */}
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-8 w-24 rounded-xl" />
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-8 w-24 rounded-xl" />
+            <Skeleton className="h-8 w-28 rounded-xl" />
+            <Skeleton className="h-8 w-28 rounded-xl" />
+          </div>
+        </div>
+
+        {/* Hero Banner Skeleton */}
+        <div className="rounded-2xl border border-border/60 bg-card/60 p-6">
+          <div className="flex flex-col md:flex-row gap-6 items-start">
+            <Skeleton className="aspect-video w-full md:w-80 rounded-2xl shrink-0" />
+            <div className="flex flex-1 flex-col justify-between space-y-4 w-full">
+              <div className="space-y-2">
+                <Skeleton className="h-5 w-24 rounded-md" />
+                <Skeleton className="h-8 w-3/4 rounded-md" />
+                <Skeleton className="h-4 w-full rounded-md" />
+                <Skeleton className="h-4 w-2/3 rounded-md" />
+              </div>
+              <div className="space-y-3 pt-2">
+                <Skeleton className="h-2 w-full rounded-full" />
+                <Skeleton className="h-10 w-36 rounded-xl" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Curriculum Skeleton */}
+        <div className="space-y-3">
+          <Skeleton className="h-6 w-32 rounded-md" />
+          <div className="space-y-3">
+            {[1, 2, 3].map((n) => (
+              <div key={n} className="rounded-2xl border border-border/60 bg-card/60 p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Skeleton className="h-6 w-6 rounded-lg" />
+                    <Skeleton className="h-5 w-48 rounded-md" />
+                  </div>
+                  <Skeleton className="h-4 w-24 rounded-md" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     )
   }
@@ -136,118 +183,160 @@ export function CourseView(): React.JSX.Element {
     <div className="container mx-auto max-w-5xl px-4 py-6 sm:px-6 space-y-6 animate-in fade-in duration-200">
       {/* Top Navigation & Actions Bar */}
       <div className="flex items-center justify-between">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={navigateToHome}
-          className="gap-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/70 rounded-xl cursor-pointer"
-        >
-          <ChevronLeft className="h-4 w-4" />
-          <span>{t('nav.library')}</span>
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={navigateToHome}
+              className="gap-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/70 rounded-xl cursor-pointer focus-visible:ring-2 focus-visible:ring-primary min-h-[36px]"
+              aria-label={t('nav.library')}
+            >
+              <ChevronLeft className="h-4 w-4" />
+              <span>{t('nav.library')}</span>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="right">Voltar para a biblioteca</TooltipContent>
+        </Tooltip>
 
         <div className="flex items-center gap-2">
           {/* Favorite Toggle Action Button */}
-          <Button
-            variant={course.isFavorite ? 'default' : 'ghost'}
-            size="sm"
-            onClick={() => toggleFavorite(course.id).catch(console.warn)}
-            className={`gap-1.5 text-xs rounded-xl cursor-pointer transition-all ${
-              course.isFavorite
-                ? 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 border border-amber-500/40 shadow-xs'
-                : 'text-muted-foreground hover:text-amber-400 hover:bg-secondary/70'
-            }`}
-            title={course.isFavorite ? t('course.favorited', 'Favorito') : t('course.favorite', 'Adicionar aos Favoritos')}
-          >
-            <Star
-              className={`h-3.5 w-3.5 ${
-                course.isFavorite ? 'fill-amber-400 text-amber-400' : ''
-              }`}
-            />
-            <span>
-              {course.isFavorite
-                ? t('course.favorited', 'Favorito')
-                : t('course.favorite', 'Favoritar')}
-            </span>
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant={course.isFavorite ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => toggleFavorite(course.id).catch(console.warn)}
+                className={`gap-1.5 text-xs rounded-xl cursor-pointer transition-all min-h-[36px] ${
+                  course.isFavorite
+                    ? 'bg-amber-500/25 text-amber-400 hover:bg-amber-500/35 border border-amber-500/45 shadow-xs'
+                    : 'text-muted-foreground hover:text-amber-400 hover:bg-secondary/70'
+                }`}
+                aria-label={course.isFavorite ? t('course.favorited', 'Favoritado') : t('course.favorite', 'Favoritar')}
+              >
+                <Star
+                  className={`h-3.5 w-3.5 transition-transform active:scale-125 duration-150 ${
+                    course.isFavorite ? 'fill-amber-400 text-amber-400' : ''
+                  }`}
+                />
+                <span>
+                  {course.isFavorite
+                    ? t('course.favorited', 'Favorito')
+                    : t('course.favorite', 'Favoritar')}
+                </span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              {course.isFavorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
+            </TooltipContent>
+          </Tooltip>
 
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleChangeCourseCover}
-            className="gap-1.5 text-xs text-muted-foreground hover:text-primary hover:bg-secondary/70 rounded-xl cursor-pointer"
-          >
-            <ImageIcon className="h-3.5 w-3.5" />
-            <span>Trocar Capa</span>
-          </Button>
+          {/* Change Cover Action Button */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleChangeCourseCover}
+                className="gap-1.5 text-xs text-muted-foreground hover:text-primary hover:bg-secondary/70 rounded-xl cursor-pointer min-h-[36px]"
+                aria-label="Trocar Imagem de Capa"
+              >
+                <ImageIcon className="h-3.5 w-3.5" />
+                <span>Trocar Capa</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">Alterar imagem de capa do curso</TooltipContent>
+          </Tooltip>
 
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setIsDeleteDialogOpen(true)}
-            className="gap-1.5 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive rounded-xl cursor-pointer"
-          >
-            <Trash2 className="h-4 w-4" />
-            <span>{t('course.deleteCourse')}</span>
-          </Button>
+          {/* Delete Course Action Button */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsDeleteDialogOpen(true)}
+                className="gap-1.5 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive rounded-xl cursor-pointer min-h-[36px]"
+                aria-label={t('course.deleteCourse')}
+              >
+                <Trash2 className="h-4 w-4" />
+                <span>{t('course.deleteCourse')}</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="text-destructive font-semibold">
+              Remover curso da biblioteca
+            </TooltipContent>
+          </Tooltip>
         </div>
       </div>
 
       {/* Course Hero Banner */}
-      <div className="rounded-2xl border border-border/80 bg-gradient-to-br from-card via-card/95 to-primary/5 p-6 shadow-xl shadow-orange-500/5">
+      <div className="rounded-3xl border border-border/80 bg-gradient-to-br from-card via-card/95 to-primary/5 p-6 shadow-xl shadow-orange-500/5">
         <div className="flex flex-col md:flex-row gap-6 items-start">
           {/* Thumbnail / Cover */}
-          <div
-            onClick={handleChangeCourseCover}
-            className="relative aspect-video w-full md:w-80 shrink-0 overflow-hidden rounded-2xl bg-secondary/70 flex items-center justify-center border border-border/80 shadow-md group cursor-pointer"
-            title="Clique para alterar a capa do curso"
-          >
-            {course.coverPath ? (
-              <img
-                src={`media://${encodeURI(course.coverPath.replace(/\\/g, '/'))}`}
-                alt={course.title}
-                className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500"
-              />
-            ) : (
-              <div className="flex flex-col items-center justify-center text-primary p-4">
-                <BookOpen className="h-12 w-12 opacity-60 mb-2" />
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div
+                onClick={handleChangeCourseCover}
+                className="relative aspect-video w-full md:w-80 shrink-0 overflow-hidden rounded-2xl bg-secondary/70 flex items-center justify-center border border-border/80 shadow-md group cursor-pointer"
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    handleChangeCourseCover()
+                  }
+                }}
+                aria-label="Alterar capa do curso"
+              >
+                {course.coverPath ? (
+                  <img
+                    src={`media://${encodeURI(course.coverPath.replace(/\\/g, '/'))}`}
+                    alt={course.title}
+                    className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
+                  />
+                ) : (
+                  <div className="flex flex-col items-center justify-center text-primary p-4">
+                    <BookOpen className="h-12 w-12 opacity-60 mb-2 group-hover:scale-110 transition-transform duration-300" />
+                  </div>
+                )}
+
+                {/* Hover Change Cover Overlay */}
+                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col items-center justify-center text-white backdrop-blur-[2px]">
+                  <Upload className="w-6 h-6 mb-1 text-white" />
+                  <span className="text-xs font-semibold">Alterar Capa</span>
+                </div>
+
+                {/* Source Badge on Cover */}
+                <div className="absolute top-2.5 right-2.5 z-10 pointer-events-none">
+                  {course.sourceType === 'local-ref' ? (
+                    <Badge
+                      variant="secondary"
+                      className="text-[10px] bg-black/75 backdrop-blur-md border-white/10 text-slate-300 flex items-center gap-1 py-0.5 px-2 font-mono"
+                    >
+                      <LinkIcon className="w-2.5 h-2.5 text-primary" />
+                      Ref
+                    </Badge>
+                  ) : (
+                    <Badge
+                      variant="secondary"
+                      className="text-[10px] bg-black/75 backdrop-blur-md border-white/10 text-slate-300 flex items-center gap-1 py-0.5 px-2 font-mono"
+                    >
+                      <HardDrive className="w-2.5 h-2.5 text-purple-400" />
+                      Vault
+                    </Badge>
+                  )}
+                </div>
               </div>
-            )}
-
-            {/* Hover Change Cover Overlay */}
-            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white backdrop-blur-[2px]">
-              <Upload className="w-6 h-6 mb-1 text-white" />
-              <span className="text-xs font-semibold">Alterar Capa</span>
-            </div>
-
-            {/* Source Badge on Cover */}
-            <div className="absolute top-2.5 right-2.5 z-10">
-              {course.sourceType === 'local-ref' ? (
-                <Badge
-                  variant="secondary"
-                  className="text-[10px] bg-black/70 backdrop-blur-md border-white/10 text-slate-300 flex items-center gap-1 py-0.5 px-2"
-                >
-                  <LinkIcon className="w-2.5 h-2.5 text-primary" />
-                  Ref
-                </Badge>
-              ) : (
-                <Badge
-                  variant="secondary"
-                  className="text-[10px] bg-black/70 backdrop-blur-md border-white/10 text-slate-300 flex items-center gap-1 py-0.5 px-2"
-                >
-                  <HardDrive className="w-2.5 h-2.5 text-purple-400" />
-                  Vault
-                </Badge>
-              )}
-            </div>
-          </div>
+            </TooltipTrigger>
+            <TooltipContent side="top">Clique para alterar a capa do curso</TooltipContent>
+          </Tooltip>
 
           {/* Details & CTA */}
           <div className="flex flex-1 flex-col justify-between space-y-4">
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 {progressData.isCompleted ? (
-                  <Badge variant="success" className="gap-1 shadow-sm">
+                  <Badge variant="success" className="gap-1 shadow-sm font-semibold">
                     <CheckCircle2 className="h-3 w-3" />
                     <span>{t('course.completed')}</span>
                   </Badge>
@@ -274,23 +363,29 @@ export function CourseView(): React.JSX.Element {
                 <h1 className="text-2xl font-extrabold tracking-tight text-foreground sm:text-3xl leading-tight">
                   {course.title}
                 </h1>
-                <button
-                  type="button"
-                  onClick={() => toggleFavorite(course.id).catch(console.warn)}
-                  className={`shrink-0 p-2 rounded-xl border transition-all duration-200 cursor-pointer ${
-                    course.isFavorite
-                      ? 'bg-amber-500/20 border-amber-500/40 text-amber-400 shadow-md shadow-amber-500/10 hover:bg-amber-500/30'
-                      : 'bg-secondary/50 border-border/80 text-muted-foreground hover:text-amber-400 hover:border-amber-500/30 hover:bg-secondary'
-                  }`}
-                  title={course.isFavorite ? t('course.favorited', 'Favorito') : t('course.favorite', 'Adicionar aos Favoritos')}
-                  aria-label="Toggle Favorite"
-                >
-                  <Star
-                    className={`h-5 w-5 transition-transform active:scale-125 ${
-                      course.isFavorite ? 'fill-amber-400 text-amber-400' : ''
-                    }`}
-                  />
-                </button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={() => toggleFavorite(course.id).catch(console.warn)}
+                      className={`shrink-0 p-2.5 rounded-xl border transition-all duration-200 cursor-pointer min-h-[36px] min-w-[36px] flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 ${
+                        course.isFavorite
+                          ? 'bg-amber-500/25 border-amber-500/40 text-amber-400 shadow-md shadow-amber-500/15 hover:bg-amber-500/35'
+                          : 'bg-secondary/50 border-border/80 text-muted-foreground hover:text-amber-400 hover:border-amber-500/30 hover:bg-secondary'
+                      }`}
+                      aria-label="Toggle Favorite"
+                    >
+                      <Star
+                        className={`h-5 w-5 transition-transform active:scale-125 duration-150 ${
+                          course.isFavorite ? 'fill-amber-400 text-amber-400' : ''
+                        }`}
+                      />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="left">
+                    {course.isFavorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
+                  </TooltipContent>
+                </Tooltip>
               </div>
 
               {course.description && (
@@ -336,7 +431,7 @@ export function CourseView(): React.JSX.Element {
               <Button
                 size="lg"
                 onClick={handleStartOrResume}
-                className="w-full sm:w-auto gap-2 font-semibold shadow-lg shadow-orange-500/20 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-500 text-white rounded-xl cursor-pointer"
+                className="w-full sm:w-auto gap-2 font-semibold shadow-lg shadow-orange-500/20 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-500 text-white rounded-xl cursor-pointer hover:opacity-95 active:scale-[0.98] transition-all min-h-[42px]"
               >
                 <Play className="h-4 w-4 fill-current" />
                 <span>
@@ -354,7 +449,7 @@ export function CourseView(): React.JSX.Element {
           <h2 className="text-lg font-bold tracking-tight text-foreground">
             {t('player.curriculum')}
           </h2>
-          <span className="text-xs text-muted-foreground">
+          <span className="text-xs text-muted-foreground font-semibold">
             {modules.length} {t('course.modules')}
           </span>
         </div>
@@ -372,12 +467,12 @@ export function CourseView(): React.JSX.Element {
               <AccordionItem
                 key={module.id}
                 value={module.id}
-                className="rounded-2xl border border-border/80 bg-card px-4 overflow-hidden shadow-sm"
+                className="rounded-2xl border border-border/80 bg-card px-4 overflow-hidden shadow-sm hover:border-border transition-colors duration-200"
               >
-                <AccordionTrigger className="hover:no-underline py-4">
+                <AccordionTrigger className="hover:no-underline py-4 cursor-pointer">
                   <div className="flex flex-1 items-center justify-between pr-4 gap-3">
                     <div className="flex items-center gap-3 text-left overflow-hidden">
-                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-secondary text-xs font-mono font-semibold text-primary">
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-secondary text-xs font-mono font-bold text-primary">
                         {modIdx + 1}
                       </span>
                       <span className="font-bold text-foreground text-sm truncate">
@@ -385,7 +480,7 @@ export function CourseView(): React.JSX.Element {
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-3 text-xs text-muted-foreground shrink-0">
+                    <div className="flex items-center gap-3 text-xs text-muted-foreground shrink-0 font-medium">
                       {modPercentage > 0 && (
                         <span className="font-bold text-primary">{modPercentage}%</span>
                       )}
@@ -413,40 +508,53 @@ export function CourseView(): React.JSX.Element {
                         <div
                           key={lesson.id}
                           onClick={() => handlePlayLesson(lesson)}
-                          className="flex items-center justify-between py-2.5 px-3 rounded-xl hover:bg-secondary/60 cursor-pointer transition-colors group"
+                          className="flex items-center justify-between py-2.5 px-3 rounded-xl hover:bg-secondary/70 cursor-pointer transition-colors duration-150 group"
                         >
                           <div className="flex items-center gap-3 overflow-hidden flex-1 min-w-0 mr-2">
                             {/* Completion Indicator */}
-                            {isComplete ? (
-                              <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
-                            ) : (
-                              <Circle className="h-4 w-4 text-muted-foreground/50 shrink-0 group-hover:text-primary transition-colors" />
-                            )}
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div className="shrink-0">
+                                  {isComplete ? (
+                                    <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                                  ) : (
+                                    <Circle className="h-4 w-4 text-muted-foreground/50 group-hover:text-primary transition-colors" />
+                                  )}
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent side="right">
+                                {isComplete ? 'Aula concluída' : 'Aula pendente'}
+                              </TooltipContent>
+                            </Tooltip>
 
                             {/* Lesson Thumbnail & Cover */}
-                            <div
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                handleChangeLessonCover(lesson.id)
-                              }}
-                              className="relative aspect-video w-14 sm:w-16 shrink-0 rounded-lg overflow-hidden bg-secondary border border-border/80 group/thumb shadow-xs"
-                              title="Trocar capa da aula"
-                            >
-                              {lesson.coverPath ? (
-                                <img
-                                  src={`media://${encodeURI(lesson.coverPath.replace(/\\/g, '/'))}`}
-                                  alt={lesson.title}
-                                  className="w-full h-full object-cover"
-                                />
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center bg-secondary/80 text-muted-foreground/60">
-                                  <Video className="w-3.5 h-3.5 text-primary/70" />
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleChangeLessonCover(lesson.id)
+                                  }}
+                                  className="relative aspect-video w-14 sm:w-16 shrink-0 rounded-lg overflow-hidden bg-secondary border border-border/80 group/thumb shadow-xs"
+                                >
+                                  {lesson.coverPath ? (
+                                    <img
+                                      src={`media://${encodeURI(lesson.coverPath.replace(/\\/g, '/'))}`}
+                                      alt={lesson.title}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  ) : (
+                                    <div className="w-full h-full flex items-center justify-center bg-secondary/80 text-muted-foreground/60">
+                                      <Video className="w-3.5 h-3.5 text-primary/70" />
+                                    </div>
+                                  )}
+                                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover/thumb:opacity-100 transition-opacity flex items-center justify-center text-white">
+                                    <ImageIcon className="w-3.5 h-3.5" />
+                                  </div>
                                 </div>
-                              )}
-                              <div className="absolute inset-0 bg-black/60 opacity-0 group-hover/thumb:opacity-100 transition-opacity flex items-center justify-center text-white">
-                                <ImageIcon className="w-3.5 h-3.5" />
-                              </div>
-                            </div>
+                              </TooltipTrigger>
+                              <TooltipContent side="top">Alterar capa da aula</TooltipContent>
+                            </Tooltip>
 
                             {/* Lesson Number & Title */}
                             <span className="text-xs font-mono text-muted-foreground w-6 shrink-0">
@@ -460,20 +568,23 @@ export function CourseView(): React.JSX.Element {
                             {lessonResources.length > 0 && (
                               <div className="flex items-center gap-1.5 ml-2 shrink-0">
                                 {lessonResources.map((res) => (
-                                  <button
-                                    key={res.id}
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      setSelectedResource(res)
-                                      setIsPdfModalOpen(true)
-                                    }}
-                                    className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-secondary/90 hover:bg-primary/20 text-muted-foreground hover:text-primary border border-border/70 text-[10px] font-medium transition-colors cursor-pointer"
-                                    title={`Visualizar ${res.name}`}
-                                  >
-                                    <FileText className="w-3 h-3 text-primary" />
-                                    <span className="max-w-[80px] truncate">{res.name}</span>
-                                  </button>
+                                  <Tooltip key={res.id}>
+                                    <TooltipTrigger asChild>
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          setSelectedResource(res)
+                                          setIsPdfModalOpen(true)
+                                        }}
+                                        className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-secondary/90 hover:bg-primary/20 text-muted-foreground hover:text-primary border border-border/70 text-[10px] font-medium transition-colors cursor-pointer"
+                                      >
+                                        <FileText className="w-3 h-3 text-primary" />
+                                        <span className="max-w-[80px] truncate">{res.name}</span>
+                                      </button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top">Visualizar {res.name}</TooltipContent>
+                                  </Tooltip>
                                 ))}
                               </div>
                             )}
@@ -486,7 +597,7 @@ export function CourseView(): React.JSX.Element {
                             ) : lessonProgress?.duration ? (
                               <span>{formatTime(lessonProgress.duration)}</span>
                             ) : null}
-                            <Play className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 text-primary transition-opacity" />
+                            <Play className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 text-primary transition-opacity duration-200" />
                           </div>
                         </div>
                       )
@@ -501,7 +612,7 @@ export function CourseView(): React.JSX.Element {
 
       {/* Delete Course Confirmation Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent className="rounded-2xl">
+        <DialogContent className="rounded-3xl">
           <DialogHeader>
             <div className="flex items-center gap-2 text-destructive">
               <AlertTriangle className="h-5 w-5" />
@@ -516,7 +627,7 @@ export function CourseView(): React.JSX.Element {
               variant="outline"
               onClick={() => setIsDeleteDialogOpen(false)}
               disabled={isDeleting}
-              className="rounded-xl text-xs cursor-pointer"
+              className="rounded-xl text-xs cursor-pointer min-h-[36px]"
             >
               {t('common.cancel')}
             </Button>
@@ -524,7 +635,7 @@ export function CourseView(): React.JSX.Element {
               variant="destructive"
               onClick={handleDeleteCourse}
               disabled={isDeleting}
-              className="rounded-xl text-xs cursor-pointer"
+              className="rounded-xl text-xs cursor-pointer min-h-[36px]"
             >
               {isDeleting ? t('common.loading') : t('common.delete')}
             </Button>

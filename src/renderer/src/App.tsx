@@ -13,6 +13,7 @@ import { useNavigationStore } from './stores/useNavigationStore'
 import { useVaultStore } from './stores/useVaultStore'
 import { useSettingsStore } from './stores/useSettingsStore'
 import { useLibraryStore } from './stores/useLibraryStore'
+import { TooltipProvider } from './components/ui/tooltip'
 import { Loader2 } from 'lucide-react'
 
 export function App(): React.JSX.Element {
@@ -49,20 +50,22 @@ export function App(): React.JSX.Element {
 
   return (
     <ThemeProvider>
-      {isVaultLoading && !currentVault ? (
-        <div className="min-h-screen w-full flex flex-col items-center justify-center bg-background text-muted-foreground gap-3">
-          <Loader2 className="w-8 h-8 text-primary animate-spin" />
-          <span className="text-xs font-mono">Loading Orbia...</span>
-        </div>
-      ) : !currentVault ? (
-        <VaultSelector />
-      ) : (
-        <>
-          <AppShell>{renderActiveView()}</AppShell>
-          <ImportWizard open={isImportModalOpen} onOpenChange={setImportModalOpen} />
-          <VaultModal />
-        </>
-      )}
+      <TooltipProvider delayDuration={150}>
+        {isVaultLoading && !currentVault ? (
+          <div className="min-h-screen w-full flex flex-col items-center justify-center bg-background text-muted-foreground gap-3">
+            <Loader2 className="w-8 h-8 text-primary animate-spin" />
+            <span className="text-xs font-mono">Loading Orbia...</span>
+          </div>
+        ) : !currentVault ? (
+          <VaultSelector />
+        ) : (
+          <>
+            <AppShell>{renderActiveView()}</AppShell>
+            <ImportWizard open={isImportModalOpen} onOpenChange={setImportModalOpen} />
+            <VaultModal />
+          </>
+        )}
+      </TooltipProvider>
     </ThemeProvider>
   )
 }

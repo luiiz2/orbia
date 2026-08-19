@@ -16,7 +16,7 @@ import { ProgressBar } from './ProgressBar'
 import { VolumeControl } from './VolumeControl'
 import { SpeedMenu } from './SpeedMenu'
 import { SubtitleMenu } from './SubtitleMenu'
-import { Button } from '../ui/button'
+import { Button, Tooltip, TooltipTrigger, TooltipContent } from '../ui'
 import { formatTime } from '../../lib/formatters'
 import { cn } from '../../lib/utils'
 
@@ -80,7 +80,7 @@ export function PlayerControls({
   return (
     <div
       className={cn(
-        'w-full bg-gradient-to-t from-black/90 via-black/60 to-transparent px-4 pb-3 pt-8 select-none transition-opacity duration-300',
+        'w-full bg-gradient-to-t from-black/95 via-black/70 to-transparent px-4 pb-3.5 pt-10 select-none transition-opacity duration-300',
         className
       )}
     >
@@ -98,46 +98,67 @@ export function PlayerControls({
         {/* Left: Playback & Volume */}
         <div className="flex items-center gap-1.5 sm:gap-2">
           {/* Previous Lesson */}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onPrevLesson}
-            disabled={!hasPrevLesson}
-            className="h-8 w-8 text-white/90 hover:bg-white/10 hover:text-white disabled:opacity-40"
-            title={t('player.prevLesson')}
-            aria-label={t('player.prevLesson')}
-          >
-            <SkipBack className="h-4 w-4" />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onPrevLesson}
+                disabled={!hasPrevLesson}
+                className="h-8.5 w-8.5 rounded-xl text-white/90 hover:bg-white/15 hover:text-white disabled:opacity-30 cursor-pointer"
+                aria-label={t('player.prevLesson')}
+              >
+                <SkipBack className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="flex items-center gap-1.5 bg-black/90 text-white border-white/20">
+              <span>{t('player.prevLesson')}</span>
+              <kbd className="px-1.5 py-0.5 rounded bg-white/20 text-[10px] font-mono">Shift+P</kbd>
+            </TooltipContent>
+          </Tooltip>
 
           {/* Play / Pause Toggle */}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onTogglePlay}
-            className="h-9 w-9 rounded-full bg-white/10 text-white hover:bg-white/20 hover:scale-105 active:scale-95 transition-transform"
-            title={isPlaying ? 'Pause (Space)' : 'Play (Space)'}
-            aria-label={isPlaying ? 'Pause' : 'Play'}
-          >
-            {isPlaying ? (
-              <Pause className="h-4 w-4 fill-current" />
-            ) : (
-              <Play className="h-4 w-4 fill-current ml-0.5" />
-            )}
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onTogglePlay}
+                className="h-9.5 w-9.5 rounded-full bg-white/15 text-white hover:bg-white/25 hover:scale-105 active:scale-95 transition-all shadow-md shadow-black/40 cursor-pointer"
+                aria-label={isPlaying ? 'Pause' : 'Play'}
+              >
+                {isPlaying ? (
+                  <Pause className="h-4.5 w-4.5 fill-current" />
+                ) : (
+                  <Play className="h-4.5 w-4.5 fill-current ml-0.5" />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="flex items-center gap-1.5 bg-black/90 text-white border-white/20">
+              <span>{isPlaying ? 'Pause' : 'Play'}</span>
+              <kbd className="px-1.5 py-0.5 rounded bg-white/20 text-[10px] font-mono">Space</kbd>
+            </TooltipContent>
+          </Tooltip>
 
           {/* Next Lesson */}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onNextLesson}
-            disabled={!hasNextLesson}
-            className="h-8 w-8 text-white/90 hover:bg-white/10 hover:text-white disabled:opacity-40"
-            title={t('player.nextLesson')}
-            aria-label={t('player.nextLesson')}
-          >
-            <SkipForward className="h-4 w-4" />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onNextLesson}
+                disabled={!hasNextLesson}
+                className="h-8.5 w-8.5 rounded-xl text-white/90 hover:bg-white/15 hover:text-white disabled:opacity-30 cursor-pointer"
+                aria-label={t('player.nextLesson')}
+              >
+                <SkipForward className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="flex items-center gap-1.5 bg-black/90 text-white border-white/20">
+              <span>{t('player.nextLesson')}</span>
+              <kbd className="px-1.5 py-0.5 rounded bg-white/20 text-[10px] font-mono">Shift+N</kbd>
+            </TooltipContent>
+          </Tooltip>
 
           {/* Volume Control */}
           <VolumeControl
@@ -149,92 +170,119 @@ export function PlayerControls({
 
           {/* Timestamp Display */}
           <div className="ml-2 flex items-center gap-1 font-mono text-xs text-white/80 select-none">
-            <span className="font-semibold text-white">{formatTime(currentTime)}</span>
-            <span>/</span>
-            <span>{formatTime(duration)}</span>
+            <span className="font-bold text-white">{formatTime(currentTime)}</span>
+            <span className="opacity-60">/</span>
+            <span className="opacity-80">{formatTime(duration)}</span>
           </div>
         </div>
 
         {/* Right: Actions, Speed, Subtitles, PiP & Display Mode */}
         <div className="flex items-center gap-1.5 sm:gap-2">
           {/* Mark Complete Toggle */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onToggleCompletion}
-            className={cn(
-              'h-8 px-2.5 text-xs font-medium gap-1.5 transition-colors',
-              isCompleted
-                ? 'bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30'
-                : 'text-white/80 hover:bg-white/10 hover:text-white'
-            )}
-            title={isCompleted ? t('player.completed') : t('player.markCompleted')}
-          >
-            {isCompleted ? (
-              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-            ) : (
-              <Circle className="h-3.5 w-3.5 opacity-60" />
-            )}
-            <span className="hidden md:inline">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onToggleCompletion}
+                className={cn(
+                  'h-8 px-2.5 text-xs font-medium gap-1.5 rounded-xl transition-all cursor-pointer',
+                  isCompleted
+                    ? 'bg-emerald-500/25 text-emerald-300 hover:bg-emerald-500/35 border border-emerald-500/40'
+                    : 'text-white/80 hover:bg-white/15 hover:text-white'
+                )}
+                aria-label={isCompleted ? t('player.completed') : t('player.markCompleted')}
+              >
+                {isCompleted ? (
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+                ) : (
+                  <Circle className="h-3.5 w-3.5 opacity-60" />
+                )}
+                <span className="hidden md:inline font-semibold">
+                  {isCompleted ? t('player.completed') : t('player.markCompleted')}
+                </span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="bg-black/90 text-white border-white/20">
               {isCompleted ? t('player.completed') : t('player.markCompleted')}
-            </span>
-          </Button>
+            </TooltipContent>
+          </Tooltip>
 
           {/* Subtitles Menu */}
           <SubtitleMenu />
 
           {/* Picture-in-Picture Toggle */}
           {onTogglePiP && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onTogglePiP}
-              className={cn(
-                'h-8 w-8 text-white/90 hover:bg-white/10 hover:text-white transition-colors',
-                isPiP && 'text-primary'
-              )}
-              title={`${t('player.pip')} (P)`}
-              aria-label={t('player.pip')}
-            >
-              <PictureInPicture2 className="h-4 w-4" />
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={onTogglePiP}
+                  className={cn(
+                    'h-8 w-8 rounded-xl text-white/90 hover:bg-white/15 hover:text-white transition-colors cursor-pointer',
+                    isPiP && 'text-primary'
+                  )}
+                  aria-label={t('player.pip')}
+                >
+                  <PictureInPicture2 className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="flex items-center gap-1.5 bg-black/90 text-white border-white/20">
+                <span>{t('player.pip')}</span>
+                <kbd className="px-1.5 py-0.5 rounded bg-white/20 text-[10px] font-mono">P</kbd>
+              </TooltipContent>
+            </Tooltip>
           )}
 
           {/* Speed Selector */}
           <SpeedMenu playbackRate={playbackRate} onRateChange={onRateChange} />
 
-          {/* Theater Mode Toggle (Optional) */}
+          {/* Theater Mode Toggle */}
           {onToggleTheater && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onToggleTheater}
-              className={cn(
-                'h-8 w-8 text-white/90 hover:bg-white/10 hover:text-white hidden sm:inline-flex',
-                theaterMode && 'text-primary'
-              )}
-              title="Theater Mode"
-              aria-label="Theater Mode"
-            >
-              <Tv className="h-4 w-4" />
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={onToggleTheater}
+                  className={cn(
+                    'h-8 w-8 rounded-xl text-white/90 hover:bg-white/15 hover:text-white hidden sm:inline-flex cursor-pointer',
+                    theaterMode && 'text-primary bg-white/10'
+                  )}
+                  aria-label="Theater Mode"
+                >
+                  <Tv className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="bg-black/90 text-white border-white/20">
+                Theater Mode
+              </TooltipContent>
+            </Tooltip>
           )}
 
           {/* Fullscreen Toggle */}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onToggleFullscreen}
-            className="h-8 w-8 text-white/90 hover:bg-white/10 hover:text-white"
-            title={isFullscreen ? 'Exit Fullscreen (F)' : 'Fullscreen (F)'}
-            aria-label={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
-          >
-            {isFullscreen ? (
-              <Minimize className="h-4 w-4" />
-            ) : (
-              <Maximize className="h-4 w-4" />
-            )}
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onToggleFullscreen}
+                className="h-8 w-8 rounded-xl text-white/90 hover:bg-white/15 hover:text-white cursor-pointer"
+                aria-label={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+              >
+                {isFullscreen ? (
+                  <Minimize className="h-4 w-4" />
+                ) : (
+                  <Maximize className="h-4 w-4" />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="flex items-center gap-1.5 bg-black/90 text-white border-white/20">
+              <span>{isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}</span>
+              <kbd className="px-1.5 py-0.5 rounded bg-white/20 text-[10px] font-mono">F</kbd>
+            </TooltipContent>
+          </Tooltip>
         </div>
       </div>
     </div>

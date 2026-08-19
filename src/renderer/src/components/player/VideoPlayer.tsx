@@ -5,7 +5,7 @@ import { usePlayer } from '../../hooks/usePlayer'
 import { usePlayerStore } from '../../stores/usePlayerStore'
 import { useNavigationStore } from '../../stores/useNavigationStore'
 import { PlayerControls } from './PlayerControls'
-import { Button } from '../ui/button'
+import { Button, Tooltip, TooltipTrigger, TooltipContent } from '../ui'
 import { cn } from '../../lib/utils'
 
 export interface VideoPlayerProps {
@@ -185,20 +185,27 @@ export function VideoPlayer({ className, onBack }: VideoPlayerProps): React.JSX.
       {/* Top Overlay Header: Course & Lesson Title */}
       <div
         className={cn(
-          'absolute left-0 right-0 top-0 z-30 flex items-center justify-between bg-gradient-to-b from-black/80 via-black/40 to-transparent p-4 transition-opacity duration-300',
+          'absolute left-0 right-0 top-0 z-30 flex items-center justify-between bg-gradient-to-b from-black/85 via-black/45 to-transparent p-4 transition-opacity duration-300',
           showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'
         )}
       >
         <div className="flex items-center gap-3 overflow-hidden">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleBackClick}
-            className="h-8 w-8 text-white/90 hover:bg-white/10 hover:text-white shrink-0"
-            title="Back to Course"
-          >
-            <ChevronLeft className="h-5 w-5" />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleBackClick}
+                className="h-8.5 w-8.5 rounded-xl text-white/90 hover:bg-white/15 hover:text-white shrink-0 cursor-pointer"
+                aria-label="Voltar para o curso"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="flex items-center gap-1.5 bg-black/90 text-white border-white/20">
+              <span>Voltar para o curso</span>
+            </TooltipContent>
+          </Tooltip>
 
           <div className="flex flex-col overflow-hidden">
             {activeCourse && (

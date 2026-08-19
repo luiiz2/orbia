@@ -79,6 +79,8 @@ export class DatabaseService {
 
       CREATE INDEX IF NOT EXISTS idx_courses_slug ON courses(slug);
       CREATE INDEX IF NOT EXISTS idx_courses_accessed ON courses(last_accessed_at);
+      CREATE INDEX IF NOT EXISTS idx_courses_accessed_created ON courses(last_accessed_at DESC, created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_courses_favorite ON courses(is_favorite);
 
       -- Modules
       CREATE TABLE IF NOT EXISTS modules (
@@ -116,6 +118,7 @@ export class DatabaseService {
       CREATE INDEX IF NOT EXISTS idx_lessons_module ON lessons(module_id);
       CREATE INDEX IF NOT EXISTS idx_lessons_course ON lessons(course_id);
       CREATE INDEX IF NOT EXISTS idx_lessons_order ON lessons(module_id, order_index);
+      CREATE INDEX IF NOT EXISTS idx_lessons_course_module_order ON lessons(course_id, module_id, order_index);
 
       -- Lesson Progress
       CREATE TABLE IF NOT EXISTS lesson_progress (
@@ -128,6 +131,8 @@ export class DatabaseService {
       );
 
       CREATE INDEX IF NOT EXISTS idx_progress_course ON lesson_progress(course_id);
+      CREATE INDEX IF NOT EXISTS idx_progress_course_completed ON lesson_progress(course_id, completed);
+      CREATE INDEX IF NOT EXISTS idx_progress_course_updated ON lesson_progress(course_id, updated_at DESC);
 
       -- Lesson Notes
       CREATE TABLE IF NOT EXISTS lesson_notes (
@@ -142,6 +147,9 @@ export class DatabaseService {
 
       CREATE INDEX IF NOT EXISTS idx_notes_lesson ON lesson_notes(lesson_id);
       CREATE INDEX IF NOT EXISTS idx_notes_course ON lesson_notes(course_id);
+      CREATE INDEX IF NOT EXISTS idx_notes_course_time ON lesson_notes(course_id, timestamp_seconds);
+      CREATE INDEX IF NOT EXISTS idx_notes_lesson_time ON lesson_notes(lesson_id, timestamp_seconds, created_at);
+      CREATE INDEX IF NOT EXISTS idx_notes_course_created ON lesson_notes(course_id, created_at);
 
       -- Watch History
       CREATE TABLE IF NOT EXISTS watch_history (
@@ -156,8 +164,10 @@ export class DatabaseService {
         current_time REAL NOT NULL DEFAULT 0
       );
 
+      CREATE INDEX IF NOT EXISTS idx_history_lesson ON watch_history(lesson_id);
       CREATE INDEX IF NOT EXISTS idx_history_course ON watch_history(course_id);
       CREATE INDEX IF NOT EXISTS idx_history_date ON watch_history(watched_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_history_course_watched ON watch_history(course_id, watched_at DESC);
 
       -- File Operation Journal
       CREATE TABLE IF NOT EXISTS file_operations (
@@ -178,17 +188,28 @@ export class DatabaseService {
       CREATE INDEX IF NOT EXISTS idx_journal_time ON file_operations(timestamp DESC);
     `)
 
-    // Safe schema migrations for existing vaults
-    try {
-      this.db.exec(`ALTER TABLE lessons ADD COLUMN cover_path TEXT;`)
-    } catch {
-      // Column already exists
-    }
+    // Safe schema & index migrations for existing vaults
+    const migrations = [
+      `ALTER TABLE lessons ADD COLUMN cover_path TEXT;`,
+      `ALTER TABLE courses ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0;`,
+      `CREATE INDEX IF NOT EXISTS idx_courses_accessed_created ON courses(last_accessed_at DESC, created_at DESC);`,
+      `CREATE INDEX IF NOT EXISTS idx_courses_favorite ON courses(is_favorite);`,
+      `CREATE INDEX IF NOT EXISTS idx_lessons_course_module_order ON lessons(course_id, module_id, order_index);`,
+      `CREATE INDEX IF NOT EXISTS idx_progress_course_completed ON lesson_progress(course_id, completed);`,
+      `CREATE INDEX IF NOT EXISTS idx_progress_course_updated ON lesson_progress(course_id, updated_at DESC);`,
+      `CREATE INDEX IF NOT EXISTS idx_notes_course_time ON lesson_notes(course_id, timestamp_seconds);`,
+      `CREATE INDEX IF NOT EXISTS idx_notes_lesson_time ON lesson_notes(lesson_id, timestamp_seconds, created_at);`,
+      `CREATE INDEX IF NOT EXISTS idx_notes_course_created ON lesson_notes(course_id, created_at);`,
+      `CREATE INDEX IF NOT EXISTS idx_history_lesson ON watch_history(lesson_id);`,
+      `CREATE INDEX IF NOT EXISTS idx_history_course_watched ON watch_history(course_id, watched_at DESC);`
+    ]
 
-    try {
-      this.db.exec(`ALTER TABLE courses ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0;`)
-    } catch {
-      // Column already exists
+    for (const sql of migrations) {
+      try {
+        this.db.exec(sql)
+      } catch {
+        // Ignored if column/index already exists
+      }
     }
   }
 
@@ -351,14 +372,24 @@ export class DatabaseService {
     `)
     const allLessons = lessonsStmt.all(courseId) as Lesson[]
 
+    // O(L) single-pass bucket grouping by moduleId instead of O(M * L) nested array filtering
+    const lessonsByModule = new Map<string, Lesson[]>()
+    for (const lesson of allLessons) {
+      const formattedLesson: Lesson = {
+        ...lesson,
+        coverPath: lesson.coverPath || undefined
+      }
+      const existing = lessonsByModule.get(lesson.moduleId)
+      if (existing) {
+        existing.push(formattedLesson)
+      } else {
+        lessonsByModule.set(lesson.moduleId, [formattedLesson])
+      }
+    }
+
     const modulesWithLessons = modules.map((mod) => ({
       ...mod,
-      lessons: allLessons
-        .filter((l) => l.moduleId === mod.id)
-        .map((l) => ({
-          ...l,
-          coverPath: l.coverPath || undefined
-        }))
+      lessons: lessonsByModule.get(mod.id) || []
     }))
 
     return {
@@ -489,53 +520,147 @@ export class DatabaseService {
   public getCourseProgressSummary(courseId: string): CourseProgressSummary | null {
     this.ensureConnected()
 
-    const totalLessonsStmt = this.db!.prepare(
-      `SELECT COUNT(*) as count, COALESCE(SUM(duration), 0) as totalDuration FROM lessons WHERE course_id = ?`
-    )
-    const totalRow = totalLessonsStmt.get(courseId) as { count: number; totalDuration: number }
-    if (!totalRow || totalRow.count === 0) return null
-
-    const completedStmt = this.db!.prepare(
-      `SELECT COUNT(*) as count FROM lesson_progress WHERE course_id = ? AND completed = 1`
-    )
-    const completedRow = completedStmt.get(courseId) as { count: number }
-
-    const lastPlayedStmt = this.db!.prepare(`
-      SELECT lp.lesson_id, l.title as lesson_title, lp.updated_at
-      FROM lesson_progress lp
-      JOIN lessons l ON l.id = lp.lesson_id
-      WHERE lp.course_id = ?
-      ORDER BY lp.updated_at DESC
-      LIMIT 1
+    const stmt = this.db!.prepare(`
+      WITH
+        LessonStats AS (
+          SELECT
+            course_id,
+            COUNT(*) AS total_lessons,
+            COALESCE(SUM(duration), 0) AS total_duration
+          FROM lessons
+          WHERE course_id = ?
+          GROUP BY course_id
+        ),
+        ProgressStats AS (
+          SELECT
+            course_id,
+            SUM(CASE WHEN completed = 1 THEN 1 ELSE 0 END) AS completed_lessons
+          FROM lesson_progress
+          WHERE course_id = ?
+          GROUP BY course_id
+        ),
+        LastPlayedRanked AS (
+          SELECT
+            lp.course_id,
+            lp.lesson_id,
+            l.title AS lesson_title,
+            lp.updated_at,
+            ROW_NUMBER() OVER (ORDER BY lp.updated_at DESC, lp.rowid DESC) AS rn
+          FROM lesson_progress lp
+          JOIN lessons l ON l.id = lp.lesson_id
+          WHERE lp.course_id = ?
+        )
+      SELECT
+        ls.course_id AS courseId,
+        ls.total_lessons AS totalLessons,
+        COALESCE(ps.completed_lessons, 0) AS completedLessons,
+        ls.total_duration AS totalDuration,
+        lp.lesson_id AS lastPlayedLessonId,
+        lp.lesson_title AS lastPlayedLessonTitle,
+        lp.updated_at AS lastPlayedAt
+      FROM LessonStats ls
+      LEFT JOIN ProgressStats ps ON ps.course_id = ls.course_id
+      LEFT JOIN LastPlayedRanked lp ON lp.course_id = ls.course_id AND lp.rn = 1
+      WHERE ls.total_lessons > 0
     `)
-    const lastPlayed = lastPlayedStmt.get(courseId) as
-      | { lesson_id: string; lesson_title: string; updated_at: number }
-      | undefined
 
-    const percentage = Math.round((completedRow.count / totalRow.count) * 100)
+    interface ProgressSummaryRow {
+      courseId: string
+      totalLessons: number
+      completedLessons: number
+      totalDuration: number
+      lastPlayedLessonId: string | null
+      lastPlayedLessonTitle: string | null
+      lastPlayedAt: number | null
+    }
+
+    const row = stmt.get(courseId, courseId, courseId) as ProgressSummaryRow | undefined
+    if (!row || row.totalLessons === 0) return null
+
+    const percentage = Math.round((row.completedLessons / row.totalLessons) * 100)
 
     return {
-      courseId,
-      totalLessons: totalRow.count,
-      completedLessons: completedRow.count,
+      courseId: row.courseId,
+      totalLessons: row.totalLessons,
+      completedLessons: row.completedLessons,
       percentage,
-      lastPlayedLessonId: lastPlayed?.lesson_id,
-      lastPlayedLessonTitle: lastPlayed?.lesson_title,
-      lastPlayedAt: lastPlayed?.updated_at,
-      totalDuration: totalRow.totalDuration,
-      remainingDuration: Math.max(0, totalRow.totalDuration * (1 - percentage / 100))
+      lastPlayedLessonId: row.lastPlayedLessonId || undefined,
+      lastPlayedLessonTitle: row.lastPlayedLessonTitle || undefined,
+      lastPlayedAt: row.lastPlayedAt || undefined,
+      totalDuration: row.totalDuration,
+      remainingDuration: Math.max(0, row.totalDuration * (1 - percentage / 100))
     }
   }
 
   public getAllProgressSummaries(): Record<string, CourseProgressSummary> {
     if (!this.db) return {}
-    const courses = this.getAllCourses()
+
+    const stmt = this.db.prepare(`
+      WITH
+        LessonStats AS (
+          SELECT
+            course_id,
+            COUNT(*) AS total_lessons,
+            COALESCE(SUM(duration), 0) AS total_duration
+          FROM lessons
+          GROUP BY course_id
+        ),
+        ProgressStats AS (
+          SELECT
+            course_id,
+            SUM(CASE WHEN completed = 1 THEN 1 ELSE 0 END) AS completed_lessons
+          FROM lesson_progress
+          GROUP BY course_id
+        ),
+        LastPlayedRanked AS (
+          SELECT
+            lp.course_id,
+            lp.lesson_id,
+            l.title AS lesson_title,
+            lp.updated_at,
+            ROW_NUMBER() OVER (PARTITION BY lp.course_id ORDER BY lp.updated_at DESC, lp.rowid DESC) AS rn
+          FROM lesson_progress lp
+          JOIN lessons l ON l.id = lp.lesson_id
+        )
+      SELECT
+        ls.course_id AS courseId,
+        ls.total_lessons AS totalLessons,
+        COALESCE(ps.completed_lessons, 0) AS completedLessons,
+        ls.total_duration AS totalDuration,
+        lp.lesson_id AS lastPlayedLessonId,
+        lp.lesson_title AS lastPlayedLessonTitle,
+        lp.updated_at AS lastPlayedAt
+      FROM LessonStats ls
+      LEFT JOIN ProgressStats ps ON ps.course_id = ls.course_id
+      LEFT JOIN LastPlayedRanked lp ON lp.course_id = ls.course_id AND lp.rn = 1
+      WHERE ls.total_lessons > 0
+    `)
+
+    interface ProgressSummaryRow {
+      courseId: string
+      totalLessons: number
+      completedLessons: number
+      totalDuration: number
+      lastPlayedLessonId: string | null
+      lastPlayedLessonTitle: string | null
+      lastPlayedAt: number | null
+    }
+
+    const rows = stmt.all() as ProgressSummaryRow[]
     const summaries: Record<string, CourseProgressSummary> = {}
 
-    for (const c of courses) {
-      const summary = this.getCourseProgressSummary(c.id)
-      if (summary) {
-        summaries[c.id] = summary
+    for (const row of rows) {
+      const percentage = Math.round((row.completedLessons / row.totalLessons) * 100)
+      summaries[row.courseId] = {
+        courseId: row.courseId,
+        totalLessons: row.totalLessons,
+        completedLessons: row.completedLessons,
+        percentage,
+        lastPlayedLessonId: row.lastPlayedLessonId || undefined,
+        lastPlayedLessonTitle: row.lastPlayedLessonTitle || undefined,
+        lastPlayedAt: row.lastPlayedAt || undefined,
+        totalDuration: row.totalDuration,
+        remainingDuration: Math.max(0, row.totalDuration * (1 - percentage / 100))
       }
     }
 
@@ -680,31 +805,35 @@ export class DatabaseService {
       }
     }
 
-    const coursesRow = this.db.prepare(`SELECT COUNT(*) as count FROM courses`).get() as {
-      count: number
-    }
-    const modulesRow = this.db.prepare(`SELECT COUNT(*) as count FROM modules`).get() as {
-      count: number
-    }
-    const lessonsRow = this.db.prepare(`
-      SELECT COUNT(*) as count, COALESCE(SUM(duration), 0) as totalDuration FROM lessons
-    `).get() as { count: number; totalDuration: number }
+    const stmt = this.db.prepare(`
+      SELECT
+        (SELECT COUNT(*) FROM courses) AS courseCount,
+        (SELECT COUNT(*) FROM modules) AS moduleCount,
+        (SELECT COUNT(*) FROM lessons) AS lessonCount,
+        (SELECT COALESCE(SUM(duration), 0) FROM lessons) AS totalDuration,
+        (SELECT COUNT(*) FROM lesson_progress WHERE completed = 1) AS completedLessons,
+        (SELECT COALESCE(SUM(lesson_progress.current_time), 0) FROM lesson_progress) AS totalWatchedTime
+    `)
 
-    const completedRow = this.db.prepare(`
-      SELECT COUNT(*) as count FROM lesson_progress WHERE completed = 1
-    `).get() as { count: number }
-
-    const watchedTimeRow = this.db.prepare(`
-      SELECT COALESCE(SUM(lesson_progress.current_time), 0) as totalWatched FROM lesson_progress
-    `).get() as { totalWatched: number }
+    const row = stmt.get() as VaultStats | undefined
+    if (!row) {
+      return {
+        courseCount: 0,
+        moduleCount: 0,
+        lessonCount: 0,
+        totalDuration: 0,
+        completedLessons: 0,
+        totalWatchedTime: 0
+      }
+    }
 
     return {
-      courseCount: coursesRow.count,
-      moduleCount: modulesRow.count,
-      lessonCount: lessonsRow.count,
-      totalDuration: lessonsRow.totalDuration,
-      completedLessons: completedRow.count,
-      totalWatchedTime: watchedTimeRow.totalWatched
+      courseCount: row.courseCount || 0,
+      moduleCount: row.moduleCount || 0,
+      lessonCount: row.lessonCount || 0,
+      totalDuration: row.totalDuration || 0,
+      completedLessons: row.completedLessons || 0,
+      totalWatchedTime: row.totalWatchedTime || 0
     }
   }
 

@@ -1,8 +1,17 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
-import { Play, Layers, HardDrive, Link as LinkIcon, BookOpen, Clock, CheckCircle2, Star } from 'lucide-react'
+import {
+  Play,
+  Layers,
+  HardDrive,
+  Link as LinkIcon,
+  BookOpen,
+  Clock,
+  CheckCircle2,
+  Star
+} from 'lucide-react'
 import type { Course } from '@shared'
-import { Card, CardContent, Badge } from '../ui'
+import { Card, CardContent, Badge, Tooltip, TooltipTrigger, TooltipContent } from '../ui'
 import { useLibraryStore, useNavigationStore } from '../../stores'
 import { formatDurationHuman } from '../../lib/formatters'
 
@@ -23,40 +32,67 @@ export function CourseCard({ course }: CourseCardProps): React.JSX.Element {
     ? `media://${encodeURI(course.coverPath.replace(/\\/g, '/'))}`
     : null
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>): void => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      navigateToCourse(course.id)
+    }
+  }
+
   return (
     <Card
+      role="button"
+      tabIndex={0}
       onClick={() => navigateToCourse(course.id)}
-      className="group relative flex flex-col overflow-hidden border-border/80 bg-card hover:border-primary/50 hover:shadow-xl hover:shadow-orange-500/10 hover:-translate-y-0.5 transition-all duration-300 cursor-pointer rounded-2xl"
+      onKeyDown={handleKeyDown}
+      className="group relative flex flex-col overflow-hidden border-border/80 bg-card hover:border-primary/60 hover:shadow-2xl hover:shadow-orange-500/10 hover:-translate-y-1.5 transition-all duration-300 ease-out cursor-pointer rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background select-none"
     >
       {/* Cover Aspect Ratio Container */}
       <div className="relative aspect-video w-full bg-secondary/60 overflow-hidden flex items-center justify-center border-b border-border/50">
         {/* Favorite Button (Top Left) */}
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation()
-            toggleFavorite(course.id).catch(console.warn)
-          }}
-          className={`absolute top-2.5 left-2.5 z-10 flex h-7 w-7 items-center justify-center rounded-lg backdrop-blur-md transition-all duration-200 cursor-pointer shadow-xs ${
-            course.isFavorite
-              ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40 opacity-100 shadow-amber-500/10'
-              : 'bg-black/60 text-white/70 hover:text-amber-400 hover:bg-black/80 border border-white/10 opacity-0 group-hover:opacity-100'
-          }`}
-          title={course.isFavorite ? t('course.favorited', 'Favorito') : t('course.favorite', 'Adicionar aos Favoritos')}
-          aria-label={course.isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+        <div
+          className="absolute top-2.5 left-2.5 z-20"
+          onClick={(e) => e.stopPropagation()}
         >
-          <Star
-            className={`h-3.5 w-3.5 transition-transform active:scale-125 ${
-              course.isFavorite ? 'fill-amber-400 text-amber-400' : ''
-            }`}
-          />
-        </button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  toggleFavorite(course.id).catch(console.warn)
+                }}
+                className={`flex h-7.5 w-7.5 items-center justify-center rounded-lg backdrop-blur-md transition-all duration-200 cursor-pointer shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 ${
+                  course.isFavorite
+                    ? 'bg-amber-500/25 text-amber-400 border border-amber-500/50 opacity-100 shadow-amber-500/20'
+                    : 'bg-black/60 text-white/70 hover:text-amber-400 hover:bg-black/85 border border-white/15 opacity-0 group-hover:opacity-100'
+                }`}
+                aria-label={
+                  course.isFavorite
+                    ? t('course.favorited', 'Remover dos favoritos')
+                    : t('course.favorite', 'Adicionar aos favoritos')
+                }
+              >
+                <Star
+                  className={`h-4 w-4 transition-transform active:scale-125 duration-150 ${
+                    course.isFavorite ? 'fill-amber-400 text-amber-400' : ''
+                  }`}
+                />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right" className="text-xs font-semibold">
+              {course.isFavorite
+                ? t('course.favorited', 'Favoritado')
+                : t('course.favorite', 'Adicionar aos Favoritos')}
+            </TooltipContent>
+          </Tooltip>
+        </div>
 
         {coverUrl ? (
           <img
             src={coverUrl}
             alt={course.title}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
             onError={(e) => {
               e.currentTarget.style.display = 'none'
             }}
@@ -71,18 +107,18 @@ export function CourseCard({ course }: CourseCardProps): React.JSX.Element {
         )}
 
         {/* Overlay Play Button on Hover */}
-        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]">
-          <div className="w-11 h-11 rounded-full bg-gradient-to-tr from-orange-500 to-amber-500 text-white flex items-center justify-center shadow-lg shadow-orange-500/40 transform scale-75 group-hover:scale-100 transition-transform duration-200">
+        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center backdrop-blur-[2px]">
+          <div className="w-11 h-11 rounded-full bg-gradient-to-tr from-orange-500 via-orange-600 to-amber-500 text-white flex items-center justify-center shadow-lg shadow-orange-500/40 transform scale-75 group-hover:scale-100 transition-transform duration-200 ease-out">
             <Play className="w-5 h-5 ml-0.5 fill-current" />
           </div>
         </div>
 
         {/* Top Status & Source Badges */}
-        <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5 z-10">
+        <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5 z-10 pointer-events-none">
           {course.sourceType === 'local-ref' ? (
             <Badge
               variant="secondary"
-              className="text-[10px] bg-black/70 backdrop-blur-md border-white/10 text-slate-300 flex items-center gap-1 py-0.5 px-2"
+              className="text-[10px] bg-black/75 backdrop-blur-md border-white/10 text-slate-300 flex items-center gap-1 py-0.5 px-2 font-mono"
             >
               <LinkIcon className="w-2.5 h-2.5 text-primary" />
               Ref
@@ -90,7 +126,7 @@ export function CourseCard({ course }: CourseCardProps): React.JSX.Element {
           ) : (
             <Badge
               variant="secondary"
-              className="text-[10px] bg-black/70 backdrop-blur-md border-white/10 text-slate-300 flex items-center gap-1 py-0.5 px-2"
+              className="text-[10px] bg-black/75 backdrop-blur-md border-white/10 text-slate-300 flex items-center gap-1 py-0.5 px-2 font-mono"
             >
               <HardDrive className="w-2.5 h-2.5 text-purple-400" />
               Vault
@@ -98,7 +134,7 @@ export function CourseCard({ course }: CourseCardProps): React.JSX.Element {
           )}
 
           {isCompleted ? (
-            <Badge variant="success" className="gap-1 shadow-sm">
+            <Badge variant="success" className="gap-1 shadow-sm font-semibold">
               <CheckCircle2 className="h-3 w-3" />
               <span>{t('course.completed')}</span>
             </Badge>

@@ -106,6 +106,7 @@ export interface ProposedLesson {
   mediaType: MediaType
   fileSize: number
   orderIndex: number
+  duration?: number
   coverPath?: string // Thumbnail / cover image path
 }
 
@@ -114,6 +115,7 @@ export interface ProposedModule {
   title: string
   folderPath?: string
   orderIndex: number
+  duration?: number
   lessons: ProposedLesson[]
 }
 
@@ -121,6 +123,7 @@ export interface ProposedCourseStructure {
   suggestedTitle: string
   rootPath: string
   coverPath?: string
+  totalDuration?: number
   modules: ProposedModule[]
   totalLessons: number
   totalFilesScanned: number

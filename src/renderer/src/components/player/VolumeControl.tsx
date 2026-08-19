@@ -1,7 +1,6 @@
 import React, { useState } from 'react'
 import { Volume2, Volume1, VolumeX } from 'lucide-react'
-import { Button } from '../ui/button'
-import { Slider } from '../ui/slider'
+import { Button, Tooltip, TooltipTrigger, TooltipContent, Slider } from '../ui'
 import { cn } from '../../lib/utils'
 
 export interface VolumeControlProps {
@@ -40,16 +39,23 @@ export function VolumeControl({
       onMouseLeave={() => setIsHovered(false)}
     >
       {/* Mute Toggle Button */}
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={onToggleMute}
-        className="h-8 w-8 text-white/90 hover:bg-white/10 hover:text-white"
-        aria-label={isMuted ? 'Unmute' : 'Mute'}
-        title={isMuted ? 'Unmute (M)' : 'Mute (M)'}
-      >
-        {getVolumeIcon()}
-      </Button>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onToggleMute}
+            className="h-8.5 w-8.5 rounded-xl text-white/90 hover:bg-white/15 hover:text-white cursor-pointer"
+            aria-label={isMuted ? 'Unmute' : 'Mute'}
+          >
+            {getVolumeIcon()}
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="flex items-center gap-1.5 bg-black/90 text-white border-white/20">
+          <span>{isMuted ? 'Unmute' : 'Mute'}</span>
+          <kbd className="px-1.5 py-0.5 rounded bg-white/20 text-[10px] font-mono">M</kbd>
+        </TooltipContent>
+      </Tooltip>
 
       {/* Volume Slider Container */}
       <div

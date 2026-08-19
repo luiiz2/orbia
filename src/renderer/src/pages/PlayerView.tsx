@@ -15,8 +15,7 @@ import { PdfViewerModal } from '../components/documents/PdfViewerModal'
 import { usePlayerStore } from '../stores/usePlayerStore'
 import { useNavigationStore } from '../stores/useNavigationStore'
 import { useCourseProgress } from '../hooks/useCourseProgress'
-import { Button } from '../components/ui/button'
-import { Progress } from '../components/ui/progress'
+import { Button, Progress, Tooltip, TooltipTrigger, TooltipContent } from '../components/ui'
 import { formatTime, formatFileSize } from '../lib/formatters'
 import { cn } from '../lib/utils'
 import type { AttachedResource } from '@shared'
@@ -78,16 +77,20 @@ export function PlayerView(): React.JSX.Element {
                   {activeCourse?.title || 'Course'}
                 </h3>
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setIsSidebarOpen(false)}
-                className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg shrink-0"
-                title="Collapse sidebar"
-                aria-label="Collapse sidebar"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setIsSidebarOpen(false)}
+                    className="h-7.5 w-7.5 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-xl shrink-0 cursor-pointer min-h-[30px]"
+                    aria-label="Collapse sidebar"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="left">Recolher painel lateral</TooltipContent>
+              </Tooltip>
             </div>
 
             {/* Course Progress Bar */}
@@ -108,12 +111,14 @@ export function PlayerView(): React.JSX.Element {
             </div>
 
             {/* Curriculum / Notes / Resources Tabs */}
-            <div className="flex rounded-xl bg-secondary/80 p-1 text-xs">
+            <div className="flex rounded-xl bg-secondary/80 p-1 text-xs" role="tablist">
               <button
                 type="button"
+                role="tab"
+                aria-selected={activeTab === 'curriculum'}
                 onClick={() => setActiveTab('curriculum')}
                 className={cn(
-                  'flex-1 py-1.5 text-center font-semibold rounded-lg transition-all cursor-pointer',
+                  'flex-1 py-1.5 text-center font-semibold rounded-lg transition-all cursor-pointer active:scale-95 duration-150',
                   activeTab === 'curriculum'
                     ? 'bg-card text-foreground shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
@@ -123,9 +128,11 @@ export function PlayerView(): React.JSX.Element {
               </button>
               <button
                 type="button"
+                role="tab"
+                aria-selected={activeTab === 'notes'}
                 onClick={() => setActiveTab('notes')}
                 className={cn(
-                  'flex-1 py-1.5 text-center font-semibold rounded-lg transition-all cursor-pointer relative',
+                  'flex-1 py-1.5 text-center font-semibold rounded-lg transition-all cursor-pointer relative active:scale-95 duration-150',
                   activeTab === 'notes'
                     ? 'bg-card text-foreground shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
@@ -140,9 +147,11 @@ export function PlayerView(): React.JSX.Element {
               </button>
               <button
                 type="button"
+                role="tab"
+                aria-selected={activeTab === 'resources'}
                 onClick={() => setActiveTab('resources')}
                 className={cn(
-                  'flex-1 py-1.5 text-center font-semibold rounded-lg transition-all cursor-pointer relative',
+                  'flex-1 py-1.5 text-center font-semibold rounded-lg transition-all cursor-pointer relative active:scale-95 duration-150',
                   activeTab === 'resources'
                     ? 'bg-card text-foreground shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
@@ -198,21 +207,28 @@ export function PlayerView(): React.JSX.Element {
                           >
                             <div className="flex items-center gap-2 overflow-hidden flex-1 min-w-0 mr-1.5">
                               {/* Toggle completion on check click */}
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                   e.stopPropagation()
-                                  toggleComplete(lesson.id)
-                                }}
-                                className="cursor-pointer shrink-0 hover:scale-110 active:scale-95 transition-transform"
-                                title={isComplete ? t('player.completed') : t('player.markCompleted')}
-                              >
-                                {isComplete ? (
-                                  <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-                                ) : (
-                                  <Circle className="h-4 w-4 opacity-40 group-hover:opacity-100 group-hover:text-primary transition-opacity" />
-                                )}
-                              </button>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      toggleComplete(lesson.id)
+                                    }}
+                                    className="cursor-pointer shrink-0 hover:scale-110 active:scale-95 transition-transform"
+                                    aria-label={isComplete ? t('player.completed') : t('player.markCompleted')}
+                                  >
+                                    {isComplete ? (
+                                      <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                                    ) : (
+                                      <Circle className="h-4 w-4 opacity-40 group-hover:opacity-100 group-hover:text-primary transition-opacity" />
+                                    )}
+                                  </button>
+                                </TooltipTrigger>
+                                <TooltipContent side="right">
+                                  {isComplete ? 'Desmarcar conclusão' : 'Marcar como concluída'}
+                                </TooltipContent>
+                              </Tooltip>
 
                               {/* Lesson mini thumbnail if present */}
                               {lesson.coverPath ? (
@@ -259,31 +275,34 @@ export function PlayerView(): React.JSX.Element {
                   </div>
                 ) : (
                   resources.map((res) => (
-                    <div
-                      key={res.id}
-                      onClick={() => {
-                        setSelectedResource(res)
-                        setIsPdfModalOpen(true)
-                      }}
-                      className="flex items-center justify-between p-3 rounded-xl border border-border/80 bg-secondary/30 text-xs hover:bg-secondary/70 hover:border-primary/40 cursor-pointer transition-all shadow-sm group"
-                      title={t('documents.viewDocument', 'Visualizar documento')}
-                    >
-                      <div className="flex items-center gap-2.5 overflow-hidden">
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white transition-colors">
-                          <FileText className="h-4 w-4" />
-                        </div>
-                        <div className="flex flex-col overflow-hidden">
-                          <span className="font-semibold text-foreground truncate group-hover:text-primary transition-colors">
-                            {res.name}
-                          </span>
-                          <span className="text-[10px] text-muted-foreground font-mono">
-                            {formatFileSize(res.fileSize)} • {res.fileExtension}
-                          </span>
-                        </div>
-                      </div>
+                    <Tooltip key={res.id}>
+                      <TooltipTrigger asChild>
+                        <div
+                          onClick={() => {
+                            setSelectedResource(res)
+                            setIsPdfModalOpen(true)
+                          }}
+                          className="flex items-center justify-between p-3 rounded-2xl border border-border/80 bg-secondary/30 text-xs hover:bg-secondary/70 hover:border-primary/40 cursor-pointer transition-all shadow-sm group"
+                        >
+                          <div className="flex items-center gap-2.5 overflow-hidden">
+                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white transition-colors">
+                              <FileText className="h-4 w-4" />
+                            </div>
+                            <div className="flex flex-col overflow-hidden">
+                              <span className="font-semibold text-foreground truncate group-hover:text-primary transition-colors">
+                                {res.name}
+                              </span>
+                              <span className="text-[10px] text-muted-foreground font-mono">
+                                {formatFileSize(res.fileSize)} • {res.fileExtension}
+                              </span>
+                            </div>
+                          </div>
 
-                      <Eye className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 group-hover:text-primary transition-all shrink-0 ml-2" />
-                    </div>
+                          <Eye className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 group-hover:text-primary transition-all shrink-0 ml-2" />
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent side="left">Visualizar documento</TooltipContent>
+                    </Tooltip>
                   ))
                 )}
               </div>
@@ -294,16 +313,20 @@ export function PlayerView(): React.JSX.Element {
 
       {/* Floating Toggle Button when Sidebar is Collapsed */}
       {!isFullscreen && !theaterMode && !isSidebarOpen && (
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={() => setIsSidebarOpen(true)}
-          className="absolute right-3 top-4 z-30 h-9 w-9 rounded-full bg-card/90 shadow-xl border-border hover:bg-card hover:scale-105 transition-all text-primary"
-          title="Show Curriculum"
-          aria-label="Show Curriculum"
-        >
-          <ChevronLeft className="h-5 w-5" />
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setIsSidebarOpen(true)}
+              className="absolute right-3 top-4 z-30 h-9 w-9 rounded-full bg-card/90 shadow-xl border-border hover:bg-card hover:scale-105 active:scale-95 transition-all text-primary cursor-pointer"
+              aria-label="Show Curriculum"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="left">Mostrar currículo & anotações</TooltipContent>
+        </Tooltip>
       )}
 
       {/* PDF / Document Viewer Modal */}
