@@ -102,14 +102,48 @@ export function ProgressBar({
     }
   }, [isDragging, calculateTimeFromEvent, onSeek])
 
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>): void => {
+      if (duration <= 0) return
+      let next: number | null = null
+      switch (e.key) {
+        case 'ArrowLeft':
+          next = currentTime - 5
+          break
+        case 'ArrowRight':
+          next = currentTime + 5
+          break
+        case 'Home':
+          next = 0
+          break
+        case 'End':
+          next = duration
+          break
+        case 'PageDown':
+          next = currentTime - 30
+          break
+        case 'PageUp':
+          next = currentTime + 30
+          break
+        default:
+          return
+      }
+      e.preventDefault()
+      e.stopPropagation()
+      onSeek(Math.max(0, Math.min(duration, next)))
+    },
+    [duration, currentTime, onSeek]
+  )
+
   return (
     <div
       ref={barRef}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
       onMouseDown={handleMouseDown}
+      onKeyDown={handleKeyDown}
       className={cn(
-        'group relative flex h-6 w-full cursor-pointer items-center py-2 select-none touch-none',
+        'group relative flex h-6 w-full cursor-pointer items-center py-2 select-none touch-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-background rounded-sm',
         className
       )}
       role="slider"

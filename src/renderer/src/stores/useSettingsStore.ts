@@ -20,7 +20,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   theme: 'dark',
   defaultPlaybackSpeed: 1.0,
   autoPlayNext: true,
-  completionThreshold: 0.9
+  completionThreshold: 0.9,
+  deleteSourceZipAfterImport: false
 }
 
 function applyTheme(theme: 'dark' | 'light' | 'system'): void {

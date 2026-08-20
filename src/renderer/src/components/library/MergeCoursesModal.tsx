@@ -1,240 +1,388 @@
-import React, { useState, useMemo } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Sparkles, Layers, CheckCircle2, RefreshCw } from 'lucide-react'
-import { useLibraryStore } from '../../stores/useLibraryStore'
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-  Button
-} from '../ui'
-import type { MergeCoursesResult } from '@shared'
+  AlertCircle,
+  CheckCircle2,
+  CheckSquare,
+  GitMerge,
+  Layers,
+  Loader2,
+  Plus,
+  ShieldCheck,
+  Sparkles,
+  Square
+} from 'lucide-react'
+import type { MergePreview } from '@shared'
+import { useLibraryStore } from '../../stores/useLibraryStore'
+import { Badge, Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../ui'
+import { cn } from '../../lib/utils'
 
 export interface MergeCoursesModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
 }
 
+interface DuplicateGroup {
+  title: string
+  courses: ReturnType<typeof useLibraryStore.getState>['courses']
+}
+
 export function MergeCoursesModal({ open, onOpenChange }: MergeCoursesModalProps): React.JSX.Element {
   const { t } = useTranslation()
-  const { courses, mergeDuplicateCourses, fetchCourses } = useLibraryStore()
+  const { courses } = useLibraryStore()
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [preview, setPreview] = useState<MergePreview | null>(null)
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false)
+  const [previewError, setPreviewError] = useState<string | null>(null)
+  const openedRef = useRef(false)
 
-  const [isMerging, setIsMerging] = useState<boolean>(false)
-  const [mergeResult, setMergeResult] = useState<MergeCoursesResult | null>(null)
+  const duplicateGroups = useMemo(() => findDuplicateGroups(courses), [courses])
 
-  // Find duplicate course groups
-  const duplicateGroups = useMemo(() => {
-    const normalize = (str: string): string => {
-      return str
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^a-z0-9]/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim()
-    }
+  const requestPreview = useCallback(
+    async (courseIds: string[]): Promise<void> => {
+      const uniqueIds = [...new Set(courseIds)]
+      if (uniqueIds.length < 2) return
 
-    const map = new Map<string, typeof courses>()
-    for (const c of courses) {
-      const key = normalize(c.title) || c.title.toLowerCase().trim()
-      if (!map.has(key)) {
-        map.set(key, [])
+      setIsLoadingPreview(true)
+      setPreviewError(null)
+      setPreview(null)
+
+      try {
+        const result = await window.api.courses.getMergePreview(uniqueIds)
+        if (!result.success) {
+          setPreviewError(t('merge.previewError'))
+          return
+        }
+
+        setPreview(result.preview)
+        setSelectedIds(new Set(result.preview.selectedCourseIds))
+      } catch {
+        setPreviewError(t('merge.previewError'))
+      } finally {
+        setIsLoadingPreview(false)
       }
-      map.get(key)!.push(c)
-    }
+    },
+    [t]
+  )
 
-    const duplicates: Array<{ title: string; count: number; courses: typeof courses }> = []
-    for (const [, list] of map.entries()) {
-      if (list.length > 1) {
-        duplicates.push({
-          title: list[0].title,
-          count: list.length,
-          courses: list
-        })
+  useEffect(() => {
+    if (open && !openedRef.current) {
+      openedRef.current = true
+      const suggestedGroup = duplicateGroups[0]
+      if (suggestedGroup) {
+        const courseIds = suggestedGroup.courses.map((course) => course.id)
+        setSelectedIds(new Set(courseIds))
+        void requestPreview(courseIds)
       }
     }
-    return duplicates
-  }, [courses])
+    if (!open) openedRef.current = false
+  }, [duplicateGroups, open, requestPreview])
 
-  const handleMerge = async (): Promise<void> => {
-    setIsMerging(true)
-    setMergeResult(null)
-    try {
-      const result = await mergeDuplicateCourses()
-      setMergeResult(result)
-      await fetchCourses()
-    } catch (err) {
-      console.error('Failed to merge courses:', err)
-    } finally {
-      setIsMerging(false)
-    }
+  const toggleCourse = (courseId: string): void => {
+    setSelectedIds((current) => {
+      const next = new Set(current)
+      if (next.has(courseId)) {
+        next.delete(courseId)
+      } else {
+        next.add(courseId)
+      }
+      return next
+    })
+    setPreview(null)
+    setPreviewError(null)
   }
 
-  const handleClose = (): void => {
-    setMergeResult(null)
-    onOpenChange(false)
+  const handleOpenChange = (nextOpen: boolean): void => {
+    if (!nextOpen) {
+      setSelectedIds(new Set())
+      setPreview(null)
+      setPreviewError(null)
+    }
+    onOpenChange(nextOpen)
   }
+
+  const selectedCount = selectedIds.size
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md sm:max-w-lg border-border/80 bg-card p-6 shadow-2xl rounded-2xl animate-in zoom-in-95 duration-200">
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="flex max-h-[90vh] flex-col rounded-2xl border-border/80 bg-card p-6 shadow-2xl sm:max-w-lg">
         <DialogHeader className="space-y-2">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500/20 to-purple-600/20 border border-primary/30 text-primary shadow-sm">
-              <Sparkles className="h-5 w-5" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-primary/30 bg-gradient-to-br from-orange-500/20 to-purple-600/20 text-primary shadow-sm">
+              <GitMerge className="h-5 w-5" />
             </div>
             <div>
-              <DialogTitle className="text-lg font-bold text-foreground">
-                {t('merge.title', 'Organizar & Unir Cursos')}
-              </DialogTitle>
+              <DialogTitle className="text-lg font-bold text-foreground">{t('merge.title')}</DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground">
-                {t('merge.subtitle', 'Detecte e una partes separadas do mesmo curso em um único card completo.')}
+                {t('merge.previewSubtitle')}
               </DialogDescription>
             </div>
           </div>
         </DialogHeader>
 
-        {/* Content Body */}
-        <div className="my-4 space-y-4">
-          {mergeResult ? (
-            /* Result View */
-            <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 space-y-3 animate-in fade-in duration-300">
-              <div className="flex items-center gap-2.5 text-emerald-400">
-                <CheckCircle2 className="h-5 w-5" />
-                <h4 className="text-sm font-bold text-foreground">
-                  {t('merge.successTitle', 'Biblioteca Organizada com Sucesso!')}
-                </h4>
-              </div>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                {t(
-                  'merge.successDesc',
-                  `Foram unificados ${mergeResult.mergedGroupsCount} grupo(s) de cursos, removendo ${mergeResult.removedCoursesCount} card(s) duplicados e ${mergeResult.deduplicatedLessonsCount} aula(s) repetidas.`
-                )}
-              </p>
-              {mergeResult.details.length > 0 && (
-                <div className="space-y-2 pt-2 border-t border-border/40">
-                  {mergeResult.details.map((detail, idx) => (
-                    <div
-                      key={idx}
-                      className="flex items-center justify-between p-2.5 rounded-lg bg-background/60 text-xs border border-border/50"
-                    >
-                      <div className="font-semibold text-foreground truncate max-w-[200px]">
-                        {detail.title}
-                      </div>
-                      <div className="text-[11px] text-muted-foreground flex items-center gap-2">
-                        <span>{detail.totalModules} módulos</span>
-                        <span>•</span>
-                        <span>{detail.totalLessons} aulas</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+        <div className="my-4 min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
+          {previewError && (
+            <div role="alert" className="flex items-start gap-2 rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>{previewError}</span>
             </div>
-          ) : duplicateGroups.length > 0 ? (
-            /* Duplicate Groups Detected */
-            <div className="space-y-3">
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span className="font-medium text-foreground">
-                  {duplicateGroups.length} {duplicateGroups.length === 1 ? 'curso com múltiplas partes' : 'cursos com múltiplas partes'}
-                </span>
-                <span className="text-primary font-semibold">
-                  {duplicateGroups.reduce((acc, g) => acc + g.count, 0)} cards no total
+          )}
+
+          {duplicateGroups.length > 0 ? (
+            <section aria-labelledby="merge-suggestions-title" className="space-y-2.5">
+              <div className="flex items-center justify-between gap-2">
+                <h3 id="merge-suggestions-title" className="text-xs font-bold text-foreground">
+                  {t('merge.suggestedGroups', { count: duplicateGroups.length })}
+                </h3>
+                <span className="text-[11px] text-muted-foreground">
+                  {t('merge.previewOnly')}
                 </span>
               </div>
-
-              <div className="max-h-60 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
-                {duplicateGroups.map((group, idx) => {
-                  const totalLessons = group.courses.reduce((acc, c) => acc + c.lessonCount, 0)
-                  const totalModules = group.courses.reduce((acc, c) => acc + c.moduleCount, 0)
-
+              <div className="space-y-2">
+                {duplicateGroups.map((group) => {
+                  const courseIds = group.courses.map((course) => course.id)
+                  const totalLessons = group.courses.reduce((total, course) => total + course.lessonCount, 0)
                   return (
-                    <div
-                      key={idx}
-                      className="flex items-center justify-between p-3 rounded-xl border border-border/70 bg-secondary/40 hover:bg-secondary/70 transition-colors"
+                    <button
+                      key={group.title}
+                      type="button"
+                      onClick={() => void requestPreview(courseIds)}
+                      className="flex w-full items-center justify-between gap-3 rounded-xl border border-border/70 bg-secondary/40 p-3 text-left transition-colors hover:bg-secondary/70"
                     >
-                      <div className="space-y-1 min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <Layers className="h-4 w-4 text-primary shrink-0" />
-                          <span className="text-xs font-bold text-foreground truncate">
-                            {group.title}
+                      <span className="flex min-w-0 items-center gap-2">
+                        <Layers className="h-4 w-4 shrink-0 text-primary" />
+                        <span className="min-w-0">
+                          <span className="block truncate text-xs font-bold text-foreground">{group.title}</span>
+                          <span className="mt-0.5 block text-[11px] text-muted-foreground">
+                            {t('merge.groupTotals', { courses: group.courses.length, lessons: totalLessons })}
                           </span>
-                        </div>
-                        <div className="text-[11px] text-muted-foreground flex items-center gap-2 pl-6">
-                          <span>{group.count} partes separadas</span>
-                          <span>•</span>
-                          <span>~{totalModules} módulos</span>
-                          <span>•</span>
-                          <span>~{totalLessons} aulas</span>
-                        </div>
-                      </div>
-                      <div className="shrink-0 pl-3">
-                        <span className="px-2 py-1 rounded-md bg-primary/15 text-primary text-[10px] font-bold border border-primary/25">
-                          {group.count}x
                         </span>
-                      </div>
-                    </div>
+                      </span>
+                      <Sparkles className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+                    </button>
                   )
                 })}
               </div>
-
-              <p className="text-[11px] text-muted-foreground leading-relaxed">
-                {t(
-                  'merge.infoNotice',
-                  'Ao clicar em "Unir e Organizar", todos os módulos e aulas das partes acima serão reunidos no curso principal e aulas idênticas serão deduplicadas automaticamente.'
-                )}
-              </p>
-            </div>
+            </section>
           ) : (
-            /* No Duplicates Found */
-            <div className="flex flex-col items-center justify-center p-6 text-center rounded-xl border border-border/60 bg-secondary/30 space-y-2">
-              <CheckCircle2 className="h-8 w-8 text-emerald-400" />
-              <h4 className="text-xs font-bold text-foreground">
-                {t('merge.cleanTitle', 'Sua biblioteca já está organizada!')}
-              </h4>
-              <p className="text-[11px] text-muted-foreground max-w-xs">
-                {t('merge.cleanDesc', 'Nenhum curso com nome duplicado foi detectado no momento.')}
-              </p>
+            <section className="flex flex-col items-center justify-center rounded-xl border border-border/60 bg-secondary/30 p-4 text-center">
+              <CheckCircle2 className="h-7 w-7 text-emerald-400" />
+              <h3 className="mt-1.5 text-xs font-bold text-foreground">{t('merge.noSuggestedGroupsTitle')}</h3>
+              <p className="mt-1 text-[11px] text-muted-foreground">{t('merge.noSuggestedGroupsDescription')}</p>
+            </section>
+          )}
+
+          <section aria-labelledby="merge-selection-title" className="space-y-2.5 border-t border-border/50 pt-4">
+            <div className="flex items-center gap-2">
+              <GitMerge className="h-4 w-4 shrink-0 text-primary" />
+              <h3 id="merge-selection-title" className="text-xs font-bold text-foreground">
+                {t('merge.reviewSelectionTitle')}
+              </h3>
+            </div>
+            <p className="text-[11px] leading-relaxed text-muted-foreground">
+              {t('merge.reviewSelectionDescription')}
+            </p>
+
+            <div className="max-h-44 space-y-1.5 overflow-y-auto pr-1">
+              {courses.map((course) => {
+                const selected = selectedIds.has(course.id)
+                return (
+                  <button
+                    key={course.id}
+                    type="button"
+                    onClick={() => toggleCourse(course.id)}
+                    aria-pressed={selected}
+                    aria-label={t('merge.selectCourse', { title: course.title })}
+                    className={cn(
+                      'flex w-full items-center justify-between gap-2 rounded-lg border p-2.5 text-left transition-all',
+                      selected
+                        ? 'border-primary/50 bg-primary/10'
+                        : 'border-border/60 bg-secondary/30 hover:bg-secondary/60'
+                    )}
+                  >
+                    <span className="flex min-w-0 items-center gap-2.5">
+                      {selected ? (
+                        <CheckSquare className="h-4 w-4 shrink-0 text-primary" />
+                      ) : (
+                        <Square className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      )}
+                      <span className="truncate text-xs font-semibold text-foreground">{course.title}</span>
+                    </span>
+                    <span className="shrink-0 text-[10px] text-muted-foreground">
+                      {t('merge.courseCounts', { modules: course.moduleCount, lessons: course.lessonCount })}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => void requestPreview([...selectedIds])}
+              disabled={isLoadingPreview || selectedCount < 2}
+              className="w-full"
+            >
+              {isLoadingPreview ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+              {t('merge.reviewSelected', { count: selectedCount })}
+            </Button>
+          </section>
+
+          {isLoadingPreview && (
+            <div role="status" aria-live="polite" className="flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/10 p-3 text-xs text-foreground">
+              <Loader2 className="h-4 w-4 animate-spin text-primary" />
+              {t('merge.loadingPreview')}
             </div>
           )}
+
+          {preview && <MergePreviewPanel preview={preview} />}
         </div>
 
-        <DialogFooter className="flex items-center justify-between gap-2 pt-2 border-t border-border/50">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleClose}
-            className="text-xs text-muted-foreground hover:text-foreground cursor-pointer"
-          >
-            {mergeResult ? t('common.close', 'Fechar') : t('common.cancel', 'Cancelar')}
+        <DialogFooter className="flex items-center justify-between gap-2 border-t border-border/50 pt-3">
+          <Button type="button" variant="ghost" size="sm" onClick={() => handleOpenChange(false)}>
+            {t('common.close')}
           </Button>
-
-          {!mergeResult && duplicateGroups.length > 0 && (
+          <div className="flex flex-col items-end gap-1">
             <Button
+              type="button"
               variant="default"
               size="sm"
-              onClick={handleMerge}
-              disabled={isMerging}
-              className="gap-2 text-xs bg-gradient-to-r from-orange-500 via-orange-600 to-amber-500 text-white font-bold shadow-md shadow-orange-500/20 hover:opacity-95 active:scale-95 transition-all cursor-pointer min-h-[36px]"
+              disabled
+              aria-describedby="merge-apply-future"
+              className="gap-2"
             >
-              {isMerging ? (
-                <>
-                  <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                  <span>{t('merge.merging', 'Unindo Cursos...')}</span>
-                </>
-              ) : (
-                <>
-                  <Sparkles className="h-3.5 w-3.5" />
-                  <span>{t('merge.action', 'Unir e Organizar Agora')}</span>
-                </>
-              )}
+              <ShieldCheck className="h-3.5 w-3.5" />
+              {t('merge.applyFuture')}
             </Button>
-          )}
+            <p id="merge-apply-future" className="max-w-xs text-right text-[10px] leading-snug text-muted-foreground">
+              {t('merge.applyFutureDescription')}
+            </p>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   )
+}
+
+function MergePreviewPanel({ preview }: { preview: MergePreview }): React.JSX.Element {
+  const { t } = useTranslation()
+  const mergeModules = preview.modules.filter((module) => module.action === 'merge')
+  const createModules = preview.modules.filter((module) => module.action === 'create')
+
+  return (
+    <section aria-labelledby="merge-preview-title" className="space-y-3 rounded-2xl border border-primary/30 bg-primary/5 p-3.5">
+      <div className="flex items-start gap-2.5">
+        <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+        <div className="min-w-0">
+          <h3 id="merge-preview-title" className="text-xs font-bold text-foreground">
+            {t('merge.previewTitle')}
+          </h3>
+          <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">{t('merge.previewSafetyNotice')}</p>
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-border/60 bg-card/70 p-3">
+        <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+          {t('merge.canonicalCourse')}
+        </p>
+        <p className="mt-1 truncate text-sm font-bold text-foreground">{preview.canonicalCourseTitle}</p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
+        <PreviewMetric label={t('merge.selectedCourses')} value={preview.selectedCourseIds.length} />
+        <PreviewMetric label={t('merge.totalLessons')} value={preview.totalLessons} />
+        <PreviewMetric label={t('merge.totalMaterials')} value={preview.totalMaterials} />
+        <PreviewMetric label={t('merge.duplicateCandidates')} value={preview.duplicateCandidates.length} />
+      </div>
+
+      <div className="space-y-2">
+        <div className="flex flex-wrap gap-2">
+          <Badge variant="secondary" className="text-[10px]">
+            {t('merge.modulesToMerge', { count: mergeModules.length })}
+          </Badge>
+          <Badge variant="secondary" className="text-[10px]">
+            {t('merge.modulesToCreate', { count: createModules.length })}
+          </Badge>
+        </div>
+
+        {preview.modules.length > 0 ? (
+          <div className="max-h-36 space-y-1.5 overflow-y-auto pr-1">
+            {preview.modules.map((module) => (
+              <div key={`${module.sourceCourseId}-${module.sourceModuleId}`} className="flex items-center justify-between gap-2 rounded-lg border border-border/50 bg-card/60 p-2 text-xs">
+                <span className="flex min-w-0 items-center gap-2">
+                  {module.action === 'create' ? (
+                    <Plus className="h-3.5 w-3.5 shrink-0 text-emerald-400" />
+                  ) : (
+                    <GitMerge className="h-3.5 w-3.5 shrink-0 text-primary" />
+                  )}
+                  <span className="truncate font-medium text-foreground">{module.title}</span>
+                </span>
+                <span className="shrink-0 text-[10px] text-muted-foreground">
+                  {t('merge.moduleCounts', { lessons: module.lessonCount, materials: module.materialCount })}
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-[11px] text-muted-foreground">{t('merge.noModuleChanges')}</p>
+        )}
+      </div>
+
+      <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3">
+        <p className="text-xs font-bold text-amber-300">{t('merge.duplicateCandidatesTitle')}</p>
+        <p className="mt-0.5 text-[11px] leading-snug text-amber-200/80">
+          {t('merge.duplicateCandidatesNotice')}
+        </p>
+        {preview.duplicateCandidates.length > 0 && (
+          <ul className="mt-2 space-y-1 text-[11px] text-amber-100/90">
+            {preview.duplicateCandidates.map((candidate, index) => (
+              <li key={`${candidate.sourceLessonId}-${candidate.targetLessonId}`}>
+                {t('merge.duplicateCandidateReason', {
+                  index: index + 1,
+                  reason: t(`merge.duplicateReasons.${candidate.reason}`)
+                })}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </section>
+  )
+}
+
+function PreviewMetric({ label, value }: { label: string; value: number }): React.JSX.Element {
+  return (
+    <div className="rounded-xl border border-border/60 bg-card/70 p-2 text-center">
+      <p className="text-sm font-bold text-foreground">{value}</p>
+      <p className="mt-0.5 text-[10px] text-muted-foreground">{label}</p>
+    </div>
+  )
+}
+
+function findDuplicateGroups(courses: ReturnType<typeof useLibraryStore.getState>['courses']): DuplicateGroup[] {
+  const groups = new Map<string, DuplicateGroup>()
+
+  for (const course of courses) {
+    const normalizedTitle = normalizeTitle(course.title)
+    if (!normalizedTitle) continue
+    const group = groups.get(normalizedTitle)
+    if (group) {
+      group.courses.push(course)
+    } else {
+      groups.set(normalizedTitle, { title: course.title, courses: [course] })
+    }
+  }
+
+  return [...groups.values()].filter((group) => group.courses.length > 1)
+}
+
+function normalizeTitle(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
 }

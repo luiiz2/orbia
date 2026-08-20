@@ -26,4 +26,6 @@ export interface AppSettings {
   defaultPlaybackSpeed: number
   autoPlayNext: boolean
   completionThreshold: number // Default 0.90 (90%)
+  /** Always delete the source .zip after importing it (persistent choice) */
+  deleteSourceZipAfterImport?: boolean
 }

@@ -1,38 +1,61 @@
 import crypto from 'node:crypto'
 import path from 'node:path'
 import type {
+  DuplicateFile,
+  ProposedContentResource,
   ProposedCourseStructure,
-  ProposedModule,
   ProposedLesson,
-  MediaType
+  ProposedModule
 } from '../../types'
-import { cleanTitle, cleanCourseTitle, cleanModuleTitle } from '../utils/title-cleaner'
+import { cleanCourseTitle, cleanModuleTitle, cleanTitle } from '../utils/title-cleaner'
 import { naturalCompare } from '../utils/natural-sort'
-import { isMediaFile, isCoverImage, isImageFile, getMediaType } from '../utils/file-utils'
+import {
+  getMediaType,
+  isCoverImage,
+  isImageFile,
+  isMediaFile,
+  isPreservableContentFile,
+  isSubtitleFile
+} from '../utils/file-utils'
 import type { ScannedDirectory, ScannedFile } from './scanner.service'
+import { ensureCourseCover, generateTextCover } from '../utils/cover-generator'
+
+interface ParsedModuleContent {
+  lessons: ProposedLesson[]
+  resources: ProposedContentResource[]
+}
+
+interface DuplicateCandidate {
+  fileName: string
+  filePath: string
+  fileSize: number
+  fingerprint?: string
+}
 
 /**
  * Interprets a scanned directory structure into a structured Course Proposal.
- * INVARIANT: Pure function/heuristic. Does not write to DB or modify filesystem.
+ * INVARIANT: Read-only. Never writes to DB or mutates user course files.
+ * Generated fallback covers are written to the OS temp dir (app cache only).
  */
 export class ParserService {
   /**
    * Transforms a ScannedDirectory into a ProposedCourseStructure.
+   * Every course receives an explicit root cover image or an SVG fallback.
    */
-  public parseCourseHierarchy(scannedDir: ScannedDirectory): ProposedCourseStructure {
+  public async parseCourseHierarchy(scannedDir: ScannedDirectory): Promise<ProposedCourseStructure> {
     const suggestedTitle = cleanCourseTitle(scannedDir.name)
     const rootPath = scannedDir.fullPath
 
-    // 1. Locate cover image in root or first sub-level
+    // 1. Locate a root cover image; generate a fallback if missing.
     let coverPath = this.findCoverImage(scannedDir)
+    if (!coverPath) {
+      coverPath = await ensureCourseCover(rootPath, suggestedTitle)
+    }
 
-    // 2. Identify modules and lessons
+    // 2. Identify modules, playable lessons, and all other preserved content.
     const proposedModules: ProposedModule[] = []
-    let totalFilesCount = 0
-
-    // Check if root has loose media files directly
-    const rootMediaFiles = scannedDir.files.filter((f) => isMediaFile(f.fullPath))
-    totalFilesCount += scannedDir.files.length
+    let totalFilesCount = scannedDir.files.length
+    const rootContent = await this.parseModuleContent(scannedDir.files)
 
     // Sort subdirectories naturally
     const sortedSubDirs = [...scannedDir.subDirectories].sort((a, b) =>
@@ -41,73 +64,149 @@ export class ParserService {
 
     let moduleOrderIndex = 1
 
-    // If root has loose media files AND there are subdirectories,
-    // put root media files into an introductory module
-    if (rootMediaFiles.length > 0 && sortedSubDirs.length > 0) {
-      const introLessons = this.buildLessons(rootMediaFiles, scannedDir.files)
-      if (introLessons.length > 0) {
-        proposedModules.push({
-          id: crypto.randomUUID(),
-          title: 'Introduction & Overview',
-          folderPath: rootPath,
-          orderIndex: moduleOrderIndex++,
-          lessons: introLessons
-        })
-      }
+    const hasRootContent = rootContent.lessons.length > 0 || rootContent.resources.length > 0
+    const hasRootContentBeyondCourseCover =
+      rootContent.lessons.length > 0 ||
+      rootContent.resources.some((resource) => resource.filePath !== coverPath)
+
+    // Loose root content sits before nested modules, even when it is material-only.
+    // A root cover alone must not create a phantom introductory module.
+    if (hasRootContentBeyondCourseCover && sortedSubDirs.length > 0) {
+      proposedModules.push({
+        id: crypto.randomUUID(),
+        title: 'Introduction & Overview',
+        folderPath: rootPath,
+        orderIndex: moduleOrderIndex++,
+        lessons: rootContent.lessons,
+        resources: rootContent.resources
+      })
     }
 
     // Process each subdirectory as a Module
     for (const subDir of sortedSubDirs) {
-      const moduleLessons = this.extractMediaFromDirectory(subDir)
+      const moduleContent = await this.parseModuleContent(this.collectAllFilesRecursive(subDir))
       totalFilesCount += this.countFiles(subDir)
 
-      if (moduleLessons.length > 0) {
-        if (!coverPath) {
-          coverPath = this.findCoverImage(subDir)
-        }
-
+      // A module with just files to read, images, or sidecars is still meaningful.
+      if (moduleContent.lessons.length > 0 || moduleContent.resources.length > 0) {
         proposedModules.push({
           id: crypto.randomUUID(),
           title: cleanModuleTitle(subDir.name, moduleOrderIndex),
           folderPath: subDir.fullPath,
           orderIndex: moduleOrderIndex++,
-          lessons: moduleLessons
+          lessons: moduleContent.lessons,
+          resources: moduleContent.resources
         })
       }
     }
 
-    // If there were NO subdirectories with media, but root had media files (Flat course structure)
-    if (proposedModules.length === 0 && rootMediaFiles.length > 0) {
-      const flatLessons = this.buildLessons(rootMediaFiles, scannedDir.files)
+    // Content resources require a module owner. Preserve a root-only cover with
+    // the first real module instead of creating a module solely for that image.
+    if (!hasRootContentBeyondCourseCover && rootContent.resources.length > 0 && proposedModules[0]) {
+      proposedModules[0].resources = [
+        ...rootContent.resources,
+        ...(proposedModules[0].resources || [])
+      ]
+    }
+
+    // A flat course can consist solely of materials, without a playable lesson.
+    if (proposedModules.length === 0 && hasRootContent) {
       proposedModules.push({
         id: crypto.randomUUID(),
         title: suggestedTitle,
         folderPath: rootPath,
         orderIndex: 1,
-        lessons: flatLessons
+        lessons: rootContent.lessons,
+        resources: rootContent.resources
       })
     }
 
-    const totalLessons = proposedModules.reduce((acc, m) => acc + m.lessons.length, 0)
+    // 3. Detect duplicate candidates, but never silently omit or renumber content.
+    const duplicates = this.findDuplicateCandidates(proposedModules)
 
     return {
       suggestedTitle,
       rootPath,
       coverPath,
       modules: proposedModules,
-      totalLessons,
-      totalFilesScanned: totalFilesCount
+      totalLessons: proposedModules.reduce((acc, module) => acc + module.lessons.length, 0),
+      totalFilesScanned: totalFilesCount,
+      duplicates: duplicates.length > 0 ? duplicates : undefined
     }
   }
 
   /**
-   * Recursively extracts media files from a directory and converts them to ProposedLessons.
+   * Builds module content from every non-ignored scanned file. Only playable
+   * media becomes a lesson; all other files remain represented as resources.
    */
-  private extractMediaFromDirectory(dir: ScannedDirectory): ProposedLesson[] {
-    const allFiles: ScannedFile[] = this.collectAllFilesRecursive(dir)
-    const mediaFiles: ScannedFile[] = allFiles.filter((f) => isMediaFile(f.fullPath))
+  private async parseModuleContent(allFiles: ScannedFile[]): Promise<ParsedModuleContent> {
+    const preservedFiles = allFiles.filter(
+      (file) => !file.isDirectory && isPreservableContentFile(file.fullPath)
+    )
+    const lessons = await this.buildLessons(
+      preservedFiles.filter((file) => isMediaFile(file.fullPath)),
+      preservedFiles
+    )
 
-    return this.buildLessons(mediaFiles, allFiles)
+    return {
+      lessons,
+      resources: this.buildResources(preservedFiles, lessons)
+    }
+  }
+
+  /**
+   * Reports duplicate candidates without changing module, lesson, or resource
+   * membership. Removal is always a later explicit user decision.
+   */
+  private findDuplicateCandidates(modules: ProposedModule[]): DuplicateFile[] {
+    const seen = new Map<string, DuplicateCandidate>()
+    const duplicates = new Map<string, DuplicateFile>()
+
+    for (const module of modules) {
+      const files: DuplicateCandidate[] = [
+        ...(module.resources || []).map((resource) => ({
+          fileName: resource.name,
+          filePath: resource.filePath,
+          fileSize: resource.fileSize,
+          fingerprint: resource.fingerprint
+        })),
+        ...module.lessons.flatMap((lesson) => [
+          {
+            fileName: lesson.originalFileName,
+            filePath: lesson.filePath,
+            fileSize: lesson.fileSize,
+            fingerprint: lesson.fingerprint
+          },
+          ...(lesson.contentResources || []).map((resource) => ({
+            fileName: resource.name,
+            filePath: resource.filePath,
+            fileSize: resource.fileSize,
+            fingerprint: resource.fingerprint
+          }))
+        ])
+      ]
+
+      for (const file of files) {
+        const key = file.fingerprint ?? `${file.fileName}::${file.fileSize}`
+        const first = seen.get(key)
+        if (!first) {
+          seen.set(key, file)
+          continue
+        }
+
+        const duplicate = duplicates.get(key) ?? {
+          fileName: file.fileName,
+          fileSize: file.fileSize,
+          count: 1,
+          paths: [first.filePath]
+        }
+        duplicate.count += 1
+        duplicate.paths.push(file.filePath)
+        duplicates.set(key, duplicate)
+      }
+    }
+
+    return [...duplicates.values()]
   }
 
   private collectAllFilesRecursive(dir: ScannedDirectory): ScannedFile[] {
@@ -119,59 +218,157 @@ export class ParserService {
   }
 
   /**
-   * Sorts files naturally and maps them to ProposedLesson items, detecting companion thumbnail images.
+   * Sorts playable files naturally and maps them to ProposedLesson items.
+   * Companion images are retained as resources while also serving as the lesson cover.
    */
-  private buildLessons(mediaFiles: ScannedFile[], allFiles: ScannedFile[] = []): ProposedLesson[] {
+  private async buildLessons(mediaFiles: ScannedFile[], allFiles: ScannedFile[]): Promise<ProposedLesson[]> {
     const sortedFiles = [...mediaFiles].sort((a, b) => naturalCompare(a.name, b.name))
-    const imageFiles = allFiles.filter((f) => isImageFile(f.fullPath))
+    const imageFiles = allFiles.filter((file) => isImageFile(file.fullPath))
 
-    return sortedFiles.map((file, index) => {
-      const mediaType: MediaType = getMediaType(file.fullPath)
+    const lessons: ProposedLesson[] = []
+
+    for (const [index, file] of sortedFiles.entries()) {
       const title = cleanTitle(file.name)
-      const baseNameWithoutExt = path.basename(file.name, path.extname(file.name)).toLowerCase()
+      const companionImg = imageFiles.find((image) => this.isCompanionImageForLesson(image, file))
+      const coverPath = companionImg ? companionImg.fullPath : await generateTextCover(title)
 
-      // Look for matching companion thumbnail image (e.g., "01 - Intro.jpg" for "01 - Intro.mp4")
-      const companionImg = imageFiles.find((img) => {
-        const imgBase = path.basename(img.name, path.extname(img.name)).toLowerCase()
-        return (
-          imgBase === baseNameWithoutExt ||
-          imgBase === `${baseNameWithoutExt}_thumb` ||
-          imgBase === `${baseNameWithoutExt}_cover` ||
-          imgBase === `${baseNameWithoutExt}_poster`
-        )
-      })
-
-      return {
+      lessons.push({
         id: crypto.randomUUID(),
         title,
         originalFileName: file.name,
         filePath: file.fullPath,
         fileExtension: file.extension.replace(/^\./, ''),
-        mediaType,
+        mediaType: getMediaType(file.fullPath),
         fileSize: file.sizeBytes,
         orderIndex: index + 1,
-        coverPath: companionImg ? companionImg.fullPath : undefined
+        coverPath,
+        fingerprint: file.fingerprint,
+        contentResources: []
+      })
+    }
+
+    return lessons
+  }
+
+  private buildResources(
+    allFiles: ScannedFile[],
+    lessons: ProposedLesson[]
+  ): ProposedContentResource[] {
+    const moduleResources: ProposedContentResource[] = []
+    const resourceFiles = allFiles
+      .filter((file) => !isMediaFile(file.fullPath))
+      .sort((a, b) => naturalCompare(a.name, b.name))
+
+    for (const file of resourceFiles) {
+      const matchingLesson = isSubtitleFile(file.fullPath)
+        ? this.findLessonForSubtitle(file, lessons)
+        : isImageFile(file.fullPath)
+          ? this.findLessonForCompanionImage(file, lessons)
+          : undefined
+      const isLessonSubtitle = isSubtitleFile(file.fullPath) && matchingLesson !== undefined
+      const resource = this.createProposedResource(file, isLessonSubtitle ? 'subtitle' : 'resource')
+
+      if (matchingLesson) {
+        matchingLesson.contentResources!.push(resource)
+      } else {
+        moduleResources.push(resource)
       }
-    })
+    }
+
+    return moduleResources
+  }
+
+  private createProposedResource(
+    file: ScannedFile,
+    role: ProposedContentResource['role']
+  ): ProposedContentResource {
+    return {
+      id: crypto.randomUUID(),
+      name: file.name,
+      filePath: file.fullPath,
+      fileExtension: file.extension.replace(/^\./, ''),
+      fileSize: file.sizeBytes,
+      type: this.resourceTypeFor(file),
+      role,
+      fingerprint: file.fingerprint
+    }
+  }
+
+  private resourceTypeFor(file: ScannedFile): ProposedContentResource['type'] {
+    if (isSubtitleFile(file.fullPath)) return 'document'
+
+    const mediaType = getMediaType(file.fullPath)
+    if (
+      mediaType === 'pdf' ||
+      mediaType === 'document' ||
+      mediaType === 'archive' ||
+      mediaType === 'image'
+    ) {
+      return mediaType
+    }
+    return 'other'
+  }
+
+  private findLessonForSubtitle(
+    subtitle: ScannedFile,
+    lessons: ProposedLesson[]
+  ): ProposedLesson | undefined {
+    const subtitleStem = this.fileStem(subtitle.name)
+    const exactLesson = lessons.find((lesson) => this.fileStem(lesson.originalFileName) === subtitleStem)
+    if (exactLesson) return exactLesson
+
+    return lessons
+      .filter((lesson) => this.isStemVariant(subtitleStem, this.fileStem(lesson.originalFileName)))
+      .sort(
+        (a, b) =>
+          this.fileStem(b.originalFileName).length - this.fileStem(a.originalFileName).length
+      )[0]
+  }
+
+  private findLessonForCompanionImage(
+    image: ScannedFile,
+    lessons: ProposedLesson[]
+  ): ProposedLesson | undefined {
+    return lessons.find((lesson) => this.isCompanionImageForLesson(image, lesson))
+  }
+
+  private isCompanionImageForLesson(
+    image: ScannedFile,
+    lesson: ScannedFile | ProposedLesson
+  ): boolean {
+    const imageStem = this.fileStem(image.name)
+    const lessonFileName = 'originalFileName' in lesson ? lesson.originalFileName : lesson.name
+    const lessonStem = this.fileStem(lessonFileName)
+    return imageStem === lessonStem || this.stripCompanionSuffix(imageStem) === lessonStem
+  }
+
+  private isStemVariant(stem: string, lessonStem: string): boolean {
+    return (
+      stem === lessonStem ||
+      stem.startsWith(`${lessonStem}.`) ||
+      stem.startsWith(`${lessonStem}_`) ||
+      stem.startsWith(`${lessonStem}-`) ||
+      stem.startsWith(`${lessonStem} `)
+    )
+  }
+
+  private stripCompanionSuffix(stem: string): string {
+    return stem.replace(/[-_\s](?:cover|thumb|thumbnail|poster|folder|front|capa|banner)$/i, '')
+  }
+
+  private fileStem(fileName: string): string {
+    return path.basename(fileName, path.extname(fileName)).toLowerCase()
   }
 
   /**
-   * Searches for a cover image file inside a directory.
+   * Searches for a course cover image in the ROOT directory only.
+   * Only explicit cover-named images qualify — module covers, lesson
+   * companion thumbnails, or arbitrary frames must NEVER become the
+   * course cover (falls back to the branded SVG).
    */
   private findCoverImage(dir: ScannedDirectory): string | undefined {
-    // 1. Explicit cover named files in root
     const coverFile = dir.files.find((f) => isCoverImage(f.fullPath))
-    if (coverFile) return coverFile.fullPath
-
-    // 2. Check subdirectories for explicit cover
-    for (const sub of dir.subDirectories) {
-      const subCover = sub.files.find((f) => isCoverImage(f.fullPath))
-      if (subCover) return subCover.fullPath
-    }
-
-    // 3. Fallback to any general image in root
-    const anyImage = dir.files.find((f) => isImageFile(f.fullPath))
-    return anyImage ? anyImage.fullPath : undefined
+    return coverFile ? coverFile.fullPath : undefined
   }
 
   /**

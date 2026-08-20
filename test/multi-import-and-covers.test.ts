@@ -166,7 +166,7 @@ describe('Multi-Import & Course/Lesson Covers Engine', () => {
     fs.writeFileSync(path.join(moduleFolder, '02 - Variables.mp4'), 'fake-video-2')
 
     const scanned = await scannerService.scanDirectory(courseFolder)
-    const proposal = parserService.parseCourseHierarchy(scanned)
+    const proposal = await parserService.parseCourseHierarchy(scanned)
 
     expect(proposal.coverPath).toBeDefined()
     expect(path.basename(proposal.coverPath!)).toBe('cover.png')
@@ -178,8 +178,8 @@ describe('Multi-Import & Course/Lesson Covers Engine', () => {
     expect(proposal.modules[0].lessons[0].coverPath).toBeDefined()
     expect(path.basename(proposal.modules[0].lessons[0].coverPath!)).toBe('01 - Introduction.jpg')
 
-    // Lesson 2 has no companion image
-    expect(proposal.modules[0].lessons[1].coverPath).toBeUndefined()
+    // Lesson 2 has no companion image but must get a generated fallback cover
+    expect(proposal.modules[0].lessons[1].coverPath).toBeDefined()
   })
 
   it('supports importing multiple courses in batch', () => {

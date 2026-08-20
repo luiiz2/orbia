@@ -3,7 +3,11 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 
-import { registerMediaScheme, setupMediaProtocol } from './protocol'
+import {
+  createMainMediaPathAuthorizer,
+  registerMediaScheme,
+  setupMediaProtocol
+} from './protocol'
 import { appConfigService } from './services/app-config.service'
 import { vaultService } from './services/vault.service'
 import { databaseService } from './services/database.service'
@@ -113,7 +117,12 @@ if (!gotTheLock) {
 
     // 1. Setup media streaming protocol
     try {
-      setupMediaProtocol()
+      setupMediaProtocol({
+        authorizer: createMainMediaPathAuthorizer({
+          getRegisteredMediaPaths: () => databaseService.getRegisteredMediaPaths(),
+          getCurrentVaultPath: () => vaultService.getCurrentVault()?.path ?? databaseService.getCurrentVaultPath()
+        })
+      })
       logger.info('[Main] Media protocol initialized')
     } catch (err) {
       logger.error('[Main] Media protocol init error:', err)

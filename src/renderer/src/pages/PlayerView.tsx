@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+﻿import React, { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   FileText,
@@ -17,8 +17,24 @@ import { useNavigationStore } from '../stores/useNavigationStore'
 import { useCourseProgress } from '../hooks/useCourseProgress'
 import { Button, Progress, Tooltip, TooltipTrigger, TooltipContent } from '../components/ui'
 import { formatTime, formatFileSize } from '../lib/formatters'
-import { cn } from '../lib/utils'
-import type { AttachedResource } from '@shared'
+import { cn, mediaUrl } from '../lib/utils'
+import type { AttachedResource, ContentResource, Lesson } from '@shared'
+
+type VisibleResource = AttachedResource | ContentResource
+
+function getLessonVisibleResources(lesson: Lesson): VisibleResource[] {
+  return lesson.contentResources ?? lesson.resources ?? []
+}
+
+function getResourceTypeLabel(resource: VisibleResource): string {
+  const extension = resource.fileExtension.replace(/^\./, '')
+  return (extension || resource.type).toUpperCase()
+}
+
+function hasEmbeddedPreview(resource: VisibleResource): boolean {
+  const extension = resource.fileExtension.replace(/^\./, '').toLowerCase()
+  return resource.type === 'pdf' || extension === 'pdf' || resource.name.toLowerCase().endsWith('.pdf')
+}
 
 export function PlayerView(): React.JSX.Element {
   const { t } = useTranslation()
@@ -36,7 +52,7 @@ export function PlayerView(): React.JSX.Element {
   const { setView } = useNavigationStore()
   const [activeTab, setActiveTab] = useState<'curriculum' | 'notes' | 'resources'>('curriculum')
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true)
-  const [selectedResource, setSelectedResource] = useState<AttachedResource | null>(null)
+  const [selectedResource, setSelectedResource] = useState<VisibleResource | null>(null)
   const [isPdfModalOpen, setIsPdfModalOpen] = useState<boolean>(false)
 
   const progressData = useCourseProgress({
@@ -44,7 +60,7 @@ export function PlayerView(): React.JSX.Element {
     modules: modulesWithLessons
   })
 
-  const resources = activeLesson?.resources || []
+  const resources = activeLesson ? getLessonVisibleResources(activeLesson) : []
 
   return (
     <div
@@ -234,7 +250,7 @@ export function PlayerView(): React.JSX.Element {
                               {lesson.coverPath ? (
                                 <div className="aspect-video w-10 shrink-0 rounded overflow-hidden bg-secondary border border-border/70">
                                   <img
-                                    src={`media://${encodeURI(lesson.coverPath.replace(/\\/g, '/'))}`}
+                                    src={mediaUrl(lesson.coverPath)}
                                     alt={lesson.title}
                                     className="w-full h-full object-cover"
                                   />
@@ -266,44 +282,73 @@ export function PlayerView(): React.JSX.Element {
 
             {activeTab === 'resources' && (
               <div className="space-y-2">
+                <h4 className="px-1 text-xs font-semibold text-foreground">
+                  {t('player.lessonMaterials', { count: resources.length })}
+                </h4>
                 {resources.length === 0 ? (
                   <div className="text-center py-12 px-4 space-y-2">
                     <FileText className="h-8 w-8 text-muted-foreground/40 mx-auto" />
                     <p className="text-xs text-muted-foreground">
-                      No attachments or materials for this lesson.
+                      {t('player.noResources')}
                     </p>
                   </div>
                 ) : (
-                  resources.map((res) => (
-                    <Tooltip key={res.id}>
-                      <TooltipTrigger asChild>
-                        <div
-                          onClick={() => {
-                            setSelectedResource(res)
-                            setIsPdfModalOpen(true)
-                          }}
-                          className="flex items-center justify-between p-3 rounded-2xl border border-border/80 bg-secondary/30 text-xs hover:bg-secondary/70 hover:border-primary/40 cursor-pointer transition-all shadow-sm group"
-                        >
-                          <div className="flex items-center gap-2.5 overflow-hidden">
-                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white transition-colors">
-                              <FileText className="h-4 w-4" />
+                  resources.map((res) =>
+                    hasEmbeddedPreview(res) ? (
+                      <Tooltip key={res.id}>
+                        <TooltipTrigger asChild>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedResource(res)
+                              setIsPdfModalOpen(true)
+                            }}
+                            className="flex w-full items-center justify-between rounded-2xl border border-border/80 bg-secondary/30 p-3 text-left text-xs shadow-sm transition-colors hover:border-primary/40 hover:bg-secondary/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                            aria-label={t('player.viewResource', { name: res.name })}
+                          >
+                            <div className="flex items-center gap-2.5 overflow-hidden">
+                              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                                <FileText className="h-4 w-4" />
+                              </div>
+                              <div className="flex flex-col overflow-hidden">
+                                <span className="font-semibold text-foreground truncate">
+                                  {res.name}
+                                </span>
+                                <span className="text-[10px] text-muted-foreground font-mono">
+                                  {getResourceTypeLabel(res)} • {formatFileSize(res.fileSize)}
+                                </span>
+                              </div>
                             </div>
-                            <div className="flex flex-col overflow-hidden">
-                              <span className="font-semibold text-foreground truncate group-hover:text-primary transition-colors">
-                                {res.name}
-                              </span>
-                              <span className="text-[10px] text-muted-foreground font-mono">
-                                {formatFileSize(res.fileSize)} • {res.fileExtension}
-                              </span>
-                            </div>
-                          </div>
 
-                          <Eye className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 group-hover:text-primary transition-all shrink-0 ml-2" />
+                            <Eye className="ml-2 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="left">
+                          {t('player.viewResource', { name: res.name })}
+                        </TooltipContent>
+                      </Tooltip>
+                    ) : (
+                      <div
+                        key={res.id}
+                        role="note"
+                        aria-label={`${res.name}: ${t('documents.previewUnavailable')}`}
+                        className="flex w-full items-center justify-between rounded-2xl border border-border/80 bg-secondary/20 p-3 text-left text-xs text-muted-foreground shadow-sm"
+                      >
+                        <div className="flex items-center gap-2.5 overflow-hidden">
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground">
+                            <FileText className="h-4 w-4" aria-hidden="true" />
+                          </div>
+                          <div className="flex flex-col overflow-hidden">
+                            <span className="font-semibold text-foreground truncate">{res.name}</span>
+                            <span className="text-[10px] font-mono">
+                              {getResourceTypeLabel(res)} • {formatFileSize(res.fileSize)}
+                            </span>
+                          </div>
                         </div>
-                      </TooltipTrigger>
-                      <TooltipContent side="left">Visualizar documento</TooltipContent>
-                    </Tooltip>
-                  ))
+                        <span className="ml-2 shrink-0 text-[10px]">{t('documents.previewUnavailable')}</span>
+                      </div>
+                    )
+                  )
                 )}
               </div>
             )}

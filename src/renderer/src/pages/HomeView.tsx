@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+﻿import React, { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   BookOpen,
@@ -9,14 +9,19 @@ import {
   Clock,
   CheckCircle2,
   Star,
-  Sparkles
+  Sparkles,
+  Play,
+  Info
 } from 'lucide-react'
 import { useLibraryStore } from '../stores/useLibraryStore'
 import { useVaultStore } from '../stores/useVaultStore'
 import { useNavigationStore } from '../stores/useNavigationStore'
+import { usePlayerStore } from '../stores/usePlayerStore'
 import { Button, Skeleton } from '../components/ui'
 import { CourseCard, ContinueWatchingRail, MergeCoursesModal } from '../components/library'
 import { matchesAnyField } from '../lib/search-utils'
+import { formatDurationHuman } from '../lib/formatters'
+import { mediaUrl } from '../lib/utils'
 import appLogo from '../assets/icon.png'
 
 export function HomeView(): React.JSX.Element {
@@ -32,14 +37,54 @@ export function HomeView(): React.JSX.Element {
     isLoading
   } = useLibraryStore()
   const { currentVault } = useVaultStore()
-  const { setImportModalOpen, setVaultModalOpen } = useNavigationStore()
+  const { setImportModalOpen, setVaultModalOpen, navigateToPlayer, navigateToCourse } = useNavigationStore()
+  const { loadHierarchy } = usePlayerStore()
   const [isMergeModalOpen, setIsMergeModalOpen] = useState<boolean>(false)
+  const [heroCoverFailed, setHeroCoverFailed] = useState<boolean>(false)
 
   useEffect(() => {
     if (currentVault) {
       fetchCourses().catch(console.warn)
     }
   }, [currentVault, fetchCourses])
+
+  // Hero: most recently played in-progress course (streaming-style banner)
+  const heroCourse = useMemo(() => {
+    if (searchQuery) return null
+    const candidates = courses
+      .map((course) => ({ course, summary: progressSummaries[course.id] }))
+      .filter(
+        (item) =>
+          item.summary &&
+          item.summary.percentage > 0 &&
+          item.summary.percentage < 100
+      )
+      .sort((a, b) => (b.summary?.lastPlayedAt || 0) - (a.summary?.lastPlayedAt || 0))
+    return candidates[0] || null
+  }, [courses, progressSummaries, searchQuery])
+
+  // Reset cover error state whenever the hero course changes
+  const heroCourseId = heroCourse?.course.id ?? null
+  useEffect(() => {
+    setHeroCoverFailed(false)
+  }, [heroCourseId])
+
+  const handleHeroResume = async (): Promise<void> => {
+    if (!heroCourse) return
+    const course = heroCourse.course
+    const summary = heroCourse.summary
+    try {
+      const data = await window.api.courses.getById(course.id)
+      if (data) {
+        const targetLessonId =
+          summary?.lastPlayedLessonId || data.modules[0]?.lessons[0]?.id
+        await loadHierarchy(data.course, data.modules, targetLessonId)
+        navigateToPlayer(course.id)
+      }
+    } catch (err) {
+      console.error('Failed to resume hero course:', err)
+    }
+  }
 
   // Compute counts for filter pills
   const counts = useMemo(() => {
@@ -113,7 +158,7 @@ export function HomeView(): React.JSX.Element {
           <Button
             onClick={() => setVaultModalOpen(true)}
             size="lg"
-            className="gap-2 shadow-lg shadow-orange-500/20 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-500 text-white font-semibold rounded-xl hover:opacity-95 active:scale-[0.98] transition-all min-h-[40px]"
+            className="gap-2 shadow-lg shadow-orange-500/20 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-500 text-primary-foreground font-semibold rounded-xl hover:opacity-95 active:scale-[0.98] transition-all min-h-[40px]"
           >
             <BookOpen className="h-4 w-4" />
             <span>{t('vault.createNew')}</span>
@@ -151,7 +196,71 @@ export function HomeView(): React.JSX.Element {
   ]
 
   return (
-    <div className="container mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 space-y-8 animate-in fade-in duration-200">
+    <div className="container mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 space-y-10 animate-in fade-in duration-200">
+      {/* Hero Banner — streaming spotlight (when not searching) */}
+      {!searchQuery && heroCourse && !isLoading && (
+        <section
+          className="relative h-[360px] sm:h-[440px] overflow-hidden rounded-2xl bg-secondary/60"
+          aria-label="Continue watching spotlight"
+        >
+          {heroCourse.course.coverPath && !heroCoverFailed ? (
+            <img
+              src={mediaUrl(heroCourse.course.coverPath)}
+              alt={heroCourse.course.title}
+              className="absolute inset-0 h-full w-full object-cover"
+              onError={() => setHeroCoverFailed(true)}
+            />
+          ) : null}
+
+          {/* Streaming gradients */}
+          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/50 to-transparent" />
+
+          <div className="relative z-10 flex h-full flex-col justify-end p-6 sm:p-10 max-w-2xl">
+            <p className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-primary">
+              <Sparkles className="h-3.5 w-3.5" />
+              {t('home.continueWatching', 'Continuar Assistindo')}
+            </p>
+            <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-white drop-shadow-lg leading-tight line-clamp-2">
+              {heroCourse.course.title}
+            </h1>
+            <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs sm:text-sm font-medium text-white/85">
+              <span>{heroCourse.course.moduleCount} {t('course.modules')}</span>
+              <span className="text-white/50">•</span>
+              <span>{heroCourse.course.lessonCount} {t('course.lessons')}</span>
+              {heroCourse.course.totalDuration > 0 && (
+                <>
+                  <span className="text-white/50">•</span>
+                  <span className="font-mono">{formatDurationHuman(heroCourse.course.totalDuration)}</span>
+                </>
+              )}
+              <span className="text-white/50">•</span>
+              <span className="text-amber-400 font-bold">{heroCourse.summary?.percentage || 0}%</span>
+            </p>
+
+            <div className="mt-5 flex items-center gap-3">
+              <Button
+                onClick={() => handleHeroResume()}
+                size="lg"
+                className="gap-2 bg-white text-black font-bold rounded-lg px-7 shadow-xl shadow-black/40 hover:bg-white/90 hover:scale-[1.02] active:scale-[0.98] transition-all min-h-[44px]"
+              >
+                <Play className="h-4.5 w-4.5 fill-current" />
+                <span>{t('course.resume', 'Continuar')}</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={() => navigateToCourse(heroCourse.course.id)}
+                className="gap-2 rounded-lg border-white/25 bg-white/10 text-white backdrop-blur-md hover:bg-white/20 hover:border-white/40 font-semibold min-h-[44px]"
+              >
+                <Info className="h-4.5 w-4.5" />
+                <span>{t('course.viewCourse', 'Ver Curso')}</span>
+              </Button>
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Continue Watching Horizontal Rail (when not searching) */}
       {!searchQuery && (
         <ContinueWatchingRail isLoading={isLoading} />
@@ -200,10 +309,10 @@ export function HomeView(): React.JSX.Element {
 
           <div className="flex items-center gap-2 self-start sm:self-auto">
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
               onClick={() => setIsMergeModalOpen(true)}
-              className="gap-1.5 text-xs rounded-xl border-border/80 bg-card hover:border-primary/40 hover:bg-secondary/70 shadow-sm cursor-pointer focus-visible:ring-2 focus-visible:ring-primary min-h-[36px]"
+              className="gap-1.5 text-xs rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 cursor-pointer focus-visible:ring-2 focus-visible:ring-primary min-h-[36px]"
               title="Organizar e unir cursos com partes separadas"
             >
               <Sparkles className="h-4 w-4 text-amber-400" />
@@ -211,10 +320,10 @@ export function HomeView(): React.JSX.Element {
             </Button>
 
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
               onClick={() => setImportModalOpen(true)}
-              className="gap-1.5 text-xs rounded-xl border-border/80 bg-card hover:border-primary/40 hover:bg-secondary/70 shadow-sm cursor-pointer focus-visible:ring-2 focus-visible:ring-primary min-h-[36px]"
+              className="gap-1.5 text-xs rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 cursor-pointer focus-visible:ring-2 focus-visible:ring-primary min-h-[36px]"
             >
               <FolderPlus className="h-4 w-4 text-primary" />
               <span>{t('nav.importCourse')}</span>
@@ -235,18 +344,18 @@ export function HomeView(): React.JSX.Element {
                 role="tab"
                 aria-selected={isActive}
                 onClick={() => setFilterStatus(tab.id)}
-                className={`group flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all duration-200 cursor-pointer border select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary min-h-[36px] active:scale-95 ${
+                className={`group flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 cursor-pointer border select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary min-h-[32px] active:scale-95 ${
                   isActive
-                    ? 'bg-primary text-primary-foreground border-primary shadow-md shadow-orange-500/25'
-                    : 'bg-card/90 text-muted-foreground hover:text-foreground hover:bg-secondary/80 border-border/80 hover:border-border'
+                    ? 'bg-primary/15 text-primary border-primary/60'
+                    : 'bg-transparent text-muted-foreground hover:text-foreground hover:bg-white/5 border-transparent'
                 }`}
               >
                 <Icon
                   className={`h-3.5 w-3.5 transition-transform duration-200 group-hover:scale-110 ${
                     isActive
                       ? tab.id === 'favorites'
-                        ? 'fill-amber-300 text-amber-300'
-                        : 'text-primary-foreground'
+                        ? 'fill-amber-400 text-amber-400'
+                        : 'text-primary'
                       : tab.id === 'favorites' && tab.count > 0
                         ? 'text-amber-400'
                         : 'text-muted-foreground'
@@ -256,8 +365,8 @@ export function HomeView(): React.JSX.Element {
                 <span
                   className={`ml-0.5 px-2 py-0.5 rounded-full text-[10px] font-bold ${
                     isActive
-                      ? 'bg-primary-foreground/20 text-primary-foreground'
-                      : 'bg-secondary text-muted-foreground group-hover:text-foreground'
+                      ? 'bg-primary/20 text-primary'
+                      : 'bg-white/5 text-muted-foreground group-hover:text-foreground'
                   }`}
                 >
                   {tab.count}
@@ -274,17 +383,13 @@ export function HomeView(): React.JSX.Element {
           {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
             <div
               key={n}
-              className="flex flex-col overflow-hidden rounded-2xl border border-border/60 bg-card/60 p-0 shadow-sm"
+              className="flex flex-col overflow-hidden rounded-lg bg-transparent p-0"
             >
-              <Skeleton className="aspect-video w-full rounded-none" />
-              <div className="p-4 space-y-3 flex-1 flex flex-col justify-between">
+              <Skeleton className="aspect-video w-full rounded-lg" />
+              <div className="p-2 space-y-3 flex-1 flex flex-col justify-between">
                 <div className="space-y-2">
                   <Skeleton className="h-4 w-5/6 rounded-md" />
                   <Skeleton className="h-3 w-3/5 rounded-md" />
-                </div>
-                <div className="pt-2 border-t border-border/40 flex items-center justify-between">
-                  <Skeleton className="h-3 w-24 rounded-md" />
-                  <Skeleton className="h-3 w-12 rounded-md" />
                 </div>
               </div>
             </div>
@@ -359,7 +464,7 @@ export function HomeView(): React.JSX.Element {
             ) : (
               <Button
                 onClick={() => setImportModalOpen(true)}
-                className="gap-2 shadow-lg shadow-orange-500/20 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-500 text-white font-semibold rounded-xl cursor-pointer hover:opacity-95 active:scale-[0.98] transition-all min-h-[40px]"
+                className="gap-2 shadow-lg shadow-orange-500/20 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-500 text-primary-foreground font-semibold rounded-xl cursor-pointer hover:opacity-95 active:scale-[0.98] transition-all min-h-[40px]"
               >
                 <FolderPlus className="h-4 w-4" />
                 <span>{t('home.importFirstCourse')}</span>

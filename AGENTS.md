@@ -163,6 +163,17 @@ High-priority business logic requires dedicated unit and integration tests:
 - **Path & Vault Handling**: Relative path resolution, cross-platform path separators (Windows `\` vs POSIX `/`), vault relocation/relinking.
 - **Safety Invariant**: All tests involving filesystem mutations **MUST** execute exclusively within isolated temporary test directories (`tmp/`), never against real user course directories.
 
+### Test Cadence
+
+- Run the narrowest relevant test set after each cohesive behavior change.
+- Run the full suite only at integration/final verification, after cross-cutting changes, or when diagnosing a failure.
+- Use prior passing output for unchanged work; do not rerun tests solely for a status update.
+
+### Parallel Task Execution
+
+- For a request with two or more independent steps, split the work and assign one agent to each independent task when this improves speed or quality.
+- Keep dependent changes sequential and give parallel agents non-overlapping files or contracts.
+
 ---
 
 ## 6. Version Scope Discipline

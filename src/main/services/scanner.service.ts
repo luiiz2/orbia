@@ -1,5 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import crypto from 'node:crypto'
 import { isIgnoredPath } from '../utils/file-utils'
 
 export interface ScannedFile {
@@ -8,6 +9,11 @@ export interface ScannedFile {
   extension: string
   sizeBytes: number
   isDirectory: boolean
+  /**
+   * Content fingerprint (SHA-1 of head+tail sample, or whole file when small).
+   * Used for real duplicate detection — name alone is not enough.
+   */
+  fingerprint?: string
 }
 
 export interface ScannedDirectory {
@@ -69,7 +75,8 @@ export class ScannerService {
               fullPath,
               extension: path.extname(entry.name).toLowerCase(),
               sizeBytes: fileStat.size,
-              isDirectory: false
+              isDirectory: false,
+              fingerprint: await computeFingerprint(fullPath, fileStat.size)
             })
           } catch (err) {
             console.warn(`[Scanner] Warning: Could not stat file "${fullPath}":`, err)
@@ -99,6 +106,33 @@ export class ScannerService {
     }
     return results
   }
+}
+
+const SAMPLE_SIZE = 64 * 1024
+
+/**
+ * Lightweight content fingerprint: SHA-1 of the whole file when small (<=128KB),
+ * otherwise SHA-1 of the first + last 64KB samples. Cheap enough for scans with
+ * multi-gigabyte videos, robust enough to tell identical files from look-alikes.
+ */
+export async function computeFingerprint(fullPath: string, sizeBytes: number): Promise<string> {
+  const hash = crypto.createHash('sha1')
+  const fd = await fs.promises.open(fullPath, 'r')
+  try {
+    if (sizeBytes <= SAMPLE_SIZE * 2) {
+      hash.update(await fd.readFile())
+    } else {
+      const head = Buffer.alloc(SAMPLE_SIZE)
+      await fd.read(head, 0, SAMPLE_SIZE, 0)
+      hash.update(head)
+      const tail = Buffer.alloc(SAMPLE_SIZE)
+      await fd.read(tail, 0, SAMPLE_SIZE, sizeBytes - SAMPLE_SIZE)
+      hash.update(tail)
+    }
+  } finally {
+    await fd.close()
+  }
+  return hash.digest('hex')
 }
 
 export const scannerService = new ScannerService()

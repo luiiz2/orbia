@@ -1,4 +1,5 @@
-import React from 'react'
+﻿import React from 'react'
+import { mediaUrl } from '../../lib/utils'
 import { useTranslation } from 'react-i18next'
 import { Play, Sparkles } from 'lucide-react'
 import type { Course } from '@shared'
@@ -49,7 +50,7 @@ export function ContinueStudying({ courses }: ContinueStudyingProps): React.JSX.
           const summary = progressSummaries[course.id]
           const percentage = summary?.percentage || 0
           const coverUrl = course.coverPath
-            ? `media://${encodeURI(course.coverPath.replace(/\\/g, '/'))}`
+            ? mediaUrl(course.coverPath)
             : null
 
           return (

@@ -21,7 +21,7 @@ export function SplashScreen({
 
   const steps = [
     t('splash.loadingConfig', 'Carregando configurações e preferências...'),
-    t('splash.loadingVault', 'Acessando cofre de estudos...'),
+    t('splash.loadingVault', 'Acessando pasta de estudo...'),
     t('splash.loadingCourses', 'Preparando cursos e progresso...'),
     t('splash.ready', 'Tudo pronto!')
   ]

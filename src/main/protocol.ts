@@ -3,6 +3,7 @@ import { pathToFileURL } from 'node:url'
 import path from 'node:path'
 import fs from 'node:fs'
 import { logger } from './services/logger.service'
+import { TEMP_COVERS_DIR } from './utils/cover-generator'
 
 export const MEDIA_SCHEME = 'media'
 
@@ -42,6 +43,9 @@ export const ALLOWED_MEDIA_EXTENSIONS = new Set([
   '.vtt',
   '.sub',
   '.ass',
+  // Link shortcuts (parsed to extract the target URL)
+  '.url',
+  '.webloc',
   // Images
   '.jpg',
   '.jpeg',
@@ -57,6 +61,61 @@ export interface MediaPathValidationResult {
   filePath?: string
   error?: string
   statusCode: number
+}
+
+/**
+ * Main-process authority for an already syntactically valid local path.
+ * The renderer never supplies this allowlist; it is derived from the active
+ * library database and app-owned cover locations.
+ */
+export interface MediaPathAuthorizer {
+  isPathAuthorized(filePath: string): boolean | Promise<boolean>
+}
+
+export interface MainMediaPathAuthorizationSource {
+  getRegisteredMediaPaths(): readonly string[]
+  getCurrentVaultPath(): string | null
+}
+
+export interface MainMediaPathAuthorizerOptions {
+  temporaryCoversPath?: string
+}
+
+/**
+ * Builds the Main-only authorization layer used by the real media handler.
+ * Course data must match a registered path exactly. The only directory-based
+ * exceptions are generated covers controlled by Orbia itself.
+ */
+export function createMainMediaPathAuthorizer(
+  source: MainMediaPathAuthorizationSource,
+  options: MainMediaPathAuthorizerOptions = {}
+): MediaPathAuthorizer {
+  const temporaryCoversPath = options.temporaryCoversPath ?? TEMP_COVERS_DIR
+
+  return {
+    isPathAuthorized(filePath: string): boolean {
+      const targetPath = normalizeAbsolutePathForComparison(filePath)
+      if (!targetPath) return false
+
+      try {
+        for (const registeredPath of source.getRegisteredMediaPaths()) {
+          if (pathsAreEqual(targetPath, registeredPath)) return true
+        }
+      } catch {
+        // A missing or unavailable database must never broaden access.
+        return false
+      }
+
+      if (isPathInside(targetPath, temporaryCoversPath)) return true
+
+      const vaultPath = source.getCurrentVaultPath()
+      return Boolean(vaultPath && isPathInside(targetPath, path.join(vaultPath, '.orbia', 'covers')))
+    }
+  }
+}
+
+const denyAllMediaPathAuthorizer: MediaPathAuthorizer = {
+  isPathAuthorized: () => false
 }
 
 /**
@@ -149,7 +208,11 @@ export function registerMediaScheme(): void {
  * Setup media:// protocol streaming handler.
  * Supports HTTP 206 Range requests for seamless video scrubbing.
  */
-export function setupMediaProtocol(): void {
+export function setupMediaProtocol(
+  options: { authorizer?: MediaPathAuthorizer } = {}
+): void {
+  const authorizer = options.authorizer ?? denyAllMediaPathAuthorizer
+
   protocol.handle(MEDIA_SCHEME, async (request) => {
     try {
       const validation = extractAndValidateMediaPath(request.url)
@@ -159,6 +222,20 @@ export function setupMediaProtocol(): void {
       }
 
       const targetPath = validation.filePath
+
+      let isAuthorized = false
+      try {
+        isAuthorized = await authorizer.isPathAuthorized(targetPath)
+      } catch (error) {
+        logger.error('[Protocol] Media path authorization failed:', targetPath, error)
+      }
+
+      if (!isAuthorized) {
+        logger.warn(`[Protocol] Rejected unregistered media request: ${request.url}`)
+        return new Response('Access denied: requested file is not registered in the active library', {
+          status: 403
+        })
+      }
 
       // Check file existence and verify it is a regular file
       try {
@@ -188,4 +265,23 @@ export function setupMediaProtocol(): void {
       return new Response('Internal error handling media request', { status: 500 })
     }
   })
+}
+
+function normalizeAbsolutePathForComparison(filePath: string): string | null {
+  if (!filePath || !path.isAbsolute(filePath)) return null
+  const normalized = path.resolve(filePath)
+  return process.platform === 'win32' ? normalized.toLowerCase() : normalized
+}
+
+function pathsAreEqual(left: string, right: string): boolean {
+  const normalizedRight = normalizeAbsolutePathForComparison(right)
+  return normalizedRight !== null && left === normalizedRight
+}
+
+function isPathInside(filePath: string, parentPath: string): boolean {
+  const normalizedParent = normalizeAbsolutePathForComparison(parentPath)
+  if (!normalizedParent) return false
+
+  const relative = path.relative(normalizedParent, filePath)
+  return Boolean(relative) && relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative)
 }

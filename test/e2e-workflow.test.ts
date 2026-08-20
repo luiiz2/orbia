@@ -102,16 +102,17 @@ describe('End-to-End Core Workflow Integration Test', () => {
     const scannedDir = await scannerService.scanDirectory(extractResult.extractedPath)
     expect(scannedDir.files.length + scannedDir.subDirectories.length).toBeGreaterThan(0)
 
-    const proposal = parserService.parseCourseHierarchy(scannedDir)
+    const proposal = await parserService.parseCourseHierarchy(scannedDir)
     expect(proposal.modules.length).toBe(2)
-    expect(proposal.totalLessons).toBe(4)
+    expect(proposal.totalLessons).toBe(5)
+    expect(proposal.modules[0].lessons[2].mediaType).toBe('pdf')
 
     // Verify Title Cleaner cleaned up raw technical strings
-    expect(proposal.modules[0].title).toBe('Fundamentos do Python')
-    expect(proposal.modules[0].lessons[0].title).toBe('Aula 01 - Instalacao e Configuracao')
-    expect(proposal.modules[0].lessons[1].title).toBe('Aula 02 - Variaveis e Tipos de Dados')
-    expect(proposal.modules[1].title).toBe('Estruturas de Controle')
-    expect(proposal.modules[1].lessons[0].title).toBe('Estruturas Condicionais (If Else)')
+    expect(proposal.modules[0].title).toBe('01 - Fundamentos do Python')
+    expect(proposal.modules[0].lessons[0].title).toBe('001 - Aula 01 - Instalacao e Configuracao')
+    expect(proposal.modules[0].lessons[1].title).toBe('002 - Aula 02 - Variaveis e Tipos de Dados')
+    expect(proposal.modules[1].title).toBe('02 - Estruturas de Controle')
+    expect(proposal.modules[1].lessons[0].title).toBe('01 - Estruturas Condicionais (If Else)')
 
     // 5. Commit course into the SQLite database
     const courseId = 'course-e2e-001'
@@ -167,7 +168,7 @@ describe('End-to-End Core Workflow Integration Test', () => {
     expect(retrieved).toBeDefined()
     expect(retrieved?.course.title).toBe(proposal.suggestedTitle)
     expect(retrieved?.modules.length).toBe(2)
-    expect(retrieved?.modules[0].lessons.length).toBe(2)
+    expect(retrieved?.modules[0].lessons.length).toBe(3)
 
     // 7. Track playback progress for Lesson 1 (Partial watch: 150s / 300s -> 50% watched, not completed)
     const lesson1Id = modulesWithLessons[0].lessons[0].id
@@ -215,16 +216,16 @@ describe('End-to-End Core Workflow Integration Test', () => {
     // 10. Check Progress Summary calculation for the entire course
     const summary = databaseService.getCourseProgressSummary(courseId)
     expect(summary).toBeDefined()
-    expect(summary?.totalLessons).toBe(4)
+    expect(summary?.totalLessons).toBe(5)
     expect(summary?.completedLessons).toBe(1)
-    // 1 out of 4 completed = 25%
-    expect(summary?.percentage).toBe(25)
+    // 1 out of 5 completed = 20%
+    expect(summary?.percentage).toBe(20)
     expect(summary?.lastPlayedLessonId).toBe(lesson2Id)
 
     // 11. Test Vault Overall Statistics
     const stats = await vaultService.getVaultStats()
     expect(stats.courseCount).toBe(1)
-    expect(stats.lessonCount).toBe(4)
+    expect(stats.lessonCount).toBe(5)
     expect(stats.completedLessons).toBe(1)
 
     // 12. Test Settings Persistence in AppConfig

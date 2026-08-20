@@ -70,6 +70,7 @@ export function usePlayer({ videoRef, containerRef }: UsePlayerProps): UsePlayer
     setCurrentTime: storeSetCurrentTime,
     setDuration: storeSetDuration,
     toggleComplete,
+    updateProgress: storeUpdateProgress,
     nextLesson: storeNextLesson,
     prevLesson: storePrevLesson
   } = usePlayerStore()
@@ -82,6 +83,18 @@ export function usePlayer({ videoRef, containerRef }: UsePlayerProps): UsePlayer
   const inactivityTimerRef = useRef<NodeJS.Timeout | null>(null)
   const lastSaveTimeRef = useRef<number>(0)
   const autoAdvanceIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  // In-flight user seek: target position + timestamp. While set, timeupdate
+  // stores are ignored so a stale position can never snap the bar/video back.
+  const pendingSeekRef = useRef<{ time: number; at: number } | null>(null)
+  // Resume-from-saved-position runs exactly once per lesson, never re-applies
+  // on repeated loadedmetadata (which caused the video to jump back).
+  const resumedRef = useRef<boolean>(false)
+
+  // Reset per-lesson flags when the active lesson changes
+  useEffect(() => {
+    pendingSeekRef.current = null
+    resumedRef.current = false
+  }, [activeLesson?.id])
 
   // Determine if next / prev lessons exist
   const allLessons = modulesWithLessons.flatMap((m) => m.lessons || [])
@@ -108,30 +121,15 @@ export function usePlayer({ videoRef, containerRef }: UsePlayerProps): UsePlayer
   }, [isPlaying])
 
   /**
-   * Persist progress helper
+   * Persist progress helper. Delegates to the store's updateProgress so the
+   * reactive progressMap is updated (checkmarks reflect completion instantly).
    */
   const persistProgress = useCallback(
     (time: number, totalDuration: number, forceCompleted?: boolean) => {
       if (!activeLesson || !activeCourse || totalDuration <= 0) return
-
-      const threshold = settings.completionThreshold || 0.9
-      const isAutoCompleted = totalDuration > 0 && time / totalDuration >= threshold
-      const isCompleted =
-        forceCompleted !== undefined
-          ? forceCompleted
-          : progressMap[activeLesson.id]?.completed || isAutoCompleted
-
-      window.api.player
-        .saveProgress({
-          lessonId: activeLesson.id,
-          courseId: activeCourse.id,
-          currentTime: time,
-          duration: totalDuration,
-          completed: isCompleted
-        })
-        .catch((err) => console.error('Failed to save progress:', err))
+      void storeUpdateProgress(time, totalDuration, forceCompleted)
     },
-    [activeLesson, activeCourse, settings.completionThreshold, progressMap]
+    [activeLesson, activeCourse, storeUpdateProgress]
   )
 
   /**
@@ -179,6 +177,7 @@ export function usePlayer({ videoRef, containerRef }: UsePlayerProps): UsePlayer
       if (!video) return
 
       const clamped = Math.max(0, Math.min(video.duration || Infinity, targetTime))
+      pendingSeekRef.current = { time: clamped, at: Date.now() }
       video.currentTime = clamped
       storeSeek(clamped)
       persistProgress(clamped, video.duration)
@@ -195,6 +194,7 @@ export function usePlayer({ videoRef, containerRef }: UsePlayerProps): UsePlayer
       if (!video) return
 
       const newTime = Math.max(0, Math.min(video.duration || Infinity, video.currentTime + delta))
+      pendingSeekRef.current = { time: newTime, at: Date.now() }
       video.currentTime = newTime
       storeSeek(newTime)
       persistProgress(newTime, video.duration)
@@ -336,7 +336,15 @@ export function usePlayer({ videoRef, containerRef }: UsePlayerProps): UsePlayer
 
     // When new lesson loads, reset throttled timer
     lastSaveTimeRef.current = Date.now()
-  }, [activeLesson?.id, videoRef, cancelAutoAdvance, playbackRate, volume, isMuted])
+
+    // The store marks the lesson as "playing" on load; actually start playback
+    // once the element is ready (no-op when already playing).
+    if (isPlaying && video.paused) {
+      video.play().catch(() => {
+        /* autoplay may fail until metadata loads; retried on play event */
+      })
+    }
+  }, [activeLesson?.id, videoRef, cancelAutoAdvance, playbackRate, volume, isMuted, isPlaying])
 
   /**
    * Synchronize active subtitle track with video TextTracks
@@ -533,7 +541,9 @@ export function usePlayer({ videoRef, containerRef }: UsePlayerProps): UsePlayer
   ])
 
   /**
-   * Throttled progress save during continuous playback + Video event attachments
+   * Throttled progress save during continuous playback + Video event attachments.
+   * Listeners attach once per lesson (no currentTime in deps) so in-flight
+   * 'seeked' events can never be dropped by re-attachment mid-seek.
    */
   useEffect(() => {
     const video = videoRef.current
@@ -542,6 +552,15 @@ export function usePlayer({ videoRef, containerRef }: UsePlayerProps): UsePlayer
     const handleTimeUpdate = (): void => {
       const cur = video.currentTime
       const dur = video.duration || 0
+
+      // While a user seek is in flight, ignore stale positions — unless the
+      // video has actually reached the target (fallback if 'seeked' never fires).
+      const pending = pendingSeekRef.current
+      if (pending !== null) {
+        if (Math.abs(cur - pending.time) > 1.5) return
+        pendingSeekRef.current = null
+      }
+
       storeSetCurrentTime(cur)
 
       // Check auto-completion (90%+)
@@ -556,18 +575,47 @@ export function usePlayer({ videoRef, containerRef }: UsePlayerProps): UsePlayer
       const now = Date.now()
       if (now - lastSaveTimeRef.current >= 3000) {
         lastSaveTimeRef.current = now
-        persistProgress(cur, dur)
+        const completed = dur > 0 && cur / dur >= threshold ? true : undefined
+        persistProgress(cur, dur, completed)
       }
     }
 
     const handleLoadedMetadata = (): void => {
       if (video.duration && !isNaN(video.duration)) {
         storeSetDuration(video.duration)
+        // Lazy duration probe: persist once so course totals become accurate.
+        if (activeLesson && (!activeLesson.duration || activeLesson.duration <= 0)) {
+          void window.api.courses
+            .updateLessonDuration(activeLesson.id, video.duration)
+            .catch(() => undefined)
+        }
       }
-      // If we have saved progress to seek to
-      if (currentTime > 0 && Math.abs(video.currentTime - currentTime) > 1) {
-        video.currentTime = currentTime
+      // A user seek may already be in flight before metadata arrives —
+      // re-apply the seek target instead of the saved resume position.
+      if (pendingSeekRef.current !== null) {
+        video.currentTime = pendingSeekRef.current.time
+        return
       }
+      // Resume saved progress exactly once per lesson — repeated
+      // loadedmetadata must never re-seek (that snapped video backwards).
+      if (resumedRef.current) return
+      resumedRef.current = true
+      // Read the store synchronously: a stale timeupdate from the previous
+      // lesson can never poison this (it only reflects current state).
+      const saved = usePlayerStore.getState().currentTime
+      if (saved > 0 && Math.abs(video.currentTime - saved) > 1) {
+        video.currentTime = saved
+      }
+    }
+
+    const handleSeeked = (): void => {
+      if (pendingSeekRef.current === null) return
+      pendingSeekRef.current = null
+      // Record the position the video actually landed on, not the requested
+      // target — avoids storing a phantom position for imprecise seeking.
+      const landed = video.currentTime
+      storeSetCurrentTime(landed)
+      persistProgress(landed, video.duration)
     }
 
     const handlePlay = (): void => {
@@ -591,6 +639,7 @@ export function usePlayer({ videoRef, containerRef }: UsePlayerProps): UsePlayer
 
     video.addEventListener('timeupdate', handleTimeUpdate)
     video.addEventListener('loadedmetadata', handleLoadedMetadata)
+    video.addEventListener('seeked', handleSeeked)
     video.addEventListener('play', handlePlay)
     video.addEventListener('pause', handlePause)
     video.addEventListener('ended', handleEnded)
@@ -598,6 +647,7 @@ export function usePlayer({ videoRef, containerRef }: UsePlayerProps): UsePlayer
     return () => {
       video.removeEventListener('timeupdate', handleTimeUpdate)
       video.removeEventListener('loadedmetadata', handleLoadedMetadata)
+      video.removeEventListener('seeked', handleSeeked)
       video.removeEventListener('play', handlePlay)
       video.removeEventListener('pause', handlePause)
       video.removeEventListener('ended', handleEnded)
@@ -605,7 +655,6 @@ export function usePlayer({ videoRef, containerRef }: UsePlayerProps): UsePlayer
   }, [
     videoRef,
     activeLesson,
-    currentTime,
     settings.completionThreshold,
     progressMap,
     storeSetCurrentTime,

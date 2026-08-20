@@ -2,6 +2,9 @@ import { describe, it, expect } from 'vitest'
 import {
   getMediaType,
   isMediaFile,
+  isImportableFile,
+  isPreservableContentFile,
+  isSubtitleFile,
   isVideoFile,
   isAudioFile,
   isCoverImage,
@@ -20,6 +23,13 @@ describe('File Utils', () => {
     expect(getMediaType('notes.md')).toBe('document')
     expect(getMediaType('readme.txt')).toBe('document')
     expect(getMediaType('UPPERCASE.MP4')).toBe('video')
+    expect(getMediaType('photo.jpg')).toBe('image')
+    expect(getMediaType('diagram.webp')).toBe('image')
+    expect(getMediaType('shortcut.url')).toBe('link')
+    expect(getMediaType('page.html')).toBe('link')
+    expect(getMediaType('app.lnk')).toBe('link')
+    expect(getMediaType('bundle.zip')).toBe('archive')
+    expect(getMediaType('weird.xyz')).toBe('other')
   })
 
   it('detects playable media files', () => {
@@ -28,6 +38,36 @@ describe('File Utils', () => {
     expect(isMediaFile('podcast.mp3')).toBe(true)
     expect(isMediaFile('document.pdf')).toBe(false)
     expect(isMediaFile('archive.zip')).toBe(false)
+  })
+
+  it('keeps every meaningful file as importable', () => {
+    expect(isImportableFile('video.mp4')).toBe(true)
+    expect(isImportableFile('podcast.mp3')).toBe(true)
+    expect(isImportableFile('apostila.pdf')).toBe(true)
+    expect(isImportableFile('readme.txt')).toBe(true)
+    expect(isImportableFile('diagram.png')).toBe(true)
+    expect(isImportableFile('link.url')).toBe(true)
+    expect(isImportableFile('extra.zip')).toBe(true)
+    expect(isImportableFile('movie.srt')).toBe(false)
+    expect(isImportableFile('weird.xyz')).toBe(false)
+  })
+
+  it('preserves every scanned content file without broadening the safe-open allowlist', () => {
+    expect(isPreservableContentFile('movie.srt')).toBe(true)
+    expect(isPreservableContentFile('slides.pptx')).toBe(true)
+    expect(isPreservableContentFile('weird.xyz')).toBe(true)
+    expect(isPreservableContentFile('LICENSE')).toBe(true)
+    expect(isPreservableContentFile('.DS_Store')).toBe(false)
+    expect(isPreservableContentFile('Thumbs.db')).toBe(false)
+
+    expect(isImportableFile('weird.xyz')).toBe(false)
+  })
+
+  it('detects subtitle companions', () => {
+    expect(isSubtitleFile('aula.srt')).toBe(true)
+    expect(isSubtitleFile('aula.vtt')).toBe(true)
+    expect(isSubtitleFile('aula.ass')).toBe(true)
+    expect(isSubtitleFile('aula.mp4')).toBe(false)
   })
 
   it('detects video and audio specifically', () => {

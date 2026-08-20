@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { Course, Module, Lesson, ProposedCourseStructure, CourseProgressSummary } from '@shared'
+import type { Course, Module, Lesson, LessonProgress, ProposedCourseStructure, CourseProgressSummary } from '@shared'
 
 export interface CourseHierarchy {
   course: Course
@@ -13,6 +13,7 @@ export interface LibraryState {
   activeCourse: Course | null
   activeCourseHierarchy: CourseHierarchy | null
   progressSummaries: Record<string, CourseProgressSummary>
+  courseProgressMap: Record<string, Record<string, LessonProgress>>
   searchQuery: string
   filterStatus: 'all' | 'in_progress' | 'completed' | 'favorites'
   importHistory: import('@shared').ImportHistoryEntry[]
@@ -22,6 +23,7 @@ export interface LibraryState {
   // Actions
   fetchCourses: () => Promise<void>
   fetchCourseById: (id: string) => Promise<CourseHierarchy | null>
+  fetchCourseProgress: (id: string) => Promise<void>
   importCourse: (
     proposal: ProposedCourseStructure,
     isExternal: boolean
@@ -29,7 +31,6 @@ export interface LibraryState {
   importBatch: (
     items: { proposal: ProposedCourseStructure; isExternal: boolean }[]
   ) => Promise<{ success: boolean; courses?: Course[]; error?: string }>
-  mergeDuplicateCourses: () => Promise<import('@shared').MergeCoursesResult>
   fetchImportHistory: () => Promise<void>
   clearImportHistory: () => Promise<void>
   updateCourseCover: (courseId: string, coverPath: string) => Promise<boolean>
@@ -48,6 +49,7 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
   activeCourse: null,
   activeCourseHierarchy: null,
   progressSummaries: {},
+  courseProgressMap: {},
   searchQuery: '',
   filterStatus: 'all',
   importHistory: [],
@@ -105,6 +107,21 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
     }
   },
 
+  fetchCourseProgress: async (id: string) => {
+    try {
+      const rows = await window.api.player.getLessonsProgress(id)
+      const map: Record<string, LessonProgress> = {}
+      for (const row of rows) {
+        map[row.lessonId] = row
+      }
+      set((state) => ({
+        courseProgressMap: { ...state.courseProgressMap, [id]: map }
+      }))
+    } catch (err: unknown) {
+      console.error('Failed to fetch course progress:', err)
+    }
+  },
+
   importCourse: async (proposal: ProposedCourseStructure, isExternal: boolean) => {
     set({ isLoading: true, error: null })
     try {
@@ -142,30 +159,6 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
       const errorMsg = err instanceof Error ? err.message : String(err)
       set({ error: errorMsg, isLoading: false })
       return { success: false, error: errorMsg }
-    }
-  },
-
-  mergeDuplicateCourses: async () => {
-    set({ isLoading: true, error: null })
-    try {
-      const res = await window.api.courses.mergeDuplicateCourses()
-      if (res.success) {
-        await get().fetchCourses()
-        set({ isLoading: false, error: null })
-      } else {
-        set({ isLoading: false, error: 'Falha ao unir cursos duplicados' })
-      }
-      return res
-    } catch (err: unknown) {
-      const errorMsg = err instanceof Error ? err.message : String(err)
-      set({ error: errorMsg, isLoading: false })
-      return {
-        success: false,
-        mergedGroupsCount: 0,
-        removedCoursesCount: 0,
-        deduplicatedLessonsCount: 0,
-        details: []
-      }
     }
   },
 

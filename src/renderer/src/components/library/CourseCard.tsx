@@ -1,9 +1,7 @@
-import React from 'react'
+﻿import React from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Play,
-  Layers,
-  HardDrive,
   Link as LinkIcon,
   BookOpen,
   Clock,
@@ -11,9 +9,10 @@ import {
   Star
 } from 'lucide-react'
 import type { Course } from '@shared'
-import { Card, CardContent, Badge, Tooltip, TooltipTrigger, TooltipContent } from '../ui'
+import { Badge, Tooltip, TooltipTrigger, TooltipContent } from '../ui'
 import { useLibraryStore, useNavigationStore } from '../../stores'
 import { formatDurationHuman } from '../../lib/formatters'
+import { mediaUrl } from '../../lib/utils'
 
 interface CourseCardProps {
   course: Course
@@ -28,8 +27,9 @@ export function CourseCard({ course }: CourseCardProps): React.JSX.Element {
   const percentage = summary ? summary.percentage : 0
   const isCompleted = percentage >= 100
 
-  const coverUrl = course.coverPath
-    ? `media://${encodeURI(course.coverPath.replace(/\\/g, '/'))}`
+  const [coverFailed, setCoverFailed] = React.useState(false)
+  const coverUrl = course.coverPath && !coverFailed
+    ? mediaUrl(course.coverPath)
     : null
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>): void => {
@@ -40,18 +40,18 @@ export function CourseCard({ course }: CourseCardProps): React.JSX.Element {
   }
 
   return (
-    <Card
+    <div
       role="button"
       tabIndex={0}
       onClick={() => navigateToCourse(course.id)}
       onKeyDown={handleKeyDown}
-      className="group relative flex flex-col overflow-hidden border-border/80 bg-card hover:border-primary/60 hover:shadow-2xl hover:shadow-orange-500/10 hover:-translate-y-1.5 transition-all duration-300 ease-out cursor-pointer rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background select-none"
+      className="group relative cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background rounded-lg"
     >
-      {/* Cover Aspect Ratio Container */}
-      <div className="relative aspect-video w-full bg-secondary/60 overflow-hidden flex items-center justify-center border-b border-border/50">
+      {/* Cover — streaming card, no chrome */}
+      <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-secondary/60 flex items-center justify-center">
         {/* Favorite Button (Top Left) */}
         <div
-          className="absolute top-2.5 left-2.5 z-20"
+          className="absolute top-2 left-2 z-20"
           onClick={(e) => e.stopPropagation()}
         >
           <Tooltip>
@@ -62,7 +62,7 @@ export function CourseCard({ course }: CourseCardProps): React.JSX.Element {
                   e.stopPropagation()
                   toggleFavorite(course.id).catch(console.warn)
                 }}
-                className={`flex h-7.5 w-7.5 items-center justify-center rounded-lg backdrop-blur-md transition-all duration-200 cursor-pointer shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 ${
+                className={`flex h-7.5 w-7.5 items-center justify-center rounded-md backdrop-blur-md transition-all duration-200 cursor-pointer shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 ${
                   course.isFavorite
                     ? 'bg-amber-500/25 text-amber-400 border border-amber-500/50 opacity-100 shadow-amber-500/20'
                     : 'bg-black/60 text-white/70 hover:text-amber-400 hover:bg-black/85 border border-white/15 opacity-0 group-hover:opacity-100'
@@ -92,33 +92,29 @@ export function CourseCard({ course }: CourseCardProps): React.JSX.Element {
           <img
             src={coverUrl}
             alt={course.title}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
-            onError={(e) => {
-              e.currentTarget.style.display = 'none'
-            }}
+            loading="lazy"
+            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ease-out"
+            onError={() => setCoverFailed(true)}
           />
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-secondary via-secondary/70 to-card text-muted-foreground group-hover:text-primary transition-colors p-4">
             <BookOpen className="w-10 h-10 mb-2 opacity-50 group-hover:scale-110 transition-transform duration-300" />
-            <span className="text-[11px] font-medium text-muted-foreground text-center line-clamp-1 max-w-[80%]">
-              {course.title}
-            </span>
           </div>
         )}
 
-        {/* Overlay Play Button on Hover */}
-        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center backdrop-blur-[2px]">
-          <div className="w-11 h-11 rounded-full bg-gradient-to-tr from-orange-500 via-orange-600 to-amber-500 text-white flex items-center justify-center shadow-lg shadow-orange-500/40 transform scale-75 group-hover:scale-100 transition-transform duration-200 ease-out">
-            <Play className="w-5 h-5 ml-0.5 fill-current" />
+        {/* Hover overlay — dark gradient + play */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
+          <div className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-black shadow-lg shadow-black/50 transform scale-75 group-hover:scale-100 transition-transform duration-200 ease-out">
+            <Play className="h-5 w-5 fill-current ml-0.5" />
           </div>
         </div>
 
-        {/* Top Status & Source Badges */}
-        <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5 z-10 pointer-events-none">
+        {/* Top status badges */}
+        <div className="absolute top-2 right-2 flex items-center gap-1.5 z-10 pointer-events-none">
           {course.sourceType === 'local-ref' ? (
             <Badge
               variant="secondary"
-              className="text-[10px] bg-black/75 backdrop-blur-md border-white/10 text-slate-300 flex items-center gap-1 py-0.5 px-2 font-mono"
+              className="text-[10px] bg-black/70 backdrop-blur-md border-white/10 text-slate-300 flex items-center gap-1 py-0.5 px-2 font-mono"
             >
               <LinkIcon className="w-2.5 h-2.5 text-primary" />
               Ref
@@ -126,10 +122,9 @@ export function CourseCard({ course }: CourseCardProps): React.JSX.Element {
           ) : (
             <Badge
               variant="secondary"
-              className="text-[10px] bg-black/75 backdrop-blur-md border-white/10 text-slate-300 flex items-center gap-1 py-0.5 px-2 font-mono"
+              className="text-[10px] bg-black/70 backdrop-blur-md border-white/10 text-slate-300 flex items-center gap-1 py-0.5 px-2 font-mono"
             >
-              <HardDrive className="w-2.5 h-2.5 text-purple-400" />
-              Vault
+              Pasta
             </Badge>
           )}
 
@@ -145,14 +140,12 @@ export function CourseCard({ course }: CourseCardProps): React.JSX.Element {
           ) : null}
         </div>
 
-        {/* Bottom Progress Bar Overlay */}
+        {/* Bottom progress line overlay */}
         {percentage > 0 && (
-          <div className="absolute bottom-0 inset-x-0 h-1 bg-black/60 z-10">
+          <div className="absolute bottom-0 inset-x-0 h-[3px] bg-black/60 z-10">
             <div
               className={`h-full transition-all duration-300 ${
-                isCompleted
-                  ? 'bg-emerald-400'
-                  : 'bg-gradient-to-r from-orange-500 to-amber-400'
+                isCompleted ? 'bg-emerald-400' : 'bg-gradient-to-r from-orange-500 to-amber-400'
               }`}
               style={{ width: `${percentage}%` }}
             />
@@ -160,33 +153,23 @@ export function CourseCard({ course }: CourseCardProps): React.JSX.Element {
         )}
       </div>
 
-      {/* Content Area */}
-      <CardContent className="p-4 flex-1 flex flex-col justify-between space-y-3">
-        <div>
-          <h3 className="text-sm font-bold text-foreground group-hover:text-primary transition-colors line-clamp-2 leading-snug">
-            {course.title}
-          </h3>
-        </div>
-
-        <div className="space-y-2 pt-2 border-t border-border/40 text-xs text-muted-foreground">
-          <div className="flex items-center justify-between">
-            <span className="flex items-center gap-1 text-[11px]">
-              <Layers className="w-3.5 h-3.5 text-muted-foreground/70" />
-              <span>
-                {course.moduleCount} {t('course.modules')} • {course.lessonCount} {t('course.lessons')}
-              </span>
+      {/* Title row below — minimal, no card chrome */}
+      <div className="pt-2 px-0.5">
+        <h3 className="text-[13px] font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-2 leading-snug">
+          {course.title}
+        </h3>
+        <p className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+          <span>
+            {course.moduleCount} {t('course.modules')} • {course.lessonCount} {t('course.lessons')}
+          </span>
+          {course.totalDuration > 0 && (
+            <span className="flex items-center gap-1 font-mono">
+              <Clock className="h-3 w-3" />
+              <span>{formatDurationHuman(course.totalDuration)}</span>
             </span>
-
-            {course.totalDuration > 0 && (
-              <span className="flex items-center gap-1 font-mono text-[11px]">
-                <Clock className="h-3 w-3" />
-                <span>{formatDurationHuman(course.totalDuration)}</span>
-              </span>
-            )}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+          )}
+        </p>
+      </div>
+    </div>
   )
 }
-

@@ -156,6 +156,7 @@ export function useCourseProgress(options?: UseCourseProgressOptions): CoursePro
 
   const libraryHierarchy = useLibraryStore((s) => s.activeCourseHierarchy)
   const progressSummaries = useLibraryStore((s) => s.progressSummaries)
+  const courseProgressMap = useLibraryStore((s) => s.courseProgressMap)
 
   return useMemo(() => {
     // Determine which modules and course we are computing for
@@ -179,9 +180,17 @@ export function useCourseProgress(options?: UseCourseProgressOptions): CoursePro
 
     const summary = courseId ? progressSummaries[courseId] : undefined
 
+    // Bulk-hydrated progress from the library (fresh after restart) overlaid
+    // with live player progress (current session wins).
+    const libraryMap = courseId ? courseProgressMap[courseId] : undefined
+    const mergedProgressMap: Record<string, LessonProgress> = {
+      ...(libraryMap || {}),
+      ...playerProgressMap
+    }
+
     return calculateProgressDetails({
       modules: targetModules,
-      progressMap: playerProgressMap,
+      progressMap: mergedProgressMap,
       summary
     })
   }, [
@@ -191,6 +200,7 @@ export function useCourseProgress(options?: UseCourseProgressOptions): CoursePro
     playerProgressMap,
     activePlayerCourse,
     libraryHierarchy,
-    progressSummaries
+    progressSummaries,
+    courseProgressMap
   ])
 }

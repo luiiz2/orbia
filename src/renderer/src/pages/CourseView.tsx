@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+﻿import React, { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   ChevronLeft,
@@ -43,7 +43,24 @@ import {
   DialogTitle
 } from '../components/ui'
 import { formatDurationHuman, formatTime } from '../lib/formatters'
-import type { Lesson, AttachedResource } from '@shared'
+import { mediaUrl } from '../lib/utils'
+import type { Lesson, AttachedResource, ContentResource } from '@shared'
+
+type VisibleResource = AttachedResource | ContentResource
+
+function getLessonVisibleResources(lesson: Lesson): VisibleResource[] {
+  return lesson.contentResources ?? lesson.resources ?? []
+}
+
+function getResourceTypeLabel(resource: VisibleResource): string {
+  const extension = resource.fileExtension.replace(/^\./, '')
+  return (extension || resource.type).toUpperCase()
+}
+
+function hasEmbeddedPreview(resource: VisibleResource): boolean {
+  const extension = resource.fileExtension.replace(/^\./, '').toLowerCase()
+  return resource.type === 'pdf' || extension === 'pdf' || resource.name.toLowerCase().endsWith('.pdf')
+}
 
 export function CourseView(): React.JSX.Element {
   const { t } = useTranslation()
@@ -51,6 +68,7 @@ export function CourseView(): React.JSX.Element {
   const {
     activeCourseHierarchy,
     fetchCourseById,
+    fetchCourseProgress,
     deleteCourse,
     updateCourseCover,
     updateLessonCover,
@@ -61,14 +79,15 @@ export function CourseView(): React.JSX.Element {
 
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState<boolean>(false)
   const [isDeleting, setIsDeleting] = useState<boolean>(false)
-  const [selectedResource, setSelectedResource] = useState<AttachedResource | null>(null)
+  const [selectedResource, setSelectedResource] = useState<VisibleResource | null>(null)
   const [isPdfModalOpen, setIsPdfModalOpen] = useState<boolean>(false)
 
   useEffect(() => {
     if (selectedCourseId) {
       fetchCourseById(selectedCourseId).catch(console.warn)
+      fetchCourseProgress(selectedCourseId).catch(console.warn)
     }
-  }, [selectedCourseId, fetchCourseById])
+  }, [selectedCourseId, fetchCourseById, fetchCourseProgress])
 
   const progressData = useCourseProgress({
     courseId: selectedCourseId || undefined,
@@ -290,7 +309,7 @@ export function CourseView(): React.JSX.Element {
               >
                 {course.coverPath ? (
                   <img
-                    src={`media://${encodeURI(course.coverPath.replace(/\\/g, '/'))}`}
+                    src={mediaUrl(course.coverPath)}
                     alt={course.title}
                     className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
                   />
@@ -431,7 +450,7 @@ export function CourseView(): React.JSX.Element {
               <Button
                 size="lg"
                 onClick={handleStartOrResume}
-                className="w-full sm:w-auto gap-2 font-semibold shadow-lg shadow-orange-500/20 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-500 text-white rounded-xl cursor-pointer hover:opacity-95 active:scale-[0.98] transition-all min-h-[42px]"
+                className="w-full sm:w-auto gap-2 font-semibold shadow-lg shadow-orange-500/20 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-500 text-primary-foreground rounded-xl cursor-pointer hover:opacity-95 active:scale-[0.98] transition-all min-h-[42px]"
               >
                 <Play className="h-4 w-4 fill-current" />
                 <span>
@@ -462,6 +481,7 @@ export function CourseView(): React.JSX.Element {
           {modules.map((module, modIdx) => {
             const modInfo = progressData.moduleProgress[module.id]
             const modPercentage = modInfo?.percentage || 0
+            const moduleResources = module.resources ?? []
 
             return (
               <AccordionItem
@@ -502,7 +522,7 @@ export function CourseView(): React.JSX.Element {
                     {module.lessons.map((lesson, idx) => {
                       const isComplete = progressData.isLessonCompleted(lesson.id)
                       const lessonProgress = progressData.getLessonProgress(lesson.id)
-                      const lessonResources = lesson.resources || []
+                      const lessonResources = getLessonVisibleResources(lesson)
 
                       return (
                         <div
@@ -539,7 +559,7 @@ export function CourseView(): React.JSX.Element {
                                 >
                                   {lesson.coverPath ? (
                                     <img
-                                      src={`media://${encodeURI(lesson.coverPath.replace(/\\/g, '/'))}`}
+                                      src={mediaUrl(lesson.coverPath)}
                                       alt={lesson.title}
                                       className="w-full h-full object-cover"
                                     />
@@ -566,26 +586,55 @@ export function CourseView(): React.JSX.Element {
 
                             {/* Attached Resource Chips */}
                             {lessonResources.length > 0 && (
-                              <div className="flex items-center gap-1.5 ml-2 shrink-0">
-                                {lessonResources.map((res) => (
-                                  <Tooltip key={res.id}>
-                                    <TooltipTrigger asChild>
-                                      <button
-                                        type="button"
-                                        onClick={(e) => {
-                                          e.stopPropagation()
-                                          setSelectedResource(res)
-                                          setIsPdfModalOpen(true)
-                                        }}
-                                        className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-secondary/90 hover:bg-primary/20 text-muted-foreground hover:text-primary border border-border/70 text-[10px] font-medium transition-colors cursor-pointer"
-                                      >
-                                        <FileText className="w-3 h-3 text-primary" />
-                                        <span className="max-w-[80px] truncate">{res.name}</span>
-                                      </button>
-                                    </TooltipTrigger>
-                                    <TooltipContent side="top">Visualizar {res.name}</TooltipContent>
-                                  </Tooltip>
-                                ))}
+                              <div
+                                className="flex items-center gap-1.5 ml-2 shrink-0"
+                                aria-label={t('course.lessonMaterials', { count: lessonResources.length })}
+                              >
+                                <span className="rounded-md bg-secondary px-1.5 py-0.5 text-[10px] font-mono font-bold text-muted-foreground">
+                                  {lessonResources.length}
+                                </span>
+                                {lessonResources.map((res) =>
+                                  hasEmbeddedPreview(res) ? (
+                                    <Tooltip key={res.id}>
+                                      <TooltipTrigger asChild>
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            setSelectedResource(res)
+                                            setIsPdfModalOpen(true)
+                                          }}
+                                          className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-secondary/90 hover:bg-primary/20 text-muted-foreground hover:text-primary border border-border/70 text-[10px] font-medium transition-colors cursor-pointer"
+                                          aria-label={t('course.viewResource', { name: res.name })}
+                                        >
+                                          <FileText className="w-3 h-3 text-primary" />
+                                          <span className="flex min-w-0 flex-col text-left leading-tight">
+                                            <span className="max-w-[80px] truncate">{res.name}</span>
+                                            <span className="font-mono text-[9px] text-muted-foreground/80">
+                                              {getResourceTypeLabel(res)}
+                                            </span>
+                                          </span>
+                                        </button>
+                                      </TooltipTrigger>
+                                      <TooltipContent side="top">
+                                        {t('course.viewResource', { name: res.name })}
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  ) : (
+                                    <div
+                                      key={res.id}
+                                      role="note"
+                                      title={t('documents.previewUnavailable')}
+                                      aria-label={`${res.name}: ${t('documents.previewUnavailable')}`}
+                                      className="flex items-center gap-1 rounded-lg border border-border/70 bg-secondary/50 px-2 py-0.5 text-[10px] text-muted-foreground"
+                                    >
+                                      <FileText className="h-3 w-3 shrink-0" aria-hidden="true" />
+                                      <span className="max-w-[80px] truncate font-medium">{res.name}</span>
+                                      <span className="font-mono text-[9px]">{getResourceTypeLabel(res)}</span>
+                                      <span className="text-[9px]">{t('documents.previewUnavailable')}</span>
+                                    </div>
+                                  )
+                                )}
                               </div>
                             )}
                           </div>
@@ -603,6 +652,63 @@ export function CourseView(): React.JSX.Element {
                       )
                     })}
                   </div>
+
+                  {moduleResources.length > 0 && (
+                    <section
+                      className="mt-3 rounded-xl border border-border/70 bg-secondary/30 p-3"
+                      aria-label={t('course.moduleMaterials', { count: moduleResources.length })}
+                    >
+                      <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-foreground">
+                        <FileText className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
+                        <span>{t('course.moduleMaterials', { count: moduleResources.length })}</span>
+                      </div>
+                      <ul className="space-y-1.5">
+                        {moduleResources.map((resource) => (
+                          <li key={resource.id}>
+                            {hasEmbeddedPreview(resource) ? (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedResource(resource)
+                                      setIsPdfModalOpen(true)
+                                    }}
+                                    className="flex w-full items-center gap-2 rounded-lg border border-border/60 bg-card/60 px-2.5 py-2 text-left text-xs transition-colors hover:border-primary/40 hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                                    aria-label={t('course.viewResource', { name: resource.name })}
+                                  >
+                                    <FileText className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden="true" />
+                                    <span className="min-w-0 flex-1 truncate font-medium text-foreground">
+                                      {resource.name}
+                                    </span>
+                                    <span className="shrink-0 font-mono text-[10px] text-muted-foreground">
+                                      {getResourceTypeLabel(resource)}
+                                    </span>
+                                  </button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top">
+                                  {t('course.viewResource', { name: resource.name })}
+                                </TooltipContent>
+                              </Tooltip>
+                            ) : (
+                              <div
+                                role="note"
+                                aria-label={`${resource.name}: ${t('documents.previewUnavailable')}`}
+                                className="flex w-full items-center gap-2 rounded-lg border border-border/60 bg-card/40 px-2.5 py-2 text-xs text-muted-foreground"
+                              >
+                                <FileText className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                                <span className="min-w-0 flex-1 truncate font-medium">{resource.name}</span>
+                                <span className="shrink-0 font-mono text-[10px]">
+                                  {getResourceTypeLabel(resource)}
+                                </span>
+                                <span className="shrink-0 text-[10px]">{t('documents.previewUnavailable')}</span>
+                              </div>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
+                  )}
                 </AccordionContent>
               </AccordionItem>
             )

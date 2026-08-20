@@ -77,4 +77,18 @@ describe('AppConfigService', () => {
     expect(updated.language).toBe('pt-BR')
     expect(updated.defaultPlaybackSpeed).toBe(1.5)
   })
+
+  it('retains the ZIP deletion choice after the config database is reopened', () => {
+    const configPath = path.join(tempDir, 'config.db')
+
+    service.setSetting('deleteSourceZipAfterImport', true)
+    service.close()
+
+    const reopenedService = new AppConfigService(configPath)
+    reopenedService.init()
+
+    expect(reopenedService.getSettings().deleteSourceZipAfterImport).toBe(true)
+
+    reopenedService.close()
+  })
 })

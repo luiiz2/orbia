@@ -92,8 +92,8 @@ export function HistoryView(): React.JSX.Element {
             </h1>
             <p className="text-xs text-muted-foreground">
               {activeTab === 'watch'
-                ? `${historyEntries.length} aulas registradas`
-                : `${importHistory.length} arquivos importados`}
+                ? t('history.lessonsRecorded', { count: historyEntries.length })
+                : t('history.filesImported', { count: importHistory.length })}
             </p>
           </div>
         </div>
@@ -110,7 +110,7 @@ export function HistoryView(): React.JSX.Element {
             }`}
           >
             <Play className="h-3.5 w-3.5 text-primary fill-primary" />
-            <span>Aulas Assistidas</span>
+            <span>{t('history.watchHistory')}</span>
           </button>
           <button
             type="button"
@@ -122,7 +122,7 @@ export function HistoryView(): React.JSX.Element {
             }`}
           >
             <FileArchive className="h-3.5 w-3.5 text-purple-400" />
-            <span>Arquivos & Importações</span>
+            <span>{t('history.importHistory')}</span>
           </button>
         </div>
       </div>
@@ -138,7 +138,7 @@ export function HistoryView(): React.JSX.Element {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-              Arquivos Enviados & Extraídos
+              {t('history.importsSubtitle')}
             </span>
             {importHistory.length > 0 && (
               <Button
@@ -148,7 +148,7 @@ export function HistoryView(): React.JSX.Element {
                 className="text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 gap-1 rounded-lg"
               >
                 <Trash2 className="h-3.5 w-3.5" />
-                <span>Limpar Histórico de Arquivos</span>
+                <span>{t('history.clearImports')}</span>
               </Button>
             )}
           </div>
@@ -159,9 +159,9 @@ export function HistoryView(): React.JSX.Element {
                 <FileArchive className="h-8 w-8 text-purple-400 opacity-60" />
               </div>
               <div className="space-y-1 max-w-md">
-                <h3 className="text-base font-bold text-foreground">Nenhum arquivo importado</h3>
+                <h3 className="text-base font-bold text-foreground">{t('history.noImportsTitle')}</h3>
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  Quando você importar arquivos .zip ou pastas de cursos, o histórico de envio e extração aparecerá aqui.
+                  {t('history.noImportsDesc')}
                 </p>
               </div>
             </div>
@@ -189,7 +189,7 @@ export function HistoryView(): React.JSX.Element {
                         )}
                         {item.fileSize > 0 && <span>{formatBytes(item.fileSize)}</span>}
                         {item.extractedFiles > 0 && (
-                          <span>• {item.extractedFiles} arquivos extraídos</span>
+                          <span>• {t('history.filesExtracted', { count: item.extractedFiles })}</span>
                         )}
                       </span>
                     </div>
@@ -206,7 +206,7 @@ export function HistoryView(): React.JSX.Element {
                     </span>
                     <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
                       <CheckCircle2 className="h-3 w-3" />
-                      <span>Concluído</span>
+                      <span>{t('history.completed')}</span>
                     </span>
                   </div>
                 </div>

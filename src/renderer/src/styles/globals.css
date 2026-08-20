@@ -28,65 +28,65 @@
 }
 
 :root {
-  /* Dark Theme Default — Orbia Cosmic Sunset Palette */
-  --background: #080b11;
-  --foreground: #f1f5f9;
+  /* Dark Theme Default — Orbia Streaming Palette (near-black, orange accent) */
+  --background: #0a0a0c;
+  --foreground: #f5f5f7;
 
-  --muted: #131926;
-  --muted-foreground: #94a3b8;
+  --muted: #16161a;
+  --muted-foreground: #8e8e96;
 
-  --popover: #0c101a;
-  --popover-foreground: #f1f5f9;
+  --popover: #101014;
+  --popover-foreground: #f5f5f7;
 
-  --card: #0e1320;
-  --card-foreground: #f1f5f9;
+  --card: #131316;
+  --card-foreground: #f5f5f7;
 
-  --border: #1e2638;
-  --input: #1e2638;
+  --border: #232329;
+  --input: #232329;
 
   /* Brand Primary: Vibrant Sunset Orange */
   --primary: #ff6b00;
-  --primary-foreground: #ffffff;
+  --primary-foreground: #1c1917;
 
-  /* Brand Secondary: Cosmic Indigo */
-  --secondary: #151b2b;
-  --secondary-foreground: #f1f5f9;
+  /* Brand Secondary: Near-black surface */
+  --secondary: #1a1a1f;
+  --secondary-foreground: #f5f5f7;
 
-  --accent: #9333ea;
-  --accent-foreground: #ffffff;
+  --accent: #ff8533;
+  --accent-foreground: #1a1a1f;
 
   --destructive: #ef4444;
   --destructive-foreground: #ffffff;
 
   --ring: #ff6b00;
-  --radius: 0.625rem;
+  --radius: 0.5rem;
 }
 
 html.dark,
 .dark {
-  --background: #080b11;
-  --foreground: #f1f5f9;
+  --background: #0a0a0c;
+  --foreground: #f5f5f7;
 
-  --muted: #131926;
-  --muted-foreground: #94a3b8;
+  --muted: #16161a;
+  --muted-foreground: #8e8e96;
 
-  --popover: #0c101a;
-  --popover-foreground: #f1f5f9;
+  --popover: #101014;
+  --popover-foreground: #f5f5f7;
 
-  --card: #0e1320;
-  --card-foreground: #f1f5f9;
+  --card: #131316;
+  --card-foreground: #f5f5f7;
 
-  --border: #1e2638;
-  --input: #1e2638;
+  --border: #232329;
+  --input: #232329;
 
   --primary: #ff6b00;
-  --primary-foreground: #ffffff;
+  --primary-foreground: #1c1917;
 
-  --secondary: #151b2b;
-  --secondary-foreground: #f1f5f9;
+  --secondary: #1a1a1f;
+  --secondary-foreground: #f5f5f7;
 
-  --accent: #9333ea;
-  --accent-foreground: #ffffff;
+  --accent: #ff8533;
+  --accent-foreground: #1a1a1f;
 
   --destructive: #ef4444;
   --destructive-foreground: #ffffff;
@@ -113,12 +113,12 @@ html.light,
   --input: #e2e8f0;
 
   --primary: #ea580c;
-  --primary-foreground: #ffffff;
+  --primary-foreground: #1c1917;
 
   --secondary: #f1f5f9;
   --secondary-foreground: #0f172a;
 
-  --accent: #9333ea;
+  --accent: #f97316;
   --accent-foreground: #ffffff;
 
   --destructive: #ef4444;
@@ -170,12 +170,12 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 107, 0, 0.2);
+  background: color-mix(in srgb, var(--foreground) 14%, transparent);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 107, 0, 0.4);
+  background: color-mix(in srgb, var(--foreground) 28%, transparent);
 }
 
 /* Shimmer Animation for Cosmic Theme */

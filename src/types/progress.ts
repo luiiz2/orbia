@@ -17,6 +17,8 @@ export interface WatchHistoryEntry {
   lessonTitle: string
   courseTitle: string
   coverPath?: string
+  lessonCoverPath?: string
+  fileExtension?: string
   watchedAt: number // Unix timestamp ms
   duration: number // Session duration in seconds
   currentTime: number // Position at time of entry

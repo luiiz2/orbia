@@ -206,32 +206,47 @@ describe('Security & IPC Boundary Audit Test Suite', () => {
       expect(res1).toEqual({ success: false, error: 'Valid lessonId and coverPath are required' })
     })
 
-    it('validates courses:extract-zip inputs', async () => {
+    it('rejects raw cover paths that were not issued by the native picker', async () => {
+      const courseHandler = registeredHandlers.get('courses:update-course-cover')!
+      const lessonHandler = registeredHandlers.get('courses:update-lesson-cover')!
+      expect(courseHandler).toBeDefined()
+      expect(lessonHandler).toBeDefined()
+
+      const courseResult = await courseHandler({}, {
+        courseId: 'course-1',
+        coverPath: 'C:/Users/Dell/Documents/private.png'
+      })
+      const lessonResult = await lessonHandler({}, {
+        lessonId: 'lesson-1',
+        coverPath: 'C:/Users/Dell/Documents/private.png'
+      })
+
+      const expectedFailure = {
+        success: false,
+        error: 'Cover image must be selected with the native file picker.'
+      }
+      expect(courseResult).toEqual(expectedFailure)
+      expect(lessonResult).toEqual(expectedFailure)
+    })
+
+    it('blocks the legacy courses:extract-zip channel', async () => {
       const handler = registeredHandlers.get('courses:extract-zip')!
       expect(handler).toBeDefined()
 
-      // Missing path
       const res1 = await handler({ sender: { send: vi.fn() } }, { zipPath: '' })
-      expect(res1).toEqual({ success: false, error: 'Zip archive path is required' })
-
-      // Non-zip file
       const res2 = await handler({ sender: { send: vi.fn() } }, { zipPath: 'C:/files/movie.mp4' })
-      expect(res2).toEqual({ success: false, error: 'Selected file is not a valid .zip archive' })
-
-      // Non-existent zip file
-      const res3 = await handler({ sender: { send: vi.fn() } }, { zipPath: 'C:/non_existent_folder_xyz/missing.zip' })
-      expect(res3).toEqual({ success: false, error: 'Zip archive not found at path: C:/non_existent_folder_xyz/missing.zip' })
+      expect(res1).toMatchObject({ success: false, error: expect.stringMatching(/import session preview/i) })
+      expect(res2).toMatchObject({ success: false, error: expect.stringMatching(/import session preview/i) })
     })
 
-    it('validates courses:scan-folder inputs', async () => {
+    it('blocks the legacy courses:scan-folder channel', async () => {
       const handler = registeredHandlers.get('courses:scan-folder')!
       expect(handler).toBeDefined()
 
       const res1 = await handler({}, { folderPath: '' })
-      expect(res1).toEqual({ success: false, error: 'Folder path is required' })
-
       const res2 = await handler({}, { folderPath: 'C:/missing_path_orbia_xyz_123' })
-      expect(res2).toEqual({ success: false, error: 'Directory does not exist: "C:/missing_path_orbia_xyz_123"' })
+      expect(res1).toMatchObject({ success: false, error: expect.stringMatching(/import session preview/i) })
+      expect(res2).toMatchObject({ success: false, error: expect.stringMatching(/import session preview/i) })
     })
 
     it('validates courses:convert-srt-to-vtt against unauthorized file types', async () => {

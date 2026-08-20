@@ -6,10 +6,7 @@ import {
   Moon,
   Laptop,
   FolderOpen,
-  BookOpen,
-  History,
-  Settings,
-  Tv,
+  Plus,
   X
 } from 'lucide-react'
 import { useLibraryStore } from '../../stores/useLibraryStore'
@@ -24,61 +21,69 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger
 } from '../ui/dropdown-menu'
+import { cn } from '../../lib/utils'
+import appLogo from '../../assets/icon.png'
 
 export function TopBar(): React.JSX.Element {
   const { t } = useTranslation()
   const { searchQuery, setSearchQuery } = useLibraryStore()
   const { currentVault } = useVaultStore()
-  const { currentView, setVaultModalOpen } = useNavigationStore()
+  const { currentView, setView, setImportModalOpen, setVaultModalOpen } = useNavigationStore()
   const { theme, setTheme } = useTheme()
 
-  const getViewTitle = (): string => {
-    switch (currentView) {
-      case 'home':
-        return t('nav.library')
-      case 'course':
-        return t('nav.library')
-      case 'player':
-        return t('player.curriculum')
-      case 'history':
-        return t('nav.history')
-      case 'settings':
-        return t('nav.settings')
-      default:
-        return t('app.name')
+  const navItems = [
+    {
+      id: 'home' as const,
+      label: t('nav.library'),
+      isActive: currentView === 'home' || currentView === 'course' || currentView === 'player'
+    },
+    {
+      id: 'history' as const,
+      label: t('nav.history'),
+      isActive: currentView === 'history'
+    },
+    {
+      id: 'settings' as const,
+      label: t('nav.settings'),
+      isActive: currentView === 'settings'
     }
-  }
-
-  const getViewIcon = (): React.ReactNode => {
-    switch (currentView) {
-      case 'home':
-      case 'course':
-        return <BookOpen className="h-4.5 w-4.5 text-primary" />
-      case 'player':
-        return <Tv className="h-4.5 w-4.5 text-primary" />
-      case 'history':
-        return <History className="h-4.5 w-4.5 text-primary" />
-      case 'settings':
-        return <Settings className="h-4.5 w-4.5 text-primary" />
-      default:
-        return null
-    }
-  }
+  ]
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 w-full items-center justify-between border-b border-border/80 bg-card/70 px-4 backdrop-blur-xl transition-colors select-none">
-      {/* Left: View Title & Icon */}
-      <div className="flex items-center gap-2.5 min-w-0">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-secondary/80 text-primary shrink-0 shadow-sm">
-          {getViewIcon()}
+    <header className="sticky top-0 z-30 flex h-14 w-full items-center gap-3 border-b border-border/60 bg-background/85 px-4 backdrop-blur-xl transition-colors select-none">
+      {/* Left: Logo + Streaming-style Nav Links */}
+      <div className="flex items-center gap-5 min-w-0">
+        <div className="flex items-center gap-2 shrink-0">
+          <img src={appLogo} alt="Orbia" className="h-7 w-7 object-contain drop-shadow" />
+          <span className="text-base font-extrabold tracking-tight text-orbia-gradient hidden sm:inline">
+            {t('app.name')}
+          </span>
         </div>
-        <h1 className="text-sm font-bold tracking-tight text-foreground truncate">
-          {getViewTitle()}
-        </h1>
+
+        <nav className="hidden md:flex items-center gap-1">
+          {navItems.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => setView(item.id)}
+              className={cn(
+                'relative px-3 py-1.5 text-[13px] font-semibold rounded-md transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+                item.isActive
+                  ? 'text-primary'
+                  : 'text-muted-foreground hover:text-foreground'
+              )}
+            >
+              {item.label}
+              {item.isActive && (
+                <span className="absolute inset-x-3 -bottom-px h-0.5 rounded-full bg-gradient-to-r from-orange-500 to-amber-400" />
+              )}
+            </button>
+          ))}
+        </nav>
       </div>
 
       {/* Center: Global Search Input */}
-      <div className="mx-4 flex flex-1 max-w-md items-center">
+      <div className="mx-auto flex w-full max-w-md items-center">
         <div className="relative w-full">
           <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground pointer-events-none" />
           <Input
@@ -86,13 +91,13 @@ export function TopBar(): React.JSX.Element {
             placeholder={`${t('common.search')}...`}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-8.5 w-full rounded-xl bg-secondary/40 pl-9 pr-8 text-xs border-border/80 text-foreground placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-primary/60 focus-visible:border-primary/50 transition-all"
+            className="h-8.5 w-full rounded-lg bg-white/5 pl-9 pr-8 text-xs border-border/60 text-foreground placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-primary/60 focus-visible:border-primary/50 transition-all"
           />
           {searchQuery && (
             <button
               type="button"
               onClick={() => setSearchQuery('')}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary cursor-pointer"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-white/10 cursor-pointer"
               title="Clear search"
             >
               <X className="h-3 w-3" />
@@ -101,29 +106,36 @@ export function TopBar(): React.JSX.Element {
         </div>
       </div>
 
-      {/* Right: Vault switcher & Theme toggle */}
-      <div className="flex items-center gap-2">
-        {/* Vault Switch Button */}
+      {/* Right: Import / Vault / Theme */}
+      <div className="flex items-center gap-2 shrink-0">
         <Button
-          variant="outline"
+          size="sm"
+          onClick={() => setImportModalOpen(true)}
+          className="h-8 gap-1.5 px-3 text-xs font-semibold rounded-lg bg-gradient-to-r from-orange-500 via-orange-600 to-amber-500 text-primary-foreground hover:opacity-95 active:scale-[0.98] transition-all"
+        >
+          <Plus className="h-3.5 w-3.5 stroke-[2.5]" />
+          <span className="hidden sm:inline">{t('nav.importCourse')}</span>
+        </Button>
+
+        <Button
+          variant="ghost"
           size="sm"
           onClick={() => setVaultModalOpen(true)}
-          className="h-8 gap-1.5 px-2.5 text-xs text-muted-foreground hover:text-foreground border-border/80 bg-secondary/30 hover:bg-secondary/70 hover:border-primary/40 rounded-xl transition-all"
+          className="h-8 gap-1.5 px-2.5 text-xs text-muted-foreground hover:text-foreground hover:bg-white/5 rounded-lg transition-all"
           title={currentVault ? currentVault.path : t('nav.changeVault')}
         >
           <FolderOpen className="h-3.5 w-3.5 text-primary" />
-          <span className="hidden md:inline max-w-[120px] truncate font-medium">
+          <span className="hidden lg:inline max-w-[120px] truncate font-medium">
             {currentVault?.name || t('nav.changeVault')}
           </span>
         </Button>
 
-        {/* Theme Selector Dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-secondary/80 rounded-xl"
+              className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-white/5 rounded-lg"
               aria-label={t('settings.theme')}
             >
               {theme === 'light' ? (
@@ -163,4 +175,3 @@ export function TopBar(): React.JSX.Element {
     </header>
   )
 }
-

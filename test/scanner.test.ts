@@ -56,20 +56,20 @@ describe('Scanner Service Integration Test', () => {
     expect(scanned.name).toBe('Python For Beginners [2024]')
     expect(scanned.subDirectories.length).toBe(2) // .git should be ignored!
 
-    const proposal = parserService.parseCourseHierarchy(scanned)
+    const proposal = await parserService.parseCourseHierarchy(scanned)
 
     expect(proposal.suggestedTitle).toBe('Python For Beginners')
     expect(proposal.coverPath).toBe(path.join(courseRoot, 'cover.jpg'))
     expect(proposal.totalLessons).toBe(3)
     expect(proposal.modules.length).toBe(2)
 
-    expect(proposal.modules[0].title).toBe('Basics')
+    expect(proposal.modules[0].title).toBe('01 - Basics')
     expect(proposal.modules[0].lessons.length).toBe(2)
-    expect(proposal.modules[0].lessons[0].title).toBe('Intro')
-    expect(proposal.modules[0].lessons[1].title).toBe('Syntax')
+    expect(proposal.modules[0].lessons[0].title).toBe('01 - Intro')
+    expect(proposal.modules[0].lessons[1].title).toBe('02 - Syntax')
 
-    expect(proposal.modules[1].title).toBe('Advanced')
+    expect(proposal.modules[1].title).toBe('02 - Advanced')
     expect(proposal.modules[1].lessons.length).toBe(1)
-    expect(proposal.modules[1].lessons[0].title).toBe('Async')
+    expect(proposal.modules[1].lessons[0].title).toBe('01 - Async')
   })
 })

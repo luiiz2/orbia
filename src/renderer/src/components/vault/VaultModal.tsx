@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+﻿import React, { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Database,
@@ -282,7 +282,7 @@ export function VaultModal(): React.JSX.Element {
             <Button
               onClick={handleCreate}
               disabled={isProcessing}
-              className="gap-1.5 font-semibold shadow-lg shadow-orange-500/20 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-500 text-white rounded-xl text-xs"
+              className="gap-1.5 font-semibold shadow-lg shadow-orange-500/20 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-500 text-primary-foreground rounded-xl text-xs"
             >
               {isProcessing ? (
                 <>

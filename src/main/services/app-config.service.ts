@@ -150,7 +150,8 @@ export class AppConfigService {
       theme: 'dark',
       defaultPlaybackSpeed: 1.0,
       autoPlayNext: true,
-      completionThreshold: 0.90
+      completionThreshold: 0.90,
+      deleteSourceZipAfterImport: false
     }
 
     const stmt = this.db!.prepare(`SELECT key, value FROM app_settings`)

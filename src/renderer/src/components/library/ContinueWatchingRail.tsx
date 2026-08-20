@@ -1,24 +1,160 @@
-import React, { useRef } from 'react'
+﻿import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Play, Sparkles, BookOpen, ChevronLeft, ChevronRight, Clock } from 'lucide-react'
-import { Card, Button, Progress, Skeleton, Tooltip, TooltipTrigger, TooltipContent } from '../ui'
-import { useLibraryStore, useNavigationStore, usePlayerStore } from '../../stores'
-import type { Course } from '@shared'
+import { Play, Sparkles, BookOpen, ChevronLeft, ChevronRight, FileText } from 'lucide-react'
+import { Button, Skeleton, Tooltip, TooltipTrigger, TooltipContent } from '../ui'
+import { useNavigationStore, usePlayerStore } from '../../stores'
+import { formatTime } from '../../lib/formatters'
+import { mediaUrl } from '../../lib/utils'
+import type { WatchHistoryEntry } from '@shared'
 
 interface ContinueWatchingRailProps {
   className?: string
   isLoading?: boolean
 }
 
+interface ContinueCardProps {
+  entry: WatchHistoryEntry
+  onResume: (entry: WatchHistoryEntry) => void
+}
+
+function ContinueCard({ entry, onResume }: ContinueCardProps): React.JSX.Element {
+  const [coverFailed, setCoverFailed] = useState(false)
+  const isPdf = entry.fileExtension?.toLowerCase().includes('pdf') || false
+  const percentage = entry.duration > 0
+    ? Math.min(99, Math.round((entry.currentTime / entry.duration) * 100))
+    : 0
+  const coverPath = entry.lessonCoverPath || entry.coverPath
+  const coverUrl = coverPath && !coverFailed
+    ? mediaUrl(coverPath)
+    : null
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>): void => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      onResume(entry)
+    }
+  }
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => onResume(entry)}
+      onKeyDown={handleKeyDown}
+      className="group relative w-[260px] sm:w-[300px] shrink-0 cursor-pointer select-none snap-start rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+    >
+      {/* Thumbnail Container — no chrome */}
+      <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-secondary/60 flex items-center justify-center">
+        {coverUrl ? (
+          <img
+            src={coverUrl}
+            alt={entry.lessonTitle}
+            loading="lazy"
+            className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-500 ease-out"
+            onError={() => setCoverFailed(true)}
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-secondary via-secondary/70 to-card text-muted-foreground group-hover:text-primary transition-colors p-4">
+            <BookOpen className="h-8 w-8 opacity-60 group-hover:scale-110 transition-transform duration-300" />
+          </div>
+        )}
+
+        {/* Hover overlay — gradient + play */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-black shadow-lg shadow-black/50 transform scale-75 group-hover:scale-100 transition-transform duration-200 ease-out">
+            <Play className="h-4.5 w-4.5 fill-current ml-0.5" />
+          </div>
+        </div>
+
+        {/* Top Progress Badge (video only) */}
+        {!isPdf && (
+          <div className="absolute top-2 right-2 z-10 pointer-events-none">
+            <span className="rounded-md bg-black/70 backdrop-blur-md px-2 py-0.5 text-[10px] font-bold text-amber-400 border border-white/10 shadow-xs">
+              {percentage}%
+            </span>
+          </div>
+        )}
+
+        {/* PDF badge */}
+        {isPdf && (
+          <div className="absolute top-2 right-2 z-10 pointer-events-none">
+            <span className="rounded-md bg-black/70 backdrop-blur-md px-2 py-0.5 text-[10px] font-bold text-white/90 border border-white/10 shadow-xs uppercase flex items-center gap-1">
+              <FileText className="h-2.5 w-2.5" />
+              {entry.fileExtension?.replace('.', '').toUpperCase()}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Meta row below */}
+      <div className="pt-2 px-0.5">
+        <h3 className="text-[12px] font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-1">
+          {entry.lessonTitle}
+        </h3>
+        <p className="mt-0.5 flex items-center gap-1.5 text-[10px] text-muted-foreground">
+          <span className="truncate">{entry.courseTitle}</span>
+          {!isPdf && percentage > 0 && (
+            <span className="font-mono text-amber-400/90 shrink-0">
+              {formatTime(entry.currentTime)}
+            </span>
+          )}
+        </p>
+      </div>
+    </div>
+  )
+}
+
 export function ContinueWatchingRail({ className, isLoading }: ContinueWatchingRailProps): React.JSX.Element | null {
   const { t } = useTranslation()
-  const { courses, progressSummaries } = useLibraryStore()
   const { navigateToPlayer } = useNavigationStore()
   const { loadHierarchy } = usePlayerStore()
   const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const [history, setHistory] = useState<WatchHistoryEntry[]>([])
+  const [isHistoryLoading, setIsHistoryLoading] = useState<boolean>(true)
+
+  // Fetch watch history once the vault/courses are ready
+  useEffect(() => {
+    if (isLoading) return
+    let cancelled = false
+    setIsHistoryLoading(true)
+    window.api.player
+      .getWatchHistory(20)
+      .then((entries) => {
+        if (!cancelled) setHistory(entries || [])
+      })
+      .catch((err) => console.error('Failed to load watch history:', err))
+      .finally(() => {
+        if (!cancelled) setIsHistoryLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [isLoading])
+
+  // In-progress lessons: has real position, not finished, latest entry per lesson
+  const continueList = useMemo(() => {
+    const latestByLesson = new Map<string, WatchHistoryEntry>()
+    for (const entry of history) {
+      const prev = latestByLesson.get(entry.lessonId)
+      if (!prev || entry.watchedAt > prev.watchedAt) {
+        latestByLesson.set(entry.lessonId, entry)
+      }
+    }
+
+    return Array.from(latestByLesson.values())
+      .filter((entry) => {
+        // PDF lessons have no playback position; always continue-able
+        if (entry.fileExtension?.toLowerCase().includes('pdf')) return true
+        if (entry.currentTime <= 0) return false
+        if (entry.duration > 0 && entry.currentTime / entry.duration >= 0.9) return false
+        return true
+      })
+      .sort((a, b) => b.watchedAt - a.watchedAt)
+      .slice(0, 10)
+  }, [history])
 
   // Loading skeleton state
-  if (isLoading) {
+  if (isLoading || isHistoryLoading) {
     return (
       <section className={`space-y-3.5 ${className || ''}`} aria-label="Loading continue watching">
         <div className="flex items-center justify-between">
@@ -50,37 +186,19 @@ export function ContinueWatchingRail({ className, isLoading }: ContinueWatchingR
     )
   }
 
-  // Filter courses that are in progress (0 < percentage < 100)
-  const inProgressList = courses
-    .map((course) => ({
-      course,
-      summary: progressSummaries[course.id]
-    }))
-    .filter(
-      (item) =>
-        item.summary &&
-        item.summary.percentage > 0 &&
-        item.summary.percentage < 100
-    )
-    .sort((a, b) => (b.summary?.lastPlayedAt || 0) - (a.summary?.lastPlayedAt || 0))
-
-  if (inProgressList.length === 0) {
+  if (continueList.length === 0) {
     return null
   }
 
-  const handleResume = async (course: Course, targetLessonId?: string): Promise<void> => {
+  const handleResume = async (entry: WatchHistoryEntry): Promise<void> => {
     try {
-      const hierarchy = await window.api.courses.getById(course.id)
+      const hierarchy = await window.api.courses.getById(entry.courseId)
       if (hierarchy) {
-        const lessonId =
-          targetLessonId ||
-          hierarchy.modules[0]?.lessons[0]?.id
-
-        await loadHierarchy(hierarchy.course, hierarchy.modules, lessonId)
-        navigateToPlayer(course.id)
+        await loadHierarchy(hierarchy.course, hierarchy.modules, entry.lessonId)
+        navigateToPlayer(entry.courseId)
       }
     } catch (err) {
-      console.error('Failed to resume course from rail:', err)
+      console.error('Failed to resume lesson from rail:', err)
     }
   }
 
@@ -109,11 +227,11 @@ export function ContinueWatchingRail({ className, isLoading }: ContinueWatchingR
             </h2>
           </div>
           <span className="ml-1 rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-bold text-primary border border-primary/20">
-            {inProgressList.length}
+            {continueList.length}
           </span>
         </div>
 
-        {inProgressList.length > 2 && (
+        {continueList.length > 2 && (
           <div className="flex items-center gap-1.5">
             <Tooltip>
               <TooltipTrigger asChild>
@@ -154,128 +272,9 @@ export function ContinueWatchingRail({ className, isLoading }: ContinueWatchingR
         className="flex gap-4 overflow-x-auto pb-2 pt-1 no-scrollbar scroll-smooth snap-x snap-mandatory"
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
       >
-        {inProgressList.map(({ course, summary }) => {
-          const percentage = summary?.percentage || 0
-          const coverUrl = course.coverPath
-            ? `media://${encodeURI(course.coverPath.replace(/\\/g, '/'))}`
-            : null
-
-          const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>): void => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault()
-              handleResume(course, summary?.lastPlayedLessonId)
-            }
-          }
-
-          return (
-            <Card
-              key={course.id}
-              role="button"
-              tabIndex={0}
-              onKeyDown={handleKeyDown}
-              className="group relative flex w-[280px] sm:w-[320px] shrink-0 flex-col overflow-hidden rounded-2xl border-border/80 bg-card hover:border-primary/60 hover:shadow-2xl hover:shadow-orange-500/10 hover:-translate-y-1.5 transition-all duration-300 ease-out snap-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background select-none"
-            >
-              {/* Thumbnail Container */}
-              <div
-                onClick={() => handleResume(course, summary?.lastPlayedLessonId)}
-                className="relative aspect-video w-full cursor-pointer overflow-hidden bg-secondary/70 border-b border-border/50 flex items-center justify-center"
-              >
-                {coverUrl ? (
-                  <img
-                    src={coverUrl}
-                    alt={course.title}
-                    className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none'
-                    }}
-                  />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-secondary via-secondary/70 to-card text-muted-foreground group-hover:text-primary transition-colors p-4">
-                    <BookOpen className="h-8 w-8 opacity-60 group-hover:scale-110 transition-transform duration-300" />
-                  </div>
-                )}
-
-                {/* Play Button Overlay */}
-                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center backdrop-blur-[2px]">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-tr from-orange-500 via-orange-600 to-amber-500 text-white shadow-lg shadow-orange-500/40 transform scale-75 group-hover:scale-100 transition-transform duration-200 ease-out">
-                    <Play className="h-5 w-5 fill-current ml-0.5" />
-                  </div>
-                </div>
-
-                {/* Top Duration / Progress Badge */}
-                <div className="absolute top-2.5 right-2.5 z-10 pointer-events-none">
-                  <span className="rounded-md bg-black/75 backdrop-blur-md px-2 py-0.5 text-[10px] font-bold text-amber-400 border border-white/10 shadow-xs">
-                    {percentage}%
-                  </span>
-                </div>
-
-                {/* Bottom mini progress line on image */}
-                <div className="absolute bottom-0 inset-x-0 h-1 bg-black/60 z-10">
-                  <div
-                    className="h-full bg-gradient-to-r from-orange-500 to-amber-400 transition-all duration-300"
-                    style={{ width: `${percentage}%` }}
-                  />
-                </div>
-              </div>
-
-              {/* Card Body */}
-              <div className="flex flex-1 flex-col justify-between p-3.5 space-y-3">
-                <div className="space-y-1.5 min-w-0">
-                  <h3
-                    onClick={() => handleResume(course, summary?.lastPlayedLessonId)}
-                    className="cursor-pointer text-xs sm:text-sm font-bold text-foreground hover:text-primary transition-colors truncate leading-tight"
-                    title={course.title}
-                  >
-                    {course.title}
-                  </h3>
-
-                  {summary?.lastPlayedLessonTitle ? (
-                    <p
-                      className="text-[11px] text-muted-foreground truncate flex items-center gap-1.5"
-                      title={summary.lastPlayedLessonTitle}
-                    >
-                      <span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0 animate-pulse" />
-                      <span className="font-medium text-foreground/90 truncate">
-                        {summary.lastPlayedLessonTitle}
-                      </span>
-                    </p>
-                  ) : (
-                    <p className="text-[11px] text-muted-foreground flex items-center gap-1">
-                      <Clock className="h-3 w-3" />
-                      <span>
-                        {summary?.completedLessons || 0} / {course.lessonCount} {t('course.lessons')}
-                      </span>
-                    </p>
-                  )}
-                </div>
-
-                {/* Progress bar and Quick Action Button */}
-                <div className="space-y-2.5 pt-1 border-t border-border/40">
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-[10px] font-medium text-muted-foreground">
-                      <span>{t('course.inProgress', 'In progress')}</span>
-                      <span className="font-semibold text-primary">{percentage}%</span>
-                    </div>
-                    <Progress
-                      value={percentage}
-                      className="h-1.5"
-                      indicatorClassName="bg-gradient-to-r from-orange-500 via-amber-500 to-purple-600"
-                    />
-                  </div>
-
-                  <Button
-                    size="sm"
-                    onClick={() => handleResume(course, summary?.lastPlayedLessonId)}
-                    className="w-full h-8 text-xs font-semibold gap-1.5 rounded-xl shadow-md shadow-orange-500/20 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-500 text-white cursor-pointer hover:opacity-95 active:scale-[0.98] transition-all"
-                  >
-                    <Play className="h-3.5 w-3.5 fill-current" />
-                    <span>{t('home.continueLesson', 'Continuar Aula')}</span>
-                  </Button>
-                </div>
-              </div>
-            </Card>
-          )
-        })}
+        {continueList.map((entry) => (
+          <ContinueCard key={entry.id} entry={entry} onResume={handleResume} />
+        ))}
       </div>
     </section>
   )

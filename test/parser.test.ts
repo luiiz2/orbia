@@ -3,7 +3,290 @@ import { parserService } from '../src/main/services/parser.service'
 import type { ScannedDirectory } from '../src/main/services/scanner.service'
 
 describe('Parser Service', () => {
-  it('parses a hierarchical course directory with natural module ordering', () => {
+  it('reports duplicate candidates without removing or renumbering lessons', async () => {
+    const mockTree: ScannedDirectory = {
+      name: 'Dup Course',
+      fullPath: '/courses/dup-course',
+      files: [],
+      subDirectories: [
+        {
+          name: '01 - Modulo A',
+          fullPath: '/courses/dup-course/01 - Modulo A',
+          files: [
+            {
+              name: '01 - Introducao.mp4',
+              fullPath: '/courses/dup-course/01 - Modulo A/01 - Introducao.mp4',
+              extension: '.mp4',
+              sizeBytes: 1000,
+              isDirectory: false
+            },
+            {
+              name: '02 - Aula Real.mp4',
+              fullPath: '/courses/dup-course/01 - Modulo A/02 - Aula Real.mp4',
+              extension: '.mp4',
+              sizeBytes: 2000,
+              isDirectory: false
+            }
+          ],
+          subDirectories: []
+        },
+        {
+          name: '02 - Modulo B',
+          fullPath: '/courses/dup-course/02 - Modulo B',
+          files: [
+            {
+              name: '01 - Introducao.mp4',
+              fullPath: '/courses/dup-course/02 - Modulo B/01 - Introducao.mp4',
+              extension: '.mp4',
+              sizeBytes: 1000,
+              isDirectory: false
+            }
+          ],
+          subDirectories: []
+        }
+      ]
+    }
+
+    const proposal = await parserService.parseCourseHierarchy(mockTree)
+
+    expect(proposal.modules.length).toBe(2)
+    expect(proposal.totalLessons).toBe(3)
+    expect(proposal.modules[0].lessons.map((l) => l.title)).toEqual(['01 - Introducao', '02 - Aula Real'])
+    expect(proposal.modules[1].lessons.map((l) => l.title)).toEqual(['01 - Introducao'])
+    expect(proposal.modules[0].lessons.map((l) => l.orderIndex)).toEqual([1, 2])
+    expect(proposal.modules[1].lessons.map((l) => l.orderIndex)).toEqual([1])
+    expect(proposal.duplicates).toHaveLength(1)
+    expect(proposal.duplicates![0]).toMatchObject({
+      fileName: '01 - Introducao.mp4',
+      fileSize: 1000,
+      count: 2
+    })
+    expect(proposal.duplicates![0].paths).toHaveLength(2)
+  })
+
+  it('keeps only playable media as lessons and preserves every other scanned file as a resource', async () => {
+    const mockTree: ScannedDirectory = {
+      name: 'Keep Everything',
+      fullPath: '/courses/keep-everything',
+      files: [],
+      subDirectories: [
+        {
+          name: '01 - Modulo',
+          fullPath: '/courses/keep-everything/01 - Modulo',
+          files: [
+            {
+              name: '01 - Aula.mp4',
+              fullPath: '/courses/keep-everything/01 - Modulo/01 - Aula.mp4',
+              extension: '.mp4',
+              sizeBytes: 1000000,
+              isDirectory: false
+            },
+            {
+              name: '01 - Aula.jpg',
+              fullPath: '/courses/keep-everything/01 - Modulo/01 - Aula.jpg',
+              extension: '.jpg',
+              sizeBytes: 50000,
+              isDirectory: false
+            },
+            {
+              name: '01 - Aula.srt',
+              fullPath: '/courses/keep-everything/01 - Modulo/01 - Aula.srt',
+              extension: '.srt',
+              sizeBytes: 2000,
+              isDirectory: false
+            },
+            {
+              name: '01 - Aula.vtt',
+              fullPath: '/courses/keep-everything/01 - Modulo/01 - Aula.vtt',
+              extension: '.vtt',
+              sizeBytes: 2200,
+              isDirectory: false
+            },
+            {
+              name: '01 - Aula.ass',
+              fullPath: '/courses/keep-everything/01 - Modulo/01 - Aula.ass',
+              extension: '.ass',
+              sizeBytes: 2400,
+              isDirectory: false
+            },
+            {
+              name: '01 - Aula.sub',
+              fullPath: '/courses/keep-everything/01 - Modulo/01 - Aula.sub',
+              extension: '.sub',
+              sizeBytes: 2600,
+              isDirectory: false
+            },
+            {
+              name: 'apostila.pdf',
+              fullPath: '/courses/keep-everything/01 - Modulo/apostila.pdf',
+              extension: '.pdf',
+              sizeBytes: 900000,
+              isDirectory: false
+            },
+            {
+              name: 'readme.txt',
+              fullPath: '/courses/keep-everything/01 - Modulo/readme.txt',
+              extension: '.txt',
+              sizeBytes: 300,
+              isDirectory: false
+            },
+            {
+              name: 'links - material.url',
+              fullPath: '/courses/keep-everything/01 - Modulo/links - material.url',
+              extension: '.url',
+              sizeBytes: 100,
+              isDirectory: false
+            },
+            {
+              name: 'diagram.png',
+              fullPath: '/courses/keep-everything/01 - Modulo/diagram.png',
+              extension: '.png',
+              sizeBytes: 120000,
+              isDirectory: false
+            },
+            {
+              name: 'extra.zip',
+              fullPath: '/courses/keep-everything/01 - Modulo/extra.zip',
+              extension: '.zip',
+              sizeBytes: 500000,
+              isDirectory: false
+            },
+            {
+              name: 'cover.jpg',
+              fullPath: '/courses/keep-everything/01 - Modulo/cover.jpg',
+              extension: '.jpg',
+              sizeBytes: 150000,
+              isDirectory: false
+            },
+            {
+              name: 'notes.md',
+              fullPath: '/courses/keep-everything/01 - Modulo/notes.md',
+              extension: '.md',
+              sizeBytes: 500,
+              isDirectory: false
+            },
+            {
+              name: 'weird.xyz',
+              fullPath: '/courses/keep-everything/01 - Modulo/weird.xyz',
+              extension: '.xyz',
+              sizeBytes: 100,
+              isDirectory: false
+            },
+            {
+              name: '.DS_Store',
+              fullPath: '/courses/keep-everything/01 - Modulo/.DS_Store',
+              extension: '',
+              sizeBytes: 10,
+              isDirectory: false
+            }
+          ],
+          subDirectories: []
+        }
+      ]
+    }
+
+    const proposal = await parserService.parseCourseHierarchy(mockTree)
+
+    expect(proposal.modules).toHaveLength(1)
+    expect(proposal.totalLessons).toBe(1)
+    const [lesson] = proposal.modules[0].lessons
+    expect(lesson).toMatchObject({
+      originalFileName: '01 - Aula.mp4',
+      mediaType: 'video',
+      coverPath: '/courses/keep-everything/01 - Modulo/01 - Aula.jpg'
+    })
+
+    const lessonResources = (lesson as {
+      contentResources?: Array<{ name: string; role: string; type: string; filePath: string }>
+    }).contentResources
+    const moduleResources = (proposal.modules[0] as {
+      resources?: Array<{ name: string; role: string; type: string; filePath: string }>
+    }).resources
+
+    expect(lessonResources).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: '01 - Aula.jpg', role: 'resource', type: 'image' }),
+        expect.objectContaining({ name: '01 - Aula.srt', role: 'subtitle', type: 'document' }),
+        expect.objectContaining({ name: '01 - Aula.vtt', role: 'subtitle', type: 'document' }),
+        expect.objectContaining({ name: '01 - Aula.ass', role: 'subtitle', type: 'document' }),
+        expect.objectContaining({ name: '01 - Aula.sub', role: 'subtitle', type: 'document' })
+      ])
+    )
+    expect(moduleResources).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: 'apostila.pdf', type: 'pdf' }),
+        expect.objectContaining({ name: 'readme.txt', type: 'document' }),
+        expect.objectContaining({ name: 'links - material.url', type: 'other' }),
+        expect.objectContaining({ name: 'diagram.png', type: 'image' }),
+        expect.objectContaining({ name: 'extra.zip', type: 'archive' }),
+        expect.objectContaining({ name: 'cover.jpg', type: 'image' }),
+        expect.objectContaining({ name: 'notes.md', type: 'document' }),
+        expect.objectContaining({ name: 'weird.xyz', type: 'other' })
+      ])
+    )
+
+    const preservedPaths = [...(lessonResources || []), ...(moduleResources || [])].map((resource) => resource.filePath)
+    expect(preservedPaths).toHaveLength(13)
+    expect(preservedPaths).not.toContain('/courses/keep-everything/01 - Modulo/.DS_Store')
+  })
+
+  it('keeps root and nested modules that contain only materials', async () => {
+    const mockTree: ScannedDirectory = {
+      name: 'Materials Only',
+      fullPath: '/courses/materials-only',
+      files: [
+        {
+          name: 'course-guide.pdf',
+          fullPath: '/courses/materials-only/course-guide.pdf',
+          extension: '.pdf',
+          sizeBytes: 1000,
+          isDirectory: false
+        }
+      ],
+      subDirectories: [
+        {
+          name: '01 - Workbook',
+          fullPath: '/courses/materials-only/01 - Workbook',
+          files: [
+            {
+              name: 'exercise.docx',
+              fullPath: '/courses/materials-only/01 - Workbook/exercise.docx',
+              extension: '.docx',
+              sizeBytes: 2000,
+              isDirectory: false
+            },
+            {
+              name: 'cover.jpg',
+              fullPath: '/courses/materials-only/01 - Workbook/cover.jpg',
+              extension: '.jpg',
+              sizeBytes: 3000,
+              isDirectory: false
+            }
+          ],
+          subDirectories: []
+        }
+      ]
+    }
+
+    const proposal = await parserService.parseCourseHierarchy(mockTree)
+
+    expect(proposal.modules).toHaveLength(2)
+    expect(proposal.totalLessons).toBe(0)
+    expect(proposal.modules[0].title).toBe('Introduction & Overview')
+    expect((proposal.modules[0] as { resources?: Array<{ name: string }> }).resources).toEqual([
+      expect.objectContaining({ name: 'course-guide.pdf' })
+    ])
+    expect(proposal.modules[1].title).toBe('01 - Workbook')
+    expect(proposal.modules[1].lessons).toEqual([])
+    expect((proposal.modules[1] as { resources?: Array<{ name: string }> }).resources).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: 'exercise.docx' }),
+        expect.objectContaining({ name: 'cover.jpg' })
+      ])
+    )
+  })
+
+  it('parses a hierarchical course directory with natural module ordering', async () => {
     const mockTree: ScannedDirectory = {
       name: 'Python Masterclass [2024]',
       fullPath: '/courses/python-masterclass',
@@ -76,7 +359,7 @@ describe('Parser Service', () => {
       ]
     }
 
-    const proposal = parserService.parseCourseHierarchy(mockTree)
+    const proposal = await parserService.parseCourseHierarchy(mockTree)
 
     expect(proposal.suggestedTitle).toBe('Python Masterclass')
     expect(proposal.coverPath).toBe('/courses/python-masterclass/cover.jpg')
@@ -84,19 +367,22 @@ describe('Parser Service', () => {
     expect(proposal.modules.length).toBe(3)
 
     // Verify natural ordering of modules (01 -> 02 -> 10)
-    expect(proposal.modules[0].title).toBe('Introduction')
+    expect(proposal.modules[0].title).toBe('01 - Introduction')
+    expect((proposal.modules[0] as { resources?: Array<{ name: string }> }).resources).toEqual([
+      expect.objectContaining({ name: 'cover.jpg' })
+    ])
     expect(proposal.modules[0].orderIndex).toBe(1)
-    expect(proposal.modules[0].lessons[0].title).toBe('Welcome')
-    expect(proposal.modules[0].lessons[1].title).toBe('Setup')
+    expect(proposal.modules[0].lessons[0].title).toBe('01 - Welcome')
+    expect(proposal.modules[0].lessons[1].title).toBe('02 - Setup')
 
-    expect(proposal.modules[1].title).toBe('Control Flow')
+    expect(proposal.modules[1].title).toBe('02 - Control Flow')
     expect(proposal.modules[1].orderIndex).toBe(2)
 
-    expect(proposal.modules[2].title).toBe('Advanced Decorators')
+    expect(proposal.modules[2].title).toBe('10 - Advanced Decorators')
     expect(proposal.modules[2].orderIndex).toBe(3)
   })
 
-  it('parses a flat directory structure (single module course)', () => {
+  it('parses a flat directory structure (single module course)', async () => {
     const mockFlatTree: ScannedDirectory = {
       name: 'Docker Crash Course',
       fullPath: '/courses/docker-crash-course',
@@ -126,7 +412,7 @@ describe('Parser Service', () => {
       subDirectories: []
     }
 
-    const proposal = parserService.parseCourseHierarchy(mockFlatTree)
+    const proposal = await parserService.parseCourseHierarchy(mockFlatTree)
 
     expect(proposal.suggestedTitle).toBe('Docker Crash Course')
     expect(proposal.modules.length).toBe(1)
@@ -134,11 +420,69 @@ describe('Parser Service', () => {
 
     // Lessons sorted naturally
     const lessons = proposal.modules[0].lessons
-    expect(lessons[0].title).toBe('Intro')
+    expect(lessons[0].title).toBe('01 - Intro')
     expect(lessons[0].orderIndex).toBe(1)
-    expect(lessons[1].title).toBe('Containers')
+    expect(lessons[1].title).toBe('02 - Containers')
     expect(lessons[1].orderIndex).toBe(2)
-    expect(lessons[2].title).toBe('Compose')
+    expect(lessons[2].title).toBe('10 - Compose')
     expect(lessons[2].orderIndex).toBe(3)
+  })
+
+  it('reports fingerprint duplicates without removing the differently named lesson', async () => {
+    const mockTree: ScannedDirectory = {
+      name: 'Fingerprint Course',
+      fullPath: '/courses/fp-course',
+      files: [],
+      subDirectories: [
+        {
+          name: '01 - Modulo A',
+          fullPath: '/courses/fp-course/01 - Modulo A',
+          files: [
+            {
+              name: 'intro.mp4',
+              fullPath: '/courses/fp-course/01 - Modulo A/intro.mp4',
+              extension: '.mp4',
+              sizeBytes: 500,
+              isDirectory: false,
+              fingerprint: 'abc123'
+            },
+            {
+              name: '02 - Conteudo Diferente.mp4',
+              fullPath: '/courses/fp-course/01 - Modulo A/02 - Conteudo Diferente.mp4',
+              extension: '.mp4',
+              sizeBytes: 400,
+              isDirectory: false,
+              fingerprint: 'def456'
+            }
+          ],
+          subDirectories: []
+        },
+        {
+          name: '02 - Modulo B',
+          fullPath: '/courses/fp-course/02 - Modulo B',
+          files: [
+            {
+              name: 'copy-renamed.mp4',
+              fullPath: '/courses/fp-course/02 - Modulo B/copy-renamed.mp4',
+              extension: '.mp4',
+              sizeBytes: 500,
+              isDirectory: false,
+              fingerprint: 'abc123' // same content, different name -> duplicate
+            }
+          ],
+          subDirectories: []
+        }
+      ]
+    }
+
+    const proposal = await parserService.parseCourseHierarchy(mockTree)
+
+    expect(proposal.totalLessons).toBe(3)
+    expect(proposal.modules).toHaveLength(2)
+    expect(proposal.modules[1].lessons).toEqual([
+      expect.objectContaining({ title: 'copy-renamed', orderIndex: 1 })
+    ])
+    expect(proposal.duplicates).toHaveLength(1)
+    expect(proposal.duplicates![0].fileName).toBe('copy-renamed.mp4')
   })
 })

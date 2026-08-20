@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron'
+import { contextBridge, ipcRenderer, IpcRendererEvent, webUtils } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 import type { OrbiaApi, ExtractProgressPayload } from '../types'
 
@@ -18,12 +18,16 @@ const api: OrbiaApi = {
     selectSource: () => ipcRenderer.invoke('courses:select-source'),
     selectZip: () => ipcRenderer.invoke('courses:select-zip'),
     selectFolder: () => ipcRenderer.invoke('courses:select-folder'),
+    prepareZipImport: ({ token }) => ipcRenderer.invoke('courses:prepare-zip-import', { token }),
+    prepareFolderImport: ({ token }) => ipcRenderer.invoke('courses:prepare-folder-import', { token }),
+    cancelImportSession: (sessionId) => ipcRenderer.invoke('courses:cancel-import-session', { sessionId }),
+    commitImportSession: (input) => ipcRenderer.invoke('courses:commit-import-session', input),
     extractZip: (zipPath: string, deleteSourceArchive?: boolean) =>
       ipcRenderer.invoke('courses:extract-zip', { zipPath, deleteSourceArchive }),
     scanFolder: (folderPath: string) => ipcRenderer.invoke('courses:scan-folder', { folderPath }),
     importCourse: (proposal, isExternal) => ipcRenderer.invoke('courses:import', { proposal, isExternal }),
     importBatch: (items) => ipcRenderer.invoke('courses:import-batch', { items }),
-    mergeDuplicateCourses: () => ipcRenderer.invoke('courses:merge-duplicates'),
+    getMergePreview: (courseIds) => ipcRenderer.invoke('courses:get-merge-preview', { courseIds }),
     getImportHistory: () => ipcRenderer.invoke('courses:get-import-history'),
     recordImportHistory: (entry) => ipcRenderer.invoke('courses:record-import-history', entry),
     clearImportHistory: () => ipcRenderer.invoke('courses:clear-import-history'),
@@ -34,6 +38,8 @@ const api: OrbiaApi = {
     getById: (courseId: string) => ipcRenderer.invoke('courses:get-by-id', { courseId }),
     delete: (courseId: string, deleteFiles: boolean) => ipcRenderer.invoke('courses:delete', { courseId, deleteFiles }),
     toggleFavorite: (courseId: string) => ipcRenderer.invoke('courses:toggle-favorite', { courseId }),
+    updateLessonDuration: (lessonId: string, duration: number) =>
+      ipcRenderer.invoke('courses:update-lesson-duration', { lessonId, duration }),
     convertSrtToVtt: (srtPath: string) => ipcRenderer.invoke('courses:convert-srt-to-vtt', { srtPath }),
     onExtractProgress: (callback: (progress: ExtractProgressPayload) => void) => {
       const listener = (_event: IpcRendererEvent, progress: ExtractProgressPayload): void => {
@@ -49,6 +55,7 @@ const api: OrbiaApi = {
   player: {
     saveProgress: (progress) => ipcRenderer.invoke('player:save-progress', progress),
     getProgress: (lessonId: string) => ipcRenderer.invoke('player:get-progress', { lessonId }),
+    getLessonsProgress: (courseId: string) => ipcRenderer.invoke('player:get-lessons-progress', { courseId }),
     getCourseProgress: (courseId: string) => ipcRenderer.invoke('player:get-course-progress', { courseId }),
     getAllProgressSummaries: () => ipcRenderer.invoke('player:get-all-progress-summaries'),
     toggleLessonCompletion: (lessonId: string, courseId: string) =>
@@ -68,7 +75,10 @@ const api: OrbiaApi = {
   },
 
   system: {
-    getLocale: () => ipcRenderer.invoke('system:get-locale')
+    getLocale: () => ipcRenderer.invoke('system:get-locale'),
+    openExternal: (url: string) => ipcRenderer.invoke('system:open-external', url),
+    openPath: (filePath: string) => ipcRenderer.invoke('system:open-path', filePath),
+    getPathForFile: (file: File) => webUtils.getPathForFile(file)
   }
 }
 

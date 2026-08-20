@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+﻿import React, { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { FolderPlus, FolderOpen, Loader2 } from 'lucide-react'
 import {
@@ -87,7 +87,7 @@ export function VaultCreator({ open, onOpenChange, onSuccess }: VaultCreatorProp
               <Input
                 value={vaultPath}
                 onChange={(e) => setVaultPath(e.target.value)}
-                placeholder="C:\Users\...\MyStudyVault"
+                placeholder="C:\Users\...\MinhaPastaDeEstudo"
                 className="text-xs font-mono rounded-xl"
               />
               <Button
@@ -111,7 +111,7 @@ export function VaultCreator({ open, onOpenChange, onSuccess }: VaultCreatorProp
             <Input
               value={vaultName}
               onChange={(e) => setVaultName(e.target.value)}
-              placeholder="Study Vault"
+              placeholder="Minha Pasta de Estudo"
               className="text-xs rounded-xl"
             />
           </div>
@@ -134,7 +134,7 @@ export function VaultCreator({ open, onOpenChange, onSuccess }: VaultCreatorProp
             size="sm"
             onClick={handleCreate}
             disabled={!vaultPath.trim() || isLoading}
-            className="font-semibold shadow-lg shadow-orange-500/20 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-500 text-white rounded-xl text-xs"
+            className="font-semibold shadow-lg shadow-orange-500/20 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-500 text-primary-foreground rounded-xl text-xs"
           >
             {isLoading && <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />}
             {t('vault.create')}

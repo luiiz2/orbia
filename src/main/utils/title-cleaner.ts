@@ -15,21 +15,29 @@ const QUALITY_METADATA_PATTERNS = [
   /\[?\b(?:720p|1080p|1440p|2160p|4k|fhd|uhd|hd)\b\]?/gi,
   /\[?\b(?:x264|x265|h264|h265|hevc|avc|10bit|8bit|aac|mp3|webrip|web-dl|bluray|hdrip|dvdrip)\b\]?/gi,
   /\[\s*(?:complete|completo|full\s*course|curso\s*completo)\s*\]|\(\s*(?:complete|completo|full\s*course|curso\s*completo)\s*\)|\{\s*(?:complete|completo|full\s*course|curso\s*completo)\s*\}/gi,
-  /\[?\b(?:19|20)\d{2}\b\]?|\((?:19|20)\d{2}\)|\{(?:19|20)\d{2}\}/g // [2024], (2024), 2024
+  // [2024], (2024), 2024 — but NOT years inside dates like (07-07-2025)
+  /\((?:19|20)\d{2}\)|\{(?:19|20)\d{2}\}|(?<![\d-])\[?\b(?:19|20)\d{2}\b\]?(?![\d-])/g
 ]
 
 const KEYWORD_PREFIXES = 'aula|lesson|capitulo|capítulo|secao|seção|modulo|módulo|parte|part|licao|lição|section'
 
 /**
- * Common lesson / section prefix patterns
- * e.g. "01 - ", "001. ", "01.5 - ", "Aula 01 - ", "Aula 10a - ", "Lesson 02: ", "Lição 03 - "
+ * Platform junk: Telegram handles and @handles only.
+ * "Catálogo" is kept — it describes the video content.
+ */
+const JUNK_PATTERNS = [
+  /[\s\-–—]+(?:telegram|tg)\s*(?:@[A-Za-z0-9_.]+)?/gi,
+  /[\s\-–—]+@[A-Za-z0-9_.]+/g
+]
+
+/**
+ * Lesson / section prefix patterns.
+ * Removes the keyword ("Aula", "Lesson", "Módulo"...) but PRESERVES the
+ * sequence number so lessons stay identifiable ("Aula 05 - X" -> "05 - X").
+ * Bare leading numbers ("001 - X") are intentionally kept for ordering.
  */
 const LESSON_PREFIX_PATTERNS = [
-  new RegExp(
-    `^([^\\w\\s]*\\s*)(?:${KEYWORD_PREFIXES})\\s*\\d+(?:\\.\\d+)?[a-zA-Z]?(?:\\s*[-–—:_]\\s*|\\s*\\.\\s+|\\s+)(?=\\S)`,
-    'i'
-  ),
-  /^([^\w\s]*\s*)\d+(?:\.\d+)?[a-zA-Z]?(?:\s*[-–—:_]\s*|\s*\.\s+|\s+)(?=\S)/
+  new RegExp(`^([^\\w\\s]*\\s*)(?:${KEYWORD_PREFIXES})\\s*(?=\\d)`, 'i')
 ]
 
 /**
@@ -74,6 +82,11 @@ export function cleanTitle(rawName: string): string {
       title = title.replace(pattern, '')
     }
 
+    for (const pattern of JUNK_PATTERNS) {
+      pattern.lastIndex = 0
+      title = title.replace(pattern, '')
+    }
+
     title = title.replace(/\[\s*\]|\(\s*\)|\{\s*\}/g, '')
     title = title.replace(/^[-–—:\s]+/, '').trim()
   }
@@ -90,8 +103,12 @@ export function cleanTitle(rawName: string): string {
   }
 
   // 8. Clean punctuation and whitespace (preserving hyphenated compound words like front-end)
+  // Insert dash after bare leading numbers ("2.9 Conectando" -> "2.9 - Conectando")
   title = title
+    .replace(/^(\d+(?:\.\d+)?[a-zA-Z]?)\s+(?=[^\d\s\-–—])/, '$1 - ')
     .replace(/\s+[-–—]+\s*|\s*[-–—]+\s+/g, ' - ')
+    .replace(/[-–—]{2,}/g, ' - ')
+    .replace(/:\s+/g, ' - ')
     .replace(/\s+/g, ' ')
     .replace(/^[-–—:.\s]+|[-–—:.\s]+$/g, '')
     .trim()

@@ -51,7 +51,7 @@ export function SettingsView(): React.JSX.Element {
           <h1 className="text-xl font-bold tracking-tight text-foreground">
             {t('settings.title')}
           </h1>
-          <p className="text-xs text-muted-foreground">Manage your study preferences and vault configuration</p>
+          <p className="text-xs text-muted-foreground">{t('settings.subtitle')}</p>
         </div>
       </div>
 
@@ -64,7 +64,7 @@ export function SettingsView(): React.JSX.Element {
               <CardTitle className="text-base font-bold">{t('settings.general')}</CardTitle>
             </div>
             <CardDescription className="text-xs">
-              Customize language, look and feel of the interface
+              {t('settings.generalDesc')}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4 pt-1">
@@ -72,7 +72,7 @@ export function SettingsView(): React.JSX.Element {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3.5 border-b border-border/40">
               <div>
                 <p className="text-sm font-semibold text-foreground">{t('settings.language')}</p>
-                <p className="text-xs text-muted-foreground">Choose your display language</p>
+                <p className="text-xs text-muted-foreground">{t('settings.languageDesc')}</p>
               </div>
               <div className="flex items-center gap-2">
                 {languages.map((lang) => (
@@ -94,7 +94,7 @@ export function SettingsView(): React.JSX.Element {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <p className="text-sm font-semibold text-foreground">{t('settings.theme')}</p>
-                <p className="text-xs text-muted-foreground">Select color theme</p>
+                <p className="text-xs text-muted-foreground">{t('settings.themeDesc')}</p>
               </div>
               <div className="flex items-center gap-2">
                 {themes.map((th) => (
@@ -122,7 +122,7 @@ export function SettingsView(): React.JSX.Element {
               <CardTitle className="text-base font-bold">{t('settings.playback')}</CardTitle>
             </div>
             <CardDescription className="text-xs">
-              Configure video player defaults and study completion rules
+              {t('settings.playbackDesc')}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4 pt-1">
@@ -130,7 +130,7 @@ export function SettingsView(): React.JSX.Element {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3.5 border-b border-border/40">
               <div>
                 <p className="text-sm font-semibold text-foreground">{t('settings.defaultSpeed')}</p>
-                <p className="text-xs text-muted-foreground">Initial speed when starting video</p>
+                <p className="text-xs text-muted-foreground">{t('settings.defaultSpeedDesc')}</p>
               </div>
               <div className="flex items-center gap-1.5 flex-wrap">
                 {speeds.map((spd) => (
@@ -151,7 +151,7 @@ export function SettingsView(): React.JSX.Element {
             <div className="flex items-center justify-between gap-3 pb-3.5 border-b border-border/40">
               <div>
                 <p className="text-sm font-semibold text-foreground">{t('settings.autoPlayNext')}</p>
-                <p className="text-xs text-muted-foreground">Countdown 5 seconds then load next lesson</p>
+                <p className="text-xs text-muted-foreground">{t('settings.autoPlayNextDesc')}</p>
               </div>
               <button
                 type="button"
@@ -178,7 +178,7 @@ export function SettingsView(): React.JSX.Element {
                     {t('settings.completionThreshold')}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    Automatically mark lesson complete when percentage of video duration is reached
+                    {t('settings.completionThresholdDesc')}
                   </p>
                 </div>
                 <span className="font-mono text-sm font-bold text-primary px-2 py-0.5 rounded-lg bg-primary/10 border border-primary/20">
@@ -204,16 +204,16 @@ export function SettingsView(): React.JSX.Element {
               <Database className="h-4 w-4 text-primary" />
               <CardTitle className="text-base font-bold">{t('settings.currentVault')}</CardTitle>
             </div>
-            <CardDescription className="text-xs">Active Study Vault details</CardDescription>
+            <CardDescription className="text-xs">{t('settings.vaultDesc')}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3 pt-1">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-border/70 bg-secondary/30 p-3.5">
               <div className="space-y-0.5 overflow-hidden">
                 <p className="text-sm font-bold text-foreground truncate">
-                  {currentVault?.name || 'No Vault'}
+                  {currentVault?.name || t('settings.noVault')}
                 </p>
                 <p className="text-xs font-mono text-muted-foreground truncate">
-                  {currentVault?.path || 'N/A'}
+                  {currentVault?.path || t('settings.notAvailable')}
                 </p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
@@ -269,7 +269,7 @@ export function SettingsView(): React.JSX.Element {
             <div className="text-xs text-muted-foreground space-y-1 pt-2 border-t border-border/40">
               <p className="flex items-center gap-1.5 text-foreground font-medium">
                 <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
-                <span>100% Offline-First • Zero Mandatory Cloud • Complete User Privacy</span>
+                <span>{t('settings.offlineFirst')}</span>
               </p>
               <p>{t('settings.license')}</p>
             </div>

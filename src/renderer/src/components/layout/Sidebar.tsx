@@ -1,4 +1,4 @@
-import React from 'react'
+﻿import React from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   BookOpen,
@@ -101,7 +101,7 @@ export function Sidebar(): React.JSX.Element {
                   variant="default"
                   size="icon"
                   onClick={() => setImportModalOpen(true)}
-                  className="w-10 h-10 mx-auto rounded-xl bg-gradient-to-r from-orange-500 via-orange-600 to-amber-500 text-white font-semibold shadow-md shadow-orange-500/25 hover:shadow-orange-500/40 hover:scale-105 active:scale-95 transition-all"
+                  className="w-10 h-10 mx-auto rounded-xl bg-gradient-to-r from-orange-500 via-orange-600 to-amber-500 text-primary-foreground font-semibold shadow-md shadow-orange-500/25 hover:shadow-orange-500/40 hover:scale-105 active:scale-95 transition-all"
                 >
                   <Plus className="h-5 w-5" />
                 </Button>
@@ -115,7 +115,7 @@ export function Sidebar(): React.JSX.Element {
               variant="default"
               size="sm"
               onClick={() => setImportModalOpen(true)}
-              className="w-full justify-center gap-2 font-semibold shadow-md shadow-orange-500/20 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-500 text-white hover:opacity-95 hover:shadow-orange-500/30 active:scale-[0.98] transition-all h-9.5 rounded-xl cursor-pointer"
+              className="w-full justify-center gap-2 font-semibold shadow-md shadow-orange-500/20 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-500 text-primary-foreground hover:opacity-95 hover:shadow-orange-500/30 active:scale-[0.98] transition-all h-9.5 rounded-xl cursor-pointer"
             >
               <Plus className="h-4 w-4 stroke-[2.5]" />
               <span>{t('nav.importCourse')}</span>

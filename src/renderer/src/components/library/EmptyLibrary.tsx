@@ -1,4 +1,4 @@
-import React from 'react'
+﻿import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { FolderPlus, BookOpen } from 'lucide-react'
 import { Button } from '../ui'
@@ -27,7 +27,7 @@ export function EmptyLibrary({ onImportClick }: EmptyLibraryProps): React.JSX.El
         onClick={onImportClick}
         variant="default"
         size="sm"
-        className="font-semibold shadow-lg shadow-orange-500/20 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-500 text-white rounded-xl"
+        className="font-semibold shadow-lg shadow-orange-500/20 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-500 text-primary-foreground rounded-xl"
       >
         <FolderPlus className="w-4 h-4 mr-2" />
         {t('home.importFirstCourse')}

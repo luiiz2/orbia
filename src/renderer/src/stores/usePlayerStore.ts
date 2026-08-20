@@ -229,7 +229,11 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     const preparedTracks: { id: string; label: string; vttUrl: string }[] = []
     if (foundLesson.subtitles && foundLesson.subtitles.length > 0) {
       for (const sub of foundLesson.subtitles) {
-        let vttUrl = `media://${encodeURI(sub.filePath.replace(/\\/g, '/'))}`
+        let vttUrl = `media://${sub.filePath
+          .replace(/\\/g, '/')
+          .split('/')
+          .map(encodeURIComponent)
+          .join('/')}`
         if (sub.format === 'srt' || sub.filePath.toLowerCase().endsWith('.srt')) {
           try {
             const res = await window.api.courses.convertSrtToVtt(sub.filePath)

@@ -1,10 +1,11 @@
-import React, { useRef, useState, useEffect, useCallback } from 'react'
+﻿import React, { useRef, useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Play, ChevronLeft, FastForward, X, AlertCircle } from 'lucide-react'
 import { usePlayer } from '../../hooks/usePlayer'
 import { usePlayerStore } from '../../stores/usePlayerStore'
 import { useNavigationStore } from '../../stores/useNavigationStore'
 import { PlayerControls } from './PlayerControls'
+import { DocumentLessonView } from './DocumentLessonView'
 import { Button, Tooltip, TooltipTrigger, TooltipContent } from '../ui'
 import { cn } from '../../lib/utils'
 
@@ -25,11 +26,13 @@ export function VideoPlayer({ className, onBack }: VideoPlayerProps): React.JSX.
     theaterMode,
     toggleTheater,
     subtitleTracks,
-    activeSubtitleTrack
+    activeSubtitleTrack,
+    progressMap
   } = usePlayerStore()
   const { setView } = useNavigationStore()
 
   const [bufferedEnd, setBufferedEnd] = useState<number>(0)
+  const [isBuffering, setIsBuffering] = useState<boolean>(false)
   const [isVideoError, setIsVideoError] = useState<boolean>(false)
   const [errorMessage, setErrorMessage] = useState<string>('')
 
@@ -49,6 +52,7 @@ export function VideoPlayer({ className, onBack }: VideoPlayerProps): React.JSX.
     hasPrevLesson,
     togglePlay,
     seekTo,
+    seekRelative,
     setVolume,
     toggleMute,
     setPlaybackRate,
@@ -75,9 +79,14 @@ export function VideoPlayer({ className, onBack }: VideoPlayerProps): React.JSX.
     }
   }, [])
 
-  // Construct media:// stream URL
+  // Construct media:// stream URL. Encode each path segment separately so
+  // '#' and '?' in filenames cannot corrupt the URL (fragment/query).
   const videoSrc = activeLesson?.filePath
-    ? `media://${encodeURI(activeLesson.filePath.replace(/\\/g, '/'))}`
+    ? `media://${activeLesson.filePath
+        .replace(/\\/g, '/')
+        .split('/')
+        .map(encodeURIComponent)
+        .join('/')}`
     : ''
 
   // Reset error state on lesson change
@@ -107,9 +116,15 @@ export function VideoPlayer({ className, onBack }: VideoPlayerProps): React.JSX.
     }
   }
 
-  const isCompleted =
-    activeLesson &&
-    usePlayerStore.getState().progressMap[activeLesson.id]?.completed
+  const isCompleted = activeLesson ? Boolean(progressMap[activeLesson.id]?.completed) : false
+
+  // Non-video lessons (PDF, image, link, document, archive) render in DocumentLessonView
+  const isPlayableMedia =
+    activeLesson?.mediaType === 'video' || activeLesson?.mediaType === 'audio'
+
+  if (!isPlayableMedia) {
+    return <DocumentLessonView onBack={onBack} />
+  }
 
   return (
     <div
@@ -130,6 +145,8 @@ export function VideoPlayer({ className, onBack }: VideoPlayerProps): React.JSX.
           ref={videoRef}
           src={videoSrc}
           onProgress={handleProgress}
+          onWaiting={() => setIsBuffering(true)}
+          onPlaying={() => setIsBuffering(false)}
           onError={handleVideoError}
           onClick={togglePlay}
           playsInline
@@ -149,6 +166,13 @@ export function VideoPlayer({ className, onBack }: VideoPlayerProps): React.JSX.
       ) : (
         <div className="flex h-full w-full items-center justify-center bg-zinc-950 text-zinc-400">
           <p className="text-sm font-medium">No lesson selected</p>
+        </div>
+      )}
+
+      {/* Buffering Spinner */}
+      {isBuffering && !isVideoError && videoSrc && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
+          <div className="h-12 w-12 rounded-full border-4 border-white/20 border-t-orange-500 animate-spin" />
         </div>
       )}
 
@@ -208,7 +232,7 @@ export function VideoPlayer({ className, onBack }: VideoPlayerProps): React.JSX.
                   setIsVideoError(false)
                   nextLesson()
                 }}
-                className="text-xs rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 text-white font-bold cursor-pointer"
+                className="text-xs rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 text-primary-foreground font-bold cursor-pointer"
               >
                 {t('player.skipNext', 'Pular para Próxima Aula')}
               </Button>
@@ -327,6 +351,7 @@ export function VideoPlayer({ className, onBack }: VideoPlayerProps): React.JSX.
         bufferedEnd={bufferedEnd}
         onTogglePlay={togglePlay}
         onSeek={seekTo}
+        onSeekRelative={seekRelative}
         onVolumeChange={setVolume}
         onToggleMute={toggleMute}
         onRateChange={setPlaybackRate}

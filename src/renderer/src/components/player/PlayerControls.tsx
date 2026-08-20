@@ -5,6 +5,8 @@ import {
   Pause,
   SkipBack,
   SkipForward,
+  Rewind,
+  FastForward,
   Maximize,
   Minimize,
   CheckCircle2,
@@ -36,6 +38,7 @@ export interface PlayerControlsProps {
   bufferedEnd?: number
   onTogglePlay: () => void
   onSeek: (time: number) => void
+  onSeekRelative: (deltaSeconds: number) => void
   onVolumeChange: (vol: number) => void
   onToggleMute: () => void
   onRateChange: (rate: number) => void
@@ -64,6 +67,7 @@ export function PlayerControls({
   bufferedEnd,
   onTogglePlay,
   onSeek,
+  onSeekRelative,
   onVolumeChange,
   onToggleMute,
   onRateChange,
@@ -117,6 +121,25 @@ export function PlayerControls({
             </TooltipContent>
           </Tooltip>
 
+          {/* Rewind 5s */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => onSeekRelative(-5)}
+                className="h-8.5 w-8.5 rounded-xl text-white/90 hover:bg-white/15 hover:text-white cursor-pointer"
+                aria-label={t('player.rewind5')}
+              >
+                <Rewind className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="flex items-center gap-1.5 bg-black/90 text-white border-white/20">
+              <span>{t('player.rewind5')}</span>
+              <kbd className="px-1.5 py-0.5 rounded bg-white/20 text-[10px] font-mono">←</kbd>
+            </TooltipContent>
+          </Tooltip>
+
           {/* Play / Pause Toggle */}
           <Tooltip>
             <TooltipTrigger asChild>
@@ -137,6 +160,25 @@ export function PlayerControls({
             <TooltipContent side="top" className="flex items-center gap-1.5 bg-black/90 text-white border-white/20">
               <span>{isPlaying ? 'Pause' : 'Play'}</span>
               <kbd className="px-1.5 py-0.5 rounded bg-white/20 text-[10px] font-mono">Space</kbd>
+            </TooltipContent>
+          </Tooltip>
+
+          {/* Forward 5s */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => onSeekRelative(5)}
+                className="h-8.5 w-8.5 rounded-xl text-white/90 hover:bg-white/15 hover:text-white cursor-pointer"
+                aria-label={t('player.forward5')}
+              >
+                <FastForward className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="flex items-center gap-1.5 bg-black/90 text-white border-white/20">
+              <span>{t('player.forward5')}</span>
+              <kbd className="px-1.5 py-0.5 rounded bg-white/20 text-[10px] font-mono">→</kbd>
             </TooltipContent>
           </Tooltip>
 

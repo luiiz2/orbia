@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react'
+﻿import React, { useState, useRef, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Clock,
@@ -192,7 +192,7 @@ export function NotesPanel({ className }: NotesPanelProps): React.JSX.Element {
             size="sm"
             onClick={() => handleAddNote()}
             disabled={!newContent.trim() || isSubmitting || !activeLesson}
-            className="h-7.5 px-3 text-[11px] font-semibold gap-1.5 rounded-xl shadow-md shadow-orange-500/20 bg-gradient-to-r from-orange-500 to-amber-500 text-white cursor-pointer hover:opacity-95 active:scale-[0.98] transition-all min-h-[30px]"
+            className="h-7.5 px-3 text-[11px] font-semibold gap-1.5 rounded-xl shadow-md shadow-orange-500/20 bg-gradient-to-r from-orange-500 to-amber-500 text-primary-foreground cursor-pointer hover:opacity-95 active:scale-[0.98] transition-all min-h-[30px]"
           >
             {isSubmitting ? (
               <Loader2 className="h-3 w-3 animate-spin" />

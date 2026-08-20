@@ -31,6 +31,8 @@ export const SUBTITLE_EXTENSIONS = new Set(['.srt', '.vtt', '.sub', '.ass'])
 
 export const IMAGE_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp'])
 
+export const LINK_EXTENSIONS = new Set(['.url', '.lnk', '.html', '.htm', '.webloc'])
+
 export const IGNORED_NAMES = new Set([
   '.git',
   '.github',
@@ -63,7 +65,11 @@ export function getMediaType(filePath: string): MediaType {
   if (VIDEO_EXTENSIONS.has(ext)) return 'video'
   if (AUDIO_EXTENSIONS.has(ext)) return 'audio'
   if (ext === '.pdf') return 'pdf'
-  return 'document'
+  if (IMAGE_EXTENSIONS.has(ext)) return 'image'
+  if (LINK_EXTENSIONS.has(ext)) return 'link'
+  if (ARCHIVE_EXTENSIONS.has(ext)) return 'archive'
+  if (DOCUMENT_EXTENSIONS.has(ext)) return 'document'
+  return 'other'
 }
 
 /**
@@ -72,6 +78,41 @@ export function getMediaType(filePath: string): MediaType {
 export function isMediaFile(filePath: string): boolean {
   const ext = path.extname(filePath).toLowerCase()
   return VIDEO_EXTENSIONS.has(ext) || AUDIO_EXTENSIONS.has(ext)
+}
+
+/**
+ * Checks if a file should be kept as a lesson during import.
+ * Keeps EVERYTHING meaningful (videos, audios, PDFs, documents, images,
+ * links, archives, subtitles excluded — they attach to media).
+ */
+export function isImportableFile(filePath: string): boolean {
+  const ext = path.extname(filePath).toLowerCase()
+  return (
+    VIDEO_EXTENSIONS.has(ext) ||
+    AUDIO_EXTENSIONS.has(ext) ||
+    DOCUMENT_EXTENSIONS.has(ext) ||
+    IMAGE_EXTENSIONS.has(ext) ||
+    LINK_EXTENSIONS.has(ext) ||
+    ARCHIVE_EXTENSIONS.has(ext)
+  )
+}
+
+/**
+ * Identifies a file that belongs to a scanned course inventory.
+ *
+ * This is intentionally broader than `isImportableFile`: importing must
+ * preserve unknown formats and sidecars, while opening a file remains limited
+ * to the safe allowlist above.
+ */
+export function isPreservableContentFile(filePath: string): boolean {
+  return !isIgnoredPath(filePath)
+}
+
+/**
+ * Checks if a file is a subtitle companion (not a standalone lesson).
+ */
+export function isSubtitleFile(filePath: string): boolean {
+  return SUBTITLE_EXTENSIONS.has(path.extname(filePath).toLowerCase())
 }
 
 /**
@@ -91,14 +132,6 @@ export function isAudioFile(filePath: string): boolean {
 }
 
 /**
- * Checks if a file is a subtitle track
- */
-export function isSubtitleFile(filePath: string): boolean {
-  const ext = path.extname(filePath).toLowerCase()
-  return SUBTITLE_EXTENSIONS.has(ext)
-}
-
-/**
  * Checks if a file is an image
  */
 export function isImageFile(filePath: string): boolean {
@@ -107,12 +140,24 @@ export function isImageFile(filePath: string): boolean {
 }
 
 /**
+ * Checks if a file is a PDF
+ */
+export function isPdfFile(filePath: string): boolean {
+  const ext = path.extname(filePath).toLowerCase()
+  return ext === '.pdf'
+}
+
+/**
  * Checks if an image file matches common course cover conventions
  */
 export function isCoverImage(filePath: string): boolean {
   if (!isImageFile(filePath)) return false
   const name = path.basename(filePath, path.extname(filePath)).toLowerCase()
-  return /^(?:cover|thumb|thumbnail|poster|folder|front|capa|banner)$/i.test(name)
+  // Exact cover names ("cover.jpg") or companion suffixes ("01 - Intro_thumb.jpg")
+  return (
+    /^(?:cover|thumb|thumbnail|poster|folder|front|capa|banner)$/i.test(name) ||
+    /[-_\s](?:cover|thumb|thumbnail|poster|folder|front|capa|banner)$/i.test(name)
+  )
 }
 
 /**

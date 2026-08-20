@@ -1,6 +1,6 @@
-import React from 'react'
+﻿import React from 'react'
 import { useTranslation } from 'react-i18next'
-import { FileText, ExternalLink, Download } from 'lucide-react'
+import { FileText, ExternalLink } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -10,6 +10,7 @@ import {
 import { Button } from '../ui/button'
 import { Badge } from '../ui/badge'
 import { formatFileSize } from '../../lib/formatters'
+import { mediaUrl } from '../../lib/utils'
 import type { AttachedResource } from '@shared'
 
 export interface DocumentResource {
@@ -36,14 +37,14 @@ export function PdfViewerModal({
 
   if (!resource) return null
 
-  const mediaUrl = `media://${encodeURI(resource.filePath.replace(/\\/g, '/'))}`
+  const docMediaUrl = mediaUrl(resource.filePath)
   const isPdf =
     resource.fileExtension?.toLowerCase().includes('pdf') ||
     resource.name.toLowerCase().endsWith('.pdf') ||
     resource.type === 'pdf'
 
   const handleOpenExternal = (): void => {
-    window.open(mediaUrl, '_blank')
+    window.open(docMediaUrl, '_blank')
   }
 
   return (
@@ -70,25 +71,27 @@ export function PdfViewerModal({
             </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0 pr-6">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleOpenExternal}
-              className="gap-1.5 text-xs rounded-xl border-border/80 hover:bg-secondary hover:text-foreground cursor-pointer h-8"
-              title={t('documents.openExternal', 'Abrir em nova janela')}
-            >
-              <ExternalLink className="h-3.5 w-3.5 text-primary" />
-              <span className="hidden sm:inline">{t('documents.openExternal', 'Abrir em Nova Janela')}</span>
-            </Button>
-          </div>
+          {isPdf && (
+            <div className="flex items-center gap-2 shrink-0 pr-6">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleOpenExternal}
+                className="gap-1.5 text-xs rounded-xl border-border/80 hover:bg-secondary hover:text-foreground cursor-pointer h-8"
+                title={t('documents.openExternal', 'Abrir em nova janela')}
+              >
+                <ExternalLink className="h-3.5 w-3.5 text-primary" />
+                <span className="hidden sm:inline">{t('documents.openExternal', 'Abrir em Nova Janela')}</span>
+              </Button>
+            </div>
+          )}
         </DialogHeader>
 
         {/* Viewer Body */}
         <div className="flex-1 w-full h-full overflow-hidden bg-secondary/30 relative flex flex-col items-center justify-center">
           {isPdf ? (
             <iframe
-              src={mediaUrl}
+              src={docMediaUrl}
               className="w-full h-full border-0 rounded-b-2xl bg-white dark:bg-zinc-900"
               title={resource.name}
             />
@@ -100,16 +103,9 @@ export function PdfViewerModal({
               <div className="space-y-1">
                 <h4 className="text-base font-bold text-foreground">{resource.name}</h4>
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  {t('documents.nonPdfHint', 'Este formato de documento pode ser visualizado abrindo no seu visualizador externo padrão.')}
+                  {t('documents.previewUnavailable')}
                 </p>
               </div>
-              <Button
-                onClick={handleOpenExternal}
-                className="gap-2 shadow-lg shadow-orange-500/20 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-500 text-white font-semibold rounded-xl"
-              >
-                <Download className="h-4 w-4" />
-                <span>{t('documents.openExternal', 'Abrir Documento')}</span>
-              </Button>
             </div>
           )}
         </div>

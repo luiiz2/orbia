@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import { DatabaseService } from '../src/main/services/database.service'
-import type { Course, Module, Lesson } from '../src/types'
+import type { ContentResource, Course, Module, Lesson } from '../src/types'
 
 const TEST_VAULT_DIR = path.join(__dirname, 'tmp_merge_test_vault')
 
@@ -214,5 +214,306 @@ describe('DatabaseService - Course Merging & Deduplication', () => {
 
     dbService.clearImportHistory()
     expect(dbService.getImportHistory()).toHaveLength(0)
+  })
+
+  it('merges user-selected courses into one canonical course preserving all modules', () => {
+    const makeCourse = (id: string, title: string, modId: string, lesId: string, modTitle: string, lessonTitle: string): void => {
+      const course: Course = {
+        id,
+        title,
+        slug: `${id}-slug`,
+        sourceType: 'local-vault',
+        rootPath: `C:/Vault/${id}`,
+        moduleCount: 1,
+        lessonCount: 1,
+        totalDuration: 60,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      }
+      const mod: Module & { lessons: Lesson[] } = {
+        id: modId,
+        courseId: id,
+        title: modTitle,
+        orderIndex: 1,
+        duration: 60,
+        lessonCount: 1,
+        createdAt: Date.now(),
+        lessons: [
+          {
+            id: lesId,
+            moduleId: modId,
+            courseId: id,
+            title: lessonTitle,
+            fileName: `${lesId}.mp4`,
+            filePath: `C:/Vault/${id}/${lesId}.mp4`,
+            fileExtension: 'mp4',
+            mediaType: 'video',
+            orderIndex: 1,
+            duration: 60,
+            fileSize: 1000,
+            availability: 'local',
+            createdAt: Date.now()
+          }
+        ]
+      }
+      dbService.saveCourseWithHierarchy(course, [mod])
+    }
+
+    makeCourse('part-1', 'Curso.dev-1-001', 'mod-p1', 'les-p1', 'Dia 1', 'Aula 01')
+    makeCourse('part-2', 'Curso.dev-1-011', 'mod-p2', 'les-p2', 'Dia 11', 'Aula 41')
+    makeCourse('part-3', 'Curso.dev-1-013', 'mod-p3', 'les-p3', 'Dia 13', 'Aula 61')
+
+    // Track progress on a secondary lesson to verify re-pointing
+    dbService.saveLessonProgress({
+      lessonId: 'les-p2',
+      courseId: 'part-2',
+      currentTime: 10,
+      duration: 60,
+      completed: false
+    })
+
+    const result = dbService.mergeCoursesByIds(['part-1', 'part-2', 'part-3'], 'Curso.dev Completo')
+
+    expect(result.success).toBe(true)
+    expect(result.removedCoursesCount).toBe(2)
+    expect(result.details[0].title).toBe('Curso.dev Completo')
+    expect(result.details[0].totalLessons).toBe(3)
+
+    const allCourses = dbService.getAllCourses()
+    expect(allCourses).toHaveLength(1)
+    expect(allCourses[0].title).toBe('Curso.dev Completo')
+    expect(allCourses[0].lessonCount).toBe(3)
+
+    const hierarchy = dbService.getCourseById(allCourses[0].id)
+    expect(hierarchy!.modules).toHaveLength(3)
+
+    // Progress re-pointed to canonical course
+    const progress = dbService.getLessonProgress('les-p2')
+    expect(progress).not.toBeNull()
+    expect(progress!.courseId).toBe(allCourses[0].id)
+
+    // Modules re-indexed naturally
+    const modTitles = hierarchy!.modules.map((m) => m.title)
+    expect(modTitles).toEqual(['Dia 1', 'Dia 11', 'Dia 13'])
+    expect(hierarchy!.modules.map((m) => m.orderIndex)).toEqual([1, 2, 3])
+  })
+
+  it('builds a read-only merge preview that merges matching modules, creates new modules, and counts materials', () => {
+    const now = 1_000
+    const resource = (
+      id: string,
+      courseId: string,
+      moduleId: string,
+      lessonId?: string
+    ): ContentResource => ({
+      id,
+      courseId,
+      moduleId,
+      lessonId,
+      role: 'resource',
+      name: `${id}.pdf`,
+      filePath: `C:/Vault/${courseId}/${id}.pdf`,
+      fileExtension: 'pdf',
+      fileSize: 100,
+      type: 'pdf',
+      createdAt: now
+    })
+    const courseA: Course = {
+      id: 'preview-course-a',
+      title: 'Curso dividido',
+      slug: 'preview-course-a',
+      sourceType: 'local-vault',
+      rootPath: 'C:/Vault/preview-course-a',
+      moduleCount: 1,
+      lessonCount: 2,
+      totalDuration: 120,
+      createdAt: now,
+      updatedAt: now
+    }
+    const moduleA: Module & { lessons: Lesson[] } = {
+      id: 'preview-module-a-day-1',
+      courseId: courseA.id,
+      title: 'Dia 1',
+      orderIndex: 1,
+      duration: 120,
+      lessonCount: 2,
+      createdAt: now,
+      resources: [resource('preview-a-module-material', courseA.id, 'preview-module-a-day-1')],
+      lessons: [
+        {
+          id: 'preview-lesson-a-duplicate',
+          moduleId: 'preview-module-a-day-1',
+          courseId: courseA.id,
+          title: 'Aula 1',
+          fileName: 'aula-1.mp4',
+          filePath: 'C:/Vault/preview-course-a/aula-1.mp4',
+          fileExtension: 'mp4',
+          mediaType: 'video',
+          orderIndex: 1,
+          duration: 60,
+          fileSize: 1_000,
+          availability: 'local',
+          createdAt: now,
+          contentResources: [
+            resource(
+              'preview-a-lesson-material',
+              courseA.id,
+              'preview-module-a-day-1',
+              'preview-lesson-a-duplicate'
+            )
+          ]
+        },
+        {
+          id: 'preview-lesson-a-unique',
+          moduleId: 'preview-module-a-day-1',
+          courseId: courseA.id,
+          title: 'Aula 2',
+          fileName: 'aula-2.mp4',
+          filePath: 'C:/Vault/preview-course-a/aula-2.mp4',
+          fileExtension: 'mp4',
+          mediaType: 'video',
+          orderIndex: 2,
+          duration: 60,
+          fileSize: 1_000,
+          availability: 'local',
+          createdAt: now
+        }
+      ]
+    }
+    const courseB: Course = {
+      id: 'preview-course-b',
+      title: 'Curso dividido — parte 2',
+      slug: 'preview-course-b',
+      sourceType: 'local-vault',
+      rootPath: 'C:/Vault/preview-course-b',
+      moduleCount: 2,
+      lessonCount: 2,
+      totalDuration: 120,
+      createdAt: now + 1,
+      updatedAt: now + 1
+    }
+    const moduleBDay1: Module & { lessons: Lesson[] } = {
+      id: 'preview-module-b-day-1',
+      courseId: courseB.id,
+      title: 'DIA 1',
+      orderIndex: 1,
+      duration: 60,
+      lessonCount: 1,
+      createdAt: now + 1,
+      resources: [resource('preview-b-day-1-module-material', courseB.id, 'preview-module-b-day-1')],
+      lessons: [
+        {
+          id: 'preview-lesson-b-duplicate',
+          moduleId: 'preview-module-b-day-1',
+          courseId: courseB.id,
+          title: 'Aula 1',
+          fileName: 'aula-1.mp4',
+          filePath: 'C:/Vault/preview-course-b/aula-1.mp4',
+          fileExtension: 'mp4',
+          mediaType: 'video',
+          orderIndex: 1,
+          duration: 60,
+          fileSize: 1_000,
+          availability: 'local',
+          createdAt: now + 1,
+          contentResources: [
+            resource(
+              'preview-b-day-1-lesson-material',
+              courseB.id,
+              'preview-module-b-day-1',
+              'preview-lesson-b-duplicate'
+            )
+          ]
+        }
+      ]
+    }
+    const moduleBDay2: Module & { lessons: Lesson[] } = {
+      id: 'preview-module-b-day-2',
+      courseId: courseB.id,
+      title: 'Dia 2',
+      orderIndex: 2,
+      duration: 60,
+      lessonCount: 1,
+      createdAt: now + 1,
+      resources: [resource('preview-b-day-2-module-material', courseB.id, 'preview-module-b-day-2')],
+      lessons: [
+        {
+          id: 'preview-lesson-b-new',
+          moduleId: 'preview-module-b-day-2',
+          courseId: courseB.id,
+          title: 'Aula 3',
+          fileName: 'aula-3.mp4',
+          filePath: 'C:/Vault/preview-course-b/aula-3.mp4',
+          fileExtension: 'mp4',
+          mediaType: 'video',
+          orderIndex: 1,
+          duration: 60,
+          fileSize: 1_000,
+          availability: 'local',
+          createdAt: now + 1,
+          contentResources: [
+            resource(
+              'preview-b-day-2-lesson-material',
+              courseB.id,
+              'preview-module-b-day-2',
+              'preview-lesson-b-new'
+            )
+          ]
+        }
+      ]
+    }
+
+    dbService.saveCourseWithHierarchy(courseA, [moduleA])
+    dbService.saveCourseWithHierarchy(courseB, [moduleBDay1, moduleBDay2])
+
+    const dbPath = path.join(TEST_VAULT_DIR, '.orbia', 'library.db')
+    const snapshotDatabaseFiles = (): Record<string, string | undefined> => ({
+      database: fs.readFileSync(dbPath).toString('base64'),
+      wal: fs.existsSync(`${dbPath}-wal`) ? fs.readFileSync(`${dbPath}-wal`).toString('base64') : undefined
+    })
+    const beforeHierarchy = [dbService.getCourseById(courseA.id), dbService.getCourseById(courseB.id)]
+    const beforeDatabaseFiles = snapshotDatabaseFiles()
+    const preview = dbService.getMergePreview([courseA.id, courseB.id])
+
+    expect(preview.canonicalCourseId).toBe(courseA.id)
+    expect(preview.totalLessons).toBe(4)
+    expect(preview.totalMaterials).toBe(6)
+    expect(preview.modules).toEqual([
+      expect.objectContaining({
+        sourceCourseId: courseB.id,
+        sourceModuleId: moduleBDay1.id,
+        title: 'DIA 1',
+        action: 'merge',
+        targetModuleId: moduleA.id,
+        lessonCount: 1,
+        materialCount: 2
+      }),
+      expect.objectContaining({
+        sourceCourseId: courseB.id,
+        sourceModuleId: moduleBDay2.id,
+        title: 'Dia 2',
+        action: 'create',
+        lessonCount: 1,
+        materialCount: 2
+      })
+    ])
+    expect(preview.duplicateCandidates).toEqual([
+      expect.objectContaining({
+        sourceLessonId: 'preview-lesson-b-duplicate',
+        targetLessonId: 'preview-lesson-a-duplicate',
+        reason: 'same-title'
+      })
+    ])
+    expect([dbService.getCourseById(courseA.id), dbService.getCourseById(courseB.id)]).toEqual(beforeHierarchy)
+    expect(snapshotDatabaseFiles()).toEqual(beforeDatabaseFiles)
+  })
+
+  it('validates a merge preview selection before calculating it', () => {
+    expect(() => dbService.getMergePreview(['only-one'])).toThrow(/at least two courses/i)
+    expect(() => dbService.getMergePreview(['missing-a', 'missing-b'])).toThrow(/no longer exist/i)
+  })
+
+  it('rejects merging fewer than two courses', () => {
+    expect(() => dbService.mergeCoursesByIds(['only-one'])).toThrow(/two courses/i)
   })
 })

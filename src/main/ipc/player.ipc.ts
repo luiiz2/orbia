@@ -61,6 +61,21 @@ export function registerPlayerIpc(): void {
   })
 
   ipcMain.handle(
+    'player:get-lessons-progress',
+    async (_event, payload: { courseId: string }) => {
+      try {
+        if (!payload || typeof payload.courseId !== 'string' || !payload.courseId.trim()) {
+          return []
+        }
+        return databaseService.getLessonProgressByCourse(payload.courseId.trim())
+      } catch (err) {
+        logger.error('[IPC] player:get-lessons-progress error:', err)
+        return []
+      }
+    }
+  )
+
+  ipcMain.handle(
     'player:get-course-progress',
     async (_event, payload: { courseId: string }) => {
       try {

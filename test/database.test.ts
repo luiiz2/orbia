@@ -3,20 +3,29 @@ import path from 'node:path'
 import os from 'node:os'
 import fs from 'node:fs'
 import { DatabaseService } from '../src/main/services/database.service'
-import type { Course, Module, Lesson } from '../src/types'
+import type { ContentResource, Course, Module, Lesson } from '../src/types'
 
 describe('DatabaseService Core Engine', () => {
   let tempVaultDir: string
   let dbService: DatabaseService
+  let extraTempPaths: string[]
 
   beforeEach(() => {
     tempVaultDir = path.join(os.tmpdir(), `orbia-db-test-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`)
     fs.mkdirSync(tempVaultDir, { recursive: true })
     dbService = new DatabaseService()
+    extraTempPaths = []
   })
 
   afterEach(() => {
     dbService.close()
+    for (const extraTempPath of extraTempPaths) {
+      try {
+        fs.rmSync(extraTempPath, { recursive: true, force: true })
+      } catch {
+        // ignore
+      }
+    }
     try {
       fs.rmSync(tempVaultDir, { recursive: true, force: true })
     } catch {
@@ -51,6 +60,80 @@ describe('DatabaseService Core Engine', () => {
     // Reconnecting to same vault path should be a no-op
     dbService.connect(tempVaultDir)
     expect(dbService.isConnected()).toBe(true)
+  })
+
+  it('records and updates journal state using the canonical file-operation fields', () => {
+    dbService.connect(tempVaultDir)
+    dbService.recordFileOperation({
+      operationId: 'operation-1',
+      groupId: 'group-1',
+      type: 'move',
+      sourcePath: 'C:/staging/course',
+      destinationPath: 'C:/vault/Courses/course',
+      originalFileName: 'course',
+      newFileName: 'course',
+      timestamp: 123,
+      status: 'pending',
+      isReversible: true
+    })
+    dbService.updateFileOperationStatus('operation-1', 'completed')
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const internalDb = (dbService as any).db
+    const operation = internalDb
+      .prepare(`SELECT original_filename, new_filename, status, error_details FROM file_operations WHERE operation_id = ?`)
+      .get('operation-1') as {
+        original_filename: string
+        new_filename: string
+        status: string
+        error_details: string | null
+      }
+
+    expect(operation).toEqual({
+      original_filename: 'course',
+      new_filename: 'course',
+      status: 'completed',
+      error_details: null
+    })
+  })
+
+  it('rolls back a pending managed move after restart when no course was persisted', () => {
+    const sourceRoot = `${tempVaultDir}-external-course`
+    extraTempPaths.push(sourceRoot)
+    const destinationRoot = path.join(tempVaultDir, 'Courses', 'recovered-course')
+    fs.mkdirSync(sourceRoot, { recursive: true })
+    fs.writeFileSync(path.join(sourceRoot, 'lesson.mp4'), 'lesson')
+
+    dbService.connect(tempVaultDir)
+    dbService.recordFileOperation({
+      operationId: 'pending-move-1',
+      groupId: 'group-1',
+      type: 'move',
+      sourcePath: sourceRoot,
+      destinationPath: destinationRoot,
+      originalFileName: 'external-course',
+      newFileName: 'recovered-course',
+      timestamp: 123,
+      status: 'pending',
+      isReversible: true
+    })
+    fs.mkdirSync(path.dirname(destinationRoot), { recursive: true })
+    fs.renameSync(sourceRoot, destinationRoot)
+    dbService.close()
+
+    dbService = new DatabaseService()
+    dbService.connect(tempVaultDir)
+
+    expect(fs.existsSync(sourceRoot)).toBe(true)
+    expect(fs.existsSync(path.join(sourceRoot, 'lesson.mp4'))).toBe(true)
+    expect(fs.existsSync(destinationRoot)).toBe(false)
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const internalDb = (dbService as any).db
+    const operation = internalDb
+      .prepare(`SELECT status FROM file_operations WHERE operation_id = ?`)
+      .get('pending-move-1') as { status: string }
+    expect(operation.status).toBe('rolled_back')
   })
 
   it('handles empty database queries safely', () => {
@@ -179,6 +262,277 @@ describe('DatabaseService Core Engine', () => {
     expect(details!.modules[1].lessons.length).toBe(1)
     expect(details!.modules[0].lessons[0].title).toBe('Types & Interfaces')
     expect(details!.modules[1].lessons[0].title).toBe('Conditional Types')
+  })
+
+  it('persists module and lesson resources and derives lesson subtitles from subtitle resources', () => {
+    dbService.connect(tempVaultDir)
+    const now = Date.now()
+    const course: Course = {
+      id: 'course-resources',
+      title: 'Resourceful Course',
+      slug: 'resourceful-course',
+      sourceType: 'local-vault',
+      rootPath: path.join(tempVaultDir, 'Courses', 'resourceful-course'),
+      coverPath: '/course/course-cover.jpg',
+      totalDuration: 120,
+      moduleCount: 1,
+      lessonCount: 1,
+      createdAt: now,
+      updatedAt: now
+    }
+    const moduleResource: ContentResource = {
+      id: 'resource-module-1',
+      courseId: course.id,
+      moduleId: 'module-resources',
+      role: 'resource',
+      name: 'Workbook',
+      filePath: '/course/module/workbook.pdf',
+      fileExtension: 'pdf',
+      fileSize: 1200,
+      type: 'pdf',
+      createdAt: now
+    }
+    const lessonResource: ContentResource = {
+      id: 'resource-lesson-1',
+      courseId: course.id,
+      moduleId: 'module-resources',
+      lessonId: 'lesson-resources',
+      role: 'resource',
+      name: 'Slides',
+      filePath: '/course/module/slides.pdf',
+      fileExtension: 'pdf',
+      fileSize: 2400,
+      type: 'pdf',
+      createdAt: now
+    }
+    const subtitleResource: ContentResource = {
+      id: 'subtitle-lesson-1',
+      courseId: course.id,
+      moduleId: 'module-resources',
+      lessonId: 'lesson-resources',
+      role: 'subtitle',
+      name: 'Português',
+      filePath: '/course/module/aula.pt-BR.vtt',
+      fileExtension: 'vtt',
+      fileSize: 320,
+      type: 'document',
+      language: 'pt-BR',
+      label: 'Português',
+      createdAt: now
+    }
+    const modules: (Module & { lessons: Lesson[] })[] = [
+      {
+        id: 'module-resources',
+        courseId: course.id,
+        title: 'Module with materials',
+        orderIndex: 1,
+        duration: 120,
+        lessonCount: 1,
+        createdAt: now,
+        resources: [moduleResource],
+        lessons: [
+          {
+            id: 'lesson-resources',
+            moduleId: 'module-resources',
+            courseId: course.id,
+            title: 'Aula com materiais',
+            orderIndex: 1,
+            filePath: '/course/module/aula.mp4',
+            fileName: 'aula.mp4',
+            fileExtension: 'mp4',
+            mediaType: 'video',
+            duration: 120,
+            fileSize: 5000,
+            availability: 'local',
+            coverPath: '/course/module/aula-cover.jpg',
+            createdAt: now,
+            contentResources: [lessonResource, subtitleResource]
+          }
+        ]
+      }
+    ]
+
+    dbService.saveCourseWithHierarchy(course, modules)
+
+    const details = dbService.getCourseById(course.id)
+    expect(details).not.toBeNull()
+    expect(details!.modules[0].resources).toEqual([moduleResource])
+    expect(details!.modules[0].lessons[0].contentResources).toEqual([lessonResource, subtitleResource])
+    expect(details!.modules[0].lessons[0].resources).toEqual([
+      {
+        id: 'resource-lesson-1',
+        lessonId: 'lesson-resources',
+        name: 'Slides',
+        filePath: '/course/module/slides.pdf',
+        fileExtension: 'pdf',
+        fileSize: 2400,
+        type: 'pdf'
+      }
+    ])
+    expect(details!.modules[0].lessons[0].subtitles).toEqual([
+      {
+        id: 'subtitle-lesson-1',
+        lessonId: 'lesson-resources',
+        language: 'pt-BR',
+        label: 'Português',
+        filePath: '/course/module/aula.pt-BR.vtt',
+        format: 'vtt'
+      }
+    ])
+    expect(dbService.getRegisteredMediaPaths()).toEqual(
+      expect.arrayContaining([
+        '/course/course-cover.jpg',
+        '/course/module/aula.mp4',
+        '/course/module/aula-cover.jpg',
+        moduleResource.filePath,
+        lessonResource.filePath,
+        subtitleResource.filePath
+      ])
+    )
+  })
+
+  it('rolls back the hierarchy when a resource insert fails in the same transaction', () => {
+    dbService.connect(tempVaultDir)
+    const now = Date.now()
+    const course: Course = {
+      id: 'course-resource-rollback',
+      title: 'Resource rollback',
+      slug: 'resource-rollback',
+      sourceType: 'local-vault',
+      rootPath: path.join(tempVaultDir, 'Courses', 'resource-rollback'),
+      totalDuration: 60,
+      moduleCount: 1,
+      lessonCount: 1,
+      createdAt: now,
+      updatedAt: now
+    }
+    const duplicateResource: ContentResource = {
+      id: 'duplicate-resource',
+      courseId: course.id,
+      moduleId: 'module-resource-rollback',
+      role: 'resource',
+      name: 'Guide',
+      filePath: '/course/guide.pdf',
+      fileExtension: 'pdf',
+      fileSize: 50,
+      type: 'pdf',
+      createdAt: now
+    }
+    const modules: (Module & { lessons: Lesson[] })[] = [
+      {
+        id: 'module-resource-rollback',
+        courseId: course.id,
+        title: 'Module',
+        orderIndex: 1,
+        duration: 60,
+        lessonCount: 1,
+        createdAt: now,
+        resources: [duplicateResource],
+        lessons: [
+          {
+            id: 'lesson-resource-rollback',
+            moduleId: 'module-resource-rollback',
+            courseId: course.id,
+            title: 'Lesson',
+            orderIndex: 1,
+            filePath: '/course/lesson.mp4',
+            fileName: 'lesson.mp4',
+            fileExtension: 'mp4',
+            mediaType: 'video',
+            duration: 60,
+            fileSize: 100,
+            availability: 'local',
+            createdAt: now,
+            contentResources: [
+              {
+                ...duplicateResource,
+                lessonId: 'lesson-resource-rollback',
+                filePath: '/course/lesson-guide.pdf'
+              }
+            ]
+          }
+        ]
+      }
+    ]
+
+    expect(() => dbService.saveCourseWithHierarchy(course, modules)).toThrow()
+    expect(dbService.getCourseById(course.id)).toBeNull()
+  })
+
+  it('keeps legacy lesson resources and subtitle tracks compatible with canonical resources', () => {
+    dbService.connect(tempVaultDir)
+    const now = Date.now()
+    const course: Course = {
+      id: 'course-legacy-resources',
+      title: 'Legacy resources',
+      slug: 'legacy-resources',
+      sourceType: 'local-vault',
+      rootPath: path.join(tempVaultDir, 'Courses', 'legacy-resources'),
+      totalDuration: 60,
+      moduleCount: 1,
+      lessonCount: 1,
+      createdAt: now,
+      updatedAt: now
+    }
+    const modules: (Module & { lessons: Lesson[] })[] = [
+      {
+        id: 'module-legacy-resources',
+        courseId: course.id,
+        title: 'Module',
+        orderIndex: 1,
+        duration: 60,
+        lessonCount: 1,
+        createdAt: now,
+        lessons: [
+          {
+            id: 'lesson-legacy-resources',
+            moduleId: 'module-legacy-resources',
+            courseId: course.id,
+            title: 'Lesson',
+            orderIndex: 1,
+            filePath: '/course/lesson.mp4',
+            fileName: 'lesson.mp4',
+            fileExtension: 'mp4',
+            mediaType: 'video',
+            duration: 60,
+            fileSize: 100,
+            availability: 'local',
+            createdAt: now,
+            resources: [
+              {
+                id: 'legacy-attachment',
+                lessonId: 'lesson-legacy-resources',
+                name: 'Checklist',
+                filePath: '/course/checklist.pdf',
+                fileExtension: 'pdf',
+                fileSize: 90,
+                type: 'pdf'
+              }
+            ],
+            subtitles: [
+              {
+                id: 'legacy-subtitle',
+                lessonId: 'lesson-legacy-resources',
+                language: 'en',
+                label: 'English',
+                filePath: '/course/lesson.en.srt',
+                format: 'srt'
+              }
+            ]
+          }
+        ]
+      }
+    ]
+
+    dbService.saveCourseWithHierarchy(course, modules)
+
+    const lesson = dbService.getCourseById(course.id)!.modules[0].lessons[0]
+    expect(lesson.resources).toEqual(modules[0].lessons[0].resources)
+    expect(lesson.subtitles).toEqual(modules[0].lessons[0].subtitles)
+    expect(lesson.contentResources).toEqual([
+      expect.objectContaining({ id: 'legacy-attachment', role: 'resource', lessonId: lesson.id }),
+      expect.objectContaining({ id: 'legacy-subtitle', role: 'subtitle', lessonId: lesson.id })
+    ])
   })
 
   it('updates lastAccessedAt and orders courses by last_accessed_at DESC', () => {

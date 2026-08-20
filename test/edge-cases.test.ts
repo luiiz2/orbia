@@ -29,63 +29,63 @@ describe('Edge Cases & Resiliency Test Suite', () => {
     it('handles special characters, accents, and diacritics in titles', () => {
       expect(
         cleanTitle('01 - Módulo Básico: Introdução à Álgebra e Estatística [1080p].mp4')
-      ).toBe('Módulo Básico: Introdução à Álgebra e Estatística')
+      ).toBe('01 - Módulo Básico - Introdução à Álgebra e Estatística')
       expect(cleanTitle('Aula 05 - Programação Funcional & Concorrência.mkv')).toBe(
-        'Programação Funcional & Concorrência'
+        '05 - Programação Funcional & Concorrência'
       )
       expect(cleanTitle('Lição 03 - Fundamentos de Eletricidade & Magnetismo.mp4')).toBe(
-        'Fundamentos de Eletricidade & Magnetismo'
+        '03 - Fundamentos de Eletricidade & Magnetismo'
       )
     })
 
     it('preserves emojis in course and lesson titles', () => {
-      expect(cleanTitle('🚀 01 - Rocket Launch & Setup.mp4')).toBe('🚀 Rocket Launch & Setup')
-      expect(cleanTitle('01 - Python 🐍 Masterclass [2024].mp4')).toBe('Python 🐍 Masterclass')
+      expect(cleanTitle('🚀 01 - Rocket Launch & Setup.mp4')).toBe('🚀 01 - Rocket Launch & Setup')
+      expect(cleanTitle('01 - Python 🐍 Masterclass [2024].mp4')).toBe('01 - Python 🐍 Masterclass')
       expect(cleanTitle('🔥 Aula 02 - Dicas Rápidas de CSS ✨.mkv')).toBe(
-        '🔥 Dicas Rápidas de CSS ✨'
+        '🔥 02 - Dicas Rápidas de CSS ✨'
       )
     })
 
     it('handles nested, adjacent, and varied brackets (round, square, curly)', () => {
       expect(
         cleanTitle('[[Udemy]] {Curso Completo} (2024) [1080p] - 01. TypeScript Deep Dive {Extra}.mp4')
-      ).toBe('TypeScript Deep Dive {Extra}')
+      ).toBe('01. TypeScript Deep Dive {Extra}')
       expect(cleanTitle('[Rocketseat] [NLW] (Full Course) 01 - Iniciando com Node.mp4')).toBe(
-        'Iniciando com Node'
+        '01 - Iniciando com Node'
       )
     })
 
     it('handles programming symbols, technology names with pluses/hashes/slashes', () => {
-      expect(cleanTitle('01 - Complete C++ & C# Guide.mp4')).toBe('Complete C++ & C# Guide')
-      expect(cleanTitle('Aula 02 - Protocolos TCP/IP e DNS.mp4')).toBe('Protocolos TCP/IP e DNS')
+      expect(cleanTitle('01 - Complete C++ & C# Guide.mp4')).toBe('01 - Complete C++ & C# Guide')
+      expect(cleanTitle('Aula 02 - Protocolos TCP/IP e DNS.mp4')).toBe('02 - Protocolos TCP/IP e DNS')
       expect(cleanTitle('Lesson 03: What is CI/CD Pipeline?.mp4')).toBe(
-        'What is CI/CD Pipeline?'
+        '03 - What is CI/CD Pipeline?'
       )
-      expect(cleanTitle('04 - 100% Rust Performance.mp4')).toBe('100% Rust Performance')
+      expect(cleanTitle('04 - 100% Rust Performance.mp4')).toBe('04 - 100% Rust Performance')
     })
 
     it('handles decimal and fractional lesson numbers', () => {
       expect(cleanTitle('01.5 - Bonus Lecture: Architecture Overview.mp4')).toBe(
-        'Bonus Lecture: Architecture Overview'
+        '01.5 - Bonus Lecture - Architecture Overview'
       )
       expect(cleanTitle('Aula 1.5 - Setup Adicional do Docker.mp4')).toBe(
-        'Setup Adicional do Docker'
+        '1.5 - Setup Adicional do Docker'
       )
     })
 
     it('handles alphanumeric lesson suffixes', () => {
       expect(cleanTitle('Aula 10a - Refatoração do Código Legado.mp4')).toBe(
-        'Refatoração do Código Legado'
+        '10a - Refatoração do Código Legado'
       )
-      expect(cleanTitle('01b - Alternate Solution.mp4')).toBe('Alternate Solution')
-      expect(cleanTitle('Lesson 03C: Edge Cases Analysis.mp4')).toBe('Edge Cases Analysis')
+      expect(cleanTitle('01b - Alternate Solution.mp4')).toBe('01b - Alternate Solution')
+      expect(cleanTitle('Lesson 03C: Edge Cases Analysis.mp4')).toBe('03C - Edge Cases Analysis')
     })
 
     it('preserves bare numerical and decimal names without stripping to empty', () => {
       expect(cleanTitle('001.mp4')).toBe('001')
       expect(cleanTitle('01.5.mp4')).toBe('01.5')
       expect(cleanTitle('100.mkv')).toBe('100')
-      expect(cleanTitle('Aula 01.mp4')).toBe('Aula 01')
+      expect(cleanTitle('Aula 01.mp4')).toBe('01')
     })
 
     it('handles course titles with platform tags, years, and clean naming', () => {
@@ -102,7 +102,7 @@ describe('Edge Cases & Resiliency Test Suite', () => {
     it('handles module titles with numeric, empty, or custom formats', () => {
       expect(cleanModuleTitle('01.5', 3)).toBe('Module 03')
       expect(cleanModuleTitle('01', 1)).toBe('Module 01')
-      expect(cleanModuleTitle('Módulo 01 - Fundamentos', 1)).toBe('Fundamentos')
+      expect(cleanModuleTitle('Módulo 01 - Fundamentos', 1)).toBe('01 - Fundamentos')
       expect(cleanModuleTitle('', 5)).toBe('Module 05')
       expect(cleanModuleTitle('   ', 7)).toBe('Module 07')
       expect(cleanModuleTitle('Advanced Topics', 2)).toBe('Advanced Topics')

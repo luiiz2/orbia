@@ -193,7 +193,7 @@ export function ImportModal(): React.JSX.Element {
                 >
                   <p className="font-semibold text-foreground">{t('import.saveToVault')}</p>
                   <p className="text-[11px] text-muted-foreground mt-0.5">
-                    Copy or manage course inside your active Vault.
+                    Copy or manage course inside your active Study Folder.
                   </p>
                 </button>
               </div>

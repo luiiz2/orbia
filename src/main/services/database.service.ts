@@ -12,9 +12,30 @@ import type {
   VaultStats,
   LessonNote,
   MergeCoursesResult,
-  ImportHistoryEntry
+  MergePreview,
+  MergePreviewModule,
+  MergeDuplicateCandidate,
+  ImportHistoryEntry,
+  FileOperationRecord,
+  AttachedResource,
+  ContentResource,
+  SubtitleTrack
 } from '../../types'
 import { naturalCompare } from '../utils/natural-sort'
+import { logger } from './logger.service'
+
+interface MergePreviewTargetModule {
+  courseId: string
+  moduleId: string
+  lessons: Lesson[]
+}
+
+interface PendingFileOperation {
+  operationId: string
+  type: string
+  sourcePath: string
+  destinationPath: string
+}
 
 export class DatabaseService {
   private db: Database.Database | null = null
@@ -39,6 +60,7 @@ export class DatabaseService {
     this.currentVaultPath = vaultPath
 
     this.runMigrations()
+    this.recoverPendingFileOperations(vaultPath)
   }
 
   public close(): void {
@@ -55,6 +77,35 @@ export class DatabaseService {
 
   public getCurrentVaultPath(): string | null {
     return this.currentVaultPath
+  }
+
+  /**
+   * Returns the exact local files the active library owns or references for
+   * playback and display. This is intentionally read-only so the media
+   * protocol can authorize renderer requests without trusting renderer paths.
+   */
+  public getRegisteredMediaPaths(): string[] {
+    if (!this.db) return []
+
+    const stmt = this.db.prepare(`
+      SELECT cover_path AS filePath
+      FROM courses
+      WHERE cover_path IS NOT NULL AND cover_path <> ''
+      UNION
+      SELECT file_path AS filePath
+      FROM lessons
+      WHERE file_path <> ''
+      UNION
+      SELECT cover_path AS filePath
+      FROM lessons
+      WHERE cover_path IS NOT NULL AND cover_path <> ''
+      UNION
+      SELECT file_path AS filePath
+      FROM content_resources
+      WHERE file_path <> ''
+    `)
+    const rows = stmt.all() as Array<{ filePath: string }>
+    return rows.map((row) => row.filePath)
   }
 
   private runMigrations(): void {
@@ -109,6 +160,25 @@ export class DatabaseService {
         availability   TEXT NOT NULL DEFAULT 'local',
         cover_path     TEXT,
         created_at     INTEGER NOT NULL
+      );
+
+      -- Course content material. Module resources have no lesson_id; lesson
+      -- resources and subtitle tracks use the same canonical storage.
+      CREATE TABLE IF NOT EXISTS content_resources (
+        id              TEXT PRIMARY KEY,
+        course_id       TEXT NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+        module_id       TEXT NOT NULL REFERENCES modules(id) ON DELETE CASCADE,
+        lesson_id       TEXT REFERENCES lessons(id) ON DELETE CASCADE,
+        role            TEXT NOT NULL CHECK(role IN ('resource', 'subtitle')),
+        name            TEXT NOT NULL,
+        file_path       TEXT NOT NULL,
+        file_extension  TEXT NOT NULL,
+        file_size       INTEGER NOT NULL DEFAULT 0,
+        resource_type   TEXT NOT NULL,
+        language        TEXT,
+        label           TEXT,
+        created_at      INTEGER NOT NULL,
+        CHECK(role <> 'subtitle' OR lesson_id IS NOT NULL)
       );
 
       -- Lesson Progress
@@ -202,6 +272,9 @@ export class DatabaseService {
       `CREATE INDEX IF NOT EXISTS idx_lessons_course ON lessons(course_id);`,
       `CREATE INDEX IF NOT EXISTS idx_lessons_order ON lessons(module_id, order_index);`,
       `CREATE INDEX IF NOT EXISTS idx_lessons_course_module_order ON lessons(course_id, module_id, order_index);`,
+      `CREATE INDEX IF NOT EXISTS idx_content_resources_course ON content_resources(course_id);`,
+      `CREATE INDEX IF NOT EXISTS idx_content_resources_module ON content_resources(module_id);`,
+      `CREATE INDEX IF NOT EXISTS idx_content_resources_lesson ON content_resources(lesson_id);`,
       `CREATE INDEX IF NOT EXISTS idx_progress_course ON lesson_progress(course_id);`,
       `CREATE INDEX IF NOT EXISTS idx_progress_course_completed ON lesson_progress(course_id, completed);`,
       `CREATE INDEX IF NOT EXISTS idx_progress_course_updated ON lesson_progress(course_id, updated_at DESC);`,
@@ -225,6 +298,22 @@ export class DatabaseService {
       } catch {
         // Ignored if index already exists
       }
+    }
+
+    // 4. Versioned migrations (PRAGMA user_version) — wrapped in transactions
+    // NOTE: `current_time` is a reserved SQLite keyword (UTC time constant).
+    // Bare `current_time` in SELECTs resolves to the keyword, NOT the column —
+    // column references MUST be table-qualified (e.g. lesson_progress.current_time).
+    const userVersion = this.db.pragma('user_version', { simple: true }) as number
+
+    if (userVersion < 1) {
+      // v0 schema is compatible with v1 — no data migrations required.
+      // (A previous attempt used `typeof(current_time) = 'text'` to detect
+      // legacy TEXT progress; bare `current_time` resolves to the SQLite
+      // keyword constant, making the predicate always-true and rewriting
+      // every row with the migration-run timestamp. Reverted — schema has
+      // always stored current_time as REAL seconds.)
+      this.db.pragma('user_version = 1')
     }
   }
 
@@ -270,6 +359,16 @@ export class DatabaseService {
       )
     `)
 
+    const insertContentResource = this.db!.prepare(`
+      INSERT INTO content_resources (
+        id, course_id, module_id, lesson_id, role, name, file_path,
+        file_extension, file_size, resource_type, language, label, created_at
+      ) VALUES (
+        @id, @courseId, @moduleId, @lessonId, @role, @name, @filePath,
+        @fileExtension, @fileSize, @type, @language, @label, @createdAt
+      )
+    `)
+
     const transaction = this.db!.transaction(() => {
       insertCourse.run({
         id: course.id,
@@ -301,6 +400,10 @@ export class DatabaseService {
           createdAt: mod.createdAt
         })
 
+        for (const resource of moduleResourcesForPersistence(mod, course.id)) {
+          insertContentResource.run(toContentResourceRow(resource))
+        }
+
         for (const lesson of mod.lessons) {
           insertLesson.run({
             id: lesson.id,
@@ -318,6 +421,10 @@ export class DatabaseService {
             coverPath: lesson.coverPath || null,
             createdAt: lesson.createdAt
           })
+
+          for (const resource of lessonResourcesForPersistence(lesson, course.id, mod.id)) {
+            insertContentResource.run(toContentResourceRow(resource))
+          }
         }
       }
     })
@@ -387,12 +494,47 @@ export class DatabaseService {
     `)
     const allLessons = lessonsStmt.all(courseId) as Lesson[]
 
+    const resourcesStmt = this.db!.prepare(`
+      SELECT
+        id, course_id as courseId, module_id as moduleId, lesson_id as lessonId,
+        role, name, file_path as filePath, file_extension as fileExtension,
+        file_size as fileSize, resource_type as type, language, label,
+        created_at as createdAt
+      FROM content_resources
+      WHERE course_id = ?
+      ORDER BY module_id ASC, lesson_id ASC, created_at ASC, id ASC
+    `)
+    const allResources = (resourcesStmt.all(courseId) as ContentResourceRow[]).map(contentResourceFromRow)
+    const resourcesByModule = new Map<string, ContentResource[]>()
+    const resourcesByLesson = new Map<string, ContentResource[]>()
+    for (const resource of allResources) {
+      if (resource.lessonId) {
+        const lessonResources = resourcesByLesson.get(resource.lessonId)
+        if (lessonResources) lessonResources.push(resource)
+        else resourcesByLesson.set(resource.lessonId, [resource])
+      } else {
+        const moduleResources = resourcesByModule.get(resource.moduleId)
+        if (moduleResources) moduleResources.push(resource)
+        else resourcesByModule.set(resource.moduleId, [resource])
+      }
+    }
+
     // O(L) single-pass bucket grouping by moduleId instead of O(M * L) nested array filtering
     const lessonsByModule = new Map<string, Lesson[]>()
     for (const lesson of allLessons) {
+      const contentResources = resourcesByLesson.get(lesson.id) || []
+      const attachedResources = contentResources
+        .map(toAttachedResource)
+        .filter((resource): resource is AttachedResource => resource !== undefined)
+      const subtitles = contentResources
+        .map(toSubtitleTrack)
+        .filter((subtitle): subtitle is SubtitleTrack => subtitle !== undefined)
       const formattedLesson: Lesson = {
         ...lesson,
-        coverPath: lesson.coverPath || undefined
+        coverPath: lesson.coverPath || undefined,
+        ...(contentResources.length > 0 ? { contentResources } : {}),
+        ...(attachedResources.length > 0 ? { resources: attachedResources } : {}),
+        ...(subtitles.length > 0 ? { subtitles } : {})
       }
       const existing = lessonsByModule.get(lesson.moduleId)
       if (existing) {
@@ -402,10 +544,14 @@ export class DatabaseService {
       }
     }
 
-    const modulesWithLessons = modules.map((mod) => ({
-      ...mod,
-      lessons: lessonsByModule.get(mod.id) || []
-    }))
+    const modulesWithLessons = modules.map((mod) => {
+      const resources = resourcesByModule.get(mod.id) || []
+      return {
+        ...mod,
+        ...(resources.length > 0 ? { resources } : {}),
+        lessons: lessonsByModule.get(mod.id) || []
+      }
+    })
 
     return {
       course: {
@@ -452,6 +598,150 @@ export class DatabaseService {
     this.ensureConnected()
     const stmt = this.db!.prepare(`DELETE FROM courses WHERE id = ?`)
     stmt.run(courseId)
+  }
+
+  /** Persists a probed lesson duration (lazy probe on first playback). */
+  public updateLessonDuration(lessonId: string, duration: number): void {
+    this.ensureConnected()
+    const value = Number.isFinite(duration) && duration > 0 ? duration : 0
+    if (!value) return
+    this.db!.prepare(`UPDATE lessons SET duration = ? WHERE id = ? AND duration <= 0`).run(value, lessonId)
+  }
+
+  /** Records a file operation journal entry (used by delete/undo workflows). */
+  public recordFileOperation(entry: FileOperationRecord): void {
+    this.ensureConnected()
+    this.db!.prepare(`
+      INSERT INTO file_operations (
+        operation_id, group_id, type, source_path, destination_path,
+        original_filename, new_filename, timestamp, status, error_details, is_reversible
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      entry.operationId,
+      entry.groupId,
+      entry.type,
+      entry.sourcePath,
+      entry.destinationPath,
+      entry.originalFileName,
+      entry.newFileName,
+      entry.timestamp,
+      entry.status,
+      entry.errorDetails ?? null,
+      entry.isReversible ? 1 : 0
+    )
+  }
+
+  /** Updates the lifecycle state of a previously journaled filesystem operation. */
+  public updateFileOperationStatus(
+    operationId: string,
+    status: 'pending' | 'completed' | 'failed' | 'rolled_back',
+    errorDetails: string | null = null
+  ): void {
+    this.ensureConnected()
+    this.db!
+      .prepare(`UPDATE file_operations SET status = ?, error_details = ? WHERE operation_id = ?`)
+      .run(status, errorDetails, operationId)
+  }
+
+  /**
+   * Reconciles mutations that were journaled before a process crash. Only
+   * managed course moves are reversible without guessing; every other pending
+   * operation is kept intact on disk and marked for manual review.
+   */
+  private recoverPendingFileOperations(vaultPath: string): void {
+    this.ensureConnected()
+    const coursesRoot = path.join(vaultPath, 'Courses')
+    const pendingOperations = this.db!
+      .prepare(`
+        SELECT
+          operation_id AS operationId,
+          type,
+          source_path AS sourcePath,
+          destination_path AS destinationPath
+        FROM file_operations
+        WHERE status = 'pending'
+      `)
+      .all() as PendingFileOperation[]
+
+    for (const operation of pendingOperations) {
+      try {
+        this.recoverPendingFileOperation(operation, coursesRoot)
+      } catch (error) {
+        const details = `Recovery could not safely reconcile this interrupted operation: ${errorMessage(error)}`
+        this.updateFileOperationStatus(operation.operationId, 'failed', details)
+        logger.warn(details, { operationId: operation.operationId })
+      }
+    }
+  }
+
+  private recoverPendingFileOperation(operation: PendingFileOperation, coursesRoot: string): void {
+    if (operation.type !== 'move' || !isStrictPathWithin(coursesRoot, operation.destinationPath)) {
+      this.updateFileOperationStatus(
+        operation.operationId,
+        'failed',
+        'Recovery requires manual review; no filesystem changes were made.'
+      )
+      return
+    }
+
+    const sourceState = getPathState(operation.sourcePath)
+    const destinationState = getPathState(operation.destinationPath)
+
+    if (sourceState === 'inaccessible' || destinationState === 'inaccessible') {
+      this.updateFileOperationStatus(
+        operation.operationId,
+        'failed',
+        'Recovery requires manual review; a path could not be inspected safely.'
+      )
+      return
+    }
+
+    if (sourceState === 'present' && destinationState === 'missing') {
+      this.updateFileOperationStatus(
+        operation.operationId,
+        'rolled_back',
+        'Recovered after restart: the managed move was not applied.'
+      )
+      return
+    }
+
+    if (sourceState === 'missing' && destinationState === 'present') {
+      const persistedCourse = this.db!
+        .prepare(`SELECT 1 FROM courses WHERE root_path = ? LIMIT 1`)
+        .get(operation.destinationPath)
+      if (persistedCourse) {
+        this.updateFileOperationStatus(
+          operation.operationId,
+          'completed',
+          'Recovered after restart: course persistence was confirmed.'
+        )
+        return
+      }
+
+      const sourceParent = path.dirname(operation.sourcePath)
+      if (!isRealDirectory(operation.destinationPath) || !isRealDirectory(sourceParent)) {
+        this.updateFileOperationStatus(
+          operation.operationId,
+          'failed',
+          'Recovery requires manual review; the move cannot be safely reversed.'
+        )
+        return
+      }
+
+      fs.renameSync(operation.destinationPath, operation.sourcePath)
+      this.updateFileOperationStatus(
+        operation.operationId,
+        'rolled_back',
+        'Recovered after restart: reverted the move because no course was persisted.'
+      )
+      return
+    }
+
+    this.updateFileOperationStatus(
+      operation.operationId,
+      'failed',
+      'Recovery requires manual review; the source and destination state is ambiguous.'
+    )
   }
 
   public updateCourseLastAccessed(courseId: string): void {
@@ -511,6 +801,21 @@ export class DatabaseService {
       ...row,
       completed: Boolean(row.completed)
     }
+  }
+
+  /** All progress rows for a course (bulk hydration for course views). */
+  public getLessonProgressByCourse(courseId: string): LessonProgress[] {
+    this.ensureConnected()
+    const stmt = this.db!.prepare(`
+      SELECT
+        lesson_id as lessonId, course_id as courseId,
+        lesson_progress.current_time as currentTime, duration,
+        completed, updated_at as updatedAt
+      FROM lesson_progress
+      WHERE course_id = ?
+    `)
+    const rows = stmt.all(courseId) as (Omit<LessonProgress, 'completed'> & { completed: number })[]
+    return rows.map((row) => ({ ...row, completed: Boolean(row.completed) }))
   }
 
   public toggleLessonCompletion(lessonId: string, courseId: string): boolean {
@@ -719,12 +1024,14 @@ export class DatabaseService {
     if (!this.db) return []
     const stmt = this.db.prepare(`
       SELECT
-        id, lesson_id as lessonId, course_id as courseId,
-        lesson_title as lessonTitle, course_title as courseTitle,
-        cover_path as coverPath, watched_at as watchedAt,
-        duration, watch_history.current_time as currentTime
-      FROM watch_history
-      ORDER BY watched_at DESC
+        wh.id, wh.lesson_id as lessonId, wh.course_id as courseId,
+        wh.lesson_title as lessonTitle, wh.course_title as courseTitle,
+        wh.cover_path as coverPath, l.cover_path as lessonCoverPath,
+        l.file_extension as fileExtension, wh.watched_at as watchedAt,
+        wh.duration, wh.current_time as currentTime
+      FROM watch_history wh
+      LEFT JOIN lessons l ON l.id = wh.lesson_id
+      ORDER BY wh.watched_at DESC
       LIMIT ?
     `)
     return stmt.all(limit) as WatchHistoryEntry[]
@@ -854,6 +1161,174 @@ export class DatabaseService {
 
   // --- Course Merging & Deduplication ---
 
+  /**
+   * Calculates a user-reviewable merge proposal from persisted data. This
+   * method performs SELECT-only reads and deliberately does not call either
+   * mutable merge routine or create a database transaction.
+   */
+  public getMergePreview(courseIds: string[]): MergePreview {
+    this.ensureConnected()
+
+    const ids = [
+      ...new Set(
+        (Array.isArray(courseIds) ? courseIds : [])
+          .map((courseId) => (typeof courseId === 'string' ? courseId.trim() : ''))
+          .filter(Boolean)
+      )
+    ]
+    if (ids.length < 2) {
+      throw new Error('Select at least two courses to preview a merge.')
+    }
+
+    const selected = ids.map((courseId) => this.getCourseById(courseId))
+    if (selected.some((course) => course === null)) {
+      throw new Error('One or more selected courses no longer exist.')
+    }
+
+    const courses = selected as Array<NonNullable<(typeof selected)[number]>>
+    const [canonical, ...secondaries] = [...courses].sort(
+      (a, b) =>
+        b.course.lessonCount - a.course.lessonCount ||
+        a.course.createdAt - b.course.createdAt
+    )
+
+    const targetModules = new Map<string, MergePreviewTargetModule>()
+    for (const module of canonical.modules) {
+      const key = this.mergePreviewModuleKey(module)
+      if (!targetModules.has(key)) {
+        targetModules.set(key, {
+          courseId: canonical.course.id,
+          moduleId: module.id,
+          lessons: [...module.lessons]
+        })
+      }
+    }
+
+    const modules: MergePreviewModule[] = []
+    const duplicateCandidates: MergeDuplicateCandidate[] = []
+    for (const secondary of secondaries) {
+      for (const sourceModule of secondary.modules) {
+        const key = this.mergePreviewModuleKey(sourceModule)
+        const targetModule = targetModules.get(key)
+        const materialCount = this.countMergePreviewMaterials(sourceModule)
+
+        if (!targetModule) {
+          modules.push({
+            sourceCourseId: secondary.course.id,
+            sourceModuleId: sourceModule.id,
+            title: sourceModule.title,
+            action: 'create',
+            lessonCount: sourceModule.lessons.length,
+            materialCount
+          })
+          targetModules.set(key, {
+            courseId: canonical.course.id,
+            moduleId: sourceModule.id,
+            lessons: [...sourceModule.lessons]
+          })
+          continue
+        }
+
+        modules.push({
+          sourceCourseId: secondary.course.id,
+          sourceModuleId: sourceModule.id,
+          title: sourceModule.title,
+          action: 'merge',
+          targetModuleId: targetModule.moduleId,
+          lessonCount: sourceModule.lessons.length,
+          materialCount
+        })
+
+        for (const sourceLesson of sourceModule.lessons) {
+          let matchingLesson: Lesson | undefined
+          let reason: MergeDuplicateCandidate['reason'] | undefined
+          for (const targetLesson of targetModule.lessons) {
+            const candidateReason = this.getMergePreviewDuplicateReason(sourceLesson, targetLesson)
+            if (candidateReason) {
+              matchingLesson = targetLesson
+              reason = candidateReason
+              break
+            }
+          }
+
+          if (matchingLesson && reason) {
+            duplicateCandidates.push({
+              sourceCourseId: secondary.course.id,
+              sourceModuleId: sourceModule.id,
+              sourceLessonId: sourceLesson.id,
+              targetCourseId: targetModule.courseId,
+              targetModuleId: targetModule.moduleId,
+              targetLessonId: matchingLesson.id,
+              reason
+            })
+          }
+
+          // This is an in-memory projection only. Candidates remain present so
+          // later source modules can be previewed without an implicit exclusion.
+          targetModule.lessons.push(sourceLesson)
+        }
+      }
+    }
+
+    return {
+      canonicalCourseId: canonical.course.id,
+      canonicalCourseTitle: canonical.course.title,
+      selectedCourseIds: ids,
+      totalLessons: courses.reduce(
+        (total, course) => total + course.modules.reduce((sum, module) => sum + module.lessons.length, 0),
+        0
+      ),
+      totalMaterials: courses.reduce(
+        (total, course) =>
+          total + course.modules.reduce((sum, module) => sum + this.countMergePreviewMaterials(module), 0),
+        0
+      ),
+      modules,
+      duplicateCandidates
+    }
+  }
+
+  private mergePreviewModuleKey(module: Module): string {
+    const normalized = this.normalizeMergePreviewValue(module.title)
+    return normalized || `module:${module.id}`
+  }
+
+  private countMergePreviewMaterials(module: Module & { lessons: Lesson[] }): number {
+    return (
+      (module.resources?.length || 0) +
+      module.lessons.reduce(
+        (count, lesson) => count + (lesson.contentResources?.length ?? lesson.resources?.length ?? 0),
+        0
+      )
+    )
+  }
+
+  private getMergePreviewDuplicateReason(
+    source: Lesson,
+    target: Lesson
+  ): MergeDuplicateCandidate['reason'] | undefined {
+    const sourceTitle = this.normalizeMergePreviewValue(source.title)
+    const targetTitle = this.normalizeMergePreviewValue(target.title)
+    if (sourceTitle && sourceTitle === targetTitle) return 'same-title'
+
+    const sourceFileName = path.basename(source.fileName, path.extname(source.fileName)).toLowerCase()
+    const targetFileName = path.basename(target.fileName, path.extname(target.fileName)).toLowerCase()
+    if (sourceFileName && sourceFileName === targetFileName) return 'same-file-name'
+
+    if (source.filePath && source.filePath === target.filePath) return 'same-file-path'
+    return undefined
+  }
+
+  private normalizeMergePreviewValue(value: string): string {
+    return value
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+  }
+
   public mergeDuplicateCourses(): MergeCoursesResult {
     this.ensureConnected()
 
@@ -933,9 +1408,17 @@ export class DatabaseService {
                 })
 
                 if (matchingCanLesson) {
-                  // Duplicate lesson: migrate progress / notes / history, then delete secondary lesson
+                  // Duplicate lesson: migrate progress / notes / history, then delete secondary lesson.
+                  // Progress merges by taking the furthest position (never drops it on PK conflict).
                   this.db!.prepare(`
-                    UPDATE OR IGNORE lesson_progress SET lesson_id = ?, course_id = ? WHERE lesson_id = ?
+                    INSERT INTO lesson_progress (lesson_id, course_id, current_time, duration, completed, updated_at)
+                    SELECT ?, ?, lesson_progress.current_time, duration, completed, updated_at
+                    FROM lesson_progress WHERE lesson_id = ?
+                    ON CONFLICT(lesson_id) DO UPDATE SET
+                      current_time = MAX(lesson_progress.current_time, excluded.current_time),
+                      duration = MAX(lesson_progress.duration, excluded.duration),
+                      completed = MAX(lesson_progress.completed, excluded.completed),
+                      updated_at = excluded.updated_at
                   `).run(matchingCanLesson.id, canonical.id, secLesson.id)
 
                   this.db!.prepare(`
@@ -1012,59 +1495,17 @@ export class DatabaseService {
         }
 
         // Re-index all modules and lessons of canonical course naturally
-        const updatedHierarchy = this.getCourseById(canonical.id)
-        if (updatedHierarchy) {
-          const sortedModules = [...updatedHierarchy.modules].sort((a, b) =>
-            naturalCompare(a.title, b.title)
-          )
+        const reindexed = this.reindexCourseHierarchy(canonical.id)
 
-          let totalCourseLessons = 0
-          let totalCourseDuration = 0
-
-          for (let mIdx = 0; mIdx < sortedModules.length; mIdx++) {
-            const mod = sortedModules[mIdx]
-            const sortedLessons = [...mod.lessons].sort((a, b) =>
-              naturalCompare(a.title, b.title) || naturalCompare(a.fileName, b.fileName)
-            )
-
-            let modDuration = 0
-            for (let lIdx = 0; lIdx < sortedLessons.length; lIdx++) {
-              const les = sortedLessons[lIdx]
-              const lesDuration = les.duration || 0
-              modDuration += lesDuration
-              this.db!.prepare(`
-                UPDATE lessons SET order_index = ? WHERE id = ?
-              `).run(lIdx + 1, les.id)
-            }
-
-            totalCourseLessons += sortedLessons.length
-            totalCourseDuration += modDuration
-
-            this.db!.prepare(`
-              UPDATE modules SET order_index = ?, lesson_count = ?, duration = ? WHERE id = ?
-            `).run(mIdx + 1, sortedLessons.length, modDuration, mod.id)
-          }
-
-          this.db!.prepare(`
-            UPDATE courses SET module_count = ?, lesson_count = ?, total_duration = ?, updated_at = ? WHERE id = ?
-          `).run(
-            sortedModules.length,
-            totalCourseLessons,
-            totalCourseDuration,
-            Date.now(),
-            canonical.id
-          )
-
-          mergedGroupsCount++
-          details.push({
-            title: canonical.title,
-            canonicalCourseId: canonical.id,
-            mergedCoursesCount: courseList.length,
-            totalModules: sortedModules.length,
-            totalLessons: totalCourseLessons,
-            removedDuplicateLessons: groupRemovedLessons
-          })
-        }
+        mergedGroupsCount++
+        details.push({
+          title: canonical.title,
+          canonicalCourseId: canonical.id,
+          mergedCoursesCount: courseList.length,
+          totalModules: reindexed.moduleCount,
+          totalLessons: reindexed.lessonCount,
+          removedDuplicateLessons: groupRemovedLessons
+        })
       }
     })
 
@@ -1076,6 +1517,159 @@ export class DatabaseService {
       removedCoursesCount,
       deduplicatedLessonsCount,
       details
+    }
+  }
+
+  /**
+   * Re-indexes all modules and lessons of a course naturally (order_index,
+   * lesson_count, duration, totals). Shared by duplicate merge and manual merge.
+   */
+  private reindexCourseHierarchy(courseId: string): {
+    moduleCount: number
+    lessonCount: number
+    totalDuration: number
+  } {
+    const hierarchy = this.getCourseById(courseId)
+    if (!hierarchy) return { moduleCount: 0, lessonCount: 0, totalDuration: 0 }
+
+    const sortedModules = [...hierarchy.modules].sort((a, b) =>
+      naturalCompare(a.title, b.title) || (a.orderIndex - b.orderIndex)
+    )
+
+    let totalCourseLessons = 0
+    let totalCourseDuration = 0
+
+    for (let mIdx = 0; mIdx < sortedModules.length; mIdx++) {
+      const mod = sortedModules[mIdx]
+      // Preserve original per-module lesson order (stable); titles only as tiebreak.
+      const sortedLessons = [...mod.lessons].sort((a, b) =>
+        (a.orderIndex - b.orderIndex) || naturalCompare(a.title, b.title)
+      )
+
+      let modDuration = 0
+      for (let lIdx = 0; lIdx < sortedLessons.length; lIdx++) {
+        const les = sortedLessons[lIdx]
+        modDuration += les.duration || 0
+        this.db!.prepare(`
+          UPDATE lessons SET order_index = ? WHERE id = ?
+        `).run(lIdx + 1, les.id)
+      }
+
+      totalCourseLessons += sortedLessons.length
+      totalCourseDuration += modDuration
+
+      this.db!.prepare(`
+        UPDATE modules SET order_index = ?, lesson_count = ?, duration = ? WHERE id = ?
+      `).run(mIdx + 1, sortedLessons.length, modDuration, mod.id)
+    }
+
+    this.db!.prepare(`
+      UPDATE courses SET module_count = ?, lesson_count = ?, total_duration = ?, updated_at = ? WHERE id = ?
+    `).run(
+      sortedModules.length,
+      totalCourseLessons,
+      totalCourseDuration,
+      Date.now(),
+      courseId
+    )
+
+    return {
+      moduleCount: sortedModules.length,
+      lessonCount: totalCourseLessons,
+      totalDuration: totalCourseDuration
+    }
+  }
+
+  /**
+   * Merges a user-selected list of courses into a single course.
+   * All modules/lessons of secondary courses are transferred as-is (no lesson
+   * deduplication — the user explicitly chose to combine separate parts).
+   * Progress, notes, and watch history are re-pointed to the canonical course.
+   */
+  public mergeCoursesByIds(courseIds: string[], targetTitle?: string): MergeCoursesResult {
+    this.ensureConnected()
+
+    const ids = [...new Set((courseIds || []).map((id) => id.trim()).filter(Boolean))]
+    if (ids.length < 2) {
+      throw new Error('Select at least two courses to merge.')
+    }
+
+    const courses = ids
+      .map((id) => this.getCourseById(id))
+      .filter((c): c is NonNullable<typeof c> => c !== null)
+    if (courses.length < 2) {
+      throw new Error('One or more selected courses no longer exist.')
+    }
+
+    // Canonical: highest lesson count (keeps the richest course's cover/metadata)
+    courses.sort(
+      (a, b) => b.course.lessonCount - a.course.lessonCount || a.course.createdAt - b.course.createdAt
+    )
+    const canonical = courses[0]
+    const secondaries = courses.slice(1)
+
+    const mergeTransaction = this.db!.transaction(() => {
+      for (const secondary of secondaries) {
+        for (const mod of secondary.modules) {
+          this.db!.prepare(`
+            UPDATE modules SET course_id = ? WHERE id = ?
+          `).run(canonical.course.id, mod.id)
+
+          this.db!.prepare(`
+            UPDATE lessons SET course_id = ? WHERE module_id = ?
+          `).run(canonical.course.id, mod.id)
+        }
+
+        this.db!.prepare(`
+          UPDATE lesson_progress SET course_id = ? WHERE course_id = ?
+        `).run(canonical.course.id, secondary.course.id)
+
+        this.db!.prepare(`
+          UPDATE lesson_notes SET course_id = ? WHERE course_id = ?
+        `).run(canonical.course.id, secondary.course.id)
+
+        this.db!.prepare(`
+          UPDATE watch_history SET course_id = ? WHERE course_id = ?
+        `).run(canonical.course.id, secondary.course.id)
+
+        this.db!.prepare(`DELETE FROM courses WHERE id = ?`).run(secondary.course.id)
+      }
+
+      if (targetTitle && targetTitle.trim()) {
+        this.db!.prepare(`
+          UPDATE courses SET title = ? WHERE id = ?
+        `).run(targetTitle.trim(), canonical.course.id)
+      }
+
+      // Re-index within the transaction so a failure rolls back everything.
+      this.reindexCourseHierarchy(canonical.course.id)
+    })
+
+    mergeTransaction()
+
+    const canonicalCourse = this.getCourseById(canonical.course.id)
+    const reindexed = {
+      moduleCount: canonicalCourse?.modules.length ?? 0,
+      lessonCount:
+        canonicalCourse?.modules.reduce((acc, m) => acc + (m.lessons?.length || 0), 0) ?? 0,
+      totalDuration: canonicalCourse?.course.totalDuration ?? 0
+    }
+
+    return {
+      success: true,
+      mergedGroupsCount: 1,
+      removedCoursesCount: secondaries.length,
+      deduplicatedLessonsCount: 0,
+      details: [
+        {
+          title: (targetTitle && targetTitle.trim()) || canonical.course.title,
+          canonicalCourseId: canonical.course.id,
+          mergedCoursesCount: courses.length,
+          totalModules: reindexed.moduleCount,
+          totalLessons: reindexed.lessonCount,
+          removedDuplicateLessons: 0
+        }
+      ]
     }
   }
 
@@ -1155,6 +1749,215 @@ export class DatabaseService {
       throw new Error('Database is not connected to an active Vault.')
     }
   }
+}
+
+type ContentResourceRow = {
+  id: string
+  courseId: string
+  moduleId: string
+  lessonId: string | null
+  role: string
+  name: string
+  filePath: string
+  fileExtension: string
+  fileSize: number
+  type: string
+  language: string | null
+  label: string | null
+  createdAt: number
+}
+
+function moduleResourcesForPersistence(module: Module, courseId: string): ContentResource[] {
+  return (module.resources || []).map((resource) => withResourceOwnership(resource, courseId, module.id))
+}
+
+function isStrictPathWithin(parentPath: string, candidatePath: string): boolean {
+  const relativePath = path.relative(path.resolve(parentPath), path.resolve(candidatePath))
+  return (
+    relativePath.length > 0 &&
+    relativePath !== '..' &&
+    !relativePath.startsWith(`..${path.sep}`) &&
+    !path.isAbsolute(relativePath)
+  )
+}
+
+function isRealDirectory(entryPath: string): boolean {
+  try {
+    const entry = fs.lstatSync(entryPath)
+    return entry.isDirectory() && !entry.isSymbolicLink()
+  } catch {
+    return false
+  }
+}
+
+function getPathState(entryPath: string): 'missing' | 'present' | 'inaccessible' {
+  try {
+    fs.lstatSync(entryPath)
+    return 'present'
+  } catch (error) {
+    return isMissingPathError(error) ? 'missing' : 'inaccessible'
+  }
+}
+
+function isMissingPathError(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && 'code' in error && error.code === 'ENOENT'
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
+function lessonResourcesForPersistence(lesson: Lesson, courseId: string, moduleId: string): ContentResource[] {
+  if (lesson.contentResources !== undefined) {
+    return lesson.contentResources.map((resource) =>
+      withResourceOwnership(resource, courseId, moduleId, lesson.id)
+    )
+  }
+
+  return [
+    ...(lesson.resources || []).map((resource) => legacyAttachedResource(resource, courseId, moduleId, lesson)),
+    ...(lesson.subtitles || []).map((subtitle) => legacySubtitleResource(subtitle, courseId, moduleId, lesson))
+  ]
+}
+
+function withResourceOwnership(
+  resource: ContentResource,
+  courseId: string,
+  moduleId: string,
+  lessonId?: string
+): ContentResource {
+  const ownedResource: ContentResource = {
+    id: resource.id,
+    courseId,
+    moduleId,
+    role: resource.role,
+    name: resource.name,
+    filePath: resource.filePath,
+    fileExtension: resource.fileExtension,
+    fileSize: resource.fileSize,
+    type: resource.type,
+    language: resource.language,
+    label: resource.label,
+    createdAt: resource.createdAt
+  }
+  if (lessonId) ownedResource.lessonId = lessonId
+  return ownedResource
+}
+
+function legacyAttachedResource(
+  resource: AttachedResource,
+  courseId: string,
+  moduleId: string,
+  lesson: Lesson
+): ContentResource {
+  return {
+    id: resource.id,
+    courseId,
+    moduleId,
+    lessonId: lesson.id,
+    role: 'resource',
+    name: resource.name,
+    filePath: resource.filePath,
+    fileExtension: resource.fileExtension,
+    fileSize: resource.fileSize,
+    type: resource.type,
+    createdAt: lesson.createdAt
+  }
+}
+
+function legacySubtitleResource(
+  subtitle: SubtitleTrack,
+  courseId: string,
+  moduleId: string,
+  lesson: Lesson
+): ContentResource {
+  return {
+    id: subtitle.id,
+    courseId,
+    moduleId,
+    lessonId: lesson.id,
+    role: 'subtitle',
+    name: subtitle.label,
+    filePath: subtitle.filePath,
+    fileExtension: subtitle.format,
+    fileSize: 0,
+    type: 'document',
+    language: subtitle.language,
+    label: subtitle.label,
+    createdAt: lesson.createdAt
+  }
+}
+
+function toContentResourceRow(resource: ContentResource): Record<string, string | number | null> {
+  return {
+    id: resource.id,
+    courseId: resource.courseId,
+    moduleId: resource.moduleId,
+    lessonId: resource.lessonId ?? null,
+    role: resource.role,
+    name: resource.name,
+    filePath: resource.filePath,
+    fileExtension: resource.fileExtension,
+    fileSize: resource.fileSize,
+    type: resource.type,
+    language: resource.language ?? null,
+    label: resource.label ?? null,
+    createdAt: resource.createdAt
+  }
+}
+
+function contentResourceFromRow(row: ContentResourceRow): ContentResource {
+  const resource: ContentResource = {
+    id: row.id,
+    courseId: row.courseId,
+    moduleId: row.moduleId,
+    role: row.role as ContentResource['role'],
+    name: row.name,
+    filePath: row.filePath,
+    fileExtension: row.fileExtension,
+    fileSize: row.fileSize,
+    type: row.type as ContentResource['type'],
+    createdAt: row.createdAt
+  }
+  if (row.lessonId) resource.lessonId = row.lessonId
+  if (row.language) resource.language = row.language
+  if (row.label) resource.label = row.label
+  return resource
+}
+
+function toAttachedResource(resource: ContentResource): AttachedResource | undefined {
+  if (resource.role !== 'resource' || !resource.lessonId || !isAttachedResourceType(resource.type)) {
+    return undefined
+  }
+  return {
+    id: resource.id,
+    lessonId: resource.lessonId,
+    name: resource.name,
+    filePath: resource.filePath,
+    fileExtension: resource.fileExtension,
+    fileSize: resource.fileSize,
+    type: resource.type
+  }
+}
+
+function toSubtitleTrack(resource: ContentResource): SubtitleTrack | undefined {
+  if (resource.role !== 'subtitle' || !resource.lessonId) return undefined
+  const format = resource.fileExtension.replace(/^\./, '').toLowerCase()
+  if (format !== 'srt' && format !== 'vtt') return undefined
+  return {
+    id: resource.id,
+    lessonId: resource.lessonId,
+    language: resource.language || 'und',
+    label: resource.label || resource.name,
+    filePath: resource.filePath,
+    format
+  }
+}
+
+function isAttachedResourceType(
+  type: ContentResource['type']
+): type is AttachedResource['type'] {
+  return type === 'pdf' || type === 'code' || type === 'archive' || type === 'document'
 }
 
 export const databaseService = new DatabaseService()
