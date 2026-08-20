@@ -26,6 +26,19 @@ describe('mediaUrl', () => {
     }
   })
 
+  it.runIf(process.platform === 'win32')(
+    'restores the drive letter from an encoded legacy media host',
+    () => {
+      const result = extractAndValidateMediaPath('media://C%3A/Cursos/aula%20%231.mp4')
+
+      expect(result).toEqual({
+        valid: true,
+        filePath: path.normalize('C:\\Cursos\\aula #1.mp4'),
+        statusCode: 200
+      })
+    }
+  )
+
   it('keeps POSIX paths absolute while encoding special characters by segment', () => {
     const sourcePath = '/courses/aula #1.mp4'
     const url = mediaUrl(sourcePath)

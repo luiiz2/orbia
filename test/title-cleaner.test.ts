@@ -79,8 +79,8 @@ describe('Title Cleaner Utility', () => {
 
   it('cleans module titles specifically, keeping sequence numbers', () => {
     expect(cleanModuleTitle('Modulo 01 - Fundamentos', 1)).toBe('01 - Fundamentos')
-    expect(cleanModuleTitle('01', 1)).toBe('Module 01')
-    expect(cleanModuleTitle('01.5', 2)).toBe('Module 02')
+    expect(cleanModuleTitle('01', 1)).toBe('01')
+    expect(cleanModuleTitle('01.5', 2)).toBe('01.5')
     expect(cleanModuleTitle('', 2)).toBe('Module 02')
     expect(cleanModuleTitle('Advanced State Management', 3)).toBe('Advanced State Management')
   })

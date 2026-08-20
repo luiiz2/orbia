@@ -100,8 +100,8 @@ describe('Edge Cases & Resiliency Test Suite', () => {
     })
 
     it('handles module titles with numeric, empty, or custom formats', () => {
-      expect(cleanModuleTitle('01.5', 3)).toBe('Module 03')
-      expect(cleanModuleTitle('01', 1)).toBe('Module 01')
+      expect(cleanModuleTitle('01.5', 3)).toBe('01.5')
+      expect(cleanModuleTitle('01', 1)).toBe('01')
       expect(cleanModuleTitle('Módulo 01 - Fundamentos', 1)).toBe('01 - Fundamentos')
       expect(cleanModuleTitle('', 5)).toBe('Module 05')
       expect(cleanModuleTitle('   ', 7)).toBe('Module 07')

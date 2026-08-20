@@ -12,7 +12,7 @@ import {
 import { usePlayerStore } from '../../stores/usePlayerStore'
 import { useNavigationStore } from '../../stores/useNavigationStore'
 import { Button, Tooltip, TooltipTrigger, TooltipContent } from '../ui'
-import { cn } from '../../lib/utils'
+import { cn, mediaUrl as createMediaUrl } from '../../lib/utils'
 
 export interface DocumentLessonViewProps {
   className?: string
@@ -33,13 +33,7 @@ export function DocumentLessonView({ className, onBack }: DocumentLessonViewProp
   const [textContent, setTextContent] = useState<string | null>(null)
   const [loadError, setLoadError] = useState<boolean>(false)
 
-  const mediaUrl = activeLesson?.filePath
-    ? `media://${activeLesson.filePath
-        .replace(/\\/g, '/')
-        .split('/')
-        .map(encodeURIComponent)
-        .join('/')}`
-    : ''
+  const mediaUrl = activeLesson?.filePath ? createMediaUrl(activeLesson.filePath) : ''
 
   const mediaType = activeLesson?.mediaType || 'other'
 

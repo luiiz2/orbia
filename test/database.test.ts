@@ -784,6 +784,91 @@ describe('DatabaseService Core Engine', () => {
     expect(dbService.getLessonProgress('l-prog-2')?.completed).toBe(false)
   })
 
+  it('returns the latest saved position for a watched lesson', () => {
+    dbService.connect(tempVaultDir)
+    const now = Date.now()
+
+    dbService.saveCourseWithHierarchy(
+      {
+        id: 'c-continue',
+        title: 'Continue watching test',
+        slug: 'continue-watching-test',
+        sourceType: 'local-vault',
+        rootPath: '/path',
+        totalDuration: 600,
+        moduleCount: 1,
+        lessonCount: 1,
+        createdAt: now,
+        updatedAt: now
+      },
+      [
+        {
+          id: 'm-continue',
+          courseId: 'c-continue',
+          title: 'Module',
+          orderIndex: 1,
+          duration: 600,
+          lessonCount: 1,
+          createdAt: now,
+          lessons: [
+            {
+              id: 'l-continue',
+              moduleId: 'm-continue',
+              courseId: 'c-continue',
+              title: 'Lesson',
+              orderIndex: 1,
+              filePath: '/lesson.mp4',
+              fileName: 'lesson.mp4',
+              fileExtension: 'mp4',
+              mediaType: 'video',
+              duration: 600,
+              fileSize: 100,
+              availability: 'local',
+              createdAt: now
+            }
+          ]
+        }
+      ]
+    )
+
+    dbService.addWatchHistory({
+      lessonId: 'l-continue',
+      courseId: 'c-continue',
+      lessonTitle: 'Lesson',
+      courseTitle: 'Continue watching test',
+      duration: 600,
+      currentTime: 0
+    })
+
+    // The player saves progress for normal playback, pause, and seek events.
+    dbService.saveLessonProgress({
+      lessonId: 'l-continue',
+      courseId: 'c-continue',
+      currentTime: 60,
+      duration: 600,
+      completed: false
+    })
+    expect(dbService.getWatchHistory()[0]).toMatchObject({ currentTime: 60, duration: 600 })
+
+    dbService.saveLessonProgress({
+      lessonId: 'l-continue',
+      courseId: 'c-continue',
+      currentTime: 240,
+      duration: 600,
+      completed: false
+    })
+    expect(dbService.getWatchHistory()[0]).toMatchObject({ currentTime: 240, duration: 600 })
+
+    dbService.saveLessonProgress({
+      lessonId: 'l-continue',
+      courseId: 'c-continue',
+      currentTime: 120,
+      duration: 600,
+      completed: false
+    })
+    expect(dbService.getWatchHistory()[0]).toMatchObject({ currentTime: 120, duration: 600 })
+  })
+
   it('computes accurate progress summaries and aggregates all summaries', () => {
     dbService.connect(tempVaultDir)
     const now = Date.now()

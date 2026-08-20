@@ -146,11 +146,13 @@ export function cleanModuleTitle(rawModuleName: string, defaultIndex: number): s
     return `Module ${String(defaultIndex).padStart(2, '0')}`
   }
 
-  let title = cleanTitle(rawModuleName)
+  const sourceName = rawModuleName.trim()
+  const title = cleanTitle(sourceName)
 
-  // If module name is empty or just generic numbers/decimals, provide a clear fallback title
+  // A source folder is the user's actual organization. Preserve it when cleaning
+  // would reduce it to a number instead of inventing a generic module name.
   if (!title || /^[\d.a-zA-Z\s_-]+$/.test(title) && /^\d+(?:\.\d+)?[a-zA-Z]?$/.test(title.trim())) {
-    return `Module ${String(defaultIndex).padStart(2, '0')}`
+    return sourceName
   }
 
   return title

@@ -70,7 +70,8 @@ describe('PlayerStore State Machine', () => {
           saveProgress: vi.fn().mockResolvedValue(true),
           getProgress: vi.fn().mockResolvedValue(null),
           toggleLessonCompletion: vi.fn().mockResolvedValue(true),
-          addWatchHistory: vi.fn().mockResolvedValue(true)
+          addWatchHistory: vi.fn().mockResolvedValue(true),
+          getLessonNotes: vi.fn().mockResolvedValue([])
         }
       }
     }
@@ -78,6 +79,7 @@ describe('PlayerStore State Machine', () => {
     ;(globalThis as unknown as { window: typeof mockWindow }).window = mockWindow
 
     usePlayerStore.getState().reset()
+    usePlayerStore.setState({ progressMap: {} })
   })
 
   afterEach(() => {
@@ -182,6 +184,30 @@ describe('PlayerStore State Machine', () => {
       currentTime: 550,
       duration: 600,
       completed: true
+    })
+  })
+
+  it('persists the latest position on pause and seek', async () => {
+    await usePlayerStore.getState().loadHierarchy(mockCourse, mockModules)
+    await usePlayerStore.getState().updateProgress(60, 600)
+    vi.mocked(window.api.player.saveProgress).mockClear()
+
+    usePlayerStore.getState().pause()
+    expect(window.api.player.saveProgress).toHaveBeenLastCalledWith({
+      lessonId: 'lp-1',
+      courseId: 'course-p1',
+      currentTime: 60,
+      duration: 600,
+      completed: false
+    })
+
+    usePlayerStore.getState().seek(120)
+    expect(window.api.player.saveProgress).toHaveBeenLastCalledWith({
+      lessonId: 'lp-1',
+      courseId: 'course-p1',
+      currentTime: 120,
+      duration: 600,
+      completed: false
     })
   })
 

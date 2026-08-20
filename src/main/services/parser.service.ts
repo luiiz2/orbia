@@ -55,7 +55,7 @@ export class ParserService {
     // 2. Identify modules, playable lessons, and all other preserved content.
     const proposedModules: ProposedModule[] = []
     let totalFilesCount = scannedDir.files.length
-    const rootContent = await this.parseModuleContent(scannedDir.files)
+    const rootContent = await this.parseModuleContent(scannedDir.files, rootPath)
 
     // Sort subdirectories naturally
     const sortedSubDirs = [...scannedDir.subDirectories].sort((a, b) =>
@@ -74,7 +74,7 @@ export class ParserService {
     if (hasRootContentBeyondCourseCover && sortedSubDirs.length > 0) {
       proposedModules.push({
         id: crypto.randomUUID(),
-        title: 'Introduction & Overview',
+        title: suggestedTitle,
         folderPath: rootPath,
         orderIndex: moduleOrderIndex++,
         lessons: rootContent.lessons,
@@ -84,7 +84,10 @@ export class ParserService {
 
     // Process each subdirectory as a Module
     for (const subDir of sortedSubDirs) {
-      const moduleContent = await this.parseModuleContent(this.collectAllFilesRecursive(subDir))
+      const moduleContent = await this.parseModuleContent(
+        this.collectAllFilesRecursive(subDir),
+        subDir.fullPath
+      )
       totalFilesCount += this.countFiles(subDir)
 
       // A module with just files to read, images, or sidecars is still meaningful.
@@ -139,7 +142,10 @@ export class ParserService {
    * Builds module content from every non-ignored scanned file. Only playable
    * media becomes a lesson; all other files remain represented as resources.
    */
-  private async parseModuleContent(allFiles: ScannedFile[]): Promise<ParsedModuleContent> {
+  private async parseModuleContent(
+    allFiles: ScannedFile[],
+    moduleRootPath: string
+  ): Promise<ParsedModuleContent> {
     const preservedFiles = allFiles.filter(
       (file) => !file.isDirectory && isPreservableContentFile(file.fullPath)
     )
@@ -150,7 +156,7 @@ export class ParserService {
 
     return {
       lessons,
-      resources: this.buildResources(preservedFiles, lessons)
+      resources: this.buildResources(preservedFiles, lessons, moduleRootPath)
     }
   }
 
@@ -252,7 +258,8 @@ export class ParserService {
 
   private buildResources(
     allFiles: ScannedFile[],
-    lessons: ProposedLesson[]
+    lessons: ProposedLesson[],
+    moduleRootPath: string
   ): ProposedContentResource[] {
     const moduleResources: ProposedContentResource[] = []
     const resourceFiles = allFiles
@@ -260,11 +267,9 @@ export class ParserService {
       .sort((a, b) => naturalCompare(a.name, b.name))
 
     for (const file of resourceFiles) {
-      const matchingLesson = isSubtitleFile(file.fullPath)
-        ? this.findLessonForSubtitle(file, lessons)
-        : isImageFile(file.fullPath)
-          ? this.findLessonForCompanionImage(file, lessons)
-          : undefined
+      const matchingLesson = isImageFile(file.fullPath)
+        ? this.findLessonForCompanionImage(file, lessons)
+          : this.findLessonForAssociatedResource(file, lessons, moduleRootPath)
       const isLessonSubtitle = isSubtitleFile(file.fullPath) && matchingLesson !== undefined
       const resource = this.createProposedResource(file, isLessonSubtitle ? 'subtitle' : 'resource')
 
@@ -309,20 +314,30 @@ export class ParserService {
     return 'other'
   }
 
-  private findLessonForSubtitle(
-    subtitle: ScannedFile,
-    lessons: ProposedLesson[]
+  private findLessonForAssociatedResource(
+    resource: ScannedFile,
+    lessons: ProposedLesson[],
+    moduleRootPath: string
   ): ProposedLesson | undefined {
-    const subtitleStem = this.fileStem(subtitle.name)
-    const exactLesson = lessons.find((lesson) => this.fileStem(lesson.originalFileName) === subtitleStem)
+    const resourceStem = this.fileStem(resource.name)
+    const exactLesson = lessons.find((lesson) => this.fileStem(lesson.originalFileName) === resourceStem)
     if (exactLesson) return exactLesson
 
-    return lessons
-      .filter((lesson) => this.isStemVariant(subtitleStem, this.fileStem(lesson.originalFileName)))
+    const stemMatch = lessons
+      .filter((lesson) => this.isStemVariant(resourceStem, this.fileStem(lesson.originalFileName)))
       .sort(
         (a, b) =>
           this.fileStem(b.originalFileName).length - this.fileStem(a.originalFileName).length
       )[0]
+    if (stemMatch) return stemMatch
+
+    const resourceDirectory = path.normalize(path.dirname(resource.fullPath))
+    if (resourceDirectory === path.normalize(moduleRootPath)) return undefined
+
+    const lessonsInSameDirectory = lessons.filter(
+      (lesson) => path.normalize(path.dirname(lesson.filePath)) === resourceDirectory
+    )
+    return lessonsInSameDirectory.length === 1 ? lessonsInSameDirectory[0] : undefined
   }
 
   private findLessonForCompanionImage(

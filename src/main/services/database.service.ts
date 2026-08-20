@@ -1027,11 +1027,15 @@ export class DatabaseService {
         wh.id, wh.lesson_id as lessonId, wh.course_id as courseId,
         wh.lesson_title as lessonTitle, wh.course_title as courseTitle,
         wh.cover_path as coverPath, l.cover_path as lessonCoverPath,
-        l.file_extension as fileExtension, wh.watched_at as watchedAt,
-        wh.duration, wh.current_time as currentTime
+        l.file_extension as fileExtension,
+        COALESCE(lp.updated_at, wh.watched_at) as watchedAt,
+        COALESCE(lp.duration, wh.duration) as duration,
+        COALESCE(lp.current_time, wh.current_time) as currentTime
       FROM watch_history wh
       LEFT JOIN lessons l ON l.id = wh.lesson_id
-      ORDER BY wh.watched_at DESC
+      LEFT JOIN lesson_progress lp
+        ON lp.lesson_id = wh.lesson_id AND lp.course_id = wh.course_id
+      ORDER BY watchedAt DESC
       LIMIT ?
     `)
     return stmt.all(limit) as WatchHistoryEntry[]

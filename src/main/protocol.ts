@@ -153,7 +153,13 @@ export function extractAndValidateMediaPath(requestUrl: string): MediaPathValida
 
   // Handle host if path was formatted as media://C:/path
   if (url.host && url.host !== 'local-media') {
-    const full = `${url.host}${url.pathname}`
+    let decodedHost: string
+    try {
+      decodedHost = decodeURIComponent(url.host)
+    } catch {
+      return { valid: false, error: 'Malformed URL host encoding', statusCode: 400 }
+    }
+    const full = `${decodedHost}${url.pathname}`
     if (/^[a-zA-Z]:/.test(full)) {
       filePath = decodeURIComponent(full)
     }

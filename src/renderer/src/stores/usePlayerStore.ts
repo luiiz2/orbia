@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { Course, Module, Lesson, LessonProgress, LessonNote } from '@shared'
+import { mediaUrl } from '../lib/utils'
 
 export interface PlayerModuleWithLessons extends Module {
   lessons: Lesson[]
@@ -229,11 +230,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     const preparedTracks: { id: string; label: string; vttUrl: string }[] = []
     if (foundLesson.subtitles && foundLesson.subtitles.length > 0) {
       for (const sub of foundLesson.subtitles) {
-        let vttUrl = `media://${sub.filePath
-          .replace(/\\/g, '/')
-          .split('/')
-          .map(encodeURIComponent)
-          .join('/')}`
+        let vttUrl = mediaUrl(sub.filePath)
         if (sub.format === 'srt' || sub.filePath.toLowerCase().endsWith('.srt')) {
           try {
             const res = await window.api.courses.convertSrtToVtt(sub.filePath)

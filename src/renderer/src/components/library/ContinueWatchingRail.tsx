@@ -146,8 +146,10 @@ export function ContinueWatchingRail({ className, isLoading }: ContinueWatchingR
         // PDF lessons have no playback position; always continue-able
         if (entry.fileExtension?.toLowerCase().includes('pdf')) return true
         if (entry.currentTime <= 0) return false
-        if (entry.duration > 0 && entry.currentTime / entry.duration >= 0.9) return false
-        return true
+        // A known duration lets us avoid cluttering the rail before meaningful progress.
+        if (entry.duration <= 0) return true
+        const progress = entry.currentTime / entry.duration
+        return progress >= 0.1 && progress < 0.9
       })
       .sort((a, b) => b.watchedAt - a.watchedAt)
       .slice(0, 10)

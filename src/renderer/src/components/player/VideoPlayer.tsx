@@ -7,7 +7,7 @@ import { useNavigationStore } from '../../stores/useNavigationStore'
 import { PlayerControls } from './PlayerControls'
 import { DocumentLessonView } from './DocumentLessonView'
 import { Button, Tooltip, TooltipTrigger, TooltipContent } from '../ui'
-import { cn } from '../../lib/utils'
+import { cn, mediaUrl } from '../../lib/utils'
 
 export interface VideoPlayerProps {
   className?: string
@@ -79,15 +79,7 @@ export function VideoPlayer({ className, onBack }: VideoPlayerProps): React.JSX.
     }
   }, [])
 
-  // Construct media:// stream URL. Encode each path segment separately so
-  // '#' and '?' in filenames cannot corrupt the URL (fragment/query).
-  const videoSrc = activeLesson?.filePath
-    ? `media://${activeLesson.filePath
-        .replace(/\\/g, '/')
-        .split('/')
-        .map(encodeURIComponent)
-        .join('/')}`
-    : ''
+  const videoSrc = activeLesson?.filePath ? mediaUrl(activeLesson.filePath) : ''
 
   // Reset error state on lesson change
   useEffect(() => {
@@ -213,9 +205,10 @@ export function VideoPlayer({ className, onBack }: VideoPlayerProps): React.JSX.
                 setIsVideoError(false)
                 if (videoRef.current) {
                   const targetTime = (videoRef.current.currentTime || 0) + 1.0
-                  videoRef.current.currentTime = targetTime
+                  // Keep the target in usePlayer's pending seek so
+                  // loadedmetadata restores it after load() resets the media.
+                  seekTo(targetTime)
                   videoRef.current.load()
-                  videoRef.current.currentTime = targetTime
                   videoRef.current.play().catch(console.warn)
                 }
               }}

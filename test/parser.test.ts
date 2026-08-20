@@ -272,7 +272,7 @@ describe('Parser Service', () => {
 
     expect(proposal.modules).toHaveLength(2)
     expect(proposal.totalLessons).toBe(0)
-    expect(proposal.modules[0].title).toBe('Introduction & Overview')
+    expect(proposal.modules[0].title).toBe('Materials Only')
     expect((proposal.modules[0] as { resources?: Array<{ name: string }> }).resources).toEqual([
       expect.objectContaining({ name: 'course-guide.pdf' })
     ])
@@ -284,6 +284,97 @@ describe('Parser Service', () => {
         expect.objectContaining({ name: 'cover.jpg' })
       ])
     )
+  })
+
+  it('keeps a numeric source folder name and associates clearly named lesson materials', async () => {
+    const mockTree: ScannedDirectory = {
+      name: 'Curso de Instalação',
+      fullPath: '/courses/curso-instalacao',
+      files: [],
+      subDirectories: [
+        {
+          name: '01',
+          fullPath: '/courses/curso-instalacao/01',
+          files: [
+            {
+              name: '01 - Instalação.mp4',
+              fullPath: '/courses/curso-instalacao/01/01 - Instalação.mp4',
+              extension: '.mp4',
+              sizeBytes: 1000000,
+              isDirectory: false
+            },
+            {
+              name: '01 - Instalação - material.pdf',
+              fullPath: '/courses/curso-instalacao/01/01 - Instalação - material.pdf',
+              extension: '.pdf',
+              sizeBytes: 50000,
+              isDirectory: false
+            }
+          ],
+          subDirectories: []
+        }
+      ]
+    }
+
+    const proposal = await parserService.parseCourseHierarchy(mockTree)
+    const [module] = proposal.modules
+    const [lesson] = module.lessons
+
+    expect(module.title).toBe('01')
+    expect(lesson.contentResources).toEqual([
+      expect.objectContaining({
+        name: '01 - Instalação - material.pdf',
+        role: 'resource',
+        type: 'pdf'
+      })
+    ])
+    expect(module.resources).toEqual([])
+  })
+
+  it('associates a material kept in a nested folder with its single lesson', async () => {
+    const mockTree: ScannedDirectory = {
+      name: 'Curso de Prática',
+      fullPath: '/courses/curso-pratica',
+      files: [],
+      subDirectories: [
+        {
+          name: 'Dia 1',
+          fullPath: '/courses/curso-pratica/dia-1',
+          files: [],
+          subDirectories: [
+            {
+              name: 'Aula prática',
+              fullPath: '/courses/curso-pratica/dia-1/aula-pratica',
+              files: [
+                {
+                  name: 'video.mp4',
+                  fullPath: '/courses/curso-pratica/dia-1/aula-pratica/video.mp4',
+                  extension: '.mp4',
+                  sizeBytes: 1000000,
+                  isDirectory: false
+                },
+                {
+                  name: 'guia.pdf',
+                  fullPath: '/courses/curso-pratica/dia-1/aula-pratica/guia.pdf',
+                  extension: '.pdf',
+                  sizeBytes: 50000,
+                  isDirectory: false
+                }
+              ],
+              subDirectories: []
+            }
+          ]
+        }
+      ]
+    }
+
+    const proposal = await parserService.parseCourseHierarchy(mockTree)
+    const [module] = proposal.modules
+
+    expect(module.lessons[0].contentResources).toEqual([
+      expect.objectContaining({ name: 'guia.pdf', role: 'resource', type: 'pdf' })
+    ])
+    expect(module.resources).toEqual([])
   })
 
   it('parses a hierarchical course directory with natural module ordering', async () => {
