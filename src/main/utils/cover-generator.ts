@@ -188,12 +188,22 @@ export async function generatePdfCover(
 export function findExistingCoverInDir(dirPath: string): string | null {
   try {
     const entries = fs.readdirSync(dirPath, { withFileTypes: true })
+    // First priority: explicit cover named image (e.g. cover.jpg, poster.png, capa.png, folder.jpg)
     for (const entry of entries) {
       if (!entry.isFile()) continue
       const ext = path.extname(entry.name).toLowerCase()
       if (!IMAGE_EXTS.includes(ext)) continue
       const name = path.basename(entry.name, ext).toLowerCase()
       if (COURSE_COVER_NAMES.includes(name)) {
+        return path.join(dirPath, entry.name)
+      }
+    }
+
+    // Second priority: any root image file
+    for (const entry of entries) {
+      if (!entry.isFile()) continue
+      const ext = path.extname(entry.name).toLowerCase()
+      if (IMAGE_EXTS.includes(ext)) {
         return path.join(dirPath, entry.name)
       }
     }

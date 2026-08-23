@@ -97,7 +97,7 @@ export function cleanTitle(rawName: string): string {
     strippedTitle = strippedTitle.replace(pattern, '$1')
   }
 
-  // If stripping left meaningful content (more than just preserved symbol/whitespace), use it
+  // If stripping left meaningful content (numbers or words), use it
   if (strippedTitle.replace(/[^\w\p{L}\p{N}]/gu, '').trim().length > 0) {
     title = strippedTitle
   }
@@ -120,6 +120,60 @@ export function cleanTitle(rawName: string): string {
   }
 
   return title
+}
+
+const GENERIC_MEDIA_NAMES = new Set([
+  'video',
+  'vídeo',
+  'videos',
+  'vídeos',
+  'aula',
+  'aulas',
+  'lesson',
+  'lessons',
+  'index',
+  'main',
+  'master',
+  'stream',
+  'play',
+  'output',
+  'media',
+  'download',
+  'track',
+  'clip',
+  'file',
+  'untitled',
+  'movie',
+  'movie_1',
+  'part',
+  'parte'
+])
+
+/**
+ * Checks whether a filename or title is generic without descriptive context.
+ */
+export function isGenericMediaTitle(name: string): boolean {
+  if (!name || typeof name !== 'string') return true
+  const base = stripFileExtension(name).toLowerCase().trim()
+  const clean = cleanTitle(base).toLowerCase().trim()
+  if (!clean || /^\d+$/.test(clean)) return true
+  if (GENERIC_MEDIA_NAMES.has(base) || GENERIC_MEDIA_NAMES.has(clean)) return true
+  return /^(?:video|vídeo|aula|lesson|track|clip|part|parte)[\s_\-–—]*\d*$/i.test(clean)
+}
+
+/**
+ * Cleans a lesson title specifically. If the filename is generic (e.g. "video.mp4" or "aula.mp4")
+ * and parent folder name is descriptive, the parent folder name is used.
+ */
+export function cleanLessonTitle(fileName: string, parentFolderName?: string): string {
+  const cleanedFile = cleanTitle(fileName)
+  if (parentFolderName && isGenericMediaTitle(fileName)) {
+    const cleanedParent = cleanTitle(parentFolderName)
+    if (cleanedParent && !isGenericMediaTitle(cleanedParent)) {
+      return cleanedParent
+    }
+  }
+  return cleanedFile || fileName
 }
 
 /**
@@ -156,4 +210,41 @@ export function cleanModuleTitle(rawModuleName: string, defaultIndex: number): s
   }
 
   return title
+}
+
+/**
+ * Normalizes a module title for semantic comparison and deduplication.
+ * Strips formatting variations (e.g. '01 - Modulo 1' vs 'Modulo 01' vs '01. Introdução').
+ */
+export function normalizeModuleKey(rawTitle: string): string {
+  if (!rawTitle || typeof rawTitle !== 'string' || !rawTitle.trim()) {
+    return ''
+  }
+
+  let key = rawTitle.toLowerCase().trim()
+
+  // Remove keywords like "modulo", "module", "secao", "capitulo"
+  key = key.replace(/\b(?:modulo|módulo|module|secao|seção|section|parte|part|capitulo|capítulo)\b/gi, ' ')
+
+  // Strip punctuation
+  key = key.replace(/[-–—:_.]+/g, ' ')
+
+  // Normalize numbers with leading zeroes (e.g. "01" -> "1")
+  key = key.replace(/\b0+(\d+)\b/g, '$1')
+
+  // Remove duplicate duplicate digits (e.g. "1 1" -> "1")
+  key = key.replace(/\b(\d+)\s+\1\b/g, '$1')
+
+  // Collapse whitespace
+  key = key.replace(/\s+/g, ' ').trim()
+
+  return key
+}
+
+export function areModuleTitlesEquivalent(titleA: string, titleB: string): boolean {
+  if (titleA === titleB) return true
+  if (titleA.trim().toLowerCase() === titleB.trim().toLowerCase()) return true
+  const keyA = normalizeModuleKey(titleA)
+  const keyB = normalizeModuleKey(titleB)
+  return Boolean(keyA && keyB && keyA === keyB)
 }

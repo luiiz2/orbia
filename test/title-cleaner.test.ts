@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest'
-import { cleanTitle, cleanCourseTitle, cleanModuleTitle } from '../src/main/utils/title-cleaner'
+import {
+  cleanTitle,
+  cleanCourseTitle,
+  cleanModuleTitle,
+  cleanLessonTitle,
+  isGenericMediaTitle
+} from '../src/main/utils/title-cleaner'
 
 describe('Title Cleaner Utility', () => {
   it('preserves sequence numbering, strips keyword prefixes only', () => {
@@ -83,5 +89,18 @@ describe('Title Cleaner Utility', () => {
     expect(cleanModuleTitle('01.5', 2)).toBe('01.5')
     expect(cleanModuleTitle('', 2)).toBe('Module 02')
     expect(cleanModuleTitle('Advanced State Management', 3)).toBe('Advanced State Management')
+  })
+
+  it('detects generic media titles and inherits parent folder name', () => {
+    expect(isGenericMediaTitle('video.mp4')).toBe(true)
+    expect(isGenericMediaTitle('aula.mp4')).toBe(true)
+    expect(isGenericMediaTitle('lesson.mp4')).toBe(true)
+    expect(isGenericMediaTitle('index.mp4')).toBe(true)
+    expect(isGenericMediaTitle('play.mp4')).toBe(true)
+    expect(isGenericMediaTitle('01 - Introdução aos Protocolos.mp4')).toBe(false)
+
+    expect(cleanLessonTitle('video.mp4', '01 - Introdução aos Protocolos')).toBe('01 - Introdução aos Protocolos')
+    expect(cleanLessonTitle('aula.mp4', '02 - Como Funciona a Internet')).toBe('02 - Como Funciona a Internet')
+    expect(cleanLessonTitle('03 - Métodos HTTP.mp4', '03 - Modulo')).toBe('03 - Métodos HTTP')
   })
 })

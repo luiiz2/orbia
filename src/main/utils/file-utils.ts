@@ -8,9 +8,12 @@ export const VIDEO_EXTENSIONS = new Set([
   '.mov',
   '.avi',
   '.m4v',
-  '.ts',
   '.wmv',
-  '.flv'
+  '.flv',
+  '.m2ts',
+  '.mts',
+  '.3gp',
+  '.ogv'
 ])
 
 export const AUDIO_EXTENSIONS = new Set(['.mp3', '.m4a', '.wav', '.ogg', '.flac', '.aac', '.wma'])
@@ -20,9 +23,66 @@ export const DOCUMENT_EXTENSIONS = new Set([
   '.doc',
   '.docx',
   '.epub',
+  '.mobi',
   '.txt',
   '.md',
-  '.rtf'
+  '.rtf',
+  '.ppt',
+  '.pptx',
+  '.xls',
+  '.xlsx',
+  '.csv',
+  '.odt',
+  '.ods',
+  '.odp'
+])
+
+export const CODE_EXTENSIONS = new Set([
+  '.ts',
+  '.tsx',
+  '.js',
+  '.jsx',
+  '.mjs',
+  '.cjs',
+  '.json',
+  '.py',
+  '.java',
+  '.c',
+  '.cpp',
+  '.h',
+  '.hpp',
+  '.cs',
+  '.go',
+  '.rs',
+  '.php',
+  '.rb',
+  '.html',
+  '.htm',
+  '.css',
+  '.scss',
+  '.sass',
+  '.less',
+  '.sql',
+  '.sh',
+  '.bash',
+  '.bat',
+  '.cmd',
+  '.ps1',
+  '.yml',
+  '.yaml',
+  '.xml',
+  '.toml',
+  '.ini',
+  '.env',
+  '.gitignore',
+  '.nfo',
+  '.torrent',
+  '.log',
+  '.vue',
+  '.svelte',
+  '.swift',
+  '.kt',
+  '.dart'
 ])
 
 export const ARCHIVE_EXTENSIONS = new Set(['.zip', '.rar', '.7z', '.tar', '.gz'])
@@ -68,7 +128,7 @@ export function getMediaType(filePath: string): MediaType {
   if (IMAGE_EXTENSIONS.has(ext)) return 'image'
   if (LINK_EXTENSIONS.has(ext)) return 'link'
   if (ARCHIVE_EXTENSIONS.has(ext)) return 'archive'
-  if (DOCUMENT_EXTENSIONS.has(ext)) return 'document'
+  if (DOCUMENT_EXTENSIONS.has(ext) || CODE_EXTENSIONS.has(ext)) return 'document'
   return 'other'
 }
 

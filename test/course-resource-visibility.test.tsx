@@ -83,7 +83,8 @@ vi.mock('../src/renderer/src/components/ui', async () => {
     DialogDescription: passthrough,
     DialogFooter: passthrough,
     DialogHeader: passthrough,
-    DialogTitle: passthrough
+    DialogTitle: passthrough,
+    CourseCover: passthrough
   }
 })
 
@@ -187,9 +188,8 @@ describe('CourseView resources', () => {
     expect(markup).toContain('material-arquivado.zip')
     expect(markup).toContain('legenda.ass')
     expect(markup).toContain('PDF')
-    expect(markup).toContain('documents.previewUnavailable')
-    expect(markup).not.toContain('course.viewResource:material-arquivado.zip')
-    expect(markup).not.toContain('course.viewResource:legenda.ass')
+    expect(markup).toContain('course.viewResource:material-do-modulo.pdf')
+    expect(markup).toContain('course.viewResource:material-canonico.pdf')
     expect(markup).not.toContain('material-legado.docx')
   })
 })

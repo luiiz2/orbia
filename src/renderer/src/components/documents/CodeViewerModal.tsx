@@ -1,0 +1,193 @@
+import React, { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
+import { Code2, Copy, Check, ExternalLink, Loader2, FileCode } from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle
+} from '../ui/dialog'
+import { Button } from '../ui/button'
+import { Badge } from '../ui/badge'
+import { formatFileSize } from '../../lib/formatters'
+import { mediaUrl } from '../../lib/utils'
+import type { AttachedResource } from '@shared'
+import type { DocumentResource } from './PdfViewerModal'
+
+interface CodeViewerModalProps {
+  resource: AttachedResource | DocumentResource | null
+  isOpen: boolean
+  onClose: () => void
+}
+
+export function CodeViewerModal({
+  resource,
+  isOpen,
+  onClose
+}: CodeViewerModalProps): React.JSX.Element | null {
+  const { t } = useTranslation()
+  const [content, setContent] = useState<string>('')
+  const [isLoading, setIsLoading] = useState<boolean>(true)
+  const [error, setError] = useState<string | null>(null)
+  const [isCopied, setIsCopied] = useState<boolean>(false)
+
+  useEffect(() => {
+    if (!isOpen || !resource) {
+      setContent('')
+      setIsLoading(true)
+      setError(null)
+      return
+    }
+
+    let isMounted = true
+    setIsLoading(true)
+    setError(null)
+
+    const fetchCode = async (): Promise<void> => {
+      try {
+        const url = mediaUrl(resource.filePath)
+        const res = await fetch(url)
+        if (!res.ok) {
+          throw new Error(`Failed to load file (${res.status})`)
+        }
+        const text = await res.text()
+        if (isMounted) {
+          setContent(text)
+          setIsLoading(false)
+        }
+      } catch (err: unknown) {
+        if (isMounted) {
+          setError(err instanceof Error ? err.message : 'Error loading file content')
+          setIsLoading(false)
+        }
+      }
+    }
+
+    void fetchCode()
+
+    return () => {
+      isMounted = false
+    }
+  }, [isOpen, resource])
+
+  if (!resource) return null
+
+  const handleCopy = async (): Promise<void> => {
+    if (!content) return
+    try {
+      await navigator.clipboard.writeText(content)
+      setIsCopied(true)
+      setTimeout(() => setIsCopied(false), 2000)
+    } catch {
+      // Ignore clipboard write error
+    }
+  }
+
+  const handleOpenExternal = (): void => {
+    void window.api.system.openPath(resource.filePath)
+  }
+
+  const lines = content.split('\n')
+  const ext = (resource.fileExtension || '').replace('.', '').toUpperCase()
+
+  return (
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-5xl w-[94vw] h-[90vh] p-0 overflow-hidden rounded-2xl flex flex-col gap-0 border-border/80 bg-card shadow-2xl">
+        {/* Header Bar */}
+        <DialogHeader className="px-5 py-3.5 border-b border-border/80 bg-card flex flex-row items-center justify-between space-y-0 shrink-0">
+          <div className="flex items-center gap-3 overflow-hidden mr-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-purple-500/15 text-purple-400 border border-purple-500/20">
+              <Code2 className="h-5 w-5" />
+            </div>
+            <div className="flex flex-col overflow-hidden min-w-0">
+              <DialogTitle className="text-sm sm:text-base font-bold text-foreground truncate" title={resource.name}>
+                {resource.name}
+              </DialogTitle>
+              <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-0.5">
+                {ext && (
+                  <Badge variant="outline" className="text-[10px] py-0 px-1.5 font-mono font-bold text-purple-400 border-purple-500/30">
+                    {ext}
+                  </Badge>
+                )}
+                {resource.fileSize ? <span>{formatFileSize(resource.fileSize)}</span> : null}
+                {!isLoading && !error && (
+                  <span className="font-mono text-[11px] text-muted-foreground">
+                    {lines.length} {lines.length === 1 ? 'linha' : 'linhas'}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0 pr-6">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void handleCopy()}
+              disabled={isLoading || Boolean(error)}
+              className="gap-1.5 text-xs rounded-xl border-border/80 hover:bg-secondary hover:text-foreground cursor-pointer h-8"
+              title={t('documents.copyCode', 'Copiar código')}
+            >
+              {isCopied ? (
+                <>
+                  <Check className="h-3.5 w-3.5 text-emerald-400" />
+                  <span className="hidden sm:inline text-emerald-400 font-semibold">{t('documents.copied', 'Copiado!')}</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="hidden sm:inline">{t('documents.copyCode', 'Copiar Código')}</span>
+                </>
+              )}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleOpenExternal}
+              className="gap-1.5 text-xs rounded-xl border-border/80 hover:bg-secondary hover:text-foreground cursor-pointer h-8"
+              title={t('documents.openInEditor', 'Abrir no editor padrão')}
+            >
+              <ExternalLink className="h-3.5 w-3.5 text-primary" />
+              <span className="hidden sm:inline">{t('documents.openInEditor', 'Abrir no Editor')}</span>
+            </Button>
+          </div>
+        </DialogHeader>
+
+        {/* Code Content Canvas */}
+        <div className="flex-1 w-full h-full overflow-hidden bg-[#0d1117] relative flex flex-col font-mono text-xs">
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center flex-1 text-muted-foreground gap-3">
+              <Loader2 className="h-7 w-7 animate-spin text-purple-400" />
+              <span className="text-xs">Carregando código...</span>
+            </div>
+          ) : error ? (
+            <div className="flex flex-col items-center justify-center flex-1 text-center p-6 space-y-3">
+              <FileCode className="h-10 w-10 text-muted-foreground/60" />
+              <p className="text-sm font-semibold text-rose-400">{error}</p>
+              <Button variant="outline" size="sm" onClick={handleOpenExternal}>
+                Abrir com aplicativo padrão
+              </Button>
+            </div>
+          ) : (
+            <div className="flex-1 overflow-auto p-4 select-text">
+              <table className="w-full border-collapse">
+                <tbody>
+                  {lines.map((line, idx) => (
+                    <tr key={idx} className="hover:bg-white/[0.04] transition-colors leading-relaxed">
+                      <td className="pr-4 py-0.5 text-right select-none text-zinc-600 font-mono text-[11px] w-12 shrink-0 border-r border-zinc-800">
+                        {idx + 1}
+                      </td>
+                      <td className="pl-4 py-0.5 text-zinc-200 font-mono text-xs whitespace-pre break-all">
+                        {line || ' '}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}

@@ -1,10 +1,9 @@
-﻿import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   ChevronLeft,
   Play,
   Clock,
-  BookOpen,
   CheckCircle2,
   Circle,
   Trash2,
@@ -16,13 +15,83 @@ import {
   Upload,
   Video,
   Star,
-  FileText
+  FileText,
+  FolderSync
 } from 'lucide-react'
 import { useLibraryStore } from '../stores/useLibraryStore'
 import { usePlayerStore } from '../stores/usePlayerStore'
 import { useNavigationStore } from '../stores/useNavigationStore'
 import { useCourseProgress } from '../hooks/useCourseProgress'
 import { PdfViewerModal } from '../components/documents/PdfViewerModal'
+import { CodeViewerModal } from '../components/documents/CodeViewerModal'
+import { ReorganizeCourseModal } from '../components/library/ReorganizeCourseModal'
+import {
+  ChevronUp,
+  ChevronDown,
+  Edit3
+} from 'lucide-react'
+
+interface EditableTitleProps {
+  initialTitle: string
+  onSave: (newTitle: string) => void
+  className?: string
+}
+
+function EditableTitle({ initialTitle, onSave, className }: EditableTitleProps) {
+  const [isEditing, setIsEditing] = useState(false)
+  const [value, setValue] = useState(initialTitle)
+
+  useEffect(() => {
+    setValue(initialTitle)
+  }, [initialTitle])
+
+  if (!isEditing) {
+    return (
+      <div className={cn("group flex items-center gap-2", className)}>
+        <span 
+          onDoubleClick={() => setIsEditing(true)}
+          className="cursor-text"
+        >
+          {initialTitle}
+        </span>
+        <button
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsEditing(true) }}
+          className="opacity-0 group-hover:opacity-100 p-1 text-muted-foreground hover:text-primary transition-opacity cursor-pointer"
+        >
+          <Edit3 className="h-3 w-3" />
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <input
+      autoFocus
+      className={cn("bg-secondary text-foreground border border-primary/50 rounded px-2 py-0.5 outline-none focus:ring-1 focus:ring-primary/40", className)}
+      value={value}
+      onChange={(e) => setValue(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault()
+          e.stopPropagation()
+          setIsEditing(false)
+          if (value.trim() !== initialTitle) onSave(value.trim())
+        } else if (e.key === 'Escape') {
+          e.preventDefault()
+          e.stopPropagation()
+          setIsEditing(false)
+          setValue(initialTitle)
+        }
+      }}
+      onBlur={() => {
+        setIsEditing(false)
+        if (value.trim() !== initialTitle) onSave(value.trim())
+      }}
+      onClick={(e) => e.stopPropagation()}
+    />
+  )
+}
+
 import {
   Button,
   Progress,
@@ -40,10 +109,11 @@ import {
   DialogDescription,
   DialogFooter,
   DialogHeader,
-  DialogTitle
+  DialogTitle,
+  CourseCover
 } from '../components/ui'
 import { formatDurationHuman, formatTime } from '../lib/formatters'
-import { mediaUrl } from '../lib/utils'
+import { mediaUrl, cn } from '../lib/utils'
 import type { Lesson, AttachedResource, ContentResource } from '@shared'
 
 type VisibleResource = AttachedResource | ContentResource
@@ -62,6 +132,17 @@ function hasEmbeddedPreview(resource: VisibleResource): boolean {
   return resource.type === 'pdf' || extension === 'pdf' || resource.name.toLowerCase().endsWith('.pdf')
 }
 
+const CODE_EXTENSIONS = new Set([
+  'py', 'js', 'ts', 'jsx', 'tsx', 'json', 'sql', 'html', 'css',
+  'csv', 'txt', 'md', 'xml', 'yaml', 'yml', 'c', 'cpp', 'rs', 'go', 'java', 'sh'
+])
+
+function isCodeResource(resource: VisibleResource): boolean {
+  const ext = resource.fileExtension.replace(/^\./, '').toLowerCase()
+  const nameExt = resource.name.split('.').pop()?.toLowerCase() || ''
+  return resource.type === 'code' || CODE_EXTENSIONS.has(ext) || CODE_EXTENSIONS.has(nameExt)
+}
+
 export function CourseView(): React.JSX.Element {
   const { t } = useTranslation()
   const { selectedCourseId, navigateToHome, navigateToPlayer } = useNavigationStore()
@@ -70,24 +151,42 @@ export function CourseView(): React.JSX.Element {
     fetchCourseById,
     fetchCourseProgress,
     deleteCourse,
+    deleteLesson,
+    courseHealth,
+    fetchCourseHealth,
+    fixCourseProblems,
     updateCourseCover,
     updateLessonCover,
     toggleFavorite,
+    updateCourseMetadata,
+    updateModuleMetadata,
+    updateLessonMetadata,
+    reorderModule,
+    reorderLesson,
+    toggleLessonFavorite,
+    toggleModuleCompletion,
     isLoading
   } = useLibraryStore()
   const { loadHierarchy } = usePlayerStore()
 
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState<boolean>(false)
   const [isDeleting, setIsDeleting] = useState<boolean>(false)
+  const [lessonToDelete, setLessonToDelete] = useState<Lesson | null>(null)
+  const [isDeletingLesson, setIsDeletingLesson] = useState<boolean>(false)
+  const [deleteLessonFile, setDeleteLessonFile] = useState<boolean>(false)
+  const [isFixingProblems, setIsFixingProblems] = useState<boolean>(false)
   const [selectedResource, setSelectedResource] = useState<VisibleResource | null>(null)
   const [isPdfModalOpen, setIsPdfModalOpen] = useState<boolean>(false)
+  const [isCodeModalOpen, setIsCodeModalOpen] = useState<boolean>(false)
+  const [isReorganizeModalOpen, setIsReorganizeModalOpen] = useState<boolean>(false)
 
   useEffect(() => {
     if (selectedCourseId) {
       fetchCourseById(selectedCourseId).catch(console.warn)
       fetchCourseProgress(selectedCourseId).catch(console.warn)
+      fetchCourseHealth(selectedCourseId).catch(console.warn)
     }
-  }, [selectedCourseId, fetchCourseById, fetchCourseProgress])
+  }, [selectedCourseId, fetchCourseById, fetchCourseProgress, fetchCourseHealth])
 
   const progressData = useCourseProgress({
     courseId: selectedCourseId || undefined,
@@ -198,6 +297,28 @@ export function CourseView(): React.JSX.Element {
     }
   }
 
+  const handleConfirmDeleteLesson = async (): Promise<void> => {
+    if (!lessonToDelete) return
+    setIsDeletingLesson(true)
+    try {
+      await deleteLesson(lessonToDelete.id, deleteLessonFile)
+      setLessonToDelete(null)
+      setDeleteLessonFile(false)
+    } finally {
+      setIsDeletingLesson(false)
+    }
+  }
+
+  const handleFixProblems = async (): Promise<void> => {
+    if (!course) return
+    setIsFixingProblems(true)
+    try {
+      await fixCourseProblems(course.id)
+    } finally {
+      setIsFixingProblems(false)
+    }
+  }
+
   return (
     <div className="container mx-auto max-w-5xl px-4 py-6 sm:px-6 space-y-6 animate-in fade-in duration-200">
       {/* Top Navigation & Actions Bar */}
@@ -267,6 +388,25 @@ export function CourseView(): React.JSX.Element {
             <TooltipContent side="bottom">Alterar imagem de capa do curso</TooltipContent>
           </Tooltip>
 
+          {/* Reorganize Files Action Button */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsReorganizeModalOpen(true)}
+                className="gap-1.5 text-xs text-foreground hover:border-primary/40 hover:text-primary rounded-xl cursor-pointer min-h-[36px] border-border/80"
+                aria-label="Organizar Arquivos no Disco"
+              >
+                <FolderSync className="h-3.5 w-3.5 text-primary" />
+                <span>Organizar Arquivos</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              Padronizar pastas e arquivos físicos no disco de forma segura
+            </TooltipContent>
+          </Tooltip>
+
           {/* Delete Course Action Button */}
           <Tooltip>
             <TooltipTrigger asChild>
@@ -307,17 +447,11 @@ export function CourseView(): React.JSX.Element {
                 }}
                 aria-label="Alterar capa do curso"
               >
-                {course.coverPath ? (
-                  <img
-                    src={mediaUrl(course.coverPath)}
-                    alt={course.title}
-                    className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
-                  />
-                ) : (
-                  <div className="flex flex-col items-center justify-center text-primary p-4">
-                    <BookOpen className="h-12 w-12 opacity-60 mb-2 group-hover:scale-110 transition-transform duration-300" />
-                  </div>
-                )}
+                <CourseCover
+                  src={course.coverPath}
+                  title={course.title}
+                  className="h-full w-full"
+                />
 
                 {/* Hover Change Cover Overlay */}
                 <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col items-center justify-center text-white backdrop-blur-[2px]">
@@ -379,9 +513,11 @@ export function CourseView(): React.JSX.Element {
               </div>
 
               <div className="flex items-start justify-between gap-3">
-                <h1 className="text-2xl font-extrabold tracking-tight text-foreground sm:text-3xl leading-tight">
-                  {course.title}
-                </h1>
+                <EditableTitle
+                  initialTitle={course.customTitle ?? course.title}
+                  onSave={(newTitle) => updateCourseMetadata(course.id, newTitle)}
+                  className="text-2xl font-extrabold tracking-tight text-foreground sm:text-3xl leading-tight"
+                />
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <button
@@ -462,6 +598,44 @@ export function CourseView(): React.JSX.Element {
         </div>
       </div>
 
+      {/* Course Health / Problem Lessons Warning Banner */}
+      {courseHealth && !courseHealth.healthy && courseHealth.problemLessons.length > 0 && (
+        <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4.5 backdrop-blur-md space-y-3 animate-in fade-in duration-200 shadow-md">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30 mt-0.5">
+                <AlertTriangle className="h-5 w-5" />
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-bold text-amber-200">
+                    {courseHealth.problemLessons.length} aula(s) com problema identificadas
+                  </h3>
+                  <Badge variant="destructive" className="text-[10px] px-2 py-0.5">
+                    Ação recomendada
+                  </Badge>
+                </div>
+                <p className="text-xs text-zinc-300 leading-relaxed">
+                  Foram detectados arquivos ausentes, 0 bytes ou documentos/anexos registrados indevidamente como aulas de vídeo.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+              <Button
+                variant="default"
+                size="sm"
+                onClick={handleFixProblems}
+                disabled={isFixingProblems}
+                className="h-8.5 px-3.5 text-xs font-bold rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-primary-foreground hover:opacity-90 shadow-sm cursor-pointer"
+              >
+                {isFixingProblems ? 'Corrigindo...' : 'Mover Anexos para Materiais'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Curriculum Accordion */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
@@ -492,15 +666,52 @@ export function CourseView(): React.JSX.Element {
                 <AccordionTrigger className="hover:no-underline py-4 cursor-pointer">
                   <div className="flex flex-1 items-center justify-between pr-4 gap-3">
                     <div className="flex items-center gap-3 text-left overflow-hidden">
+                      <div className="flex flex-col gap-0.5">
+                        <button 
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); reorderModule(module.id, 'up') }}
+                          disabled={modIdx === 0}
+                          className="text-muted-foreground hover:text-primary disabled:opacity-30 disabled:hover:text-muted-foreground"
+                        >
+                          <ChevronUp className="h-3 w-3" />
+                        </button>
+                        <button 
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); reorderModule(module.id, 'down') }}
+                          disabled={modIdx === modules.length - 1}
+                          className="text-muted-foreground hover:text-primary disabled:opacity-30 disabled:hover:text-muted-foreground"
+                        >
+                          <ChevronDown className="h-3 w-3" />
+                        </button>
+                      </div>
                       <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-secondary text-xs font-mono font-bold text-primary">
                         {modIdx + 1}
                       </span>
-                      <span className="font-bold text-foreground text-sm truncate">
-                        {module.title}
-                      </span>
+                      <EditableTitle
+                        initialTitle={module.customTitle ?? module.title}
+                        onSave={(newTitle) => updateModuleMetadata(module.id, newTitle)}
+                        className="font-bold text-foreground text-sm truncate"
+                      />
                     </div>
 
                     <div className="flex items-center gap-3 text-xs text-muted-foreground shrink-0 font-medium">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleModuleCompletion(module.id, course.id) }}
+                            className="p-1 rounded hover:bg-secondary/70 text-muted-foreground hover:text-emerald-500 transition-colors"
+                          >
+                            {modInfo?.completedLessons === (modInfo?.totalLessons || module.lessons.length) && modInfo?.totalLessons > 0 ? (
+                              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                            ) : (
+                              <Circle className="h-4 w-4" />
+                            )}
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top">
+                          {modInfo?.completedLessons === (modInfo?.totalLessons || module.lessons.length) && modInfo?.totalLessons > 0
+                            ? t('course.unmarkModuleComplete')
+                            : t('course.markModuleComplete')}
+                        </TooltipContent>
+                      </Tooltip>
                       {modPercentage > 0 && (
                         <span className="font-bold text-primary">{modPercentage}%</span>
                       )}
@@ -523,19 +734,25 @@ export function CourseView(): React.JSX.Element {
                       const isComplete = progressData.isLessonCompleted(lesson.id)
                       const lessonProgress = progressData.getLessonProgress(lesson.id)
                       const lessonResources = getLessonVisibleResources(lesson)
+                      const problemInfo = courseHealth?.problemLessons.find((p) => p.id === lesson.id)
 
                       return (
                         <div
                           key={lesson.id}
                           onClick={() => handlePlayLesson(lesson)}
-                          className="flex items-center justify-between py-2.5 px-3 rounded-xl hover:bg-secondary/70 cursor-pointer transition-colors duration-150 group"
+                          className={cn(
+                            'flex items-center justify-between py-2.5 px-3 rounded-xl hover:bg-secondary/70 cursor-pointer transition-colors duration-150 group',
+                            problemInfo && 'bg-destructive/5 hover:bg-destructive/10 border border-destructive/25'
+                          )}
                         >
                           <div className="flex items-center gap-3 overflow-hidden flex-1 min-w-0 mr-2">
-                            {/* Completion Indicator */}
+                            {/* Completion or Problem Indicator */}
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <div className="shrink-0">
-                                  {isComplete ? (
+                                  {problemInfo ? (
+                                    <AlertTriangle className="h-4 w-4 text-destructive" />
+                                  ) : isComplete ? (
                                     <CheckCircle2 className="h-4 w-4 text-emerald-400" />
                                   ) : (
                                     <Circle className="h-4 w-4 text-muted-foreground/50 group-hover:text-primary transition-colors" />
@@ -543,7 +760,11 @@ export function CourseView(): React.JSX.Element {
                                 </div>
                               </TooltipTrigger>
                               <TooltipContent side="right">
-                                {isComplete ? 'Aula concluída' : 'Aula pendente'}
+                                {problemInfo
+                                  ? problemInfo.problemDescription
+                                  : isComplete
+                                    ? 'Aula concluída'
+                                    : 'Aula pendente'}
                               </TooltipContent>
                             </Tooltip>
 
@@ -576,13 +797,62 @@ export function CourseView(): React.JSX.Element {
                               <TooltipContent side="top">Alterar capa da aula</TooltipContent>
                             </Tooltip>
 
+                            {/* Lesson Reorder */}
+                            <div className="flex flex-col gap-0.5 shrink-0">
+                              <button 
+                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); reorderLesson(lesson.id, 'up') }}
+                                disabled={idx === 0}
+                                className="text-muted-foreground hover:text-primary disabled:opacity-30 disabled:hover:text-muted-foreground transition-opacity"
+                              >
+                                <ChevronUp className="h-3 w-3" />
+                              </button>
+                              <button 
+                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); reorderLesson(lesson.id, 'down') }}
+                                disabled={idx === module.lessons.length - 1}
+                                className="text-muted-foreground hover:text-primary disabled:opacity-30 disabled:hover:text-muted-foreground transition-opacity"
+                              >
+                                <ChevronDown className="h-3 w-3" />
+                              </button>
+                            </div>
+
                             {/* Lesson Number & Title */}
-                            <span className="text-xs font-mono text-muted-foreground w-6 shrink-0">
+                            <span className="text-xs font-mono text-muted-foreground w-6 shrink-0 text-center">
                               {String(idx + 1).padStart(2, '0')}
                             </span>
-                            <span className="text-xs sm:text-sm font-medium text-foreground truncate group-hover:text-primary transition-colors">
-                              {lesson.title}
-                            </span>
+                            
+                            <EditableTitle
+                              initialTitle={lesson.customTitle ?? lesson.title}
+                              onSave={(newTitle) => updateLessonMetadata(lesson.id, newTitle)}
+                              className={cn(
+                                'text-xs sm:text-sm font-medium truncate group-hover:text-primary transition-colors',
+                                problemInfo ? 'text-destructive font-semibold' : 'text-foreground'
+                              )}
+                            />
+
+                            {/* Lesson Favorite Toggle */}
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleLessonFavorite(lesson.id) }}
+                                  className="shrink-0 p-1 rounded hover:bg-amber-500/10 focus-visible:outline-none"
+                                >
+                                  <Star className={cn("h-3.5 w-3.5 transition-colors", lesson.isFavorite ? "fill-amber-400 text-amber-400" : "text-muted-foreground hover:text-amber-400")} />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent side="top">
+                                {lesson.isFavorite ? t('course.lessonUnfavorite') : t('course.lessonFavorite')}
+                              </TooltipContent>
+                            </Tooltip>
+
+                            {problemInfo && (
+                              <Badge variant="destructive" className="text-[10px] px-1.5 py-0 shrink-0">
+                                {problemInfo.problemType === 'missing_file'
+                                  ? 'Arquivo ausente'
+                                  : problemInfo.problemType === 'zero_bytes'
+                                    ? '0 bytes'
+                                    : 'Tipo inválido'}
+                              </Badge>
+                            )}
 
                             {/* Attached Resource Chips */}
                             {lessonResources.length > 0 && (
@@ -593,8 +863,11 @@ export function CourseView(): React.JSX.Element {
                                 <span className="rounded-md bg-secondary px-1.5 py-0.5 text-[10px] font-mono font-bold text-muted-foreground">
                                   {lessonResources.length}
                                 </span>
-                                {lessonResources.map((res) =>
-                                  hasEmbeddedPreview(res) ? (
+                                {lessonResources.map((res) => {
+                                  const isPdf = hasEmbeddedPreview(res)
+                                  const isCode = isCodeResource(res)
+
+                                  return (
                                     <Tooltip key={res.id}>
                                       <TooltipTrigger asChild>
                                         <button
@@ -602,7 +875,13 @@ export function CourseView(): React.JSX.Element {
                                           onClick={(e) => {
                                             e.stopPropagation()
                                             setSelectedResource(res)
-                                            setIsPdfModalOpen(true)
+                                            if (isPdf) {
+                                              setIsPdfModalOpen(true)
+                                            } else if (isCode) {
+                                              setIsCodeModalOpen(true)
+                                            } else {
+                                              void window.api.system.openPath(res.filePath)
+                                            }
                                           }}
                                           className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-secondary/90 hover:bg-primary/20 text-muted-foreground hover:text-primary border border-border/70 text-[10px] font-medium transition-colors cursor-pointer"
                                           aria-label={t('course.viewResource', { name: res.name })}
@@ -617,35 +896,45 @@ export function CourseView(): React.JSX.Element {
                                         </button>
                                       </TooltipTrigger>
                                       <TooltipContent side="top">
-                                        {t('course.viewResource', { name: res.name })}
+                                        {isPdf
+                                          ? t('course.viewResource', { name: res.name })
+                                          : isCode
+                                            ? `Visualizar código: ${res.name}`
+                                            : `Abrir no computador: ${res.name}`}
                                       </TooltipContent>
                                     </Tooltip>
-                                  ) : (
-                                    <div
-                                      key={res.id}
-                                      role="note"
-                                      title={t('documents.previewUnavailable')}
-                                      aria-label={`${res.name}: ${t('documents.previewUnavailable')}`}
-                                      className="flex items-center gap-1 rounded-lg border border-border/70 bg-secondary/50 px-2 py-0.5 text-[10px] text-muted-foreground"
-                                    >
-                                      <FileText className="h-3 w-3 shrink-0" aria-hidden="true" />
-                                      <span className="max-w-[80px] truncate font-medium">{res.name}</span>
-                                      <span className="font-mono text-[9px]">{getResourceTypeLabel(res)}</span>
-                                      <span className="text-[9px]">{t('documents.previewUnavailable')}</span>
-                                    </div>
                                   )
-                                )}
+                                })}
                               </div>
                             )}
                           </div>
 
-                          {/* Duration & Play icon */}
-                          <div className="flex items-center gap-3 text-xs text-muted-foreground shrink-0 font-mono">
+                          {/* Duration, Single Lesson Delete & Play icon */}
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground shrink-0 font-mono">
                             {lesson.duration > 0 ? (
                               <span>{formatTime(lesson.duration)}</span>
                             ) : lessonProgress?.duration ? (
                               <span>{formatTime(lessonProgress.duration)}</span>
                             ) : null}
+
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setLessonToDelete(lesson)
+                                  }}
+                                  className="h-7 w-7 rounded-lg text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
+                                  aria-label="Remover aula"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent side="top">Remover aula do curso</TooltipContent>
+                            </Tooltip>
+
                             <Play className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 text-primary transition-opacity duration-200" />
                           </div>
                         </div>
@@ -663,18 +952,27 @@ export function CourseView(): React.JSX.Element {
                         <span>{t('course.moduleMaterials', { count: moduleResources.length })}</span>
                       </div>
                       <ul className="space-y-1.5">
-                        {moduleResources.map((resource) => (
-                          <li key={resource.id}>
-                            {hasEmbeddedPreview(resource) ? (
+                        {moduleResources.map((resource) => {
+                          const isPdf = hasEmbeddedPreview(resource)
+                          const isCode = isCodeResource(resource)
+
+                          return (
+                            <li key={resource.id}>
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <button
                                     type="button"
                                     onClick={() => {
                                       setSelectedResource(resource)
-                                      setIsPdfModalOpen(true)
+                                      if (isPdf) {
+                                        setIsPdfModalOpen(true)
+                                      } else if (isCode) {
+                                        setIsCodeModalOpen(true)
+                                      } else {
+                                        void window.api.system.openPath(resource.filePath)
+                                      }
                                     }}
-                                    className="flex w-full items-center gap-2 rounded-lg border border-border/60 bg-card/60 px-2.5 py-2 text-left text-xs transition-colors hover:border-primary/40 hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                                    className="flex w-full items-center gap-2 rounded-lg border border-border/60 bg-card/60 px-2.5 py-2 text-left text-xs transition-colors hover:border-primary/40 hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary cursor-pointer"
                                     aria-label={t('course.viewResource', { name: resource.name })}
                                   >
                                     <FileText className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden="true" />
@@ -687,25 +985,16 @@ export function CourseView(): React.JSX.Element {
                                   </button>
                                 </TooltipTrigger>
                                 <TooltipContent side="top">
-                                  {t('course.viewResource', { name: resource.name })}
+                                  {isPdf
+                                    ? t('course.viewResource', { name: resource.name })
+                                    : isCode
+                                      ? `Visualizar código: ${resource.name}`
+                                      : `Abrir no computador: ${resource.name}`}
                                 </TooltipContent>
                               </Tooltip>
-                            ) : (
-                              <div
-                                role="note"
-                                aria-label={`${resource.name}: ${t('documents.previewUnavailable')}`}
-                                className="flex w-full items-center gap-2 rounded-lg border border-border/60 bg-card/40 px-2.5 py-2 text-xs text-muted-foreground"
-                              >
-                                <FileText className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                                <span className="min-w-0 flex-1 truncate font-medium">{resource.name}</span>
-                                <span className="shrink-0 font-mono text-[10px]">
-                                  {getResourceTypeLabel(resource)}
-                                </span>
-                                <span className="shrink-0 text-[10px]">{t('documents.previewUnavailable')}</span>
-                              </div>
-                            )}
-                          </li>
-                        ))}
+                            </li>
+                          )
+                        })}
                       </ul>
                     </section>
                   )}
@@ -749,6 +1038,64 @@ export function CourseView(): React.JSX.Element {
         </DialogContent>
       </Dialog>
 
+      {/* Delete Single Lesson Confirmation Dialog */}
+      <Dialog
+        open={Boolean(lessonToDelete)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setLessonToDelete(null)
+            setDeleteLessonFile(false)
+          }
+        }}
+      >
+        <DialogContent className="rounded-3xl">
+          <DialogHeader>
+            <div className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="h-5 w-5" />
+              <DialogTitle>Remover Aula</DialogTitle>
+            </div>
+            <DialogDescription className="pt-2 text-xs leading-relaxed text-zinc-300">
+              Deseja remover a aula <strong className="text-white font-semibold">"{lessonToDelete?.title}"</strong> da biblioteca deste curso?
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex items-center gap-2 pt-2 text-xs text-zinc-300">
+            <input
+              type="checkbox"
+              id="deleteLessonFileCheckbox"
+              checked={deleteLessonFile}
+              onChange={(e) => setDeleteLessonFile(e.target.checked)}
+              className="rounded border-zinc-700 bg-zinc-900 text-primary cursor-pointer h-4 w-4"
+            />
+            <label htmlFor="deleteLessonFileCheckbox" className="cursor-pointer select-none">
+              Excluir também o arquivo do computador
+            </label>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0 pt-3 border-t border-border">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setLessonToDelete(null)
+                setDeleteLessonFile(false)
+              }}
+              disabled={isDeletingLesson}
+              className="rounded-xl text-xs cursor-pointer min-h-[36px]"
+            >
+              {t('common.cancel')}
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmDeleteLesson}
+              disabled={isDeletingLesson}
+              className="rounded-xl text-xs cursor-pointer min-h-[36px]"
+            >
+              {isDeletingLesson ? t('common.loading') : 'Remover Aula'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* PDF & Document Viewer Modal */}
       <PdfViewerModal
         resource={selectedResource}
@@ -756,6 +1103,29 @@ export function CourseView(): React.JSX.Element {
         onClose={() => {
           setIsPdfModalOpen(false)
           setSelectedResource(null)
+        }}
+      />
+
+      {/* Code & Text Viewer Modal */}
+      <CodeViewerModal
+        resource={selectedResource}
+        isOpen={isCodeModalOpen}
+        onClose={() => {
+          setIsCodeModalOpen(false)
+          setSelectedResource(null)
+        }}
+      />
+
+      {/* Reorganize Course Files Modal */}
+      <ReorganizeCourseModal
+        courseId={course.id}
+        courseTitle={course.title}
+        isOpen={isReorganizeModalOpen}
+        onClose={() => setIsReorganizeModalOpen(false)}
+        onSuccess={() => {
+          if (selectedCourseId) {
+            void fetchCourseById(selectedCourseId)
+          }
         }}
       />
     </div>

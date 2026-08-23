@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Clock,
@@ -83,9 +83,61 @@ export function NotesPanel({ className }: NotesPanelProps): React.JSX.Element {
     setEditingContent('')
   }
 
-  const saveEdit = async (id: string): Promise<void> => {
+  const autosaveTimer = useRef<NodeJS.Timeout | null>(null)
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
+  const editingIdRef = useRef(editingId)
+  const editingContentRef = useRef(editingContent)
+
+  useEffect(() => {
+    editingIdRef.current = editingId
+    editingContentRef.current = editingContent
+  }, [editingId, editingContent])
+
+  const flushAutosave = React.useCallback(async () => {
+    if (autosaveTimer.current && editingIdRef.current && editingContentRef.current.trim()) {
+      clearTimeout(autosaveTimer.current)
+      autosaveTimer.current = null
+      await updateNote(editingIdRef.current, editingContentRef.current)
+      setSaveStatus('idle')
+    }
+  }, [updateNote])
+
+  useEffect(() => {
+    return () => {
+      flushAutosave().catch(console.warn)
+    }
+  }, [activeLesson?.id, flushAutosave])
+
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (autosaveTimer.current && editingIdRef.current && editingContentRef.current.trim()) {
+        clearTimeout(autosaveTimer.current)
+        // Try synchronous update via window.api
+        window.api.player.updateLessonNote(editingIdRef.current, editingContentRef.current).catch(console.warn)
+      }
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [])
+
+  const debouncedSave = React.useCallback((id: string, content: string) => {
+    if (autosaveTimer.current) clearTimeout(autosaveTimer.current)
+    if (!content.trim()) return
+
+    setSaveStatus('saving')
+    autosaveTimer.current = setTimeout(async () => {
+      autosaveTimer.current = null
+      await updateNote(id, content)
+      setSaveStatus('saved')
+      setTimeout(() => {
+        setSaveStatus(prev => prev === 'saved' ? 'idle' : prev)
+      }, 2000)
+    }, 600)
+  }, [updateNote])
+
+  const saveEdit = async (): Promise<void> => {
     if (!editingContent.trim()) return
-    await updateNote(id, editingContent)
+    await flushAutosave()
     setEditingId(null)
     setEditingContent('')
   }
@@ -293,7 +345,10 @@ export function NotesPanel({ className }: NotesPanelProps): React.JSX.Element {
                   <div className="space-y-2 mt-1">
                     <textarea
                       value={editingContent}
-                      onChange={(e) => setEditingContent(e.target.value)}
+                      onChange={(e) => {
+                        setEditingContent(e.target.value)
+                        debouncedSave(note.id, e.target.value)
+                      }}
                       rows={3}
                       className="w-full resize-none rounded-xl border border-primary/60 bg-card p-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary/40 font-normal leading-relaxed"
                       autoFocus
@@ -312,7 +367,7 @@ export function NotesPanel({ className }: NotesPanelProps): React.JSX.Element {
                         </Button>
                         <Button
                           size="sm"
-                          onClick={() => saveEdit(note.id)}
+                          onClick={() => saveEdit()}
                           disabled={!editingContent.trim()}
                           className="h-6.5 px-2.5 text-[11px] rounded-lg cursor-pointer bg-primary text-primary-foreground font-semibold shadow-xs"
                         >
@@ -336,6 +391,20 @@ export function NotesPanel({ className }: NotesPanelProps): React.JSX.Element {
         )}
         <div ref={notesEndRef} />
       </div>
+      
+      {/* Save Status Indicator */}
+      {saveStatus !== 'idle' && (
+        <div className="flex items-center justify-center gap-1.5 py-1 text-xs font-medium animate-in fade-in duration-200">
+          {saveStatus === 'saving' ? (
+            <>
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+              <span className="text-muted-foreground">{t('notes.saving')}</span>
+            </>
+          ) : (
+            <span className="text-emerald-500">{t('notes.saved')}</span>
+          )}
+        </div>
+      )}
     </div>
   )
 }

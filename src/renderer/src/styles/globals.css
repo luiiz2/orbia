@@ -140,11 +140,11 @@ body {
   transition: background-color 0.15s ease, color 0.15s ease;
 }
 
-/* Orbia Brand Gradient Helpers */
+/* Orbia Brand Helpers */
 .text-orbia-gradient {
-  background: linear-gradient(135deg, #ff6b00 0%, #ea580c 35%, #9333ea 70%, #3b82f6 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--primary);
+  font-weight: 800;
+  letter-spacing: -0.025em;
 }
 
 .bg-orbia-gradient {

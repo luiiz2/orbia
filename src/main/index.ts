@@ -80,6 +80,12 @@ if (!gotTheLock) {
 
     win.webContents.on('did-finish-load', () => {
       logger.info('[Main] Renderer finished loading successfully')
+      win.show()
+      win.focus()
+    })
+
+    win.webContents.on('console-message', (_event, level, message, line, sourceId) => {
+      logger.info(`[Renderer] [${level}] ${message} (${sourceId}:${line})`)
     })
 
     win.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {

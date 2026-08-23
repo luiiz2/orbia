@@ -9,6 +9,16 @@ export interface SelectedCourseSource {
   isZip: boolean
 }
 
+export interface SearchResultItem {
+  type: 'course' | 'module' | 'lesson'
+  id: string
+  title: string
+  courseId: string
+  courseTitle: string
+  moduleId?: string
+  moduleTitle?: string
+}
+
 /**
  * Opaque capability returned by a native source picker. The absolute source
  * path stays in the Main process and is consumed exactly once during prepare.
@@ -170,6 +180,8 @@ export interface OrbiaApi {
     selectSource: () => Promise<SelectedCourseSource[] | null>
     selectZip: () => Promise<ImportSourceCapability[] | null>
     selectFolder: () => Promise<ImportSourceCapability[] | null>
+    selectMultiCourseFolder: () => Promise<{ path: string; name: string } | null>
+    scanMultiCourseFolder: (folderPath: string) => Promise<{ success: boolean; proposals?: ProposedCourseStructure[]; error?: string }>
     prepareZipImport: (input: PrepareImportSourceInput) => Promise<PrepareImportSessionResult>
     prepareFolderImport: (input: PrepareImportSourceInput) => Promise<PrepareImportSessionResult>
     cancelImportSession: (sessionId: string) => Promise<CancelImportSessionResult>
@@ -179,6 +191,7 @@ export interface OrbiaApi {
     importCourse: (proposal: ProposedCourseStructure, isExternal: boolean) => Promise<{ success: boolean; course?: Course; error?: string }>
     importBatch: (items: { proposal: ProposedCourseStructure; isExternal: boolean }[]) => Promise<{ success: boolean; courses?: Course[]; error?: string }>
     getMergePreview: (courseIds: string[]) => Promise<GetMergePreviewResult>
+    mergeCourses: (courseIds: string[]) => Promise<{ success: boolean; canonicalCourseId?: string; error?: string; mergedGroupsCount?: number; removedCoursesCount?: number }>
     getImportHistory: () => Promise<import('./course').ImportHistoryEntry[]>
     recordImportHistory: (entry: Omit<import('./course').ImportHistoryEntry, 'id' | 'createdAt'>) => Promise<import('./course').ImportHistoryEntry>
     clearImportHistory: () => Promise<boolean>
@@ -188,9 +201,23 @@ export interface OrbiaApi {
     list: () => Promise<Course[]>
     getById: (courseId: string) => Promise<{ course: Course; modules: (Module & { lessons: Lesson[] })[] } | null>
     delete: (courseId: string, deleteFiles: boolean) => Promise<{ success: boolean; error?: string }>
+    deleteLesson: (lessonId: string, deleteFileFromDisk?: boolean) => Promise<{ success: boolean; error?: string }>
+    getCourseHealth: (courseId: string) => Promise<import('./course').CourseHealthReport>
+    fixCourseProblems: (courseId: string) => Promise<{ success: boolean; fixedCount: number; removedCount: number; error?: string }>
     toggleFavorite: (courseId: string) => Promise<boolean>
+    updateMetadata: (input: { courseId: string; customTitle?: string }) => Promise<{ success: boolean }>
+    updateModuleMetadata: (input: { moduleId: string; customTitle?: string; displayOrder?: number }) => Promise<{ success: boolean }>
+    updateLessonMetadata: (input: { lessonId: string; customTitle?: string; displayOrder?: number }) => Promise<{ success: boolean }>
+    reorderModule: (moduleId: string, direction: 'up' | 'down') => Promise<{ success: boolean }>
+    reorderLesson: (lessonId: string, direction: 'up' | 'down') => Promise<{ success: boolean }>
+    toggleLessonFavorite: (lessonId: string) => Promise<boolean>
+    toggleModuleCompletion: (moduleId: string, courseId: string) => Promise<{ success: boolean; affectedCount: number }>
+    searchGlobal: (query: string) => Promise<SearchResultItem[]>
     updateLessonDuration: (lessonId: string, duration: number) => Promise<{ success: boolean; error?: string }>
     convertSrtToVtt: (srtPath: string) => Promise<{ success: boolean; vttContent?: string; error?: string }>
+    getReorganizePlan: (courseId: string) => Promise<{ success: boolean; plan?: import('./journal').OperationPlan; error?: string }>
+    applyReorganizePlan: (groupId: string, mutations: import('./journal').ProposedFileMutation[], courseId: string) => Promise<{ success: boolean; appliedCount?: number; error?: string }>
+    undoReorganizePlan: (groupId: string) => Promise<{ success: boolean; revertedCount?: number; error?: string }>
     onExtractProgress: (callback: (progress: ExtractProgressPayload) => void) => () => void
   }
 
@@ -209,6 +236,7 @@ export interface OrbiaApi {
     updateLessonNote: (id: string, content: string) => Promise<boolean>
     deleteLessonNote: (id: string) => Promise<boolean>
     exportCourseNotes: (courseId: string) => Promise<string>
+    getStudyAnalytics: (dailyGoalMinutes?: number) => Promise<import('./progress').StudyAnalytics>
   }
 
   // App Settings

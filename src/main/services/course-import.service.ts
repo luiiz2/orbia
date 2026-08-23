@@ -13,6 +13,7 @@ import type {
   Module,
   ProposedContentResource,
   ProposedCourseStructure,
+  ProposedModule,
   ImportSessionTitleEdits,
   Vault
 } from '../../types'
@@ -29,6 +30,8 @@ import {
   type MaterializeProposalCoversOptions
 } from './proposal-cover.service'
 import { vaultService } from './vault.service'
+import { normalizeModuleKey } from '../utils/title-cleaner'
+import { naturalCompare } from '../utils/natural-sort'
 
 type CourseModules = (Module & { lessons: Lesson[] })[]
 type MaterializeProposal = (
@@ -417,6 +420,46 @@ export class CourseImportService {
   }
 }
 
+function consolidateProposedModules(modules: ProposedModule[]): ProposedModule[] {
+  const merged: ProposedModule[] = []
+  const map = new Map<string, ProposedModule>()
+
+  for (const mod of modules) {
+    const rawTitle = editableTitle(mod.title) ?? mod.title
+    const key = normalizeModuleKey(rawTitle) || rawTitle.trim().toLowerCase()
+    const existing = map.get(key)
+    if (existing) {
+      existing.lessons = [...(existing.lessons || []), ...(mod.lessons || [])]
+      if (mod.resources && mod.resources.length > 0) {
+        existing.resources = [...(existing.resources || []), ...mod.resources]
+      }
+      if (typeof mod.duration === 'number') {
+        existing.duration = (existing.duration || 0) + mod.duration
+      }
+    } else {
+      const copy: ProposedModule = {
+        ...mod,
+        title: rawTitle,
+        lessons: [...(mod.lessons || [])],
+        resources: mod.resources ? [...mod.resources] : undefined
+      }
+      map.set(key, copy)
+      merged.push(copy)
+    }
+  }
+
+  // Re-index modules and lessons naturally
+  merged.forEach((mod, mIdx) => {
+    mod.orderIndex = mIdx + 1
+    mod.lessons.sort((a, b) => (a.orderIndex - b.orderIndex) || naturalCompare(a.title, b.title))
+    mod.lessons.forEach((les, lIdx) => {
+      les.orderIndex = lIdx + 1
+    })
+  })
+
+  return merged
+}
+
 function applyTitleEdits(
   trustedProposal: ProposedCourseStructure,
   titleEdits: ImportSessionTitleEdits | undefined
@@ -424,23 +467,29 @@ function applyTitleEdits(
   const submittedModuleTitles = new Map((titleEdits?.modules || []).map((module) => [module.id, module.title]))
   const submittedLessonTitles = new Map((titleEdits?.lessons || []).map((lesson) => [lesson.id, lesson.title]))
 
+  const updatedModules: ProposedModule[] = trustedProposal.modules.map((trustedModule) => {
+    return {
+      ...trustedModule,
+      title: editableTitle(submittedModuleTitles.get(trustedModule.id)) ?? trustedModule.title,
+      lessons: trustedModule.lessons.map((trustedLesson) => {
+        return {
+          ...trustedLesson,
+          title: editableTitle(submittedLessonTitles.get(trustedLesson.id)) ?? trustedLesson.title
+        }
+      })
+    }
+  })
+
+  const mergedModules = consolidateProposedModules(updatedModules)
+
   return {
     ...trustedProposal,
     suggestedTitle: editableTitle(titleEdits?.courseTitle) ?? trustedProposal.suggestedTitle,
-    modules: trustedProposal.modules.map((trustedModule) => {
-      return {
-        ...trustedModule,
-        title: editableTitle(submittedModuleTitles.get(trustedModule.id)) ?? trustedModule.title,
-        lessons: trustedModule.lessons.map((trustedLesson) => {
-          return {
-            ...trustedLesson,
-            title: editableTitle(submittedLessonTitles.get(trustedLesson.id)) ?? trustedLesson.title
-          }
-        })
-      }
-    })
+    modules: mergedModules,
+    totalLessons: mergedModules.reduce((acc, mod) => acc + mod.lessons.length, 0)
   }
 }
+
 
 function readCommitInput(input: unknown): CommitImportSessionInput {
   if (!isRecord(input) || typeof input.sessionId !== 'string' || typeof input.isExternal !== 'boolean') {
@@ -530,7 +579,7 @@ function rebasePath(value: string | undefined, sourceRoot: string, destinationRo
   return path.join(destinationRoot, path.relative(path.resolve(sourceRoot), candidate))
 }
 
-function buildCourseHierarchy(
+export function buildCourseHierarchy(
   proposal: ProposedCourseStructure,
   options: {
     courseId: string
@@ -543,7 +592,9 @@ function buildCourseHierarchy(
   const title = editableTitle(proposal.suggestedTitle)
   if (!title) throw new Error('A course title is required.')
 
-  const modules = proposal.modules.map((mod) => {
+  const consolidatedModules = consolidateProposedModules(proposal.modules)
+
+  const modules = consolidatedModules.map((mod) => {
     const moduleId = options.createId()
     const lessons = mod.lessons.map((lesson) => {
       const lessonId = options.createId()

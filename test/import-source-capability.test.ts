@@ -1,5 +1,12 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import path from 'node:path'
+
+vi.mock('electron', () => ({
+  app: { getPath: () => '' },
+  dialog: { showOpenDialog: vi.fn() },
+  ipcMain: { handle: vi.fn() }
+}))
+
 import {
   CoverImageSelectionRegistry,
   ImportSourceCapabilityRegistry,

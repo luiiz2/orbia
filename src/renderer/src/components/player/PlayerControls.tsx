@@ -36,6 +36,7 @@ export interface PlayerControlsProps {
   hasNextLesson: boolean
   hasPrevLesson: boolean
   bufferedEnd?: number
+  notes?: import('@shared').LessonNote[]
   onTogglePlay: () => void
   onSeek: (time: number) => void
   onSeekRelative: (deltaSeconds: number) => void
@@ -65,6 +66,7 @@ export function PlayerControls({
   hasNextLesson,
   hasPrevLesson,
   bufferedEnd,
+  notes,
   onTogglePlay,
   onSeek,
   onSeekRelative,
@@ -93,6 +95,7 @@ export function PlayerControls({
         currentTime={currentTime}
         duration={duration}
         bufferedEnd={bufferedEnd}
+        notes={notes}
         onSeek={onSeek}
         className="mb-2"
       />

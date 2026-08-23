@@ -7,7 +7,7 @@ import type {
   ProposedLesson,
   ProposedModule
 } from '../../types'
-import { cleanCourseTitle, cleanModuleTitle, cleanTitle } from '../utils/title-cleaner'
+import { cleanCourseTitle, cleanLessonTitle, cleanModuleTitle, cleanTitle, normalizeModuleKey } from '../utils/title-cleaner'
 import { naturalCompare } from '../utils/natural-sort'
 import {
   getMediaType,
@@ -19,6 +19,7 @@ import {
 } from '../utils/file-utils'
 import type { ScannedDirectory, ScannedFile } from './scanner.service'
 import { ensureCourseCover, generateTextCover } from '../utils/cover-generator'
+import { probeMediaDurationsBatch } from '../utils/media-probe'
 
 interface ParsedModuleContent {
   lessons: ProposedLesson[]
@@ -124,15 +125,41 @@ export class ParserService {
       })
     }
 
+    // Merge modules with matching titles so multiple modules never share the same name
+    const mergedModules: ProposedModule[] = []
+    const moduleMap = new Map<string, ProposedModule>()
+
+    for (const mod of proposedModules) {
+      const normalizedKey = normalizeModuleKey(mod.title)
+      const existing = moduleMap.get(normalizedKey)
+      if (existing) {
+        existing.lessons = [...(existing.lessons || []), ...(mod.lessons || [])]
+        existing.resources = [...(existing.resources || []), ...(mod.resources || [])]
+      } else {
+        moduleMap.set(normalizedKey, mod)
+        mergedModules.push(mod)
+      }
+    }
+
+    // Re-index merged modules and order lessons naturally
+    mergedModules.forEach((mod, idx) => {
+      mod.orderIndex = idx + 1
+      mod.lessons.sort((a, b) => naturalCompare(a.title, b.title))
+      mod.lessons.forEach((les, lIdx) => {
+        les.orderIndex = lIdx + 1
+      })
+      mod.duration = mod.lessons.reduce((sum, les) => sum + (les.duration || 0), 0)
+    })
+
     // 3. Detect duplicate candidates, but never silently omit or renumber content.
-    const duplicates = this.findDuplicateCandidates(proposedModules)
+    const duplicates = this.findDuplicateCandidates(mergedModules)
 
     return {
       suggestedTitle,
       rootPath,
       coverPath,
-      modules: proposedModules,
-      totalLessons: proposedModules.reduce((acc, module) => acc + module.lessons.length, 0),
+      modules: mergedModules,
+      totalLessons: mergedModules.reduce((acc, module) => acc + module.lessons.length, 0),
       totalFilesScanned: totalFilesCount,
       duplicates: duplicates.length > 0 ? duplicates : undefined
     }
@@ -230,13 +257,16 @@ export class ParserService {
   private async buildLessons(mediaFiles: ScannedFile[], allFiles: ScannedFile[]): Promise<ProposedLesson[]> {
     const sortedFiles = [...mediaFiles].sort((a, b) => naturalCompare(a.name, b.name))
     const imageFiles = allFiles.filter((file) => isImageFile(file.fullPath))
+    const durations = await probeMediaDurationsBatch(sortedFiles.map((file) => file.fullPath))
 
     const lessons: ProposedLesson[] = []
 
     for (const [index, file] of sortedFiles.entries()) {
-      const title = cleanTitle(file.name)
+      const parentDirName = path.basename(path.dirname(file.fullPath))
+      const title = cleanLessonTitle(file.name, parentDirName)
       const companionImg = imageFiles.find((image) => this.isCompanionImageForLesson(image, file))
       const coverPath = companionImg ? companionImg.fullPath : await generateTextCover(title)
+      const duration = durations.get(file.fullPath) || 0
 
       lessons.push({
         id: crypto.randomUUID(),
@@ -247,10 +277,33 @@ export class ParserService {
         mediaType: getMediaType(file.fullPath),
         fileSize: file.sizeBytes,
         orderIndex: index + 1,
+        duration,
         coverPath,
         fingerprint: file.fingerprint,
         contentResources: []
       })
+    }
+
+    // Disambiguate duplicate lesson titles within the module
+    const titleCounts = new Map<string, number>()
+    for (const lesson of lessons) {
+      titleCounts.set(lesson.title, (titleCounts.get(lesson.title) || 0) + 1)
+    }
+
+    if (Array.from(titleCounts.values()).some((count) => count > 1)) {
+      const seenTitles = new Map<string, number>()
+      for (const lesson of lessons) {
+        if ((titleCounts.get(lesson.title) || 0) > 1) {
+          const occurrence = (seenTitles.get(lesson.title) || 0) + 1
+          seenTitles.set(lesson.title, occurrence)
+          const baseName = cleanTitle(lesson.originalFileName)
+          if (baseName && baseName !== lesson.title) {
+            lesson.title = `${lesson.title} - ${baseName}`
+          } else {
+            lesson.title = `${lesson.title} (${occurrence})`
+          }
+        }
+      }
     }
 
     return lessons

@@ -25,6 +25,7 @@ vi.mock('lucide-react', () => ({
   ChevronLeft: () => null,
   FastForward: () => null,
   Play: () => null,
+  Trash2: () => null,
   X: () => null
 }))
 

@@ -32,6 +32,8 @@ Thumbs.db
 .eslintcache
 .idea/
 .vscode/
+.cursor/
+.codex/
 *.suo
 *.ntvs*
 *.njsproj

@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   ChevronLeft,
@@ -99,7 +99,7 @@ export function DocumentLessonView({ className, onBack }: DocumentLessonViewProp
   if (!activeLesson) {
     return (
       <div className="flex h-full w-full items-center justify-center bg-zinc-950 text-zinc-400">
-        <p className="text-sm font-medium">No lesson selected</p>
+        <p className="text-sm font-medium">{t('player.noLessonSelected', 'Nenhuma aula selecionada')}</p>
       </div>
     )
   }

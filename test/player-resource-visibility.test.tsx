@@ -68,13 +68,20 @@ vi.mock('../src/renderer/src/components/ui', async () => {
     Progress: () => null,
     Tooltip: passthrough,
     TooltipTrigger: passthrough,
-    TooltipContent: passthrough
+    TooltipContent: passthrough,
+    Dialog: passthrough,
+    DialogContent: passthrough,
+    DialogHeader: passthrough,
+    DialogTitle: passthrough,
+    DialogDescription: passthrough,
+    DialogFooter: passthrough
   }
 })
 
 describe('PlayerView resources', () => {
   beforeEach(() => {
     state.useState.mockReset()
+    state.useState.mockImplementation((initial: unknown) => [initial, vi.fn()])
     state.useState
       .mockImplementationOnce(() => ['resources', vi.fn()])
       .mockImplementationOnce(() => [true, vi.fn()])
@@ -139,8 +146,7 @@ describe('PlayerView resources', () => {
     expect(markup).toContain('material-canonico.pdf')
     expect(markup).toContain('legenda.ass')
     expect(markup).toContain('PDF')
-    expect(markup).toContain('documents.previewUnavailable')
-    expect(markup).not.toContain('player.viewResource:legenda.ass')
+    expect(markup).toContain('player.viewResource:material-canonico.pdf')
     expect(markup).not.toContain('material-legado.docx')
   })
 })

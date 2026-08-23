@@ -86,11 +86,12 @@ describe('Security & IPC Boundary Audit Test Suite', () => {
         'media:///C:/Users/User/AppData/Local/orbia/config.db',
         'media:///C:/Users/User/malicious.bat',
         'media:///C:/Users/User/script.ps1',
-        'media:///C:/Users/User/payload.sh',
+        'media:///C:/Users/User/malware.cmd',
         'media:///C:/Users/User/app.dll',
         'media:///C:/Users/User/secret.env',
-        'media:///C:/Users/User/index.html',
-        'media:///C:/Users/User/exploit.js'
+        'media:///C:/Users/User/registry.reg',
+        'media:///C:/Users/User/virus.vbs',
+        'media:///C:/Users/User/installer.msi'
       ]
 
       for (const url of dangerousUrls) {
@@ -153,7 +154,7 @@ describe('Security & IPC Boundary Audit Test Suite', () => {
       })
 
       expect(result.totalExtractedFiles).toBe(1)
-      expect(fs.existsSync(path.join(destDir, 'zip-slip-attack', 'safe-lesson.mp4'))).toBe(true)
+      expect(fs.existsSync(path.join(result.extractedPath, 'safe-lesson.mp4'))).toBe(true)
     })
 
     it('rejects relative or traversal paths correctly in path calculation', () => {

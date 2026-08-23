@@ -608,6 +608,24 @@ export function usePlayer({ videoRef, containerRef }: UsePlayerProps): UsePlayer
       }
     }
 
+    const handleCanPlay = (): void => {
+      if (pendingSeekRef.current !== null) {
+        video.currentTime = pendingSeekRef.current.time
+        return
+      }
+      if (!resumedRef.current) {
+        const saved = usePlayerStore.getState().currentTime
+        if (saved > 0 && Math.abs(video.currentTime - saved) > 0.5) {
+          resumedRef.current = true
+          try {
+            video.currentTime = saved
+          } catch (e) {
+            console.warn('Could not seek on canplay:', e)
+          }
+        }
+      }
+    }
+
     const handleSeeked = (): void => {
       if (pendingSeekRef.current === null) return
       pendingSeekRef.current = null
@@ -639,6 +657,7 @@ export function usePlayer({ videoRef, containerRef }: UsePlayerProps): UsePlayer
 
     video.addEventListener('timeupdate', handleTimeUpdate)
     video.addEventListener('loadedmetadata', handleLoadedMetadata)
+    video.addEventListener('canplay', handleCanPlay)
     video.addEventListener('seeked', handleSeeked)
     video.addEventListener('play', handlePlay)
     video.addEventListener('pause', handlePause)
@@ -647,6 +666,7 @@ export function usePlayer({ videoRef, containerRef }: UsePlayerProps): UsePlayer
     return () => {
       video.removeEventListener('timeupdate', handleTimeUpdate)
       video.removeEventListener('loadedmetadata', handleLoadedMetadata)
+      video.removeEventListener('canplay', handleCanPlay)
       video.removeEventListener('seeked', handleSeeked)
       video.removeEventListener('play', handlePlay)
       video.removeEventListener('pause', handlePause)

@@ -18,7 +18,8 @@ import type {
   ImportSessionPreview,
   ImportSessionSourceKind,
   ImportSessionValidation,
-  PrepareImportSourceInput
+  PrepareImportSourceInput,
+  ProposedCourseStructure
 } from '@shared'
 import {
   Badge,
@@ -56,6 +57,7 @@ interface BatchItem {
   currentExtractFile: string
   validation?: ImportSessionValidation
   preview?: ImportSessionPreview
+  rawProposal?: ProposedCourseStructure
   isExternal: boolean
   selected: boolean
   error: string | null
@@ -84,6 +86,51 @@ export function buildSourcePreparationRequest(
   source: Pick<ImportSourceCapability, 'token'>
 ): PrepareImportSourceInput {
   return { token: source.token }
+}
+
+export function proposalToSessionPreview(proposal: ProposedCourseStructure): ImportSessionPreview {
+  return {
+    suggestedTitle: proposal.suggestedTitle,
+    totalLessons: proposal.totalLessons,
+    totalFilesScanned: proposal.totalFilesScanned,
+    ...(typeof proposal.totalDuration === 'number' ? { totalDuration: proposal.totalDuration } : {}),
+    modules: proposal.modules.map((mod) => ({
+      id: mod.id,
+      title: mod.title,
+      orderIndex: mod.orderIndex,
+      ...(typeof mod.duration === 'number' ? { duration: mod.duration } : {}),
+      resources: (mod.resources || []).map((r) => ({
+        id: r.id,
+        name: r.name,
+        fileExtension: r.fileExtension,
+        fileSize: r.fileSize,
+        type: r.type,
+        role: r.role,
+        ...(r.language ? { language: r.language } : {}),
+        ...(r.label ? { label: r.label } : {})
+      })),
+      lessons: mod.lessons.map((les) => ({
+        id: les.id,
+        title: les.title,
+        originalFileName: les.originalFileName,
+        fileExtension: les.fileExtension,
+        mediaType: les.mediaType,
+        fileSize: les.fileSize,
+        orderIndex: les.orderIndex,
+        ...(typeof les.duration === 'number' ? { duration: les.duration } : {}),
+        contentResources: (les.contentResources || []).map((r) => ({
+          id: r.id,
+          name: r.name,
+          fileExtension: r.fileExtension,
+          fileSize: r.fileSize,
+          type: r.type,
+          role: r.role,
+          ...(r.language ? { language: r.language } : {}),
+          ...(r.label ? { label: r.label } : {})
+        }))
+      }))
+    }))
+  }
 }
 
 export function ImportWizard({ open, onOpenChange }: ImportWizardProps): React.JSX.Element {
@@ -272,6 +319,52 @@ export function ImportWizard({ open, onOpenChange }: ImportWizardProps): React.J
     if (sources && sources.length > 0) await startBatchProcessing(sources)
   }
 
+  const handleSelectMultiCourseRoot = async (): Promise<void> => {
+    setGlobalError(null)
+    const selected = await window.api.courses.selectMultiCourseFolder()
+    if (!selected) return
+
+    setStep('processing')
+    try {
+      const scanResult = await window.api.courses.scanMultiCourseFolder(selected.path)
+      if (!scanResult.success || !scanResult.proposals || scanResult.proposals.length === 0) {
+        setGlobalError(scanResult.error || t('import.noCoursesFoundInRoot', 'Nenhum curso identificado nesta pasta.'))
+        setStep('select')
+        return
+      }
+
+      const queue: BatchItem[] = scanResult.proposals.map((prop, idx) => ({
+        id: `multi-${Date.now()}-${idx}`,
+        name: prop.suggestedTitle,
+        sourceToken: '',
+        isZip: false,
+        sourceKind: 'folder',
+        status: 'ready',
+        extractProgress: 100,
+        currentExtractFile: '',
+        isExternal: true,
+        selected: true,
+        error: null,
+        rawProposal: prop,
+        validation: {
+          verificationOk: true,
+          warnings: [],
+          duplicateFiles: prop.duplicates || [],
+          failedEntries: [],
+          extractedFiles: prop.totalFilesScanned
+        },
+        preview: proposalToSessionPreview(prop)
+      }))
+
+      replaceBatchItems(queue)
+      setActiveItemIndex(0)
+      setStep('preview')
+    } catch (err: unknown) {
+      setGlobalError(err instanceof Error ? err.message : String(err))
+      setStep('select')
+    }
+  }
+
   const handleReselectSources = async (isZip: boolean): Promise<void> => {
     if (isCommitting) return
     const sources = isZip
@@ -308,7 +401,7 @@ export function ImportWizard({ open, onOpenChange }: ImportWizardProps): React.J
     if (savingZipPreferenceRef.current || committingRef.current) return
 
     const selectedItems = batchItemsRef.current.filter(
-      (item) => item.status === 'ready' && item.selected && item.sessionId && item.preview
+      (item) => item.status === 'ready' && item.selected && item.preview
     )
 
     if (selectedItems.length === 0) {
@@ -322,7 +415,9 @@ export function ImportWizard({ open, onOpenChange }: ImportWizardProps): React.J
     const importedCourseIds: string[] = []
 
     try {
-      for (const item of selectedItems) {
+      // 1. Process session-backed items (zip / single folder)
+      const sessionItems = selectedItems.filter((item) => item.sessionId)
+      for (const item of sessionItems) {
         if (!item.sessionId || !item.preview) continue
         const sessionId = item.sessionId
         const preview = item.preview
@@ -359,6 +454,38 @@ export function ImportWizard({ open, onOpenChange }: ImportWizardProps): React.J
               : current
           )
         )
+      }
+
+      // 2. Process batch direct items (from multi-course folder)
+      const directItems = selectedItems.filter((item) => !item.sessionId && item.rawProposal && item.preview)
+      if (directItems.length > 0) {
+        const batchPayload = directItems.map((item) => {
+          const prop = item.rawProposal!
+          const edits = buildImportTitleEdits(item.preview!)
+          const modTitleMap = new Map((edits.modules ?? []).map((m) => [m.id, m.title]))
+          const lesTitleMap = new Map((edits.lessons ?? []).map((l) => [l.id, l.title]))
+
+          return {
+            proposal: {
+              ...prop,
+              suggestedTitle: edits.courseTitle || prop.suggestedTitle,
+              modules: prop.modules.map((m) => ({
+                ...m,
+                title: modTitleMap.get(m.id) || m.title,
+                lessons: m.lessons.map((l) => ({
+                  ...l,
+                  title: lesTitleMap.get(l.id) || l.title
+                }))
+              }))
+            },
+            isExternal: item.isExternal
+          }
+        })
+
+        const batchRes = await window.api.courses.importBatch(batchPayload)
+        if (batchRes.success && batchRes.courses) {
+          importedCourseIds.push(...batchRes.courses.map((c) => c.id))
+        }
       }
 
       await fetchCourses()
@@ -459,6 +586,10 @@ export function ImportWizard({ open, onOpenChange }: ImportWizardProps): React.J
                   <Button type="button" variant="outline" size="sm" onClick={() => void handleSelectFolder()}>
                     <FolderOpen className="h-3.5 w-3.5" />
                     {t('import.selectFolderMultiple')}
+                  </Button>
+                  <Button type="button" variant="outline" size="sm" onClick={() => void handleSelectMultiCourseRoot()}>
+                    <FolderSearch className="h-3.5 w-3.5 text-orange-400" />
+                    {t('import.selectMultiCourseRoot', 'Pasta com Vários Cursos')}
                   </Button>
                 </div>
               </div>

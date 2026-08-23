@@ -34,7 +34,8 @@ vi.mock('../src/renderer/src/components/ui', async () => {
     Skeleton: () => null,
     Tooltip: passthrough,
     TooltipTrigger: passthrough,
-    TooltipContent: passthrough
+    TooltipContent: passthrough,
+    CourseCover: passthrough
   }
 })
 
@@ -42,20 +43,20 @@ describe('ContinueWatchingRail', () => {
   beforeEach(() => {
     state.history = [
       {
-        id: 'below-ten',
-        lessonId: 'lesson-below-ten',
+        id: 'zero-progress',
+        lessonId: 'lesson-zero-progress',
         courseId: 'course-1',
-        lessonTitle: 'Below ten percent',
+        lessonTitle: 'Zero progress video',
         courseTitle: 'Course',
         watchedAt: 1,
         duration: 600,
-        currentTime: 59
+        currentTime: 0
       },
       {
-        id: 'exactly-ten',
-        lessonId: 'lesson-exactly-ten',
+        id: 'in-progress',
+        lessonId: 'lesson-in-progress',
         courseId: 'course-1',
-        lessonTitle: 'Exactly ten percent',
+        lessonTitle: 'In progress video',
         courseTitle: 'Course',
         watchedAt: 2,
         duration: 600,
@@ -70,10 +71,10 @@ describe('ContinueWatchingRail', () => {
       .mockImplementation(() => [false, vi.fn()])
   })
 
-  it('includes a video at exactly 10% and excludes videos below the threshold', () => {
+  it('includes in-progress videos and excludes videos with 0 progress', () => {
     const markup = renderToStaticMarkup(React.createElement(ContinueWatchingRail, { isLoading: false }))
 
-    expect(markup).toContain('Exactly ten percent')
-    expect(markup).not.toContain('Below ten percent')
+    expect(markup).toContain('In progress video')
+    expect(markup).not.toContain('Zero progress video')
   })
 })

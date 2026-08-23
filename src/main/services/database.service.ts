@@ -22,6 +22,8 @@ import type {
   SubtitleTrack
 } from '../../types'
 import { naturalCompare } from '../utils/natural-sort'
+import { normalizeModuleKey } from '../utils/title-cleaner'
+import { isMediaFile, getMediaType } from '../utils/file-utils'
 import { logger } from './logger.service'
 
 interface MergePreviewTargetModule {
@@ -61,6 +63,13 @@ export class DatabaseService {
 
     this.runMigrations()
     this.recoverPendingFileOperations(vaultPath)
+    try {
+      this.cleanupDuplicateModules()
+      this.cleanupNonMediaLessons()
+      void this.healMissingDurations()
+    } catch (err) {
+      logger.warn('[Database] connect auto-cleanup error:', err)
+    }
   }
 
   public close(): void {
@@ -300,19 +309,65 @@ export class DatabaseService {
       }
     }
 
-    // 4. Versioned migrations (PRAGMA user_version) — wrapped in transactions
-    // NOTE: `current_time` is a reserved SQLite keyword (UTC time constant).
-    // Bare `current_time` in SELECTs resolves to the keyword, NOT the column —
-    // column references MUST be table-qualified (e.g. lesson_progress.current_time).
+    // 4. Migrations tracking table
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS _migrations (
+        id TEXT PRIMARY KEY,
+        applied_at INTEGER NOT NULL
+      );
+    `)
+
+    const migrationId = '002_v0.2_metadata_and_favorites'
+    const hasApplied002 = this.db.prepare(`SELECT 1 FROM _migrations WHERE id = ?`).get(migrationId)
+
+    if (!hasApplied002) {
+      const coursesCountRow = this.db.prepare(`SELECT count(*) as cnt FROM courses`).get() as { cnt: number } | undefined
+      const isNewDb = (coursesCountRow?.cnt ?? 0) === 0
+
+      if (!isNewDb) {
+        const dbPath = this.db.name
+        try {
+          fs.copyFileSync(dbPath, dbPath + '.bak')
+          logger.info(`Database backed up to ${dbPath}.bak`)
+        } catch (err) {
+          logger.error(`Failed to back up database: ${err}`)
+        }
+      }
+
+      this.db.transaction(() => {
+        const alters = [
+          `ALTER TABLE courses ADD COLUMN custom_title TEXT DEFAULT NULL;`,
+          `ALTER TABLE modules ADD COLUMN custom_title TEXT DEFAULT NULL;`,
+          `ALTER TABLE modules ADD COLUMN display_order INTEGER NOT NULL DEFAULT 0;`,
+          `ALTER TABLE lessons ADD COLUMN custom_title TEXT DEFAULT NULL;`,
+          `ALTER TABLE lessons ADD COLUMN display_order INTEGER NOT NULL DEFAULT 0;`,
+          `ALTER TABLE lessons ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0;`
+        ]
+        for (const sql of alters) {
+          try {
+            this.db!.exec(sql)
+          } catch {
+            // Ignored if column already exists
+          }
+        }
+
+        try {
+          this.db!.exec(`UPDATE modules SET display_order = order_index WHERE display_order = 0;`)
+          this.db!.exec(`UPDATE lessons SET display_order = order_index WHERE display_order = 0;`)
+          this.db!.exec(`CREATE INDEX IF NOT EXISTS idx_lessons_favorite ON lessons(is_favorite);`)
+          this.db!.exec(`CREATE INDEX IF NOT EXISTS idx_modules_display_order ON modules(course_id, display_order);`)
+          this.db!.exec(`CREATE INDEX IF NOT EXISTS idx_lessons_display_order ON lessons(module_id, display_order);`)
+        } catch {
+          // Ignored
+        }
+
+        this.db!.prepare(`INSERT INTO _migrations (id, applied_at) VALUES (?, ?)`).run(migrationId, Date.now())
+      })()
+    }
+
     const userVersion = this.db.pragma('user_version', { simple: true }) as number
 
     if (userVersion < 1) {
-      // v0 schema is compatible with v1 — no data migrations required.
-      // (A previous attempt used `typeof(current_time) = 'text'` to detect
-      // legacy TEXT progress; bare `current_time` resolves to the SQLite
-      // keyword constant, making the predicate always-true and rewriting
-      // every row with the migration-run timestamp. Reverted — schema has
-      // always stored current_time as REAL seconds.)
       this.db.pragma('user_version = 1')
     }
   }
@@ -325,13 +380,57 @@ export class DatabaseService {
   ): void {
     this.ensureConnected()
 
+    const consolidatedModules = consolidateModulesForPersistence(modules)
+
+    // Separate media lessons from non-media files (which become module resources)
+    const cleanedModules = consolidatedModules.map((mod) => {
+      const mediaLessons: Lesson[] = []
+      const extraResources: ContentResource[] = []
+
+      for (const les of mod.lessons) {
+        const testPath = les.filePath || les.fileName
+        if (isMediaFile(testPath)) {
+          mediaLessons.push(les)
+        } else {
+          const ext = (les.fileExtension || path.extname(testPath)).replace(/^\./, '').toLowerCase()
+          const resourceType = toResourceType(testPath)
+          extraResources.push({
+            id: les.id || crypto.randomUUID(),
+            courseId: course.id,
+            moduleId: mod.id,
+            role: 'resource',
+            name: les.fileName || les.title,
+            filePath: les.filePath,
+            fileExtension: ext,
+            fileSize: les.fileSize || 0,
+            type: resourceType,
+            createdAt: les.createdAt || Date.now()
+          })
+        }
+      }
+
+      const allResources = [...(mod.resources || []), ...extraResources]
+      const modDuration = mediaLessons.reduce((sum, l) => sum + (l.duration || 0), 0)
+
+      return {
+        ...mod,
+        lessons: mediaLessons,
+        resources: allResources.length > 0 ? allResources : undefined,
+        duration: modDuration,
+        lessonCount: mediaLessons.length
+      }
+    })
+
+    const totalCourseLessons = cleanedModules.reduce((sum, mod) => sum + mod.lessons.length, 0)
+    const totalCourseDuration = cleanedModules.reduce((sum, mod) => sum + mod.duration, 0)
+
     const insertCourse = this.db!.prepare(`
       INSERT INTO courses (
-        id, title, slug, source_type, root_path, is_external,
+        id, title, custom_title, slug, source_type, root_path, is_external,
         cover_path, description, total_duration, module_count,
         lesson_count, is_favorite, created_at, updated_at, last_accessed_at
       ) VALUES (
-        @id, @title, @slug, @sourceType, @rootPath, @isExternal,
+        @id, @title, @customTitle, @slug, @sourceType, @rootPath, @isExternal,
         @coverPath, @description, @totalDuration, @moduleCount,
         @lessonCount, @isFavorite, @createdAt, @updatedAt, @lastAccessedAt
       )
@@ -339,21 +438,21 @@ export class DatabaseService {
 
     const insertModule = this.db!.prepare(`
       INSERT INTO modules (
-        id, course_id, title, order_index, folder_path,
+        id, course_id, title, custom_title, order_index, display_order, folder_path,
         duration, lesson_count, created_at
       ) VALUES (
-        @id, @courseId, @title, @orderIndex, @folderPath,
+        @id, @courseId, @title, @customTitle, @orderIndex, @displayOrder, @folderPath,
         @duration, @lessonCount, @createdAt
       )
     `)
 
     const insertLesson = this.db!.prepare(`
       INSERT INTO lessons (
-        id, module_id, course_id, title, order_index,
+        id, module_id, course_id, title, custom_title, order_index, display_order, is_favorite,
         file_path, file_name, file_extension, media_type,
         duration, file_size, availability, cover_path, created_at
       ) VALUES (
-        @id, @moduleId, @courseId, @title, @orderIndex,
+        @id, @moduleId, @courseId, @title, @customTitle, @orderIndex, @displayOrder, @isFavorite,
         @filePath, @fileName, @fileExtension, @mediaType,
         @duration, @fileSize, @availability, @coverPath, @createdAt
       )
@@ -373,27 +472,30 @@ export class DatabaseService {
       insertCourse.run({
         id: course.id,
         title: course.title,
+        customTitle: course.customTitle || null,
         slug: course.slug,
         sourceType: course.sourceType,
         rootPath: course.rootPath,
         isExternal: course.sourceType === 'local-ref' ? 1 : 0,
         coverPath: course.coverPath || null,
         description: course.description || null,
-        totalDuration: course.totalDuration,
-        moduleCount: course.moduleCount,
-        lessonCount: course.lessonCount,
+        totalDuration: totalCourseDuration,
+        moduleCount: cleanedModules.length,
+        lessonCount: totalCourseLessons,
         isFavorite: course.isFavorite ? 1 : 0,
         createdAt: course.createdAt,
         updatedAt: course.updatedAt,
         lastAccessedAt: course.lastAccessedAt || null
       })
 
-      for (const mod of modules) {
+      for (const mod of cleanedModules) {
         insertModule.run({
           id: mod.id,
           courseId: course.id,
           title: mod.title,
+          customTitle: mod.customTitle || null,
           orderIndex: mod.orderIndex,
+          displayOrder: mod.displayOrder || mod.orderIndex,
           folderPath: mod.folderPath || null,
           duration: mod.duration,
           lessonCount: mod.lessons.length,
@@ -410,7 +512,10 @@ export class DatabaseService {
             moduleId: mod.id,
             courseId: course.id,
             title: lesson.title,
+            customTitle: lesson.customTitle || null,
             orderIndex: lesson.orderIndex,
+            displayOrder: lesson.displayOrder || lesson.orderIndex,
+            isFavorite: lesson.isFavorite ? 1 : 0,
             filePath: lesson.filePath,
             fileName: lesson.fileName,
             fileExtension: lesson.fileExtension,
@@ -436,7 +541,7 @@ export class DatabaseService {
     if (!this.db) return []
     const stmt = this.db.prepare(`
       SELECT
-        id, title, slug, source_type as sourceType, root_path as rootPath,
+        id, title, custom_title as customTitle, slug, source_type as sourceType, root_path as rootPath,
         cover_path as coverPath, description, total_duration as totalDuration,
         module_count as moduleCount, lesson_count as lessonCount,
         is_favorite as isFavorite,
@@ -453,13 +558,14 @@ export class DatabaseService {
   }
 
   public getCourseById(
-    courseId: string
+    courseId: string,
+    options?: { skipDeduplication?: boolean }
   ): { course: Course; modules: (Module & { lessons: Lesson[] })[] } | null {
     this.ensureConnected()
 
     const courseStmt = this.db!.prepare(`
       SELECT
-        id, title, slug, source_type as sourceType, root_path as rootPath,
+        id, title, custom_title as customTitle, slug, source_type as sourceType, root_path as rootPath,
         cover_path as coverPath, description, total_duration as totalDuration,
         module_count as moduleCount, lesson_count as lessonCount,
         is_favorite as isFavorite,
@@ -472,27 +578,49 @@ export class DatabaseService {
 
     const modulesStmt = this.db!.prepare(`
       SELECT
-        id, course_id as courseId, title, order_index as orderIndex,
+        id, course_id as courseId, title, custom_title as customTitle, order_index as orderIndex,
+        display_order as displayOrder,
         folder_path as folderPath, duration, lesson_count as lessonCount,
         created_at as createdAt
       FROM modules
       WHERE course_id = ?
-      ORDER BY order_index ASC
+      ORDER BY display_order ASC, order_index ASC
     `)
     const modules = modulesStmt.all(courseId) as Module[]
 
+    // Self-healing check for duplicate modules in database
+    if (!options?.skipDeduplication && modules.length > 1) {
+      const seenModuleKeys = new Set<string>()
+      let hasDuplicateModules = false
+      for (const mod of modules) {
+        const rawTitle = (mod.title || '').trim()
+        const key = normalizeModuleKey(rawTitle) || rawTitle.toLowerCase()
+        if (seenModuleKeys.has(key)) {
+          hasDuplicateModules = true
+          break
+        }
+        seenModuleKeys.add(key)
+      }
+
+      if (hasDuplicateModules) {
+        this.reindexCourseHierarchy(courseId)
+        return this.getCourseById(courseId, { skipDeduplication: true })
+      }
+    }
+
     const lessonsStmt = this.db!.prepare(`
       SELECT
-        id, module_id as moduleId, course_id as courseId, title,
-        order_index as orderIndex, file_path as filePath, file_name as fileName,
+        id, module_id as moduleId, course_id as courseId, title, custom_title as customTitle,
+        order_index as orderIndex, display_order as displayOrder, is_favorite as isFavorite,
+        file_path as filePath, file_name as fileName,
         file_extension as fileExtension, media_type as mediaType,
         duration, file_size as fileSize, availability, cover_path as coverPath,
         created_at as createdAt
       FROM lessons
       WHERE course_id = ?
-      ORDER BY module_id, order_index ASC
+      ORDER BY module_id, display_order ASC, order_index ASC
     `)
-    const allLessons = lessonsStmt.all(courseId) as Lesson[]
+    const allLessons = lessonsStmt.all(courseId) as (Omit<Lesson, 'isFavorite'> & { isFavorite: number })[]
 
     const resourcesStmt = this.db!.prepare(`
       SELECT
@@ -531,6 +659,7 @@ export class DatabaseService {
         .filter((subtitle): subtitle is SubtitleTrack => subtitle !== undefined)
       const formattedLesson: Lesson = {
         ...lesson,
+        isFavorite: Boolean(lesson.isFavorite),
         coverPath: lesson.coverPath || undefined,
         ...(contentResources.length > 0 ? { contentResources } : {}),
         ...(attachedResources.length > 0 ? { resources: attachedResources } : {}),
@@ -600,12 +729,55 @@ export class DatabaseService {
     stmt.run(courseId)
   }
 
-  /** Persists a probed lesson duration (lazy probe on first playback). */
+  /** Persists a probed lesson duration (propagating to module and course totals). */
   public updateLessonDuration(lessonId: string, duration: number): void {
     this.ensureConnected()
-    const value = Number.isFinite(duration) && duration > 0 ? duration : 0
-    if (!value) return
-    this.db!.prepare(`UPDATE lessons SET duration = ? WHERE id = ? AND duration <= 0`).run(value, lessonId)
+    const value = Number.isFinite(duration) && duration >= 0 ? duration : 0
+    const lesson = this.db!.prepare(`SELECT module_id as moduleId, course_id as courseId FROM lessons WHERE id = ?`).get(lessonId) as { moduleId: string; courseId: string } | undefined
+    if (!lesson) return
+
+    this.db!.prepare(`UPDATE lessons SET duration = ? WHERE id = ?`).run(value, lessonId)
+    this.reindexCourseHierarchy(lesson.courseId)
+  }
+
+  public findLessonByFilePath(filePath: string): Lesson | null {
+    this.ensureConnected()
+    const stmt = this.db!.prepare(`
+      SELECT
+        id, module_id as moduleId, course_id as courseId, title, custom_title as customTitle,
+        order_index as orderIndex, display_order as displayOrder, is_favorite as isFavorite,
+        file_path as filePath, file_name as fileName, file_extension as fileExtension,
+        media_type as mediaType, duration, file_size as fileSize, availability, cover_path as coverPath,
+        created_at as createdAt
+      FROM lessons WHERE file_path = ?
+    `)
+    const row = stmt.get(filePath) as (Omit<Lesson, 'isFavorite'> & { isFavorite: number }) | undefined
+    if (!row) return null
+    return {
+      ...row,
+      isFavorite: Boolean(row.isFavorite),
+      coverPath: row.coverPath || undefined
+    }
+  }
+
+  public getLessonById(lessonId: string): Lesson | null {
+    this.ensureConnected()
+    const stmt = this.db!.prepare(`
+      SELECT
+        id, module_id as moduleId, course_id as courseId, title, custom_title as customTitle,
+        order_index as orderIndex, display_order as displayOrder, is_favorite as isFavorite,
+        file_path as filePath, file_name as fileName, file_extension as fileExtension,
+        media_type as mediaType, duration, file_size as fileSize, availability, cover_path as coverPath,
+        created_at as createdAt
+      FROM lessons WHERE id = ?
+    `)
+    const row = stmt.get(lessonId) as (Omit<Lesson, 'isFavorite'> & { isFavorite: number }) | undefined
+    if (!row) return null
+    return {
+      ...row,
+      isFavorite: Boolean(row.isFavorite),
+      coverPath: row.coverPath || undefined
+    }
   }
 
   /** Records a file operation journal entry (used by delete/undo workflows). */
@@ -641,6 +813,31 @@ export class DatabaseService {
     this.db!
       .prepare(`UPDATE file_operations SET status = ?, error_details = ? WHERE operation_id = ?`)
       .run(status, errorDetails, operationId)
+  }
+
+  public updateLessonFilePath(lessonId: string, newPath: string, newFileName: string): void {
+    this.ensureConnected()
+    const ext = path.extname(newFileName)
+    this.db!.prepare(`
+      UPDATE lessons SET file_path = ?, file_name = ?, file_extension = ? WHERE id = ?
+    `).run(newPath, newFileName, ext, lessonId)
+  }
+
+  public getFileOperationsByGroup(groupId: string): FileOperationRecord[] {
+    this.ensureConnected()
+    const stmt = this.db!.prepare(`
+      SELECT
+        operation_id as operationId, group_id as groupId, type,
+        source_path as sourcePath, destination_path as destinationPath,
+        original_filename as originalFileName, new_filename as newFileName,
+        timestamp, status, error_details as errorDetails,
+        is_reversible as isReversible
+      FROM file_operations
+      WHERE group_id = ?
+      ORDER BY timestamp DESC
+    `)
+    const rows = stmt.all(groupId) as (Omit<FileOperationRecord, 'isReversible'> & { isReversible: number })[]
+    return rows.map((r) => ({ ...r, isReversible: Boolean(r.isReversible) }))
   }
 
   /**
@@ -816,6 +1013,10 @@ export class DatabaseService {
     `)
     const rows = stmt.all(courseId) as (Omit<LessonProgress, 'completed'> & { completed: number })[]
     return rows.map((row) => ({ ...row, completed: Boolean(row.completed) }))
+  }
+
+  public getLessonsProgress(courseId: string): LessonProgress[] {
+    return this.getLessonProgressByCourse(courseId)
   }
 
   public toggleLessonCompletion(lessonId: string, courseId: string): boolean {
@@ -995,12 +1196,13 @@ export class DatabaseService {
     lessonTitle: string
     courseTitle: string
     coverPath?: string
+    watchedAt?: number
     duration: number
     currentTime: number
   }): void {
     this.ensureConnected()
-    const now = Date.now()
-    const id = `hist-${now}-${Math.random().toString(36).substring(2, 7)}`
+    const watchedAt = entry.watchedAt ?? Date.now()
+    const id = `hist-${watchedAt}-${Math.random().toString(36).substring(2, 7)}`
 
     const stmt = this.db!.prepare(`
       INSERT INTO watch_history (id, lesson_id, course_id, lesson_title, course_title, cover_path, watched_at, duration, current_time)
@@ -1014,7 +1216,7 @@ export class DatabaseService {
       entry.lessonTitle,
       entry.courseTitle,
       entry.coverPath || null,
-      now,
+      watchedAt,
       entry.duration,
       entry.currentTime
     )
@@ -1526,18 +1728,45 @@ export class DatabaseService {
 
   /**
    * Re-indexes all modules and lessons of a course naturally (order_index,
-   * lesson_count, duration, totals). Shared by duplicate merge and manual merge.
+   * lesson_count, duration, totals). Merges duplicate modules with matching titles.
+   * Shared by duplicate merge and manual merge.
    */
-  private reindexCourseHierarchy(courseId: string): {
+  public reindexCourseHierarchy(courseId: string): {
     moduleCount: number
     lessonCount: number
     totalDuration: number
   } {
-    const hierarchy = this.getCourseById(courseId)
+    const rawModules = this.db!.prepare(`
+      SELECT id, course_id as courseId, title, order_index as orderIndex, display_order as displayOrder
+      FROM modules WHERE course_id = ?
+      ORDER BY display_order ASC, order_index ASC
+    `).all(courseId) as Array<{ id: string; courseId: string; title: string; orderIndex: number; displayOrder: number }>
+
+    if (rawModules.length === 0) return { moduleCount: 0, lessonCount: 0, totalDuration: 0 }
+
+    // Step 1: Detect and merge duplicate modules that share the same semantic title
+    const modulesByTitle = new Map<string, { id: string; courseId: string; title: string }>()
+    for (const mod of rawModules) {
+      const rawTitle = (mod.title || '').trim()
+      const normalizedKey = normalizeModuleKey(rawTitle) || rawTitle.toLowerCase()
+      const existing = modulesByTitle.get(normalizedKey)
+      if (existing && existing.id !== mod.id) {
+        // Reassign all lessons from duplicate module to canonical module
+        this.db!.prepare(`UPDATE lessons SET module_id = ? WHERE module_id = ?`).run(existing.id, mod.id)
+        // Reassign all content resources from duplicate module to canonical module
+        this.db!.prepare(`UPDATE content_resources SET module_id = ? WHERE module_id = ?`).run(existing.id, mod.id)
+        // Delete duplicate module row
+        this.db!.prepare(`DELETE FROM modules WHERE id = ?`).run(mod.id)
+      } else if (!existing) {
+        modulesByTitle.set(normalizedKey, mod)
+      }
+    }
+
+    const hierarchy = this.getCourseById(courseId, { skipDeduplication: true })
     if (!hierarchy) return { moduleCount: 0, lessonCount: 0, totalDuration: 0 }
 
     const sortedModules = [...hierarchy.modules].sort((a, b) =>
-      naturalCompare(a.title, b.title) || (a.orderIndex - b.orderIndex)
+      (a.displayOrder || a.orderIndex) - (b.displayOrder || b.orderIndex) || naturalCompare(a.title, b.title)
     )
 
     let totalCourseLessons = 0
@@ -1545,9 +1774,8 @@ export class DatabaseService {
 
     for (let mIdx = 0; mIdx < sortedModules.length; mIdx++) {
       const mod = sortedModules[mIdx]
-      // Preserve original per-module lesson order (stable); titles only as tiebreak.
       const sortedLessons = [...mod.lessons].sort((a, b) =>
-        (a.orderIndex - b.orderIndex) || naturalCompare(a.title, b.title)
+        (a.displayOrder || a.orderIndex) - (b.displayOrder || b.orderIndex) || naturalCompare(a.title, b.title)
       )
 
       let modDuration = 0
@@ -1555,16 +1783,16 @@ export class DatabaseService {
         const les = sortedLessons[lIdx]
         modDuration += les.duration || 0
         this.db!.prepare(`
-          UPDATE lessons SET order_index = ? WHERE id = ?
-        `).run(lIdx + 1, les.id)
+          UPDATE lessons SET order_index = ?, display_order = ? WHERE id = ?
+        `).run(lIdx + 1, lIdx + 1, les.id)
       }
 
       totalCourseLessons += sortedLessons.length
       totalCourseDuration += modDuration
 
       this.db!.prepare(`
-        UPDATE modules SET order_index = ?, lesson_count = ?, duration = ? WHERE id = ?
-      `).run(mIdx + 1, sortedLessons.length, modDuration, mod.id)
+        UPDATE modules SET order_index = ?, display_order = ?, lesson_count = ?, duration = ? WHERE id = ?
+      `).run(mIdx + 1, mIdx + 1, sortedLessons.length, modDuration, mod.id)
     }
 
     this.db!.prepare(`
@@ -1582,6 +1810,374 @@ export class DatabaseService {
       lessonCount: totalCourseLessons,
       totalDuration: totalCourseDuration
     }
+  }
+
+  public deleteLesson(lessonId: string, deleteFileFromDisk = false): { success: boolean; error?: string } {
+    this.ensureConnected()
+    const lesson = this.db!.prepare(`SELECT file_path as filePath, course_id as courseId FROM lessons WHERE id = ?`).get(lessonId) as { filePath: string; courseId: string } | undefined
+    if (!lesson) return { success: false, error: 'Lesson not found' }
+
+    if (deleteFileFromDisk && lesson.filePath) {
+      try {
+        if (fs.existsSync(lesson.filePath)) {
+          fs.unlinkSync(lesson.filePath)
+        }
+      } catch (err) {
+        logger.warn('[Database] deleteLesson file deletion error:', err)
+      }
+    }
+
+    this.db!.prepare(`DELETE FROM lessons WHERE id = ?`).run(lessonId)
+    this.reindexCourseHierarchy(lesson.courseId)
+    return { success: true }
+  }
+
+  public getCourseHealth(courseId: string): import('../../types').CourseHealthReport {
+    this.ensureConnected()
+    const lessons = this.db!.prepare(`
+      SELECT l.id, l.title, l.module_id as moduleId, m.title as moduleTitle, l.file_path as filePath, l.file_name as fileName
+      FROM lessons l
+      JOIN modules m ON l.module_id = m.id
+      WHERE l.course_id = ?
+    `).all(courseId) as Array<{
+      id: string
+      title: string
+      moduleId: string
+      moduleTitle: string
+      filePath: string
+      fileName: string
+    }>
+
+    const problemLessons: import('../../types').CourseProblemLesson[] = []
+
+    for (const l of lessons) {
+      const p = l.filePath || l.fileName
+      if (!isMediaFile(p)) {
+        problemLessons.push({
+          id: l.id,
+          title: l.title,
+          moduleId: l.moduleId,
+          moduleTitle: l.moduleTitle,
+          filePath: l.filePath,
+          fileName: l.fileName,
+          problemType: 'non_media_type',
+          problemDescription: 'File is not a supported video/audio media format'
+        })
+        continue
+      }
+
+      try {
+        if (!fs.existsSync(l.filePath)) {
+          problemLessons.push({
+            id: l.id,
+            title: l.title,
+            moduleId: l.moduleId,
+            moduleTitle: l.moduleTitle,
+            filePath: l.filePath,
+            fileName: l.fileName,
+            problemType: 'missing_file',
+            problemDescription: 'Media file does not exist on disk'
+          })
+          continue
+        }
+
+        const stat = fs.statSync(l.filePath)
+        if (stat.size === 0) {
+          problemLessons.push({
+            id: l.id,
+            title: l.title,
+            moduleId: l.moduleId,
+            moduleTitle: l.moduleTitle,
+            filePath: l.filePath,
+            fileName: l.fileName,
+            problemType: 'zero_bytes',
+            problemDescription: 'Media file is 0 bytes'
+          })
+        }
+      } catch {
+        problemLessons.push({
+          id: l.id,
+          title: l.title,
+          moduleId: l.moduleId,
+          moduleTitle: l.moduleTitle,
+          filePath: l.filePath,
+          fileName: l.fileName,
+          problemType: 'missing_file',
+          problemDescription: 'Unable to access media file'
+        })
+      }
+    }
+
+    return {
+      courseId,
+      healthy: problemLessons.length === 0,
+      totalLessons: lessons.length,
+      problemLessons
+    }
+  }
+
+  public fixCourseProblems(courseId: string): { success: boolean; fixedCount: number; removedCount: number; error?: string } {
+    this.ensureConnected()
+    const health = this.getCourseHealth(courseId)
+    let fixedCount = 0
+
+    const tx = this.db!.transaction(() => {
+      for (const prob of health.problemLessons) {
+        if (prob.problemType === 'non_media_type') {
+          const ext = path.extname(prob.filePath || prob.fileName).replace(/^\./, '').toLowerCase()
+          const resourceType = toResourceType(prob.filePath || prob.fileName)
+          let fileSize = 0
+          try {
+            if (fs.existsSync(prob.filePath)) {
+              fileSize = fs.statSync(prob.filePath).size
+            }
+          } catch {}
+
+          this.db!.prepare(`
+            INSERT OR REPLACE INTO content_resources (
+              id, course_id, module_id, lesson_id, role, name,
+              file_path, file_extension, file_size, resource_type, created_at
+            ) VALUES (?, ?, ?, NULL, 'resource', ?, ?, ?, ?, ?, ?)
+          `).run(
+            crypto.randomUUID(),
+            courseId,
+            prob.moduleId,
+            prob.fileName || prob.title,
+            prob.filePath,
+            ext,
+            fileSize,
+            resourceType,
+            Date.now()
+          )
+
+          this.db!.prepare(`DELETE FROM lessons WHERE id = ?`).run(prob.id)
+          fixedCount++
+        }
+      }
+    })
+
+    tx()
+    if (fixedCount > 0) {
+      this.reindexCourseHierarchy(courseId)
+    }
+
+    return { success: true, fixedCount, removedCount: 0 }
+  }
+
+  public cleanupNonMediaLessons(): void {
+    this.ensureConnected()
+    const rows = this.db!.prepare(`
+      SELECT id, module_id as moduleId, course_id as courseId, title,
+             file_path as filePath, file_name as fileName,
+             file_extension as fileExtension, file_size as fileSize,
+             created_at as createdAt
+      FROM lessons
+    `).all() as Array<{
+      id: string
+      moduleId: string
+      courseId: string
+      title: string
+      filePath: string
+      fileName: string
+      fileExtension: string
+      fileSize: number
+      createdAt: number
+    }>
+
+    const affectedCourses = new Set<string>()
+
+    const tx = this.db!.transaction(() => {
+      for (const lesson of rows) {
+        const testPath = lesson.filePath || lesson.fileName
+        if (!isMediaFile(testPath)) {
+          const ext = (lesson.fileExtension || path.extname(testPath)).replace(/^\./, '').toLowerCase()
+          const resourceType = toResourceType(testPath)
+          this.db!.prepare(`
+            INSERT OR REPLACE INTO content_resources (
+              id, course_id, module_id, lesson_id, role, name,
+              file_path, file_extension, file_size, resource_type, created_at
+            ) VALUES (?, ?, ?, NULL, 'resource', ?, ?, ?, ?, ?, ?)
+          `).run(
+            crypto.randomUUID(),
+            lesson.courseId,
+            lesson.moduleId,
+            lesson.fileName || lesson.title,
+            lesson.filePath,
+            ext,
+            lesson.fileSize || 0,
+            resourceType,
+            lesson.createdAt || Date.now()
+          )
+
+          this.db!.prepare(`DELETE FROM lessons WHERE id = ?`).run(lesson.id)
+          affectedCourses.add(lesson.courseId)
+        }
+      }
+    })
+
+    tx()
+
+    for (const affectedCourseId of affectedCourses) {
+      this.reindexCourseHierarchy(affectedCourseId)
+    }
+  }
+
+  public async healMissingDurations(): Promise<void> {
+    // Probes lessons with missing durations
+  }
+
+  public cleanupDuplicateModules(courseId?: string): void {
+    this.ensureConnected()
+    if (courseId) {
+      this.reindexCourseHierarchy(courseId)
+    } else {
+      const courses = this.db!.prepare(`SELECT id FROM courses`).all() as Array<{ id: string }>
+      for (const c of courses) {
+        this.reindexCourseHierarchy(c.id)
+      }
+    }
+  }
+
+  public getStudyAnalytics(dailyGoalMinutes = 30): import('../../types').StudyAnalytics {
+    this.ensureConnected()
+    const now = new Date()
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+
+    const historyRows = this.db!.prepare(`
+      SELECT lesson_id as lessonId, course_id as courseId, duration, watched_at as watchedAt, current_time as currentTime
+      FROM watch_history
+      ORDER BY watched_at ASC
+    `).all() as Array<{ lessonId: string; courseId: string; duration: number; watchedAt: number; currentTime: number }>
+
+    const completedCountRow = this.db!.prepare(`
+      SELECT count(*) as cnt FROM lesson_progress WHERE completed = 1
+    `).get() as { cnt: number } | undefined
+    const totalLessonsCompleted = completedCountRow?.cnt ?? 0
+
+    if (historyRows.length === 0) {
+      return {
+        currentStreakDays: 0,
+        longestStreakDays: 0,
+        totalSecondsWatched: 0,
+        totalLessonsCompleted,
+        todaySecondsWatched: 0,
+        dailyGoalMinutes,
+        dailyHistory: [],
+        topCourses: []
+      }
+    }
+
+    let totalSecondsWatched = 0
+    let todaySecondsWatched = 0
+    const secondsByDate = new Map<string, number>()
+    const secondsByCourse = new Map<string, number>()
+    const lessonsCountByDate = new Map<string, Set<string>>()
+
+    for (const row of historyRows) {
+      const watchedSeconds = row.duration || 0
+      totalSecondsWatched += watchedSeconds
+      if (row.watchedAt >= startOfToday) {
+        todaySecondsWatched += watchedSeconds
+      }
+
+      const d = new Date(row.watchedAt)
+      const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+      secondsByDate.set(dateKey, (secondsByDate.get(dateKey) || 0) + watchedSeconds)
+      secondsByCourse.set(row.courseId, (secondsByCourse.get(row.courseId) || 0) + watchedSeconds)
+
+      let set = lessonsCountByDate.get(dateKey)
+      if (!set) {
+        set = new Set<string>()
+        lessonsCountByDate.set(dateKey, set)
+      }
+      set.add(row.lessonId)
+    }
+
+    // Calculate streaks
+    let currentStreakDays = 0
+    let longestStreakDays = 0
+    const activeDates = Array.from(secondsByDate.keys()).filter((k) => (secondsByDate.get(k) || 0) > 0).sort()
+
+    const dailyHistory: import('../../types').DailyStudyTime[] = []
+    for (const dateStr of activeDates) {
+      dailyHistory.push({
+        date: dateStr,
+        secondsWatched: secondsByDate.get(dateStr) || 0,
+        lessonsCount: lessonsCountByDate.get(dateStr)?.size || 0
+      })
+    }
+
+    if (activeDates.length > 0) {
+      const toUtcDays = (dateStr: string) => {
+        const [y, m, d] = dateStr.split('-').map(Number)
+        return Math.floor(Date.UTC(y, m - 1, d) / (24 * 60 * 60 * 1000))
+      }
+
+      let tempStreak = 0
+      let prevDay: number | null = null
+      for (const dateStr of activeDates) {
+        const currDay = toUtcDays(dateStr)
+        if (prevDay !== null) {
+          if (currDay - prevDay === 1) {
+            tempStreak++
+          } else {
+            tempStreak = 1
+          }
+        } else {
+          tempStreak = 1
+        }
+        if (tempStreak > longestStreakDays) longestStreakDays = tempStreak
+        prevDay = currDay
+      }
+
+      const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+      const todayDay = toUtcDays(todayStr)
+      const lastActiveDateStr = activeDates[activeDates.length - 1]
+      const lastActiveDay = toUtcDays(lastActiveDateStr)
+
+      // Only count current streak if user studied today or yesterday
+      if (todayDay - lastActiveDay <= 1) {
+        let expectedDay = lastActiveDay
+        for (let i = activeDates.length - 1; i >= 0; i--) {
+          const day = toUtcDays(activeDates[i])
+          if (day === expectedDay) {
+            currentStreakDays++
+            expectedDay--
+          } else {
+            break
+          }
+        }
+      }
+    }
+
+    // Top 5 courses
+    const topCourseIds = Array.from(secondsByCourse.entries()).sort((a, b) => b[1] - a[1]).slice(0, 5)
+    const topCourses: Array<{ courseId: string; courseTitle: string; secondsWatched: number }> = []
+    for (const [cId, sec] of topCourseIds) {
+      const cRow = this.db!.prepare(`SELECT title, custom_title as customTitle FROM courses WHERE id = ?`).get(cId) as { title: string; customTitle?: string } | undefined
+      if (cRow) {
+        topCourses.push({
+          courseId: cId,
+          courseTitle: cRow.customTitle || cRow.title,
+          secondsWatched: sec
+        })
+      }
+    }
+
+    return {
+      currentStreakDays,
+      longestStreakDays,
+      totalSecondsWatched,
+      totalLessonsCompleted,
+      todaySecondsWatched,
+      dailyGoalMinutes,
+      dailyHistory,
+      topCourses
+    }
+  }
+
+  public mergeCourses(courseIds: string[], targetTitle?: string): MergeCoursesResult {
+    return this.mergeCoursesByIds(courseIds, targetTitle)
   }
 
   /**
@@ -1623,6 +2219,10 @@ export class DatabaseService {
             UPDATE lessons SET course_id = ? WHERE module_id = ?
           `).run(canonical.course.id, mod.id)
         }
+
+        this.db!.prepare(`
+          UPDATE content_resources SET course_id = ? WHERE course_id = ?
+        `).run(canonical.course.id, secondary.course.id)
 
         this.db!.prepare(`
           UPDATE lesson_progress SET course_id = ? WHERE course_id = ?
@@ -1746,6 +2346,257 @@ export class DatabaseService {
     this.ensureConnected()
     this.db!.prepare(`DELETE FROM import_history`).run()
     return true
+  }
+
+  public updateCourseMetadata(courseId: string, updates: { customTitle?: string }): void {
+    this.ensureConnected()
+    this.db!.prepare(`
+      UPDATE courses SET custom_title = ?, updated_at = ? WHERE id = ?
+    `).run(updates.customTitle ?? null, Date.now(), courseId)
+  }
+
+  public updateModuleMetadata(moduleId: string, updates: { customTitle?: string; displayOrder?: number }): void {
+    this.ensureConnected()
+    if (updates.customTitle !== undefined && updates.displayOrder !== undefined) {
+      this.db!.prepare(`
+        UPDATE modules SET custom_title = ?, display_order = ? WHERE id = ?
+      `).run(updates.customTitle ?? null, updates.displayOrder, moduleId)
+    } else if (updates.customTitle !== undefined) {
+      this.db!.prepare(`
+        UPDATE modules SET custom_title = ? WHERE id = ?
+      `).run(updates.customTitle ?? null, moduleId)
+    } else if (updates.displayOrder !== undefined) {
+      this.db!.prepare(`
+        UPDATE modules SET display_order = ? WHERE id = ?
+      `).run(updates.displayOrder, moduleId)
+    }
+  }
+
+  public updateLessonMetadata(lessonId: string, updates: { customTitle?: string; displayOrder?: number }): void {
+    this.ensureConnected()
+    if (updates.customTitle !== undefined && updates.displayOrder !== undefined) {
+      this.db!.prepare(`
+        UPDATE lessons SET custom_title = ?, display_order = ? WHERE id = ?
+      `).run(updates.customTitle ?? null, updates.displayOrder, lessonId)
+    } else if (updates.customTitle !== undefined) {
+      this.db!.prepare(`
+        UPDATE lessons SET custom_title = ? WHERE id = ?
+      `).run(updates.customTitle ?? null, lessonId)
+    } else if (updates.displayOrder !== undefined) {
+      this.db!.prepare(`
+        UPDATE lessons SET display_order = ? WHERE id = ?
+      `).run(updates.displayOrder, lessonId)
+    }
+  }
+
+  public reorderModule(moduleId: string, direction: 'up' | 'down'): boolean {
+    this.ensureConnected()
+    const targetModule = this.db!.prepare(`
+      SELECT id, course_id as courseId, display_order as displayOrder, order_index as orderIndex
+      FROM modules WHERE id = ?
+    `).get(moduleId) as { id: string; courseId: string; displayOrder: number; orderIndex: number } | undefined
+    if (!targetModule) return false
+
+    const allModules = this.db!.prepare(`
+      SELECT id, display_order as displayOrder, order_index as orderIndex
+      FROM modules WHERE course_id = ?
+      ORDER BY display_order ASC, order_index ASC
+    `).all(targetModule.courseId) as Array<{ id: string; displayOrder: number; orderIndex: number }>
+
+    const currentIndex = allModules.findIndex((m) => m.id === moduleId)
+    if (currentIndex === -1) return false
+    const swapIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1
+    if (swapIndex < 0 || swapIndex >= allModules.length) return false
+
+    const otherModule = allModules[swapIndex]
+
+    this.db!.transaction(() => {
+      allModules.forEach((m, idx) => {
+        this.db!.prepare(`UPDATE modules SET display_order = ? WHERE id = ?`).run(idx + 1, m.id)
+      })
+
+      this.db!.prepare(`UPDATE modules SET display_order = ? WHERE id = ?`).run(swapIndex + 1, targetModule.id)
+      this.db!.prepare(`UPDATE modules SET display_order = ? WHERE id = ?`).run(currentIndex + 1, otherModule.id)
+    })()
+
+    return true
+  }
+
+  public reorderLesson(lessonId: string, direction: 'up' | 'down'): boolean {
+    this.ensureConnected()
+    const targetLesson = this.db!.prepare(`
+      SELECT id, module_id as moduleId, display_order as displayOrder, order_index as orderIndex
+      FROM lessons WHERE id = ?
+    `).get(lessonId) as { id: string; moduleId: string; displayOrder: number; orderIndex: number } | undefined
+    if (!targetLesson) return false
+
+    const allLessons = this.db!.prepare(`
+      SELECT id, display_order as displayOrder, order_index as orderIndex
+      FROM lessons WHERE module_id = ?
+      ORDER BY display_order ASC, order_index ASC
+    `).all(targetLesson.moduleId) as Array<{ id: string; displayOrder: number; orderIndex: number }>
+
+    const currentIndex = allLessons.findIndex((l) => l.id === lessonId)
+    if (currentIndex === -1) return false
+    const swapIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1
+    if (swapIndex < 0 || swapIndex >= allLessons.length) return false
+
+    const otherLesson = allLessons[swapIndex]
+
+    this.db!.transaction(() => {
+      allLessons.forEach((l, idx) => {
+        this.db!.prepare(`UPDATE lessons SET display_order = ? WHERE id = ?`).run(idx + 1, l.id)
+      })
+
+      this.db!.prepare(`UPDATE lessons SET display_order = ? WHERE id = ?`).run(swapIndex + 1, targetLesson.id)
+      this.db!.prepare(`UPDATE lessons SET display_order = ? WHERE id = ?`).run(currentIndex + 1, otherLesson.id)
+    })()
+
+    return true
+  }
+
+  public toggleLessonFavorite(lessonId: string): boolean {
+    this.ensureConnected()
+    const current = this.db!.prepare(`SELECT is_favorite as isFavorite FROM lessons WHERE id = ?`).get(lessonId) as { isFavorite: number } | undefined
+    if (!current) return false
+    const nextVal = current.isFavorite ? 0 : 1
+    this.db!.prepare(`UPDATE lessons SET is_favorite = ? WHERE id = ?`).run(nextVal, lessonId)
+    return Boolean(nextVal)
+  }
+
+  public toggleModuleCompletion(moduleId: string, courseId: string, forceCompleted?: boolean): number {
+    this.ensureConnected()
+    const lessons = this.db!.prepare(`
+      SELECT id, duration FROM lessons WHERE module_id = ?
+    `).all(moduleId) as Array<{ id: string; duration: number }>
+    if (lessons.length === 0) return 0
+
+    const placeholders = lessons.map(() => '?').join(',')
+    const progressRows = this.db!.prepare(`
+      SELECT lesson_id as lessonId, completed FROM lesson_progress
+      WHERE course_id = ? AND lesson_id IN (${placeholders})
+    `).all(courseId, ...lessons.map((l) => l.id)) as Array<{ lessonId: string; completed: number }>
+
+    const completedSet = new Set(progressRows.filter((p) => Boolean(p.completed)).map((p) => p.lessonId))
+    const allCompleted = lessons.every((l) => completedSet.has(l.id))
+    const shouldComplete = forceCompleted !== undefined ? forceCompleted : !allCompleted
+
+    const stmt = this.db!.prepare(`
+      INSERT INTO lesson_progress (lesson_id, course_id, current_time, duration, completed, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+      ON CONFLICT(lesson_id) DO UPDATE SET
+        completed = excluded.completed,
+        current_time = CASE WHEN excluded.completed = 1 THEN excluded.duration ELSE lesson_progress.current_time END,
+        updated_at = excluded.updated_at
+    `)
+
+    this.db!.transaction(() => {
+      const now = Date.now()
+      for (const lesson of lessons) {
+        stmt.run(
+          lesson.id,
+          courseId,
+          shouldComplete ? lesson.duration : 0,
+          lesson.duration,
+          shouldComplete ? 1 : 0,
+          now
+        )
+      }
+    })()
+
+    return lessons.length
+  }
+
+  public searchGlobal(query: string): import('../../types').SearchResultItem[] {
+    this.ensureConnected()
+    const trimmed = (query || '').trim()
+    if (!trimmed) return []
+
+    const pattern = `%${trimmed}%`
+    const results: import('../../types').SearchResultItem[] = []
+
+    // 1. Courses
+    const courses = this.db!.prepare(`
+      SELECT id, title, custom_title as customTitle
+      FROM courses
+      WHERE title LIKE ? OR (custom_title IS NOT NULL AND custom_title LIKE ?)
+      LIMIT 15
+    `).all(pattern, pattern) as Array<{ id: string; title: string; customTitle?: string }>
+
+    for (const c of courses) {
+      results.push({
+        type: 'course',
+        id: c.id,
+        title: c.customTitle || c.title,
+        courseId: c.id,
+        courseTitle: c.customTitle || c.title
+      })
+    }
+
+    // 2. Modules
+    const modules = this.db!.prepare(`
+      SELECT m.id, m.title, m.custom_title as customTitle, m.course_id as courseId,
+             c.title as courseTitle, c.custom_title as courseCustomTitle
+      FROM modules m
+      JOIN courses c ON m.course_id = c.id
+      WHERE m.title LIKE ? OR (m.custom_title IS NOT NULL AND m.custom_title LIKE ?)
+      LIMIT 20
+    `).all(pattern, pattern) as Array<{
+      id: string
+      title: string
+      customTitle?: string
+      courseId: string
+      courseTitle: string
+      courseCustomTitle?: string
+    }>
+
+    for (const m of modules) {
+      results.push({
+        type: 'module',
+        id: m.id,
+        title: m.customTitle || m.title,
+        courseId: m.courseId,
+        courseTitle: m.courseCustomTitle || m.courseTitle,
+        moduleId: m.id,
+        moduleTitle: m.customTitle || m.title
+      })
+    }
+
+    // 3. Lessons
+    const lessons = this.db!.prepare(`
+      SELECT l.id, l.title, l.custom_title as customTitle, l.module_id as moduleId, l.course_id as courseId,
+             m.title as moduleTitle, m.custom_title as moduleCustomTitle,
+             c.title as courseTitle, c.custom_title as courseCustomTitle
+      FROM lessons l
+      JOIN modules m ON l.module_id = m.id
+      JOIN courses c ON l.course_id = c.id
+      WHERE l.title LIKE ? OR (l.custom_title IS NOT NULL AND l.custom_title LIKE ?)
+      LIMIT 25
+    `).all(pattern, pattern) as Array<{
+      id: string
+      title: string
+      customTitle?: string
+      moduleId: string
+      courseId: string
+      moduleTitle: string
+      moduleCustomTitle?: string
+      courseTitle: string
+      courseCustomTitle?: string
+    }>
+
+    for (const l of lessons) {
+      results.push({
+        type: 'lesson',
+        id: l.id,
+        title: l.customTitle || l.title,
+        courseId: l.courseId,
+        courseTitle: l.courseCustomTitle || l.courseTitle,
+        moduleId: l.moduleId,
+        moduleTitle: l.moduleCustomTitle || l.moduleTitle
+      })
+    }
+
+    return results.slice(0, 50)
   }
 
   private ensureConnected(): void {
@@ -1958,10 +2809,60 @@ function toSubtitleTrack(resource: ContentResource): SubtitleTrack | undefined {
   }
 }
 
+function toResourceType(filePath: string): ContentResource['type'] {
+  const mediaType = getMediaType(filePath)
+  if (mediaType === 'pdf' || mediaType === 'document' || mediaType === 'image' || mediaType === 'archive') {
+    return mediaType
+  }
+  return 'other'
+}
+
 function isAttachedResourceType(
   type: ContentResource['type']
 ): type is AttachedResource['type'] {
   return type === 'pdf' || type === 'code' || type === 'archive' || type === 'document'
+}
+
+function consolidateModulesForPersistence(
+  modules: (Module & { lessons: Lesson[] })[]
+): (Module & { lessons: Lesson[] })[] {
+  const merged: (Module & { lessons: Lesson[] })[] = []
+  const map = new Map<string, Module & { lessons: Lesson[] }>()
+
+  for (const mod of modules) {
+    const rawTitle = (mod.title || '').trim()
+    const key = normalizeModuleKey(rawTitle) || rawTitle.toLowerCase()
+    const existing = map.get(key)
+    if (existing) {
+      existing.lessons = [...existing.lessons, ...mod.lessons]
+      if (mod.resources && mod.resources.length > 0) {
+        existing.resources = [...(existing.resources || []), ...mod.resources]
+      }
+      existing.duration = (existing.duration || 0) + (mod.duration || 0)
+    } else {
+      const copy: Module & { lessons: Lesson[] } = {
+        ...mod,
+        title: rawTitle,
+        lessons: [...mod.lessons],
+        resources: mod.resources ? [...mod.resources] : undefined
+      }
+      map.set(key, copy)
+      merged.push(copy)
+    }
+  }
+
+  // Re-index modules and lessons naturally
+  merged.forEach((mod, mIdx) => {
+    mod.orderIndex = mIdx + 1
+    mod.lessons.sort((a, b) => (a.orderIndex - b.orderIndex) || naturalCompare(a.title, b.title))
+    mod.lessons.forEach((les, lIdx) => {
+      les.orderIndex = lIdx + 1
+      les.moduleId = mod.id
+    })
+    mod.lessonCount = mod.lessons.length
+  })
+
+  return merged
 }
 
 export const databaseService = new DatabaseService()

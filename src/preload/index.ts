@@ -18,6 +18,8 @@ const api: OrbiaApi = {
     selectSource: () => ipcRenderer.invoke('courses:select-source'),
     selectZip: () => ipcRenderer.invoke('courses:select-zip'),
     selectFolder: () => ipcRenderer.invoke('courses:select-folder'),
+    selectMultiCourseFolder: () => ipcRenderer.invoke('courses:select-multi-course-folder'),
+    scanMultiCourseFolder: (folderPath: string) => ipcRenderer.invoke('courses:scan-multi-course-folder', { folderPath }),
     prepareZipImport: ({ token }) => ipcRenderer.invoke('courses:prepare-zip-import', { token }),
     prepareFolderImport: ({ token }) => ipcRenderer.invoke('courses:prepare-folder-import', { token }),
     cancelImportSession: (sessionId) => ipcRenderer.invoke('courses:cancel-import-session', { sessionId }),
@@ -28,6 +30,7 @@ const api: OrbiaApi = {
     importCourse: (proposal, isExternal) => ipcRenderer.invoke('courses:import', { proposal, isExternal }),
     importBatch: (items) => ipcRenderer.invoke('courses:import-batch', { items }),
     getMergePreview: (courseIds) => ipcRenderer.invoke('courses:get-merge-preview', { courseIds }),
+    mergeCourses: (courseIds) => ipcRenderer.invoke('courses:merge-courses', { courseIds }),
     getImportHistory: () => ipcRenderer.invoke('courses:get-import-history'),
     recordImportHistory: (entry) => ipcRenderer.invoke('courses:record-import-history', entry),
     clearImportHistory: () => ipcRenderer.invoke('courses:clear-import-history'),
@@ -37,10 +40,34 @@ const api: OrbiaApi = {
     list: () => ipcRenderer.invoke('courses:list'),
     getById: (courseId: string) => ipcRenderer.invoke('courses:get-by-id', { courseId }),
     delete: (courseId: string, deleteFiles: boolean) => ipcRenderer.invoke('courses:delete', { courseId, deleteFiles }),
+    deleteLesson: (lessonId: string, deleteFileFromDisk?: boolean) =>
+      ipcRenderer.invoke('courses:delete-lesson', { lessonId, deleteFileFromDisk }),
+    getCourseHealth: (courseId: string) => ipcRenderer.invoke('courses:get-course-health', { courseId }),
+    fixCourseProblems: (courseId: string) => ipcRenderer.invoke('courses:fix-course-problems', { courseId }),
     toggleFavorite: (courseId: string) => ipcRenderer.invoke('courses:toggle-favorite', { courseId }),
+    updateMetadata: (input: { courseId: string; customTitle?: string }) =>
+      ipcRenderer.invoke('courses:update-metadata', input),
+    updateModuleMetadata: (input: { moduleId: string; customTitle?: string; displayOrder?: number }) =>
+      ipcRenderer.invoke('courses:update-module-metadata', input),
+    updateLessonMetadata: (input: { lessonId: string; customTitle?: string; displayOrder?: number }) =>
+      ipcRenderer.invoke('courses:update-lesson-metadata', input),
+    reorderModule: (moduleId: string, direction: 'up' | 'down') =>
+      ipcRenderer.invoke('courses:reorder-module', { moduleId, direction }),
+    reorderLesson: (lessonId: string, direction: 'up' | 'down') =>
+      ipcRenderer.invoke('courses:reorder-lesson', { lessonId, direction }),
+    toggleLessonFavorite: (lessonId: string) =>
+      ipcRenderer.invoke('courses:toggle-lesson-favorite', { lessonId }),
+    toggleModuleCompletion: (moduleId: string, courseId: string) =>
+      ipcRenderer.invoke('courses:toggle-module-completion', { moduleId, courseId }),
+    searchGlobal: (query: string) =>
+      ipcRenderer.invoke('courses:search-global', { query }),
     updateLessonDuration: (lessonId: string, duration: number) =>
       ipcRenderer.invoke('courses:update-lesson-duration', { lessonId, duration }),
     convertSrtToVtt: (srtPath: string) => ipcRenderer.invoke('courses:convert-srt-to-vtt', { srtPath }),
+    getReorganizePlan: (courseId: string) => ipcRenderer.invoke('courses:get-reorganize-plan', { courseId }),
+    applyReorganizePlan: (groupId: string, mutations: import('../types').ProposedFileMutation[], courseId: string) =>
+      ipcRenderer.invoke('courses:apply-reorganize-plan', { groupId, mutations, courseId }),
+    undoReorganizePlan: (groupId: string) => ipcRenderer.invoke('courses:undo-reorganize-plan', { groupId }),
     onExtractProgress: (callback: (progress: ExtractProgressPayload) => void) => {
       const listener = (_event: IpcRendererEvent, progress: ExtractProgressPayload): void => {
         callback(progress)
@@ -66,7 +93,8 @@ const api: OrbiaApi = {
     addLessonNote: (note) => ipcRenderer.invoke('player:add-lesson-note', note),
     updateLessonNote: (id: string, content: string) => ipcRenderer.invoke('player:update-lesson-note', { id, content }),
     deleteLessonNote: (id: string) => ipcRenderer.invoke('player:delete-lesson-note', { id }),
-    exportCourseNotes: (courseId: string) => ipcRenderer.invoke('player:export-course-notes', { courseId })
+    exportCourseNotes: (courseId: string) => ipcRenderer.invoke('player:export-course-notes', { courseId }),
+    getStudyAnalytics: (dailyGoalMinutes?: number) => ipcRenderer.invoke('player:get-study-analytics', { dailyGoalMinutes })
   },
 
   settings: {

@@ -48,12 +48,22 @@
     "emptyTitle": "Sua Biblioteca está Vazia",
     "emptySubtitle": "Importe sua primeira pasta de curso ou solte cursos na pasta Inbox da sua Pasta de Estudo para começar.",
     "importFirstCourse": "Importar Primeiro Curso",
+    "searchResults": "Exibindo resultados para \"{{query}}\" ({{count}} curso encontrado)",
+    "searchResults_plural": "Exibindo resultados para \"{{query}}\" ({{count}} cursos encontrados)",
+    "clearSearch": "Limpar busca",
+    "coursesInLibrary": "{{count}} curso na biblioteca de estudos",
+    "coursesInLibrary_plural": "{{count}} cursos na biblioteca de estudos",
+    "scrollLeft": "Rolar para a esquerda",
+    "scrollRight": "Rolar para a direita",
     "filters": {
       "all": "Todos",
       "inProgress": "Em Andamento",
       "completed": "Concluídos",
       "favorites": "Favoritos"
-    }
+    },
+    "streak": "dias seguidos",
+    "todayStudy": "min hoje",
+    "weekCompleted": "concluídas esta semana"
   },
   "course": {
     "modules": "módulos",
@@ -75,9 +85,17 @@
     "deleteConfirmDesc": "Isso removerá o curso e seu progresso do Orbia. Seus arquivos originais no disco não serão apagados.",
     "moduleMaterials": "Materiais do módulo ({{count}})",
     "lessonMaterials": "Materiais da aula ({{count}})",
-    "viewResource": "Visualizar material: {{name}}"
+    "viewResource": "Visualizar material: {{name}}",
+    "markModuleComplete": "Marcar módulo como concluído",
+    "unmarkModuleComplete": "Desmarcar módulo",
+    "editTitle": "Editar título",
+    "reorderUp": "Mover para cima",
+    "reorderDown": "Mover para baixo",
+    "lessonFavorite": "Favoritar aula",
+    "lessonUnfavorite": "Remover favorito"
   },
   "player": {
+    "noLessonSelected": "Nenhuma aula selecionada",
     "nextLesson": "Próxima Aula",
     "prevLesson": "Aula Anterior",
     "rewind5": "Voltar 5s",
@@ -113,6 +131,8 @@
     "retry": "Tentar Novamente",
     "skipGlitch": "Pular 1s (Avançar)",
     "skipNext": "Pular para Próxima Aula",
+    "removeBrokenLesson": "Remover esta aula do curso",
+    "lessonError": "Erro",
     "lessonMaterials": "Materiais da aula ({{count}})",
     "noResources": "Nenhum material está anexado a esta aula.",
     "viewResource": "Visualizar material: {{name}}"
@@ -133,6 +153,9 @@
     "reviewSelected": "Revisar {{count}} curso(s) selecionado(s)",
     "loadingPreview": "Calculando prévia somente leitura...",
     "previewError": "Não foi possível calcular a prévia de organização.",
+    "applyMerge": "Mesclar Cursos",
+    "mergeError": "Não foi possível mesclar os cursos.",
+    "mergeSuccess": "Cursos mesclados com sucesso!",
     "applyFuture": "Aplicar futuramente",
     "applyFutureDescription": "Aplicar esta proposta ainda não está disponível até existir um plano de operação reversível.",
     "previewTitle": "Prévia de organização",
@@ -183,7 +206,9 @@
     "exportSuccess": "Anotações exportadas com sucesso",
     "saveNote": "Salvar Anotação",
     "editNote": "Editar Anotação",
-    "deleteNote": "Excluir Anotação"
+    "deleteNote": "Excluir Anotação",
+    "saving": "Salvando...",
+    "saved": "Salvo ✓"
   },
   "subtitles": {
     "subtitles": "Legendas",
@@ -216,6 +241,8 @@
     "multiSourceDescription": "Escolha várias fontes de uma vez. Cada uma permanece intacta até você aprovar a importação.",
     "selectZipMultiple": "Escolher arquivos .zip",
     "selectFolderMultiple": "Escolher pastas de curso",
+    "selectMultiCourseRoot": "Pasta com Vários Cursos",
+    "noCoursesFoundInRoot": "Nenhum curso identificado nas subpastas desta pasta raiz.",
     "processingQueue": "Preparando {{count}} curso(s)",
     "processingDescription": "Validando arquivos e detectando módulos antes da prévia.",
     "preparing": "Preparando prévia segura...",
@@ -312,6 +339,26 @@
     "offlineFirst": "100% Offline-First • Zero Nuvem Obrigatória • Privacidade Total do Usuário",
     "license": "Licença: MIT (Código Aberto)"
   },
+  "analytics": {
+    "tabTitle": "Estatísticas",
+    "subtitle": "Acompanhe seu ritmo de estudo e evolução diária",
+    "streakTitle": "Ofensiva",
+    "day": "dia",
+    "days": "dias",
+    "bestStreak": "Recorde:",
+    "totalTime": "Tempo Total",
+    "totalTimeDescription": "Dedicadas aos estudos",
+    "dailyGoal": "Meta de Hoje",
+    "completedLessons": "Aulas Concluídas",
+    "lesson": "aula",
+    "lessons": "aulas",
+    "keepItUp": "Continue evoluindo!",
+    "dailyActivityTitle": "Atividade Diária de Estudo (Últimos 14 dias)",
+    "minutesPerDay": "Minutos por dia",
+    "noActivityYet": "Nenhuma sessão de estudo registrada ainda.",
+    "topCoursesTitle": "Cursos Mais Estudados",
+    "noTopCourses": "Nenhum curso estudado ainda."
+  },
   "common": {
     "save": "Salvar",
     "cancel": "Cancelar",
@@ -322,5 +369,11 @@
     "error": "Erro",
     "success": "Sucesso",
     "search": "Buscar cursos, módulos, aulas..."
+  },
+  "search": {
+    "courses": "Cursos",
+    "modules": "Módulos",
+    "lessons": "Aulas",
+    "noResults": "Nenhum resultado encontrado"
   }
 }

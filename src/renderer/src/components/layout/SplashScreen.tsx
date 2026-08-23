@@ -80,7 +80,7 @@ export function SplashScreen({
 
         {/* Brand Name & Tagline */}
         <div className="space-y-1">
-          <h1 className="text-3xl font-black tracking-wider bg-gradient-to-r from-orange-400 via-primary to-amber-400 bg-clip-text text-transparent">
+          <h1 className="text-3xl font-black tracking-widest text-white">
             ORBIA
           </h1>
           <p className="text-xs text-muted-foreground/80 font-medium tracking-wide">

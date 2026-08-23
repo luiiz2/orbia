@@ -1,18 +1,15 @@
-﻿import React from 'react'
+import React from 'react'
 import { useTranslation } from 'react-i18next'
 import {
-  Play,
   Link as LinkIcon,
-  BookOpen,
   Clock,
   CheckCircle2,
   Star
 } from 'lucide-react'
 import type { Course } from '@shared'
-import { Badge, Tooltip, TooltipTrigger, TooltipContent } from '../ui'
+import { Badge, Tooltip, TooltipTrigger, TooltipContent, CourseCover } from '../ui'
 import { useLibraryStore, useNavigationStore } from '../../stores'
 import { formatDurationHuman } from '../../lib/formatters'
-import { mediaUrl } from '../../lib/utils'
 
 interface CourseCardProps {
   course: Course
@@ -26,11 +23,6 @@ export function CourseCard({ course }: CourseCardProps): React.JSX.Element {
   const summary = progressSummaries[course.id]
   const percentage = summary ? summary.percentage : 0
   const isCompleted = percentage >= 100
-
-  const [coverFailed, setCoverFailed] = React.useState(false)
-  const coverUrl = course.coverPath && !coverFailed
-    ? mediaUrl(course.coverPath)
-    : null
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>): void => {
     if (e.key === 'Enter' || e.key === ' ') {
@@ -47,11 +39,19 @@ export function CourseCard({ course }: CourseCardProps): React.JSX.Element {
       onKeyDown={handleKeyDown}
       className="group relative cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background rounded-lg"
     >
-      {/* Cover — streaming card, no chrome */}
-      <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-secondary/60 flex items-center justify-center">
+      {/* Cover — streaming card */}
+      <div className="relative aspect-video w-full overflow-hidden rounded-xl">
+        {/* CourseCover handles both image loading and stylish branded fallback */}
+        <CourseCover
+          src={course.coverPath}
+          title={course.title}
+          showPlayOnHover={true}
+          className="h-full w-full"
+        />
+
         {/* Favorite Button (Top Left) */}
         <div
-          className="absolute top-2 left-2 z-20"
+          className="absolute top-2 left-2 z-30"
           onClick={(e) => e.stopPropagation()}
         >
           <Tooltip>
@@ -88,29 +88,8 @@ export function CourseCard({ course }: CourseCardProps): React.JSX.Element {
           </Tooltip>
         </div>
 
-        {coverUrl ? (
-          <img
-            src={coverUrl}
-            alt={course.title}
-            loading="lazy"
-            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ease-out"
-            onError={() => setCoverFailed(true)}
-          />
-        ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-secondary via-secondary/70 to-card text-muted-foreground group-hover:text-primary transition-colors p-4">
-            <BookOpen className="w-10 h-10 mb-2 opacity-50 group-hover:scale-110 transition-transform duration-300" />
-          </div>
-        )}
-
-        {/* Hover overlay — dark gradient + play */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
-          <div className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-black shadow-lg shadow-black/50 transform scale-75 group-hover:scale-100 transition-transform duration-200 ease-out">
-            <Play className="h-5 w-5 fill-current ml-0.5" />
-          </div>
-        </div>
-
         {/* Top status badges */}
-        <div className="absolute top-2 right-2 flex items-center gap-1.5 z-10 pointer-events-none">
+        <div className="absolute top-2 right-2 flex items-center gap-1.5 z-30 pointer-events-none">
           {course.sourceType === 'local-ref' ? (
             <Badge
               variant="secondary"

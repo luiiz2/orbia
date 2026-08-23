@@ -99,8 +99,7 @@ describe('legacy import IPC safety gate', () => {
     const handlers = [
       state.handlers.get('courses:extract-zip'),
       state.handlers.get('courses:scan-folder'),
-      state.handlers.get('courses:import'),
-      state.handlers.get('courses:import-batch')
+      state.handlers.get('courses:import')
     ]
 
     expect(handlers.every(Boolean)).toBe(true)
@@ -108,8 +107,7 @@ describe('legacy import IPC safety gate', () => {
     const results = await Promise.all([
       handlers[0]!({ sender: { send: vi.fn() } }, { zipPath: 'C:/private/course.zip', deleteSourceArchive: true }),
       handlers[1]!({}, { folderPath: 'C:/private/course' }),
-      handlers[2]!({}, { proposal: { suggestedTitle: 'Injected', modules: [], rootPath: 'C:/private/course' }, isExternal: false }),
-      handlers[3]!({}, { items: [{ proposal: { suggestedTitle: 'Injected', modules: [] }, isExternal: false }] })
+      handlers[2]!({}, { proposal: { suggestedTitle: 'Injected', modules: [], rootPath: 'C:/private/course' }, isExternal: false })
     ])
 
     for (const result of results) {

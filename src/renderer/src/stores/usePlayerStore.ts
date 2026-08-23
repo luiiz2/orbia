@@ -68,6 +68,11 @@ export interface PlayerState {
   // Subtitle actions
   setSubtitleTrack: (id: string | null) => void
 
+  // Broken / Error Lessons
+  brokenLessonIds: string[]
+  markLessonBroken: (lessonId: string) => void
+  deleteLesson: (lessonId: string, deleteFileFromDisk?: boolean) => Promise<{ success: boolean; error?: string }>
+
   reset: () => void
 }
 
@@ -187,6 +192,21 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
     let targetLessonId = initialLessonId
     if (!targetLessonId) {
+      try {
+        const summary = await window.api.player.getCourseProgress(course.id)
+        if (summary?.lastPlayedLessonId) {
+          const allLessons = modules.flatMap((m) => m.lessons || [])
+          const exists = allLessons.some((l) => l.id === summary.lastPlayedLessonId)
+          if (exists) {
+            targetLessonId = summary.lastPlayedLessonId
+          }
+        }
+      } catch (err) {
+        console.warn('Could not load course progress summary for resume:', err)
+      }
+    }
+
+    if (!targetLessonId) {
       for (const mod of modules) {
         if (mod.lessons && mod.lessons.length > 0) {
           targetLessonId = mod.lessons[0].id
@@ -267,8 +287,11 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
           lessonDuration = savedProgress.duration
         }
 
-        // Resume from saved position if not completed and within bounds
-        if (!savedProgress.completed && savedProgress.currentTime < savedProgress.duration * 0.95) {
+        // Resume from saved position if within bounds (up to 98% of duration)
+        if (
+          savedProgress.currentTime > 0 &&
+          (savedProgress.duration <= 0 || savedProgress.currentTime < savedProgress.duration * 0.98)
+        ) {
           initialTime = savedProgress.currentTime
         }
       }
@@ -498,6 +521,58 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     set({ activeSubtitleTrack: id })
   },
 
+  // Broken / Error Lessons
+  brokenLessonIds: [],
+
+  markLessonBroken: (lessonId: string) => {
+    if (!lessonId) return
+    const { brokenLessonIds } = get()
+    if (!brokenLessonIds.includes(lessonId)) {
+      set({ brokenLessonIds: [...brokenLessonIds, lessonId] })
+    }
+  },
+
+  deleteLesson: async (lessonId: string, deleteFileFromDisk = false) => {
+    try {
+      const res = await window.api.courses.deleteLesson(lessonId, deleteFileFromDisk)
+      if (res.success) {
+        const { activeLesson, modulesWithLessons, nextLesson } = get()
+        const isCurrentLesson = activeLesson?.id === lessonId
+
+        // Remove lesson from modules in player state
+        const updatedModules = modulesWithLessons.map((m) => ({
+          ...m,
+          lessons: m.lessons.filter((l) => l.id !== lessonId)
+        })).filter((m) => m.lessons.length > 0 || (m.resources && m.resources.length > 0))
+
+        set((state) => ({
+          modulesWithLessons: updatedModules,
+          brokenLessonIds: state.brokenLessonIds.filter((id) => id !== lessonId)
+        }))
+
+        // If the active lesson was deleted, advance or find another lesson
+        if (isCurrentLesson) {
+          const advanced = await nextLesson()
+          if (!advanced) {
+            // Find first available lesson
+            const firstAvailable = updatedModules.flatMap((m) => m.lessons)[0]
+            if (firstAvailable) {
+              await get().loadLesson(firstAvailable.id)
+            } else {
+              set({ activeLesson: null, isPlaying: false })
+            }
+          }
+        }
+
+        return { success: true }
+      }
+      return { success: false, error: res.error || 'Failed to delete lesson' }
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : String(err)
+      return { success: false, error: errorMsg }
+    }
+  },
+
   reset: () => {
     const tracks = get().subtitleTracks
     for (const track of tracks) {
@@ -520,7 +595,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       isLoadingNotes: false,
       activeSubtitleTrack: null,
       subtitleTracks: [],
-      isPiP: false
+      isPiP: false,
+      brokenLessonIds: []
     })
   }
 }))

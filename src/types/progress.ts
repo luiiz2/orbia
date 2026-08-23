@@ -44,5 +44,26 @@ export interface ModuleProgressSummary {
   percentage: number
 }
 
+export interface DailyStudyTime {
+  date: string // "YYYY-MM-DD"
+  secondsWatched: number
+  lessonsCount: number
+}
+
+export interface StudyAnalytics {
+  currentStreakDays: number
+  longestStreakDays: number
+  totalSecondsWatched: number
+  totalLessonsCompleted: number
+  dailyGoalMinutes: number
+  todaySecondsWatched: number
+  dailyHistory: DailyStudyTime[] // Recent days (e.g. 14 days)
+  topCourses: Array<{
+    courseId: string
+    courseTitle: string
+    secondsWatched: number
+  }>
+}
+
 export type { LessonNote } from './notes'
 

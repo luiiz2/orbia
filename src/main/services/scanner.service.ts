@@ -41,6 +41,39 @@ export class ScannerService {
   }
 
   /**
+   * Scans a parent directory containing multiple course folders and returns
+   * a ScannedDirectory tree for each valid child course folder.
+   */
+  public async scanMultiCourseRoot(rootPath: string): Promise<ScannedDirectory[]> {
+    const stats = await fs.promises.stat(rootPath)
+    if (!stats.isDirectory()) {
+      throw new Error(`The path "${rootPath}" is not a valid directory.`)
+    }
+
+    const entries = await fs.promises.readdir(rootPath, { withFileTypes: true })
+    const results: ScannedDirectory[] = []
+
+    for (const entry of entries) {
+      if (isIgnoredPath(entry.name) || !entry.isDirectory()) {
+        continue
+      }
+
+      const subDirPath = path.join(rootPath, entry.name)
+      try {
+        const scanned = await this.walkDirectory(subDirPath, entry.name)
+        // Keep folder if it has any files or subfolders
+        if (scanned.files.length > 0 || scanned.subDirectories.length > 0) {
+          results.push(scanned)
+        }
+      } catch (err) {
+        console.warn(`[Scanner] Warning: Could not scan course directory "${subDirPath}":`, err)
+      }
+    }
+
+    return results
+  }
+
+  /**
    * Internal recursive directory walker.
    */
   private async walkDirectory(dirPath: string, dirName: string): Promise<ScannedDirectory> {

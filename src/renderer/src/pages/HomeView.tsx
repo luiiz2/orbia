@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   BookOpen,
@@ -17,11 +17,10 @@ import { useLibraryStore } from '../stores/useLibraryStore'
 import { useVaultStore } from '../stores/useVaultStore'
 import { useNavigationStore } from '../stores/useNavigationStore'
 import { usePlayerStore } from '../stores/usePlayerStore'
-import { Button, Skeleton } from '../components/ui'
+import { Button, Skeleton, CourseCover } from '../components/ui'
 import { CourseCard, ContinueWatchingRail, MergeCoursesModal } from '../components/library'
 import { matchesAnyField } from '../lib/search-utils'
 import { formatDurationHuman } from '../lib/formatters'
-import { mediaUrl } from '../lib/utils'
 import appLogo from '../assets/icon.png'
 
 export function HomeView(): React.JSX.Element {
@@ -40,11 +39,12 @@ export function HomeView(): React.JSX.Element {
   const { setImportModalOpen, setVaultModalOpen, navigateToPlayer, navigateToCourse } = useNavigationStore()
   const { loadHierarchy } = usePlayerStore()
   const [isMergeModalOpen, setIsMergeModalOpen] = useState<boolean>(false)
-  const [heroCoverFailed, setHeroCoverFailed] = useState<boolean>(false)
+  const [studyAnalytics, setStudyAnalytics] = useState<import('@shared').StudyAnalytics | null>(null)
 
   useEffect(() => {
     if (currentVault) {
       fetchCourses().catch(console.warn)
+      window.api.player.getStudyAnalytics().then(setStudyAnalytics).catch(console.warn)
     }
   }, [currentVault, fetchCourses])
 
@@ -62,12 +62,6 @@ export function HomeView(): React.JSX.Element {
       .sort((a, b) => (b.summary?.lastPlayedAt || 0) - (a.summary?.lastPlayedAt || 0))
     return candidates[0] || null
   }, [courses, progressSummaries, searchQuery])
-
-  // Reset cover error state whenever the hero course changes
-  const heroCourseId = heroCourse?.course.id ?? null
-  useEffect(() => {
-    setHeroCoverFailed(false)
-  }, [heroCourseId])
 
   const handleHeroResume = async (): Promise<void> => {
     if (!heroCourse) return
@@ -197,24 +191,61 @@ export function HomeView(): React.JSX.Element {
 
   return (
     <div className="container mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 space-y-10 animate-in fade-in duration-200">
+      {/* Study Metrics Mini-Cards */}
+      {!searchQuery && studyAnalytics && (
+        <div className="flex flex-wrap items-center gap-4 animate-in slide-in-from-top-2 duration-300">
+          <div className="flex items-center gap-3 rounded-2xl bg-secondary/40 border border-border/50 p-3 shadow-sm min-w-40 flex-1 sm:flex-none">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-orange-500/10 text-orange-500 text-xl">
+              🔥
+            </div>
+            <div>
+              <div className="text-lg font-bold leading-none text-foreground">{studyAnalytics.currentStreakDays}</div>
+              <div className="text-xs font-medium text-muted-foreground mt-0.5">{t('home.streak')}</div>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-3 rounded-2xl bg-secondary/40 border border-border/50 p-3 shadow-sm min-w-40 flex-1 sm:flex-none">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-500/10 text-blue-500">
+              <Clock className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="text-lg font-bold leading-none text-foreground">{Math.floor(studyAnalytics.todaySecondsWatched / 60)}</div>
+              <div className="text-xs font-medium text-muted-foreground mt-0.5">{t('home.todayStudy')}</div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 rounded-2xl bg-secondary/40 border border-border/50 p-3 shadow-sm min-w-40 flex-1 sm:flex-none">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-500">
+              <CheckCircle2 className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="text-lg font-bold leading-none text-foreground">
+                {studyAnalytics.dailyHistory.slice(-7).reduce((acc, curr) => acc + curr.lessonsCount, 0)}
+              </div>
+              <div className="text-xs font-medium text-muted-foreground mt-0.5">{t('home.weekCompleted')}</div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Hero Banner — streaming spotlight (when not searching) */}
       {!searchQuery && heroCourse && !isLoading && (
         <section
           className="relative h-[360px] sm:h-[440px] overflow-hidden rounded-2xl bg-secondary/60"
           aria-label="Continue watching spotlight"
         >
-          {heroCourse.course.coverPath && !heroCoverFailed ? (
-            <img
-              src={mediaUrl(heroCourse.course.coverPath)}
-              alt={heroCourse.course.title}
-              className="absolute inset-0 h-full w-full object-cover"
-              onError={() => setHeroCoverFailed(true)}
+          {/* Hero Cover (Image or Cosmic Gradient fallback) */}
+          <div className="absolute inset-0">
+            <CourseCover
+              src={heroCourse.course.coverPath}
+              title={heroCourse.course.title}
+              className="h-full w-full object-cover"
             />
-          ) : null}
+          </div>
 
           {/* Streaming gradients */}
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />
-          <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/50 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/60 to-transparent" />
 
           <div className="relative z-10 flex h-full flex-col justify-end p-6 sm:p-10 max-w-2xl">
             <p className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-primary">
@@ -274,8 +305,7 @@ export function HomeView(): React.JSX.Element {
               <Search className="h-3.5 w-3.5" />
             </div>
             <span>
-              Showing results for &ldquo;<strong className="text-primary">{searchQuery}</strong>&rdquo; (
-              {filteredCourses.length} {filteredCourses.length === 1 ? 'course' : 'courses'} found)
+              {t('home.searchResults', { count: filteredCourses.length, query: searchQuery })}
             </span>
           </div>
           <Button
@@ -285,7 +315,7 @@ export function HomeView(): React.JSX.Element {
             className="h-7 gap-1 text-xs text-muted-foreground hover:text-foreground hover:bg-primary/20 rounded-lg cursor-pointer"
           >
             <X className="h-3.5 w-3.5" />
-            <span>Clear search</span>
+            <span>{t('home.clearSearch', 'Limpar busca')}</span>
           </Button>
         </div>
       )}
@@ -303,7 +333,7 @@ export function HomeView(): React.JSX.Element {
               </span>
             </div>
             <p className="text-xs text-muted-foreground mt-0.5">
-              {courses.length} {courses.length === 1 ? 'course' : 'courses'} in study library
+              {t('home.coursesInLibrary', { count: courses.length })}
             </p>
           </div>
 

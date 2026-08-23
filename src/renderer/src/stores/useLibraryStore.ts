@@ -36,6 +36,19 @@ export interface LibraryState {
   updateCourseCover: (courseId: string, coverPath: string) => Promise<boolean>
   updateLessonCover: (lessonId: string, coverPath: string) => Promise<boolean>
   deleteCourse: (id: string, deleteFiles: boolean) => Promise<{ success: boolean; error?: string }>
+  deleteLesson: (lessonId: string, deleteFileFromDisk?: boolean) => Promise<{ success: boolean; error?: string }>
+  updateCourseMetadata: (courseId: string, customTitle: string) => Promise<void>
+  updateModuleMetadata: (moduleId: string, customTitle: string) => Promise<void>
+  updateLessonMetadata: (lessonId: string, customTitle: string) => Promise<void>
+  reorderModule: (moduleId: string, direction: 'up' | 'down') => Promise<void>
+  reorderLesson: (lessonId: string, direction: 'up' | 'down') => Promise<void>
+  toggleLessonFavorite: (lessonId: string) => Promise<boolean>
+  toggleModuleCompletion: (moduleId: string, courseId: string) => Promise<void>
+  searchGlobal: (query: string) => Promise<import('@shared').SearchResultItem[]>
+  
+  courseHealth: import('@shared').CourseHealthReport | null
+  fetchCourseHealth: (courseId: string) => Promise<import('@shared').CourseHealthReport | null>
+  fixCourseProblems: (courseId: string) => Promise<{ success: boolean; fixedCount: number; removedCount: number; error?: string }>
   toggleFavorite: (courseId: string) => Promise<boolean>
   setSearchQuery: (query: string) => void
   setFilterStatus: (status: 'all' | 'in_progress' | 'completed' | 'favorites') => void
@@ -50,6 +63,7 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
   activeCourseHierarchy: null,
   progressSummaries: {},
   courseProgressMap: {},
+  courseHealth: null,
   searchQuery: '',
   filterStatus: 'all',
   importHistory: [],
@@ -264,6 +278,53 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
     }
   },
 
+  deleteLesson: async (lessonId: string, deleteFileFromDisk = false) => {
+    try {
+      const res = await window.api.courses.deleteLesson(lessonId, deleteFileFromDisk)
+      if (res.success) {
+        const { activeCourseHierarchy } = get()
+        if (activeCourseHierarchy) {
+          await get().fetchCourseById(activeCourseHierarchy.course.id)
+          await get().fetchCourseHealth(activeCourseHierarchy.course.id)
+        }
+        return res
+      } else {
+        return { success: false, error: res.error || 'Failed to delete lesson' }
+      }
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : String(err)
+      return { success: false, error: errorMsg }
+    }
+  },
+
+  fetchCourseHealth: async (courseId: string) => {
+    try {
+      const health = await window.api.courses.getCourseHealth(courseId)
+      set({ courseHealth: health })
+      return health
+    } catch (err) {
+      console.warn('Could not fetch course health:', err)
+      return null
+    }
+  },
+
+  fixCourseProblems: async (courseId: string) => {
+    try {
+      set({ isLoading: true })
+      const res = await window.api.courses.fixCourseProblems(courseId)
+      if (res.success) {
+        await get().fetchCourseById(courseId)
+        await get().fetchCourseHealth(courseId)
+      }
+      set({ isLoading: false })
+      return res
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : String(err)
+      set({ isLoading: false, error: errorMsg })
+      return { success: false, fixedCount: 0, removedCount: 0, error: errorMsg }
+    }
+  },
+
   toggleFavorite: async (courseId: string) => {
     const current = get().courses.find((c) => c.id === courseId) || get().activeCourse
     const newFavoriteState = current ? !current.isFavorite : true
@@ -326,6 +387,152 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
             : state.activeCourseHierarchy
       }))
       return false
+    }
+  },
+
+  updateCourseMetadata: async (courseId: string, customTitle: string) => {
+    try {
+      const res = await window.api.courses.updateMetadata({ courseId, customTitle })
+      if (res.success) {
+        set((state) => ({
+          courses: state.courses.map((c) => (c.id === courseId ? { ...c, customTitle } : c)),
+          activeCourse:
+            state.activeCourse?.id === courseId
+              ? { ...state.activeCourse, customTitle }
+              : state.activeCourse,
+          activeCourseHierarchy:
+            state.activeCourseHierarchy?.course.id === courseId
+              ? {
+                  ...state.activeCourseHierarchy,
+                  course: { ...state.activeCourseHierarchy.course, customTitle }
+                }
+              : state.activeCourseHierarchy
+        }))
+      }
+    } catch (err) {
+      console.error('Failed to update course metadata:', err)
+    }
+  },
+
+  updateModuleMetadata: async (moduleId: string, customTitle: string) => {
+    try {
+      const res = await window.api.courses.updateModuleMetadata({ moduleId, customTitle })
+      if (res.success) {
+        set((state) => {
+          if (!state.activeCourseHierarchy) return state
+          return {
+            activeCourseHierarchy: {
+              ...state.activeCourseHierarchy,
+              modules: state.activeCourseHierarchy.modules.map(m =>
+                m.id === moduleId ? { ...m, customTitle } : m
+              )
+            }
+          }
+        })
+      }
+    } catch (err) {
+      console.error('Failed to update module metadata:', err)
+    }
+  },
+
+  updateLessonMetadata: async (lessonId: string, customTitle: string) => {
+    try {
+      const res = await window.api.courses.updateLessonMetadata({ lessonId, customTitle })
+      if (res.success) {
+        set((state) => {
+          if (!state.activeCourseHierarchy) return state
+          return {
+            activeCourseHierarchy: {
+              ...state.activeCourseHierarchy,
+              modules: state.activeCourseHierarchy.modules.map(m => ({
+                ...m,
+                lessons: m.lessons.map(l =>
+                  l.id === lessonId ? { ...l, customTitle } : l
+                )
+              }))
+            }
+          }
+        })
+      }
+    } catch (err) {
+      console.error('Failed to update lesson metadata:', err)
+    }
+  },
+
+  reorderModule: async (moduleId: string, direction: 'up' | 'down') => {
+    try {
+      const res = await window.api.courses.reorderModule(moduleId, direction)
+      if (res.success) {
+        const { activeCourse } = get()
+        if (activeCourse) {
+          await get().fetchCourseById(activeCourse.id)
+        }
+      }
+    } catch (err) {
+      console.error('Failed to reorder module:', err)
+    }
+  },
+
+  reorderLesson: async (lessonId: string, direction: 'up' | 'down') => {
+    try {
+      const res = await window.api.courses.reorderLesson(lessonId, direction)
+      if (res.success) {
+        const { activeCourse } = get()
+        if (activeCourse) {
+          await get().fetchCourseById(activeCourse.id)
+        }
+      }
+    } catch (err) {
+      console.error('Failed to reorder lesson:', err)
+    }
+  },
+
+  toggleLessonFavorite: async (lessonId: string) => {
+    try {
+      const newState = await window.api.courses.toggleLessonFavorite(lessonId)
+      set((state) => {
+        if (!state.activeCourseHierarchy) return state
+        return {
+          activeCourseHierarchy: {
+            ...state.activeCourseHierarchy,
+            modules: state.activeCourseHierarchy.modules.map(m => ({
+              ...m,
+              lessons: m.lessons.map(l =>
+                l.id === lessonId ? { ...l, isFavorite: newState } : l
+              )
+            }))
+          }
+        }
+      })
+      return newState
+    } catch (err) {
+      console.error('Failed to toggle lesson favorite:', err)
+      return false
+    }
+  },
+
+  toggleModuleCompletion: async (moduleId: string, courseId: string) => {
+    try {
+      const res = await window.api.courses.toggleModuleCompletion(moduleId, courseId)
+      if (res.success) {
+        await Promise.all([
+          get().fetchCourseProgress(courseId),
+          window.api.player.getAllProgressSummaries().then(summaries => {
+            set({ progressSummaries: summaries || {} })
+          }).catch(() => {})
+        ])
+      }
+    } catch (err) {
+      console.error('Failed to toggle module completion:', err)
+    }
+  },
+
+  searchGlobal: async (query: string) => {
+    try {
+      return await window.api.courses.searchGlobal(query)
+    } catch (err) {
+      console.error('Global search failed:', err)
+      return []
     }
   },
 

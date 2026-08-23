@@ -33,6 +33,7 @@ export function MergeCoursesModal({ open, onOpenChange }: MergeCoursesModalProps
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [preview, setPreview] = useState<MergePreview | null>(null)
   const [isLoadingPreview, setIsLoadingPreview] = useState(false)
+  const [isMerging, setIsMerging] = useState(false)
   const [previewError, setPreviewError] = useState<string | null>(null)
   const openedRef = useRef(false)
 
@@ -64,6 +65,28 @@ export function MergeCoursesModal({ open, onOpenChange }: MergeCoursesModalProps
     },
     [t]
   )
+
+  const handleApplyMerge = async (): Promise<void> => {
+    if (!preview || selectedIds.size < 2) return
+    setIsMerging(true)
+    setPreviewError(null)
+    try {
+      const result = await window.api.courses.mergeCourses([...selectedIds])
+      if (!result.success) {
+        setPreviewError(result.error || t('merge.mergeError', 'Falha ao mesclar cursos.'))
+        return
+      }
+      await useLibraryStore.getState().fetchCourses()
+      handleOpenChange(false)
+      if (result.canonicalCourseId) {
+        useLibraryStore.getState().fetchCourseById(result.canonicalCourseId)
+      }
+    } catch (err) {
+      setPreviewError(err instanceof Error ? err.message : t('merge.mergeError', 'Falha ao mesclar cursos.'))
+    } finally {
+      setIsMerging(false)
+    }
+  }
 
   useEffect(() => {
     if (open && !openedRef.current) {
@@ -248,16 +271,17 @@ export function MergeCoursesModal({ open, onOpenChange }: MergeCoursesModalProps
               type="button"
               variant="default"
               size="sm"
-              disabled
-              aria-describedby="merge-apply-future"
-              className="gap-2"
+              disabled={isMerging || !preview || selectedCount < 2}
+              onClick={() => void handleApplyMerge()}
+              className="gap-2 bg-gradient-to-r from-orange-500 to-purple-600 text-white font-bold cursor-pointer hover:opacity-90 transition-opacity"
             >
-              <ShieldCheck className="h-3.5 w-3.5" />
-              {t('merge.applyFuture')}
+              {isMerging ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <GitMerge className="h-3.5 w-3.5" />
+              )}
+              {t('merge.applyMerge', 'Mesclar Cursos')}
             </Button>
-            <p id="merge-apply-future" className="max-w-xs text-right text-[10px] leading-snug text-muted-foreground">
-              {t('merge.applyFutureDescription')}
-            </p>
           </div>
         </DialogFooter>
       </DialogContent>

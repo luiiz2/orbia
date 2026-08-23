@@ -1,4 +1,11 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+
+vi.mock('electron', () => ({
+  app: { getPath: () => '' },
+  dialog: { showOpenDialog: vi.fn() },
+  ipcMain: { handle: vi.fn() }
+}))
+
 import { normalizeMergePreviewCourseIds } from '../src/main/ipc/courses.ipc'
 
 describe('merge preview IPC payload', () => {

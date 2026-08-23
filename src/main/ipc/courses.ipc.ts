@@ -7,14 +7,19 @@ import type {
   ImportSessionTitleEdit,
   ImportSessionTitleEdits,
   ImportSourceCapability,
-  SelectedCourseSource
+  SelectedCourseSource,
+  Course,
+  ProposedCourseStructure
 } from '../../types'
 import { databaseService } from '../services/database.service'
 import { vaultService } from '../services/vault.service'
 import { archiveService } from '../services/archive.service'
-import { courseImportService } from '../services/course-import.service'
+import { courseImportService, buildCourseHierarchy } from '../services/course-import.service'
 import { importSessionService } from '../services/import-session.service'
+import { scannerService } from '../services/scanner.service'
+import { parserService } from '../services/parser.service'
 import { logger } from '../services/logger.service'
+import { reorganizerService } from '../services/reorganizer.service'
 import { convertSrtToVtt } from '../utils/subtitle-utils'
 import { isSubtitleFile } from '../utils/file-utils'
 
@@ -205,22 +210,8 @@ export function normalizeMergePreviewCourseIds(payload: unknown): string[] | nul
   return courseIds.length >= 2 ? courseIds : null
 }
 
-const MUTABLE_MERGE_UNAVAILABLE_ERROR =
-  'Course merging is unavailable until a reversible operation plan is implemented. Request courses:get-merge-preview to review a safe proposal.'
-
 const LEGACY_IMPORT_UNAVAILABLE_ERROR =
   'Legacy import channels are disabled. Select a source with the native picker and use the import session preview before committing.'
-
-function mutableMergeUnavailableResult() {
-  return {
-    success: false,
-    mergedGroupsCount: 0,
-    removedCoursesCount: 0,
-    deduplicatedLessonsCount: 0,
-    details: [],
-    error: MUTABLE_MERGE_UNAVAILABLE_ERROR
-  }
-}
 
 function legacyImportUnavailableResult() {
   return { success: false, error: LEGACY_IMPORT_UNAVAILABLE_ERROR }
@@ -535,13 +526,31 @@ export function registerCoursesIpc(): void {
     }
   })
 
-  // Mutable merges remain blocked until a reversible operation plan exists.
-  // Keep the legacy channels safe for callers that still invoke them directly.
+  // Execute merge for duplicate courses across the vault
   ipcMain.handle('courses:merge-duplicates', async () => {
-    return mutableMergeUnavailableResult()
+    try {
+      const result = databaseService.mergeDuplicateCourses()
+      return result
+    } catch (err: unknown) {
+      logger.error('[IPC] courses:merge-duplicates error:', err)
+      return { success: false, error: err instanceof Error ? err.message : String(err) }
+    }
   })
 
-  ipcMain.handle('courses:merge-courses', async () => mutableMergeUnavailableResult())
+  // Execute merge for specific selected course IDs
+  ipcMain.handle('courses:merge-courses', async (_event, payload: unknown) => {
+    try {
+      const courseIds = normalizeMergePreviewCourseIds(payload)
+      if (!courseIds) {
+        return { success: false, error: 'Select at least two valid courses to merge.' }
+      }
+      const result = databaseService.mergeCourses(courseIds)
+      return result
+    } catch (err: unknown) {
+      logger.error('[IPC] courses:merge-courses error:', err)
+      return { success: false, error: err instanceof Error ? err.message : String(err) }
+    }
+  })
 
   // Get Import History
   ipcMain.handle('courses:get-import-history', async () => {
@@ -573,9 +582,96 @@ export function registerCoursesIpc(): void {
     }
   })
 
+  ipcMain.handle('courses:select-multi-course-folder', async () => {
+    try {
+      const result = await dialog.showOpenDialog({
+        title: 'Selecionar Pasta com Múltiplos Cursos',
+        properties: ['openDirectory']
+      })
+      if (result.canceled || result.filePaths.length === 0) {
+        return null
+      }
+      const folderPath = result.filePaths[0]
+      return { path: folderPath, name: path.basename(folderPath) }
+    } catch (err) {
+      logger.error('[IPC] courses:select-multi-course-folder error:', err)
+      return null
+    }
+  })
+
+  ipcMain.handle('courses:scan-multi-course-folder', async (_event, payload: { folderPath: string }) => {
+    try {
+      if (!payload || typeof payload.folderPath !== 'string' || !payload.folderPath.trim()) {
+        return { success: false, error: 'Caminho de pasta inválido' }
+      }
+      const folderPath = payload.folderPath.trim()
+      if (!fs.existsSync(folderPath) || !fs.statSync(folderPath).isDirectory()) {
+        return { success: false, error: 'Pasta não encontrada no disco' }
+      }
+
+      const scannedDirs = await scannerService.scanMultiCourseRoot(folderPath)
+      const proposals = await Promise.all(
+        scannedDirs.map((dir) => parserService.parseCourseHierarchy(dir))
+      )
+      return { success: true, proposals }
+    } catch (err) {
+      logger.error('[IPC] courses:scan-multi-course-folder error:', err)
+      return { success: false, error: err instanceof Error ? err.message : String(err) }
+    }
+  })
+
   ipcMain.handle('courses:scan-folder', async () => legacyImportUnavailableResult())
   ipcMain.handle('courses:import', async () => legacyImportUnavailableResult())
-  ipcMain.handle('courses:import-batch', async () => legacyImportUnavailableResult())
+
+  ipcMain.handle(
+    'courses:import-batch',
+    async (
+      _event,
+      payload: { items: Array<{ proposal: ProposedCourseStructure; isExternal?: boolean }> }
+    ) => {
+      try {
+        if (!payload || !Array.isArray(payload.items) || payload.items.length === 0) {
+          return { success: false, error: 'Nenhum curso selecionado para importação' }
+        }
+
+        const now = Date.now()
+        const importedCourses: Course[] = []
+
+        for (const item of payload.items) {
+          const courseId = `course-${now}-${Math.random().toString(36).substring(2, 7)}`
+          const { course, modules } = buildCourseHierarchy(item.proposal, {
+            courseId,
+            sourceType: item.isExternal ? 'local-ref' : 'local-vault',
+            rootPath: item.proposal.rootPath,
+            now,
+            createId: () => `m-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`
+          })
+
+          databaseService.saveCourseWithHierarchy(course, modules)
+          importedCourses.push(course)
+
+          databaseService.recordImportHistory({
+            fileName: path.basename(course.rootPath),
+            filePath: course.rootPath,
+            fileSize: 0,
+            status: 'completed',
+            courseId: course.id,
+            courseTitle: course.title,
+            extractedFiles: course.lessonCount
+          })
+        }
+
+        return {
+          success: true,
+          importedCount: importedCourses.length,
+          courses: importedCourses
+        }
+      } catch (err) {
+        logger.error('[IPC] courses:import-batch error:', err)
+        return { success: false, error: err instanceof Error ? err.message : String(err) }
+      }
+    }
+  )
 
   ipcMain.handle('courses:list', async () => {
     try {
@@ -643,6 +739,45 @@ export function registerCoursesIpc(): void {
     }
   )
 
+  ipcMain.handle(
+    'courses:delete-lesson',
+    async (_event, payload: { lessonId: string; deleteFileFromDisk?: boolean }) => {
+      try {
+        if (!payload || typeof payload.lessonId !== 'string' || !payload.lessonId.trim()) {
+          return { success: false, error: 'Lesson ID is required' }
+        }
+        return databaseService.deleteLesson(payload.lessonId.trim(), Boolean(payload.deleteFileFromDisk))
+      } catch (err: unknown) {
+        logger.error('[IPC] courses:delete-lesson error:', err)
+        return { success: false, error: err instanceof Error ? err.message : String(err) }
+      }
+    }
+  )
+
+  ipcMain.handle('courses:get-course-health', async (_event, payload: { courseId: string }) => {
+    try {
+      if (!payload || typeof payload.courseId !== 'string' || !payload.courseId.trim()) {
+        return { courseId: '', healthy: true, totalLessons: 0, problemLessons: [] }
+      }
+      return databaseService.getCourseHealth(payload.courseId.trim())
+    } catch (err) {
+      logger.error('[IPC] courses:get-course-health error:', err)
+      return { courseId: payload?.courseId || '', healthy: true, totalLessons: 0, problemLessons: [] }
+    }
+  })
+
+  ipcMain.handle('courses:fix-course-problems', async (_event, payload: { courseId: string }) => {
+    try {
+      if (!payload || typeof payload.courseId !== 'string' || !payload.courseId.trim()) {
+        return { success: false, fixedCount: 0, removedCount: 0, error: 'Course ID is required' }
+      }
+      return databaseService.fixCourseProblems(payload.courseId.trim())
+    } catch (err: unknown) {
+      logger.error('[IPC] courses:fix-course-problems error:', err)
+      return { success: false, fixedCount: 0, removedCount: 0, error: err instanceof Error ? err.message : String(err) }
+    }
+  })
+
   ipcMain.handle('courses:toggle-favorite', async (_event, payload: { courseId: string }) => {
     try {
       if (!payload || typeof payload.courseId !== 'string' || !payload.courseId.trim()) {
@@ -675,5 +810,168 @@ export function registerCoursesIpc(): void {
       return { success: false, error: err instanceof Error ? err.message : String(err) }
     }
   })
+
+  ipcMain.handle('courses:get-reorganize-plan', async (_event, payload: { courseId: string }) => {
+    try {
+      if (!payload || typeof payload.courseId !== 'string' || !payload.courseId.trim()) {
+        return { success: false, error: 'Course ID is required' }
+      }
+      const plan = reorganizerService.generateReorganizePlan(payload.courseId.trim())
+      return { success: true, plan }
+    } catch (err: unknown) {
+      logger.error('[IPC] courses:get-reorganize-plan error:', err)
+      return { success: false, error: err instanceof Error ? err.message : String(err) }
+    }
+  })
+
+  ipcMain.handle(
+    'courses:apply-reorganize-plan',
+    async (
+      _event,
+      payload: { groupId: string; mutations: import('../../types').ProposedFileMutation[]; courseId: string }
+    ) => {
+      try {
+        if (!payload || !payload.groupId || !Array.isArray(payload.mutations)) {
+          return { success: false, error: 'Valid group ID and mutations array are required' }
+        }
+        return reorganizerService.applyReorganizePlan(payload.groupId, payload.mutations, payload.courseId)
+      } catch (err: unknown) {
+        logger.error('[IPC] courses:apply-reorganize-plan error:', err)
+        return { success: false, error: err instanceof Error ? err.message : String(err) }
+      }
+    }
+  )
+
+  ipcMain.handle('courses:undo-reorganize-plan', async (_event, payload: { groupId: string }) => {
+    try {
+      if (!payload || typeof payload.groupId !== 'string' || !payload.groupId.trim()) {
+        return { success: false, error: 'Group ID is required' }
+      }
+      return reorganizerService.undoReorganizePlan(payload.groupId.trim())
+    } catch (err: unknown) {
+      logger.error('[IPC] courses:undo-reorganize-plan error:', err)
+      return { success: false, error: err instanceof Error ? err.message : String(err) }
+    }
+  })
+
+  ipcMain.handle(
+    'courses:update-metadata',
+    async (_event, payload: { courseId: string; customTitle?: string }) => {
+      try {
+        if (!payload || !payload.courseId) return { success: false, error: 'Course ID is required' }
+        databaseService.updateCourseMetadata(payload.courseId, { customTitle: payload.customTitle })
+        return { success: true }
+      } catch (err) {
+        logger.error('[IPC] courses:update-metadata error:', err)
+        return { success: false, error: String(err) }
+      }
+    }
+  )
+
+  ipcMain.handle(
+    'courses:update-module-metadata',
+    async (_event, payload: { moduleId: string; customTitle?: string; displayOrder?: number }) => {
+      try {
+        if (!payload || !payload.moduleId) return { success: false, error: 'Module ID is required' }
+        databaseService.updateModuleMetadata(payload.moduleId, {
+          customTitle: payload.customTitle,
+          displayOrder: payload.displayOrder
+        })
+        return { success: true }
+      } catch (err) {
+        logger.error('[IPC] courses:update-module-metadata error:', err)
+        return { success: false, error: String(err) }
+      }
+    }
+  )
+
+  ipcMain.handle(
+    'courses:update-lesson-metadata',
+    async (_event, payload: { lessonId: string; customTitle?: string; displayOrder?: number }) => {
+      try {
+        if (!payload || !payload.lessonId) return { success: false, error: 'Lesson ID is required' }
+        databaseService.updateLessonMetadata(payload.lessonId, {
+          customTitle: payload.customTitle,
+          displayOrder: payload.displayOrder
+        })
+        return { success: true }
+      } catch (err) {
+        logger.error('[IPC] courses:update-lesson-metadata error:', err)
+        return { success: false, error: String(err) }
+      }
+    }
+  )
+
+  ipcMain.handle(
+    'courses:reorder-module',
+    async (_event, payload: { moduleId: string; direction: 'up' | 'down' }) => {
+      try {
+        if (!payload || !payload.moduleId) return { success: false }
+        const success = databaseService.reorderModule(payload.moduleId, payload.direction)
+        return { success }
+      } catch (err) {
+        logger.error('[IPC] courses:reorder-module error:', err)
+        return { success: false }
+      }
+    }
+  )
+
+  ipcMain.handle(
+    'courses:reorder-lesson',
+    async (_event, payload: { lessonId: string; direction: 'up' | 'down' }) => {
+      try {
+        if (!payload || !payload.lessonId) return { success: false }
+        const success = databaseService.reorderLesson(payload.lessonId, payload.direction)
+        return { success }
+      } catch (err) {
+        logger.error('[IPC] courses:reorder-lesson error:', err)
+        return { success: false }
+      }
+    }
+  )
+
+  ipcMain.handle(
+    'courses:toggle-lesson-favorite',
+    async (_event, payload: { lessonId: string }) => {
+      try {
+        if (!payload || !payload.lessonId) return false
+        return databaseService.toggleLessonFavorite(payload.lessonId)
+      } catch (err) {
+        logger.error('[IPC] courses:toggle-lesson-favorite error:', err)
+        return false
+      }
+    }
+  )
+
+  ipcMain.handle(
+    'courses:toggle-module-completion',
+    async (_event, payload: { moduleId: string; courseId: string; completed?: boolean }) => {
+      try {
+        if (!payload || !payload.moduleId || !payload.courseId) return { success: false, affectedCount: 0 }
+        const affectedCount = databaseService.toggleModuleCompletion(
+          payload.moduleId,
+          payload.courseId,
+          payload.completed
+        )
+        return { success: true, affectedCount }
+      } catch (err) {
+        logger.error('[IPC] courses:toggle-module-completion error:', err)
+        return { success: false, affectedCount: 0 }
+      }
+    }
+  )
+
+  ipcMain.handle(
+    'courses:search-global',
+    async (_event, payload: { query: string }) => {
+      try {
+        if (!payload || typeof payload.query !== 'string') return []
+        return databaseService.searchGlobal(payload.query)
+      } catch (err) {
+        logger.error('[IPC] courses:search-global error:', err)
+        return []
+      }
+    }
+  )
 }
 

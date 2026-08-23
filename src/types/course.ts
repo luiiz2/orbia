@@ -20,6 +20,7 @@ export interface ContentSource {
 export interface Course {
   id: string // Stable UUID
   title: string // Human-readable cleaned title
+  customTitle?: string
   slug: string
   sourceType: ContentSourceType
   rootPath: string // Physical path (or remote root identifier)
@@ -41,7 +42,9 @@ export interface Module {
   id: string // Stable UUID
   courseId: string
   title: string
+  customTitle?: string
   orderIndex: number
+  displayOrder?: number
   folderPath?: string
   duration: number // Sum of lesson durations in seconds
   lessonCount: number
@@ -63,7 +66,10 @@ export interface Lesson {
   moduleId: string
   courseId: string
   title: string
+  customTitle?: string
   orderIndex: number
+  displayOrder?: number
+  isFavorite?: boolean
   filePath: string // Absolute path (or source-relative URI)
   fileName: string // Original physical filename (e.g. "01 - Intro.mp4")
   fileExtension: string
@@ -255,3 +261,22 @@ export interface ImportHistoryEntry {
   createdAt: number
   errorDetails?: string
 }
+
+export interface CourseProblemLesson {
+  id: string
+  title: string
+  moduleId: string
+  moduleTitle: string
+  filePath: string
+  fileName: string
+  problemType: 'missing_file' | 'zero_bytes' | 'non_media_type' | 'corrupted'
+  problemDescription: string
+}
+
+export interface CourseHealthReport {
+  courseId: string
+  healthy: boolean
+  totalLessons: number
+  problemLessons: CourseProblemLesson[]
+}
+

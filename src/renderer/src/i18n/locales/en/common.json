@@ -48,12 +48,22 @@
     "emptyTitle": "Your Library is Empty",
     "emptySubtitle": "Import your first course folder or drop courses into your Vault's Inbox to start learning.",
     "importFirstCourse": "Import First Course",
+    "searchResults": "Showing results for \"{{query}}\" ({{count}} course found)",
+    "searchResults_plural": "Showing results for \"{{query}}\" ({{count}} courses found)",
+    "clearSearch": "Clear search",
+    "coursesInLibrary": "{{count}} course in study library",
+    "coursesInLibrary_plural": "{{count}} courses in study library",
+    "scrollLeft": "Scroll left",
+    "scrollRight": "Scroll right",
     "filters": {
       "all": "All",
       "inProgress": "In Progress",
       "completed": "Completed",
       "favorites": "Favorites"
-    }
+    },
+    "streak": "day streak",
+    "todayStudy": "min today",
+    "weekCompleted": "completed this week"
   },
   "course": {
     "modules": "modules",
@@ -75,9 +85,17 @@
     "deleteConfirmDesc": "This will remove the course and its progress from Orbia. Your original files on disk will not be deleted.",
     "moduleMaterials": "Module materials ({{count}})",
     "lessonMaterials": "Lesson materials ({{count}})",
-    "viewResource": "View material: {{name}}"
+    "viewResource": "View material: {{name}}",
+    "markModuleComplete": "Mark module as completed",
+    "unmarkModuleComplete": "Unmark module",
+    "editTitle": "Edit title",
+    "reorderUp": "Move up",
+    "reorderDown": "Move down",
+    "lessonFavorite": "Favorite lesson",
+    "lessonUnfavorite": "Remove favorite"
   },
   "player": {
+    "noLessonSelected": "No lesson selected",
     "nextLesson": "Next Lesson",
     "prevLesson": "Previous Lesson",
     "rewind5": "Back 5s",
@@ -113,6 +131,8 @@
     "retry": "Retry",
     "skipGlitch": "Skip 1s (Forward)",
     "skipNext": "Skip to Next Lesson",
+    "removeBrokenLesson": "Remove this lesson from course",
+    "lessonError": "Error",
     "lessonMaterials": "Lesson materials ({{count}})",
     "noResources": "No materials are attached to this lesson.",
     "viewResource": "View material: {{name}}"
@@ -133,6 +153,9 @@
     "reviewSelected": "Review {{count}} selected course(s)",
     "loadingPreview": "Calculating read-only preview...",
     "previewError": "Could not calculate the organization preview.",
+    "applyMerge": "Merge Courses",
+    "mergeError": "Could not merge the selected courses.",
+    "mergeSuccess": "Courses merged successfully!",
     "applyFuture": "Apply later",
     "applyFutureDescription": "Applying this proposal is unavailable until a reversible operation plan is ready.",
     "previewTitle": "Organization preview",
@@ -183,7 +206,9 @@
     "exportSuccess": "Notes exported successfully",
     "saveNote": "Save Note",
     "editNote": "Edit Note",
-    "deleteNote": "Delete Note"
+    "deleteNote": "Delete Note",
+    "saving": "Saving...",
+    "saved": "Saved ✓"
   },
   "subtitles": {
     "subtitles": "Subtitles",
@@ -216,6 +241,8 @@
     "multiSourceDescription": "Choose several sources at once. Each stays untouched until you approve its import.",
     "selectZipMultiple": "Choose .zip files",
     "selectFolderMultiple": "Choose course folders",
+    "selectMultiCourseRoot": "Folder with Multiple Courses",
+    "noCoursesFoundInRoot": "No courses found in subfolders of this root directory.",
     "processingQueue": "Preparing {{count}} course(s)",
     "processingDescription": "Validating files and detecting modules before preview.",
     "preparing": "Preparing secure preview...",
@@ -312,6 +339,26 @@
     "offlineFirst": "100% Offline-First • Zero Mandatory Cloud • Complete User Privacy",
     "license": "License: MIT (Open Source)"
   },
+  "analytics": {
+    "tabTitle": "Analytics",
+    "subtitle": "Track your study pace, streaks, and daily progress",
+    "streakTitle": "Streak",
+    "day": "day",
+    "days": "days",
+    "bestStreak": "Record:",
+    "totalTime": "Total Time",
+    "totalTimeDescription": "Dedicated to studying",
+    "dailyGoal": "Today's Goal",
+    "completedLessons": "Completed Lessons",
+    "lesson": "lesson",
+    "lessons": "lessons",
+    "keepItUp": "Keep up the momentum!",
+    "dailyActivityTitle": "Daily Study Activity (Last 14 days)",
+    "minutesPerDay": "Minutes per day",
+    "noActivityYet": "No study sessions recorded yet.",
+    "topCoursesTitle": "Most Studied Courses",
+    "noTopCourses": "No courses studied yet."
+  },
   "common": {
     "save": "Save",
     "cancel": "Cancel",
@@ -322,5 +369,11 @@
     "error": "Error",
     "success": "Success",
     "search": "Search courses, modules, lessons..."
+  },
+  "search": {
+    "courses": "Courses",
+    "modules": "Modules",
+    "lessons": "Lessons",
+    "noResults": "No results found"
   }
 }

@@ -2,10 +2,13 @@ import React, { useState, useRef, useCallback, useEffect } from 'react'
 import { formatTime } from '../../lib/formatters'
 import { cn } from '../../lib/utils'
 
+import type { LessonNote } from '@shared'
+
 export interface ProgressBarProps {
   currentTime: number
   duration: number
   bufferedEnd?: number
+  notes?: LessonNote[]
   onSeek: (time: number) => void
   className?: string
 }
@@ -14,6 +17,7 @@ export function ProgressBar({
   currentTime,
   duration,
   bufferedEnd = 0,
+  notes,
   onSeek,
   className
 }: ProgressBarProps): React.JSX.Element {
@@ -186,9 +190,40 @@ export function ProgressBar({
           style={{ width: `${progressPercent}%` }}
         />
 
+        {/* Timestamped Note Markers */}
+        {notes &&
+          duration > 0 &&
+          notes.map((note) => {
+            const notePct = Math.min(100, Math.max(0, (note.timestampSeconds / duration) * 100))
+            return (
+              <div
+                key={note.id}
+                className="group/note absolute top-1/2 -translate-x-1/2 -translate-y-1/2 z-20"
+                style={{ left: `${notePct}%` }}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onSeek(note.timestampSeconds)
+                }}
+              >
+                {/* Note dot */}
+                <div className="h-2 w-2 rounded-full bg-amber-300 ring-2 ring-amber-500 shadow-sm shadow-amber-400/80 hover:scale-150 transition-transform cursor-pointer" />
+
+                {/* Note hover tooltip preview */}
+                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 opacity-0 group-hover/note:opacity-100 transition-opacity bg-popover text-popover-foreground text-[11px] px-2.5 py-1.5 rounded-lg shadow-xl border border-amber-500/40 pointer-events-none whitespace-nowrap z-40 max-w-[220px] truncate">
+                  <div className="font-mono text-amber-400 font-bold text-[10px]">
+                    {formatTime(note.timestampSeconds)}
+                  </div>
+                  <div className="truncate text-foreground text-[11px]">
+                    {note.content}
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+
         {/* Scrubber Knob Thumb */}
         <div
-          className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white ring-2 ring-orange-500 shadow-lg shadow-orange-500/50 transition-transform duration-150 h-3.5 w-3.5 group-hover:scale-125"
+          className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white ring-2 ring-orange-500 shadow-lg shadow-orange-500/50 transition-transform duration-150 h-3.5 w-3.5 group-hover:scale-125 z-30"
           style={{ left: `${progressPercent}%` }}
         />
       </div>

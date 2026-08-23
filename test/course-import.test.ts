@@ -266,6 +266,62 @@ describe('CourseImportService', () => {
     expect(JSON.stringify(fixture.saved.mock.calls[0])).not.toContain('attacker-')
   })
 
+  it('merges modules that receive identical titles during title editing upon commit', async () => {
+    const fixture = await createZipImportFixture(tempRoot)
+    // Add a second module to the session's proposal
+    const session = fixture.sessions.getSession(fixture.preparedResult.sessionId)
+    session.proposal!.modules.push({
+      id: 'module-2',
+      title: 'Módulo 2 Original',
+      folderPath: path.join(fixture.extractedPath, 'Module 02'),
+      orderIndex: 2,
+      lessons: [
+        {
+          id: 'lesson-2',
+          title: 'Aula 2 Original',
+          originalFileName: '02 - Lesson.mp4',
+          filePath: path.join(fixture.extractedPath, 'Module 02', '02 - Lesson.mp4'),
+          fileExtension: 'mp4',
+          mediaType: 'video',
+          fileSize: 20,
+          orderIndex: 1
+        }
+      ]
+    })
+    fs.mkdirSync(path.join(fixture.extractedPath, 'Module 02'), { recursive: true })
+    fs.writeFileSync(path.join(fixture.extractedPath, 'Module 02', '02 - Lesson.mp4'), 'lesson 2')
+
+    // Commit with title edits where module-1 and module-2 are both renamed to "Lovable PRO - Rafa Voss"
+    const result = await fixture.imports.commitSession({
+      sessionId: fixture.preparedResult.sessionId,
+      isExternal: false,
+      titleEdits: {
+        courseTitle: 'AI Development',
+        modules: [
+          { id: 'module-1', title: 'Lovable PRO - Rafa Voss' },
+          { id: 'module-2', title: 'Lovable PRO - Rafa Voss' }
+        ],
+        lessons: [
+          { id: 'lesson-1', title: '01 - Intro' },
+          { id: 'lesson-2', title: '02 - Prática' }
+        ]
+      }
+    })
+
+    const [, savedModules] = fixture.saved.mock.calls[0] as [
+      unknown,
+      Array<{ title: string; lessons: Array<{ title: string }> }>
+    ]
+    // Both modules must be merged into 1 single module
+    expect(savedModules.length).toBe(1)
+    expect(savedModules[0].title).toBe('Lovable PRO - Rafa Voss')
+    expect(savedModules[0].lessons.length).toBe(2)
+    expect(savedModules[0].lessons.map((l) => l.title)).toEqual(['01 - Intro', '02 - Prática'])
+    expect(result.course.moduleCount).toBe(1)
+    expect(result.course.lessonCount).toBe(2)
+  })
+
+
   it('does not create persistent covers before the course hierarchy is saved', async () => {
     const persistentCover = path.join(tempRoot, 'vault', '.orbia', 'covers', 'unexpected.png')
     const materializeProposal = vi.fn(async (proposal: ProposedCourseStructure) => {

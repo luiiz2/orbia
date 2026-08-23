@@ -1329,7 +1329,6 @@ describe('DatabaseService Core Engine', () => {
     dbService.updateLessonNote(note1.id, 'Updated note content')
     const updatedNotes = dbService.getLessonNotes('l-notes-1')
     expect(updatedNotes.find((n) => n.id === note1.id)?.content).toBe('Updated note content')
-
     // Course notes query
     const courseNotes = dbService.getCourseNotes('c-notes')
     expect(courseNotes.length).toBe(2)
@@ -1337,5 +1336,123 @@ describe('DatabaseService Core Engine', () => {
     // Delete note
     dbService.deleteLessonNote(note2.id)
     expect(dbService.getLessonNotes('l-notes-1').length).toBe(1)
+  })
+
+  it('updates lesson duration and propagates to module and course totals', () => {
+    dbService.connect(tempVaultDir)
+    const now = Date.now()
+    dbService.saveCourseWithHierarchy(
+      {
+        id: 'c-dur',
+        title: 'Duration Test Course',
+        slug: 'duration-test',
+        sourceType: 'local-vault',
+        rootPath: '/vault/Courses/Duration',
+        totalDuration: 0,
+        moduleCount: 1,
+        lessonCount: 2,
+        createdAt: now,
+        updatedAt: now
+      },
+      [
+        {
+          id: 'm-dur-1',
+          courseId: 'c-dur',
+          title: '01 - Module',
+          orderIndex: 1,
+          duration: 0,
+          lessonCount: 2,
+          createdAt: now,
+          lessons: [
+            { id: 'l-dur-1', moduleId: 'm-dur-1', courseId: 'c-dur', title: 'L1', orderIndex: 1, filePath: '/1.mp4', fileName: '1.mp4', fileExtension: 'mp4', mediaType: 'video', duration: 0, fileSize: 100, availability: 'local', createdAt: now },
+            { id: 'l-dur-2', moduleId: 'm-dur-1', courseId: 'c-dur', title: 'L2', orderIndex: 2, filePath: '/2.mp4', fileName: '2.mp4', fileExtension: 'mp4', mediaType: 'video', duration: 0, fileSize: 100, availability: 'local', createdAt: now }
+          ]
+        }
+      ]
+    )
+
+    dbService.updateLessonDuration('l-dur-1', 150)
+    dbService.updateLessonDuration('l-dur-2', 250)
+
+    const course = dbService.getCourseById('c-dur')
+    expect(course).not.toBeNull()
+    expect(course?.course.totalDuration).toBe(400)
+    expect(course?.modules[0].duration).toBe(400)
+  })
+
+  it('merges selected courses into a single canonical course', () => {
+    dbService.connect(tempVaultDir)
+    const now = Date.now()
+
+    dbService.saveCourseWithHierarchy(
+      {
+        id: 'c-merge-1',
+        title: 'Python Mastery',
+        slug: 'python-mastery-1',
+        sourceType: 'local-vault',
+        rootPath: '/vault/Courses/Python1',
+        totalDuration: 100,
+        moduleCount: 1,
+        lessonCount: 2,
+        createdAt: now - 1000,
+        updatedAt: now - 1000
+      },
+      [
+        {
+          id: 'm-m1',
+          courseId: 'c-merge-1',
+          title: '01 - Fundamentos',
+          orderIndex: 1,
+          duration: 100,
+          lessonCount: 2,
+          createdAt: now,
+          lessons: [
+            { id: 'l-m1', moduleId: 'm-m1', courseId: 'c-merge-1', title: '01 - Intro', orderIndex: 1, filePath: '/1.mp4', fileName: '1.mp4', fileExtension: 'mp4', mediaType: 'video', duration: 50, fileSize: 100, availability: 'local', createdAt: now },
+            { id: 'l-m2', moduleId: 'm-m1', courseId: 'c-merge-1', title: '02 - Variaveis', orderIndex: 2, filePath: '/2.mp4', fileName: '2.mp4', fileExtension: 'mp4', mediaType: 'video', duration: 50, fileSize: 100, availability: 'local', createdAt: now }
+          ]
+        }
+      ]
+    )
+
+    dbService.saveCourseWithHierarchy(
+      {
+        id: 'c-merge-2',
+        title: 'Python Mastery Extra',
+        slug: 'python-mastery-2',
+        sourceType: 'local-vault',
+        rootPath: '/vault/Courses/Python2',
+        totalDuration: 50,
+        moduleCount: 1,
+        lessonCount: 1,
+        createdAt: now,
+        updatedAt: now
+      },
+      [
+        {
+          id: 'm-m2',
+          courseId: 'c-merge-2',
+          title: '02 - Avancado',
+          orderIndex: 1,
+          duration: 50,
+          lessonCount: 1,
+          createdAt: now,
+          lessons: [
+            { id: 'l-m3', moduleId: 'm-m2', courseId: 'c-merge-2', title: '01 - Decorators', orderIndex: 1, filePath: '/3.mp4', fileName: '3.mp4', fileExtension: 'mp4', mediaType: 'video', duration: 50, fileSize: 100, availability: 'local', createdAt: now }
+          ]
+        }
+      ]
+    )
+
+    const result = dbService.mergeCourses(['c-merge-1', 'c-merge-2'])
+    expect(result.success).toBe(true)
+    expect(result.removedCoursesCount).toBe(1)
+
+    const merged = dbService.getCourseById('c-merge-1')
+    expect(merged).not.toBeNull()
+    expect(merged?.modules.length).toBe(2)
+    expect(merged?.course.lessonCount).toBe(3)
+
+    const deleted = dbService.getCourseById('c-merge-2')
+    expect(deleted).toBeNull()
   })
 })

@@ -4,7 +4,7 @@ const state = vi.hoisted(() => ({
   handlers: new Map<string, (event: unknown, payload?: unknown) => Promise<unknown> | unknown>(),
   getMergePreview: vi.fn(),
   mergeDuplicateCourses: vi.fn(),
-  mergeCoursesByIds: vi.fn()
+  mergeCourses: vi.fn()
 }))
 
 vi.mock('electron', () => ({
@@ -21,51 +21,61 @@ vi.mock('../src/main/services/database.service', () => ({
   databaseService: {
     getMergePreview: state.getMergePreview,
     mergeDuplicateCourses: state.mergeDuplicateCourses,
-    mergeCoursesByIds: state.mergeCoursesByIds
+    mergeCourses: state.mergeCourses
   }
 }))
 
 import { registerCoursesIpc } from '../src/main/ipc/courses.ipc'
 
-describe('mutable merge IPC safety gate', () => {
+describe('Course Merge IPC Handlers', () => {
   beforeEach(() => {
     state.handlers.clear()
     state.getMergePreview.mockReset()
     state.mergeDuplicateCourses.mockReset()
-    state.mergeCoursesByIds.mockReset()
+    state.mergeCourses.mockReset()
     registerCoursesIpc()
   })
 
-  it('keeps the merge preview read-only', async () => {
-    state.getMergePreview.mockReturnValue({ canonicalCourse: { id: 'course-a' } })
+  it('provides read-only merge preview', async () => {
+    state.getMergePreview.mockReturnValue({ canonicalCourseId: 'course-a', selectedCourseIds: ['course-a', 'course-b'] })
     const handler = state.handlers.get('courses:get-merge-preview')
 
     expect(handler).toBeDefined()
     await expect(handler!({}, { courseIds: ['course-a', 'course-b'] })).resolves.toEqual({
       success: true,
-      preview: { canonicalCourse: { id: 'course-a' } }
+      preview: { canonicalCourseId: 'course-a', selectedCourseIds: ['course-a', 'course-b'] }
     })
     expect(state.getMergePreview).toHaveBeenCalledWith(['course-a', 'course-b'])
     expect(state.mergeDuplicateCourses).not.toHaveBeenCalled()
-    expect(state.mergeCoursesByIds).not.toHaveBeenCalled()
+    expect(state.mergeCourses).not.toHaveBeenCalled()
   })
 
-  it('refuses every mutable merge request before it reaches the database', async () => {
-    const automaticHandler = state.handlers.get('courses:merge-duplicates')
-    const manualHandler = state.handlers.get('courses:merge-courses')
-
-    expect(automaticHandler).toBeDefined()
-    expect(manualHandler).toBeDefined()
-
-    await expect(automaticHandler!({}, undefined)).resolves.toMatchObject({
-      success: false,
-      error: expect.stringMatching(/courses:get-merge-preview/i)
+  it('executes courses:merge-courses with valid IDs and delegates to database service', async () => {
+    state.mergeCourses.mockReturnValue({
+      success: true,
+      mergedGroupsCount: 1,
+      removedCoursesCount: 1,
+      details: [{ canonicalCourseId: 'course-a' }]
     })
-    await expect(manualHandler!({}, { courseIds: ['course-a', 'course-b'], targetTitle: 'Ignored' })).resolves.toMatchObject({
-      success: false,
-      error: expect.stringMatching(/courses:get-merge-preview/i)
+    const handler = state.handlers.get('courses:merge-courses')
+
+    expect(handler).toBeDefined()
+    const response = await handler!({}, { courseIds: ['course-a', 'course-b'] })
+    expect(response).toMatchObject({
+      success: true,
+      mergedGroupsCount: 1
     })
-    expect(state.mergeDuplicateCourses).not.toHaveBeenCalled()
-    expect(state.mergeCoursesByIds).not.toHaveBeenCalled()
+    expect(state.mergeCourses).toHaveBeenCalledWith(['course-a', 'course-b'])
+  })
+
+  it('rejects courses:merge-courses when fewer than 2 courses are provided', async () => {
+    const handler = state.handlers.get('courses:merge-courses')
+    expect(handler).toBeDefined()
+    const response = await handler!({}, { courseIds: ['course-a'] })
+    expect(response).toMatchObject({
+      success: false,
+      error: expect.stringMatching(/at least two/i)
+    })
+    expect(state.mergeCourses).not.toHaveBeenCalled()
   })
 })

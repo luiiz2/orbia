@@ -1,10 +1,9 @@
-﻿import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Play, Sparkles, BookOpen, ChevronLeft, ChevronRight, FileText } from 'lucide-react'
-import { Button, Skeleton, Tooltip, TooltipTrigger, TooltipContent } from '../ui'
+import { Sparkles, ChevronLeft, ChevronRight, FileText } from 'lucide-react'
+import { Button, Skeleton, Tooltip, TooltipTrigger, TooltipContent, CourseCover } from '../ui'
 import { useNavigationStore, usePlayerStore } from '../../stores'
 import { formatTime } from '../../lib/formatters'
-import { mediaUrl } from '../../lib/utils'
 import type { WatchHistoryEntry } from '@shared'
 
 interface ContinueWatchingRailProps {
@@ -18,15 +17,12 @@ interface ContinueCardProps {
 }
 
 function ContinueCard({ entry, onResume }: ContinueCardProps): React.JSX.Element {
-  const [coverFailed, setCoverFailed] = useState(false)
   const isPdf = entry.fileExtension?.toLowerCase().includes('pdf') || false
-  const percentage = entry.duration > 0
-    ? Math.min(99, Math.round((entry.currentTime / entry.duration) * 100))
-    : 0
+  const percentage =
+    entry.duration > 0
+      ? Math.min(99, Math.round((entry.currentTime / entry.duration) * 100))
+      : 0
   const coverPath = entry.lessonCoverPath || entry.coverPath
-  const coverUrl = coverPath && !coverFailed
-    ? mediaUrl(coverPath)
-    : null
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>): void => {
     if (e.key === 'Enter' || e.key === ' ') {
@@ -41,35 +37,23 @@ function ContinueCard({ entry, onResume }: ContinueCardProps): React.JSX.Element
       tabIndex={0}
       onClick={() => onResume(entry)}
       onKeyDown={handleKeyDown}
-      className="group relative w-[260px] sm:w-[300px] shrink-0 cursor-pointer select-none snap-start rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+      className="group relative w-[260px] sm:w-[300px] shrink-0 cursor-pointer select-none snap-start rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
     >
-      {/* Thumbnail Container — no chrome */}
-      <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-secondary/60 flex items-center justify-center">
-        {coverUrl ? (
-          <img
-            src={coverUrl}
-            alt={entry.lessonTitle}
-            loading="lazy"
-            className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-500 ease-out"
-            onError={() => setCoverFailed(true)}
-          />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-secondary via-secondary/70 to-card text-muted-foreground group-hover:text-primary transition-colors p-4">
-            <BookOpen className="h-8 w-8 opacity-60 group-hover:scale-110 transition-transform duration-300" />
-          </div>
-        )}
-
-        {/* Hover overlay — gradient + play */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-black shadow-lg shadow-black/50 transform scale-75 group-hover:scale-100 transition-transform duration-200 ease-out">
-            <Play className="h-4.5 w-4.5 fill-current ml-0.5" />
-          </div>
-        </div>
+      {/* Thumbnail Container with branded fallback */}
+      <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-slate-950 flex items-center justify-center">
+        <CourseCover
+          src={coverPath}
+          title={entry.lessonTitle || entry.courseTitle}
+          subtitle={entry.courseTitle}
+          showPlayOnHover={true}
+          badge={isPdf ? 'PDF' : undefined}
+          className="h-full w-full"
+        />
 
         {/* Top Progress Badge (video only) */}
-        {!isPdf && (
-          <div className="absolute top-2 right-2 z-10 pointer-events-none">
-            <span className="rounded-md bg-black/70 backdrop-blur-md px-2 py-0.5 text-[10px] font-bold text-amber-400 border border-white/10 shadow-xs">
+        {!isPdf && percentage > 0 && (
+          <div className="absolute top-2 right-2 z-30 pointer-events-none">
+            <span className="rounded-md bg-black/70 backdrop-blur-md px-2 py-0.5 text-[10px] font-bold text-amber-400 border border-white/10 shadow-xs font-mono">
               {percentage}%
             </span>
           </div>
@@ -77,10 +61,10 @@ function ContinueCard({ entry, onResume }: ContinueCardProps): React.JSX.Element
 
         {/* PDF badge */}
         {isPdf && (
-          <div className="absolute top-2 right-2 z-10 pointer-events-none">
-            <span className="rounded-md bg-black/70 backdrop-blur-md px-2 py-0.5 text-[10px] font-bold text-white/90 border border-white/10 shadow-xs uppercase flex items-center gap-1">
-              <FileText className="h-2.5 w-2.5" />
-              {entry.fileExtension?.replace('.', '').toUpperCase()}
+          <div className="absolute top-2 right-2 z-30 pointer-events-none">
+            <span className="rounded-md bg-black/70 backdrop-blur-md px-2 py-0.5 text-[10px] font-bold text-white/90 border border-white/10 shadow-xs uppercase flex items-center gap-1 font-mono">
+              <FileText className="h-2.5 w-2.5 text-amber-400" />
+              PDF
             </span>
           </div>
         )}
@@ -93,9 +77,10 @@ function ContinueCard({ entry, onResume }: ContinueCardProps): React.JSX.Element
         </h3>
         <p className="mt-0.5 flex items-center gap-1.5 text-[10px] text-muted-foreground">
           <span className="truncate">{entry.courseTitle}</span>
-          {!isPdf && percentage > 0 && (
-            <span className="font-mono text-amber-400/90 shrink-0">
+          {!isPdf && entry.currentTime > 0 && (
+            <span className="font-mono text-amber-400/90 shrink-0 font-medium">
               {formatTime(entry.currentTime)}
+              {entry.duration > 0 ? ` / ${formatTime(entry.duration)}` : ''}
             </span>
           )}
         </p>
@@ -146,10 +131,10 @@ export function ContinueWatchingRail({ className, isLoading }: ContinueWatchingR
         // PDF lessons have no playback position; always continue-able
         if (entry.fileExtension?.toLowerCase().includes('pdf')) return true
         if (entry.currentTime <= 0) return false
-        // A known duration lets us avoid cluttering the rail before meaningful progress.
+        // A known duration lets us avoid cluttering the rail before meaningful progress
         if (entry.duration <= 0) return true
         const progress = entry.currentTime / entry.duration
-        return progress >= 0.1 && progress < 0.9
+        return progress > 0 && progress < 0.98
       })
       .sort((a, b) => b.watchedAt - a.watchedAt)
       .slice(0, 10)
@@ -225,7 +210,7 @@ export function ContinueWatchingRail({ className, isLoading }: ContinueWatchingR
           </div>
           <div>
             <h2 className="text-base sm:text-lg font-bold tracking-tight text-foreground">
-              {t('home.continueWatching', 'Continue Watching')}
+              {t('home.continueWatching', 'Continuar Assistindo')}
             </h2>
           </div>
           <span className="ml-1 rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-bold text-primary border border-primary/20">
@@ -242,12 +227,12 @@ export function ContinueWatchingRail({ className, isLoading }: ContinueWatchingR
                   size="icon"
                   onClick={() => scroll('left')}
                   className="h-8 w-8 rounded-xl border-border/80 bg-card hover:bg-secondary hover:text-foreground cursor-pointer shadow-xs focus-visible:ring-2 focus-visible:ring-primary"
-                  aria-label="Scroll left"
+                  aria-label={t('home.scrollLeft', 'Rolar para a esquerda')}
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="top">Scroll left</TooltipContent>
+              <TooltipContent side="top">{t('home.scrollLeft', 'Rolar para a esquerda')}</TooltipContent>
             </Tooltip>
 
             <Tooltip>
@@ -257,12 +242,12 @@ export function ContinueWatchingRail({ className, isLoading }: ContinueWatchingR
                   size="icon"
                   onClick={() => scroll('right')}
                   className="h-8 w-8 rounded-xl border-border/80 bg-card hover:bg-secondary hover:text-foreground cursor-pointer shadow-xs focus-visible:ring-2 focus-visible:ring-primary"
-                  aria-label="Scroll right"
+                  aria-label={t('home.scrollRight', 'Rolar para a direita')}
                 >
                   <ChevronRight className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="top">Scroll right</TooltipContent>
+              <TooltipContent side="top">{t('home.scrollRight', 'Rolar para a direita')}</TooltipContent>
             </Tooltip>
           </div>
         )}

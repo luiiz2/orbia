@@ -314,5 +314,27 @@ export function registerPlayerIpc(): void {
       return ''
     }
   })
+
+  ipcMain.handle('player:get-study-analytics', async (_event, payload?: { dailyGoalMinutes?: number }) => {
+    try {
+      const dailyGoal =
+        typeof payload?.dailyGoalMinutes === 'number' && Number.isFinite(payload.dailyGoalMinutes) && payload.dailyGoalMinutes > 0
+          ? payload.dailyGoalMinutes
+          : 30
+      return databaseService.getStudyAnalytics(dailyGoal)
+    } catch (err) {
+      logger.error('[IPC] player:get-study-analytics error:', err)
+      return {
+        currentStreakDays: 0,
+        longestStreakDays: 0,
+        totalSecondsWatched: 0,
+        totalLessonsCompleted: 0,
+        dailyGoalMinutes: 30,
+        todaySecondsWatched: 0,
+        dailyHistory: [],
+        topCourses: []
+      }
+    }
+  })
 }
 

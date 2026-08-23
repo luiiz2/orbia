@@ -117,24 +117,25 @@ describe('media:// path authorization', () => {
     expect(state.fetch).not.toHaveBeenCalled()
   })
 
-  it('streams an authorized registered lesson with its Range header unchanged', async () => {
+  it('streams an authorized registered lesson with HTTP 206 Partial Content on Range header', async () => {
     const lessonPath = path.join(tempRoot, 'lesson.mp4')
-    fs.writeFileSync(lessonPath, 'video')
+    fs.writeFileSync(lessonPath, 'video content sample')
     const authorizer: MediaPathAuthorizer = {
       isPathAuthorized: vi.fn().mockResolvedValue(true)
     }
-    state.fetch.mockResolvedValue(new Response('partial content', { status: 206 }))
 
     setupMediaProtocol({ authorizer })
 
     const response = await state.handler!({
       url: toMediaUrl(lessonPath),
-      headers: new Headers({ Range: 'bytes=0-3' })
+      headers: new Headers({ range: 'bytes=0-4' })
     })
 
     expect(response.status).toBe(206)
-    expect(state.fetch).toHaveBeenCalledTimes(1)
-    const [, options] = state.fetch.mock.calls[0] as [string, { headers: Headers }]
-    expect(options.headers.get('range')).toBe('bytes=0-3')
+    expect(response.headers.get('Content-Range')).toBe('bytes 0-4/20')
+    expect(response.headers.get('Accept-Ranges')).toBe('bytes')
+    expect(response.headers.get('Content-Length')).toBe('5')
+    const text = await response.text()
+    expect(text).toBe('video')
   })
 })

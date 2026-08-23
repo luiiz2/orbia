@@ -1,6 +1,6 @@
-﻿import React, { useRef, useState, useEffect, useCallback } from 'react'
+import React, { useRef, useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Play, ChevronLeft, FastForward, X, AlertCircle } from 'lucide-react'
+import { Play, ChevronLeft, FastForward, X, AlertCircle, Trash2 } from 'lucide-react'
 import { usePlayer } from '../../hooks/usePlayer'
 import { usePlayerStore } from '../../stores/usePlayerStore'
 import { useNavigationStore } from '../../stores/useNavigationStore'
@@ -25,9 +25,12 @@ export function VideoPlayer({ className, onBack }: VideoPlayerProps): React.JSX.
     activeModule,
     theaterMode,
     toggleTheater,
+    notes,
     subtitleTracks,
     activeSubtitleTrack,
-    progressMap
+    progressMap,
+    markLessonBroken,
+    deleteLesson
   } = usePlayerStore()
   const { setView } = useNavigationStore()
 
@@ -88,9 +91,27 @@ export function VideoPlayer({ className, onBack }: VideoPlayerProps): React.JSX.
     setBufferedEnd(0)
   }, [activeLesson?.id])
 
+  // Synchronize HTML5 textTracks mode with activeSubtitleTrack
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video || !video.textTracks) return
+    for (let i = 0; i < video.textTracks.length; i++) {
+      const track = video.textTracks[i]
+      const matching = subtitleTracks.find((s) => s.id === track.id || s.label === track.label)
+      if (matching && activeSubtitleTrack === matching.id) {
+        track.mode = 'showing'
+      } else {
+        track.mode = 'disabled'
+      }
+    }
+  }, [activeSubtitleTrack, subtitleTracks])
+
   const handleVideoError = (): void => {
     const video = videoRef.current
     setIsVideoError(true)
+    if (activeLesson) {
+      markLessonBroken(activeLesson.id)
+    }
     const err = video?.error
     setErrorMessage(
       err?.message ||
@@ -121,35 +142,38 @@ export function VideoPlayer({ className, onBack }: VideoPlayerProps): React.JSX.
   return (
     <div
       ref={containerRef}
-      onMouseMove={handleUserActivity}
-      onMouseEnter={handleUserActivity}
-      onClick={handleUserActivity}
       className={cn(
-        'group relative flex flex-col justify-between overflow-hidden bg-black select-none',
-        isFullscreen ? 'h-screen w-screen fixed inset-0 z-50' : 'h-full w-full rounded-xl',
-        !showControls && isPlaying ? 'cursor-none' : 'cursor-default',
+        'group/player relative flex h-full w-full select-none items-center justify-center overflow-hidden bg-black',
         className
       )}
+      onMouseMove={handleUserActivity}
     >
-      {/* HTML5 Video Element */}
+      {/* HTML5 Native Video Stream Element */}
       {videoSrc ? (
         <video
           ref={videoRef}
           src={videoSrc}
-          onProgress={handleProgress}
-          onWaiting={() => setIsBuffering(true)}
-          onPlaying={() => setIsBuffering(false)}
-          onError={handleVideoError}
-          onClick={togglePlay}
+          className="h-full w-full object-contain"
           playsInline
-          className="h-full w-full object-contain bg-black"
+          preload="auto"
+          crossOrigin="anonymous"
+          onClick={togglePlay}
+          onDoubleClick={toggleFullscreen}
+          onWaiting={() => setIsBuffering(true)}
+          onPlaying={() => {
+            setIsBuffering(false)
+            setIsVideoError(false)
+          }}
+          onCanPlay={() => setIsBuffering(false)}
+          onProgress={handleProgress}
+          onError={handleVideoError}
         >
           {subtitleTracks.map((sub) => (
             <track
               key={sub.id}
               id={sub.id}
-              kind="subtitles"
               label={sub.label}
+              kind="subtitles"
               src={sub.vttUrl}
               default={activeSubtitleTrack === sub.id}
             />
@@ -157,7 +181,7 @@ export function VideoPlayer({ className, onBack }: VideoPlayerProps): React.JSX.
         </video>
       ) : (
         <div className="flex h-full w-full items-center justify-center bg-zinc-950 text-zinc-400">
-          <p className="text-sm font-medium">No lesson selected</p>
+          <p className="text-sm font-medium">{t('player.noLessonSelected', 'Nenhuma aula selecionada')}</p>
         </div>
       )}
 
@@ -170,66 +194,83 @@ export function VideoPlayer({ className, onBack }: VideoPlayerProps): React.JSX.
 
       {/* Error Fallback Overlay */}
       {isVideoError && (
-        <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-black/95 p-6 text-center text-white space-y-3">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-destructive/15 text-destructive border border-destructive/30 shadow-lg">
+        <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-black/95 p-6 text-center text-white space-y-4">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-destructive/15 text-destructive border border-destructive/30 shadow-lg animate-in fade-in zoom-in-95 duration-200">
             <AlertCircle className="h-7 w-7" />
           </div>
-          <div className="space-y-1 max-w-md">
+          <div className="space-y-1.5 max-w-lg">
             <h3 className="text-base font-bold text-white">
               {t('player.errorTitle', 'Erro de Reprodução')}
             </h3>
-            <p className="text-xs text-zinc-400 leading-relaxed">
+            <p className="text-xs text-zinc-400 leading-relaxed font-mono px-4 py-2 rounded-xl bg-white/5 border border-white/10 break-all">
               {errorMessage || t('player.errorDesc', 'Não foi possível decodificar este vídeo ou o arquivo contém trechos corrompidos.')}
             </p>
           </div>
-          <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setIsVideoError(false)
-                if (videoRef.current) {
-                  videoRef.current.load()
-                  videoRef.current.play().catch(console.warn)
-                }
-              }}
-              className="text-xs rounded-xl border-zinc-700 bg-zinc-900 text-white hover:bg-zinc-800 cursor-pointer"
-            >
-              {t('player.retry', 'Tentar Novamente')}
-            </Button>
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setIsVideoError(false)
-                if (videoRef.current) {
-                  const targetTime = (videoRef.current.currentTime || 0) + 1.0
-                  // Keep the target in usePlayer's pending seek so
-                  // loadedmetadata restores it after load() resets the media.
-                  seekTo(targetTime)
-                  videoRef.current.load()
-                  videoRef.current.play().catch(console.warn)
-                }
-              }}
-              className="text-xs rounded-xl border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 cursor-pointer"
-            >
-              {t('player.skipGlitch', 'Pular 1s (Avançar)')}
-            </Button>
-
-            {hasNextLesson && (
+          <div className="flex flex-col items-center gap-2.5 pt-1 w-full max-w-md">
+            {/* Primary Action Buttons */}
+            <div className="flex flex-wrap items-center justify-center gap-2">
               <Button
-                variant="default"
+                variant="outline"
                 size="sm"
                 onClick={() => {
                   setIsVideoError(false)
-                  nextLesson()
+                  if (videoRef.current) {
+                    videoRef.current.load()
+                    videoRef.current.play().catch(console.warn)
+                  }
                 }}
-                className="text-xs rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 text-primary-foreground font-bold cursor-pointer"
+                className="text-xs rounded-xl border-zinc-700 bg-zinc-900 text-white hover:bg-zinc-800 cursor-pointer"
               >
-                {t('player.skipNext', 'Pular para Próxima Aula')}
+                {t('player.retry', 'Tentar Novamente')}
               </Button>
-            )}
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setIsVideoError(false)
+                  if (videoRef.current) {
+                    const targetTime = (videoRef.current.currentTime || 0) + 1.0
+                    seekTo(targetTime)
+                    videoRef.current.load()
+                    videoRef.current.play().catch(console.warn)
+                  }
+                }}
+                className="text-xs rounded-xl border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 cursor-pointer"
+              >
+                {t('player.skipGlitch', 'Pular 1s (Avançar)')}
+              </Button>
+
+              {hasNextLesson && (
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => {
+                    setIsVideoError(false)
+                    nextLesson()
+                  }}
+                  className="text-xs rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 text-primary-foreground font-bold cursor-pointer"
+                >
+                  {t('player.skipNext', 'Pular para Próxima Aula')}
+                </Button>
+              )}
+            </div>
+
+            {/* Dedicated Delete Button */}
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={async () => {
+                if (activeLesson) {
+                  await deleteLesson(activeLesson.id, false)
+                  setIsVideoError(false)
+                }
+              }}
+              className="text-xs rounded-xl bg-red-600/90 hover:bg-red-600 text-white font-bold cursor-pointer gap-1.5 px-4 shadow-lg shadow-red-950/50"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              {t('player.removeBrokenLesson', 'Excluir esta aula do curso')}
+            </Button>
           </div>
         </div>
       )}
@@ -342,6 +383,7 @@ export function VideoPlayer({ className, onBack }: VideoPlayerProps): React.JSX.
         hasNextLesson={hasNextLesson}
         hasPrevLesson={hasPrevLesson}
         bufferedEnd={bufferedEnd}
+        notes={notes}
         onTogglePlay={togglePlay}
         onSeek={seekTo}
         onSeekRelative={seekRelative}

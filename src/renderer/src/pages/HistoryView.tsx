@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { History, Play, Clock, Calendar, BookOpen, FileArchive, CheckCircle2, Trash2 } from 'lucide-react'
+import { History, Play, Clock, Calendar, BookOpen, FileArchive, CheckCircle2, Trash2, Flame } from 'lucide-react'
 import { useNavigationStore } from '../stores/useNavigationStore'
 import { usePlayerStore } from '../stores/usePlayerStore'
 import { useLibraryStore } from '../stores/useLibraryStore'
 import { formatTime, formatBytes } from '../lib/formatters'
 import { Button } from '../components/ui'
-import type { WatchHistoryEntry } from '@shared'
+import { StudyAnalyticsPanel } from '../components/analytics/StudyAnalyticsPanel'
+import type { WatchHistoryEntry, StudyAnalytics } from '@shared'
 
 export function HistoryView(): React.JSX.Element {
   const { t } = useTranslation()
@@ -14,20 +15,23 @@ export function HistoryView(): React.JSX.Element {
   const { loadHierarchy } = usePlayerStore()
   const { importHistory, fetchImportHistory, clearImportHistory } = useLibraryStore()
 
-  const [activeTab, setActiveTab] = useState<'watch' | 'imports'>('watch')
+  const [activeTab, setActiveTab] = useState<'analytics' | 'watch' | 'imports'>('analytics')
   const [historyEntries, setHistoryEntries] = useState<WatchHistoryEntry[]>([])
+  const [analytics, setAnalytics] = useState<StudyAnalytics | null>(null)
   const [isLoading, setIsLoading] = useState<boolean>(true)
 
   useEffect(() => {
     const fetchHistory = async (): Promise<void> => {
       try {
-        const [entries] = await Promise.all([
+        const [entries, analyticsData] = await Promise.all([
           window.api.player.getWatchHistory(100),
+          window.api.player.getStudyAnalytics(30),
           fetchImportHistory()
         ])
         setHistoryEntries(entries || [])
+        setAnalytics(analyticsData || null)
       } catch (err) {
-        console.error('Failed to load watch history:', err)
+        console.error('Failed to load watch history and analytics:', err)
       } finally {
         setIsLoading(false)
       }
@@ -88,18 +92,32 @@ export function HistoryView(): React.JSX.Element {
           </div>
           <div>
             <h1 className="text-xl font-bold tracking-tight text-foreground">
-              {t('history.title', 'Histórico')}
+              {t('history.title', 'Estatísticas & Histórico')}
             </h1>
             <p className="text-xs text-muted-foreground">
-              {activeTab === 'watch'
-                ? t('history.lessonsRecorded', { count: historyEntries.length })
-                : t('history.filesImported', { count: importHistory.length })}
+              {activeTab === 'analytics'
+                ? t('analytics.subtitle', 'Acompanhe seu ritmo de estudo e evolução diária')
+                : activeTab === 'watch'
+                  ? t('history.lessonsRecorded', { count: historyEntries.length })
+                  : t('history.filesImported', { count: importHistory.length })}
             </p>
           </div>
         </div>
 
         {/* Tab Switcher */}
         <div className="flex items-center bg-secondary/60 p-1 rounded-xl border border-border/80 text-xs font-semibold">
+          <button
+            type="button"
+            onClick={() => setActiveTab('analytics')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+              activeTab === 'analytics'
+                ? 'bg-card text-foreground shadow-sm border border-border/50'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <Flame className="h-3.5 w-3.5 text-orange-500 fill-orange-500" />
+            <span>{t('analytics.tabTitle', 'Estatísticas')}</span>
+          </button>
           <button
             type="button"
             onClick={() => setActiveTab('watch')}
@@ -130,9 +148,11 @@ export function HistoryView(): React.JSX.Element {
       {isLoading ? (
         <div className="space-y-3">
           {[1, 2, 3].map((n) => (
-            <div key={n} className="h-16 rounded-2xl border border-border/40 bg-card/40 animate-pulse" />
+            <div key={n} className="h-20 rounded-2xl border border-border/40 bg-card/40 animate-pulse" />
           ))}
         </div>
+      ) : activeTab === 'analytics' ? (
+        <StudyAnalyticsPanel analytics={analytics} isLoading={isLoading} />
       ) : activeTab === 'imports' ? (
         /* Import History Tab */
         <div className="space-y-4">

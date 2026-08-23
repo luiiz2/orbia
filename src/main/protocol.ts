@@ -1,15 +1,69 @@
-import { protocol, net } from 'electron'
-import { pathToFileURL } from 'node:url'
+import { protocol } from 'electron'
 import path from 'node:path'
 import fs from 'node:fs'
+import { Readable } from 'node:stream'
 import { logger } from './services/logger.service'
 import { TEMP_COVERS_DIR } from './utils/cover-generator'
 
 export const MEDIA_SCHEME = 'media'
 
+export function getMediaMimeType(filePath: string): string {
+  const ext = path.extname(filePath).toLowerCase()
+  const mimeMap: Record<string, string> = {
+    // Video formats
+    '.mp4': 'video/mp4',
+    '.m4v': 'video/mp4',
+    '.webm': 'video/webm',
+    '.mkv': 'video/x-matroska',
+    '.mov': 'video/quicktime',
+    '.avi': 'video/x-msvideo',
+    '.wmv': 'video/x-ms-wmv',
+    '.flv': 'video/x-flv',
+    '.ts': 'video/mp2t',
+    // Audio formats
+    '.mp3': 'audio/mpeg',
+    '.m4a': 'audio/mp4',
+    '.wav': 'audio/wav',
+    '.ogg': 'audio/ogg',
+    '.flac': 'audio/flac',
+    '.aac': 'audio/aac',
+    // Documents / Subtitles / Text
+    '.pdf': 'application/pdf',
+    '.vtt': 'text/vtt',
+    '.srt': 'text/plain',
+    '.txt': 'text/plain',
+    '.md': 'text/markdown',
+    '.py': 'text/plain',
+    '.js': 'text/javascript',
+    '.jsx': 'text/javascript',
+    '.tsx': 'text/typescript',
+    '.json': 'application/json',
+    '.sql': 'text/plain',
+    '.html': 'text/html',
+    '.css': 'text/css',
+    '.csv': 'text/csv',
+    '.xml': 'text/xml',
+    '.yaml': 'text/plain',
+    '.yml': 'text/plain',
+    '.java': 'text/plain',
+    '.c': 'text/plain',
+    '.cpp': 'text/plain',
+    '.rs': 'text/plain',
+    '.go': 'text/plain',
+    // Images
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.png': 'image/png',
+    '.webp': 'image/webp',
+    '.gif': 'image/gif',
+    '.svg': 'image/svg+xml'
+  }
+  return mimeMap[ext] || 'application/octet-stream'
+}
+
 /**
  * Whitelist of allowed file extensions for media:// protocol.
- * Strictly blocks execution scripts, binaries, databases, and system files.
+ * Strictly blocks binaries, databases, and sensitive system files.
  */
 export const ALLOWED_MEDIA_EXTENSIONS = new Set([
   // Video formats
@@ -38,6 +92,25 @@ export const ALLOWED_MEDIA_EXTENSIONS = new Set([
   '.txt',
   '.md',
   '.rtf',
+  // Code & Data files
+  '.py',
+  '.js',
+  '.ts',
+  '.jsx',
+  '.tsx',
+  '.json',
+  '.sql',
+  '.html',
+  '.css',
+  '.csv',
+  '.xml',
+  '.yaml',
+  '.yml',
+  '.java',
+  '.c',
+  '.cpp',
+  '.rs',
+  '.go',
   // Subtitles
   '.srt',
   '.vtt',
@@ -244,8 +317,9 @@ export function setupMediaProtocol(
       }
 
       // Check file existence and verify it is a regular file
+      let stat: fs.Stats
       try {
-        const stat = await fs.promises.stat(targetPath)
+        stat = await fs.promises.stat(targetPath)
         if (!stat.isFile()) {
           return new Response('Requested resource is not a regular file', { status: 404 })
         }
@@ -253,18 +327,58 @@ export function setupMediaProtocol(
         return new Response('File not found on disk', { status: 404 })
       }
 
-      const fileUrl = pathToFileURL(targetPath).toString()
+      const fileSize = stat.size
+      const mimeType = getMediaMimeType(targetPath)
+      const rangeHeader = request.headers.get('range')
 
-      // Forward request headers (specifically Range: bytes=...) for full byte-range streaming support
-      const fetchHeaders = new Headers()
-      request.headers.forEach((value, key) => {
-        fetchHeaders.set(key, value)
-      })
+      // HTTP 206 Range request handling for video/audio scrubbing and seeking
+      if (rangeHeader && rangeHeader.startsWith('bytes=')) {
+        const rangeSpec = rangeHeader.substring(6).trim()
+        const [startStr, endStr] = rangeSpec.split('-')
+        let start = startStr ? parseInt(startStr, 10) : 0
+        let end = endStr ? parseInt(endStr, 10) : fileSize - 1
 
-      // Chromium's internal net.fetch handles byte-range requests on file:// URLs
-      return net.fetch(fileUrl, {
-        headers: fetchHeaders,
-        bypassCustomProtocolHandlers: true
+        if (isNaN(start) || start < 0) start = 0
+        if (isNaN(end) || end >= fileSize) end = fileSize - 1
+
+        if (start > end || start >= fileSize) {
+          return new Response(null, {
+            status: 416,
+            statusText: 'Range Not Satisfiable',
+            headers: {
+              'Content-Range': `bytes */${fileSize}`,
+              'Accept-Ranges': 'bytes'
+            }
+          })
+        }
+
+        const contentLength = end - start + 1
+        const stream = fs.createReadStream(targetPath, { start, end })
+
+        return new Response(Readable.toWeb(stream) as ReadableStream, {
+          status: 206,
+          statusText: 'Partial Content',
+          headers: {
+            'Content-Type': mimeType,
+            'Content-Length': String(contentLength),
+            'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+            'Accept-Ranges': 'bytes',
+            'Access-Control-Allow-Origin': '*'
+          }
+        })
+      }
+
+      // Standard 200 response with Accept-Ranges: bytes enabled for media seeking
+      const stream = fs.createReadStream(targetPath)
+      return new Response(Readable.toWeb(stream) as ReadableStream, {
+        status: 200,
+        statusText: 'OK',
+        headers: {
+          'Content-Type': mimeType,
+          'Content-Length': String(fileSize),
+          'Accept-Ranges': 'bytes',
+          'Access-Control-Allow-Origin': '*'
+        }
       })
     } catch (err) {
       logger.error('[Protocol] Error handling media request:', request.url, err)
