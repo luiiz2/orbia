@@ -17,6 +17,7 @@ import { useLibraryStore } from '../stores/useLibraryStore'
 import { useVaultStore } from '../stores/useVaultStore'
 import { useNavigationStore } from '../stores/useNavigationStore'
 import { usePlayerStore } from '../stores/usePlayerStore'
+import { useSettingsStore } from '../stores/useSettingsStore'
 import { Button, Skeleton, CourseCover } from '../components/ui'
 import { CourseCard, ContinueWatchingRail, MergeCoursesModal } from '../components/library'
 import { matchesAnyField } from '../lib/search-utils'
@@ -36,17 +37,21 @@ export function HomeView(): React.JSX.Element {
     isLoading
   } = useLibraryStore()
   const { currentVault } = useVaultStore()
-  const { setImportModalOpen, setVaultModalOpen, navigateToPlayer, navigateToCourse } = useNavigationStore()
+  const { setImportModalOpen, setVaultModalOpen, navigateToPlayer, navigateToCourse, navigateToHistory } = useNavigationStore()
   const { loadHierarchy } = usePlayerStore()
+  const { settings } = useSettingsStore()
   const [isMergeModalOpen, setIsMergeModalOpen] = useState<boolean>(false)
   const [studyAnalytics, setStudyAnalytics] = useState<import('@shared').StudyAnalytics | null>(null)
 
   useEffect(() => {
     if (currentVault) {
       fetchCourses().catch(console.warn)
-      window.api.player.getStudyAnalytics().then(setStudyAnalytics).catch(console.warn)
+      window.api.player
+        .getStudyAnalytics(settings.dailyStudyGoalMinutes || 30)
+        .then(setStudyAnalytics)
+        .catch(console.warn)
     }
-  }, [currentVault, fetchCourses])
+  }, [currentVault, fetchCourses, settings.dailyStudyGoalMinutes])
 
   // Hero: most recently played in-progress course (streaming-style banner)
   const heroCourse = useMemo(() => {
@@ -193,9 +198,17 @@ export function HomeView(): React.JSX.Element {
     <div className="container mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 space-y-10 animate-in fade-in duration-200">
       {/* Study Metrics Mini-Cards */}
       {!searchQuery && studyAnalytics && (
-        <div className="flex flex-wrap items-center gap-4 animate-in slide-in-from-top-2 duration-300">
-          <div className="flex items-center gap-3 rounded-2xl bg-secondary/40 border border-border/50 p-3 shadow-sm min-w-40 flex-1 sm:flex-none">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-orange-500/10 text-orange-500 text-xl">
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => navigateToHistory()}
+          onKeyDown={(e) => e.key === 'Enter' && navigateToHistory()}
+          title={t('analytics.tabTitle', 'Ver Estatísticas e Metas')}
+          className="flex flex-wrap items-center gap-4 animate-in slide-in-from-top-2 duration-300 cursor-pointer group"
+        >
+          {/* Streak Card */}
+          <div className="flex items-center gap-3 rounded-2xl bg-secondary/40 border border-border/50 p-3 shadow-sm min-w-40 flex-1 sm:flex-none group-hover:border-orange-500/40 group-hover:bg-secondary/60 transition-all">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-orange-500/10 text-orange-500 text-xl group-hover:scale-105 transition-transform">
               🔥
             </div>
             <div>
@@ -204,23 +217,33 @@ export function HomeView(): React.JSX.Element {
             </div>
           </div>
           
-          <div className="flex items-center gap-3 rounded-2xl bg-secondary/40 border border-border/50 p-3 shadow-sm min-w-40 flex-1 sm:flex-none">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-500/10 text-blue-500">
+          {/* Daily Goal Progress Card */}
+          <div className="flex items-center gap-3 rounded-2xl bg-secondary/40 border border-border/50 p-3 shadow-sm min-w-40 flex-1 sm:flex-none group-hover:border-blue-500/40 group-hover:bg-secondary/60 transition-all">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-500/10 text-blue-500 group-hover:scale-105 transition-transform">
               <Clock className="h-5 w-5" />
             </div>
             <div>
-              <div className="text-lg font-bold leading-none text-foreground">{Math.floor(studyAnalytics.todaySecondsWatched / 60)}</div>
+              <div className="text-lg font-bold leading-none text-foreground">
+                {Math.floor(studyAnalytics.todaySecondsWatched / 60)}
+                <span className="text-xs font-normal text-muted-foreground ml-1">
+                  / {studyAnalytics.dailyGoalMinutes}m
+                </span>
+              </div>
               <div className="text-xs font-medium text-muted-foreground mt-0.5">{t('home.todayStudy')}</div>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 rounded-2xl bg-secondary/40 border border-border/50 p-3 shadow-sm min-w-40 flex-1 sm:flex-none">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-500">
+          {/* Weekly Lessons Progress Card */}
+          <div className="flex items-center gap-3 rounded-2xl bg-secondary/40 border border-border/50 p-3 shadow-sm min-w-40 flex-1 sm:flex-none group-hover:border-emerald-500/40 group-hover:bg-secondary/60 transition-all">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-500 group-hover:scale-105 transition-transform">
               <CheckCircle2 className="h-5 w-5" />
             </div>
             <div>
               <div className="text-lg font-bold leading-none text-foreground">
                 {studyAnalytics.dailyHistory.slice(-7).reduce((acc, curr) => acc + curr.lessonsCount, 0)}
+                <span className="text-xs font-normal text-muted-foreground ml-1">
+                  / {settings.weeklyLessonsGoal || 10}
+                </span>
               </div>
               <div className="text-xs font-medium text-muted-foreground mt-0.5">{t('home.weekCompleted')}</div>
             </div>

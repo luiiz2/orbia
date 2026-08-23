@@ -4,6 +4,7 @@ import {
   Settings,
   Palette,
   PlaySquare,
+  Target,
   Database,
   Info,
   Check,
@@ -39,6 +40,8 @@ export function SettingsView(): React.JSX.Element {
   ]
 
   const speeds = [0.75, 1.0, 1.25, 1.5, 1.75, 2.0]
+  const dailyGoalPresets = [15, 30, 45, 60, 90, 120]
+  const weeklyLessonPresets = [5, 10, 15, 20, 30]
 
   return (
     <div className="container mx-auto max-w-4xl px-4 py-6 sm:px-6 space-y-6 animate-in fade-in duration-200">
@@ -192,6 +195,104 @@ export function SettingsView(): React.JSX.Element {
                 step={5}
                 onValueChange={(vals) => updateSetting('completionThreshold', vals[0] / 100)}
                 className="py-2"
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Study Goals & Habits Card */}
+        <Card className="rounded-2xl border border-border/80 bg-card shadow-sm">
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <Target className="h-4 w-4 text-primary" />
+              <CardTitle className="text-base font-bold">{t('settings.studyGoals')}</CardTitle>
+            </div>
+            <CardDescription className="text-xs">
+              {t('settings.studyGoalsDesc')}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-5 pt-1">
+            {/* Daily Study Time Goal */}
+            <div className="space-y-3 pb-4 border-b border-border/40">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-foreground">
+                    {t('settings.dailyStudyGoal')}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {t('settings.dailyStudyGoalDesc')}
+                  </p>
+                </div>
+                <span className="font-mono text-sm font-bold text-blue-400 px-2.5 py-1 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                  {settings.dailyStudyGoalMinutes || 30} {t('settings.minPerDay')}
+                </span>
+              </div>
+
+              {/* Preset Chips */}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {dailyGoalPresets.map((mins) => (
+                  <Button
+                    key={mins}
+                    variant={(settings.dailyStudyGoalMinutes || 30) === mins ? 'default' : 'outline'}
+                    size="xs"
+                    onClick={() => updateSetting('dailyStudyGoalMinutes', mins)}
+                    className="text-xs h-7.5 px-3 rounded-lg font-medium"
+                  >
+                    {mins} min
+                  </Button>
+                ))}
+              </div>
+
+              {/* Fine-tuning Slider */}
+              <Slider
+                value={[settings.dailyStudyGoalMinutes || 30]}
+                min={5}
+                max={180}
+                step={5}
+                onValueChange={(vals) => updateSetting('dailyStudyGoalMinutes', vals[0])}
+                className="py-1"
+              />
+            </div>
+
+            {/* Weekly Lessons Goal */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-foreground">
+                    {t('settings.weeklyLessonsGoal')}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {t('settings.weeklyLessonsGoalDesc')}
+                  </p>
+                </div>
+                <span className="font-mono text-sm font-bold text-emerald-400 px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                  {settings.weeklyLessonsGoal || 10} {t('settings.lessonsPerWeek')}
+                </span>
+              </div>
+
+              {/* Preset Chips */}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {weeklyLessonPresets.map((cnt) => (
+                  <Button
+                    key={cnt}
+                    variant={(settings.weeklyLessonsGoal || 10) === cnt ? 'default' : 'outline'}
+                    size="xs"
+                    onClick={() => updateSetting('weeklyLessonsGoal', cnt)}
+                    className="text-xs h-7.5 px-3 rounded-lg font-medium"
+                  >
+                    {cnt} aulas
+                  </Button>
+                ))}
+              </div>
+
+              {/* Fine-tuning Slider */}
+              <Slider
+                value={[settings.weeklyLessonsGoal || 10]}
+                min={1}
+                max={50}
+                step={1}
+                onValueChange={(vals) => updateSetting('weeklyLessonsGoal', vals[0])}
+                className="py-1"
               />
             </div>
           </CardContent>

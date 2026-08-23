@@ -4,6 +4,7 @@ import { History, Play, Clock, Calendar, BookOpen, FileArchive, CheckCircle2, Tr
 import { useNavigationStore } from '../stores/useNavigationStore'
 import { usePlayerStore } from '../stores/usePlayerStore'
 import { useLibraryStore } from '../stores/useLibraryStore'
+import { useSettingsStore } from '../stores/useSettingsStore'
 import { formatTime, formatBytes } from '../lib/formatters'
 import { Button } from '../components/ui'
 import { StudyAnalyticsPanel } from '../components/analytics/StudyAnalyticsPanel'
@@ -14,18 +15,29 @@ export function HistoryView(): React.JSX.Element {
   const { navigateToPlayer } = useNavigationStore()
   const { loadHierarchy } = usePlayerStore()
   const { importHistory, fetchImportHistory, clearImportHistory } = useLibraryStore()
+  const { settings } = useSettingsStore()
 
   const [activeTab, setActiveTab] = useState<'analytics' | 'watch' | 'imports'>('analytics')
   const [historyEntries, setHistoryEntries] = useState<WatchHistoryEntry[]>([])
   const [analytics, setAnalytics] = useState<StudyAnalytics | null>(null)
   const [isLoading, setIsLoading] = useState<boolean>(true)
 
+  const reloadAnalytics = async (goalMinutes?: number): Promise<void> => {
+    try {
+      const targetGoal = goalMinutes || settings.dailyStudyGoalMinutes || 30
+      const analyticsData = await window.api.player.getStudyAnalytics(targetGoal)
+      setAnalytics(analyticsData || null)
+    } catch (err) {
+      console.error('Failed to reload analytics:', err)
+    }
+  }
+
   useEffect(() => {
     const fetchHistory = async (): Promise<void> => {
       try {
         const [entries, analyticsData] = await Promise.all([
           window.api.player.getWatchHistory(100),
-          window.api.player.getStudyAnalytics(30),
+          window.api.player.getStudyAnalytics(settings.dailyStudyGoalMinutes || 30),
           fetchImportHistory()
         ])
         setHistoryEntries(entries || [])
@@ -38,7 +50,7 @@ export function HistoryView(): React.JSX.Element {
     }
 
     fetchHistory().catch(console.warn)
-  }, [fetchImportHistory])
+  }, [fetchImportHistory, settings.dailyStudyGoalMinutes])
 
   const handlePlayEntry = async (entry: WatchHistoryEntry): Promise<void> => {
     try {
@@ -152,7 +164,7 @@ export function HistoryView(): React.JSX.Element {
           ))}
         </div>
       ) : activeTab === 'analytics' ? (
-        <StudyAnalyticsPanel analytics={analytics} isLoading={isLoading} />
+        <StudyAnalyticsPanel analytics={analytics} isLoading={isLoading} onGoalChange={reloadAnalytics} />
       ) : activeTab === 'imports' ? (
         /* Import History Tab */
         <div className="space-y-4">

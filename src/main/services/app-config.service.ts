@@ -151,7 +151,9 @@ export class AppConfigService {
       defaultPlaybackSpeed: 1.0,
       autoPlayNext: true,
       completionThreshold: 0.90,
-      deleteSourceZipAfterImport: false
+      deleteSourceZipAfterImport: false,
+      dailyStudyGoalMinutes: 30,
+      weeklyLessonsGoal: 10
     }
 
     const stmt = this.db!.prepare(`SELECT key, value FROM app_settings`)

@@ -21,7 +21,9 @@ const DEFAULT_SETTINGS: AppSettings = {
   defaultPlaybackSpeed: 1.0,
   autoPlayNext: true,
   completionThreshold: 0.9,
-  deleteSourceZipAfterImport: false
+  deleteSourceZipAfterImport: false,
+  dailyStudyGoalMinutes: 30,
+  weeklyLessonsGoal: 10
 }
 
 function applyTheme(theme: 'dark' | 'light' | 'system'): void {
