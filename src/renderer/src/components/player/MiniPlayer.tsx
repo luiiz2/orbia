@@ -28,15 +28,11 @@ export function MiniPlayer(): React.JSX.Element | null {
   const { currentView, navigateToPlayer } = useNavigationStore()
   const videoRef = useRef<HTMLVideoElement | null>(null)
 
-  // Only show mini player if active AND user is not currently in the full Player view
-  if (!isMiniPlayerActive || currentView === 'player' || !activeLesson) {
-    return null
-  }
+  const isVisible = Boolean(isMiniPlayerActive && currentView !== 'player' && activeLesson)
 
-  const isVideo = activeLesson.mediaType === 'video' || activeLesson.fileExtension?.toLowerCase() === 'mp4' || activeLesson.fileExtension?.toLowerCase() === 'mkv' || activeLesson.fileExtension?.toLowerCase() === 'webm'
-
-  // Sync playback state with video element
+  // Sync playback state with video element (always called, guarded internally)
   useEffect(() => {
+    if (!isVisible) return
     const video = videoRef.current
     if (!video) return
 
@@ -45,28 +41,42 @@ export function MiniPlayer(): React.JSX.Element | null {
     } else {
       video.pause()
     }
-  }, [isPlaying])
+  }, [isVisible, isPlaying])
 
   useEffect(() => {
+    if (!isVisible) return
     const video = videoRef.current
     if (!video) return
     video.volume = isMuted ? 0 : volume
-  }, [volume, isMuted])
+  }, [isVisible, volume, isMuted])
 
   useEffect(() => {
+    if (!isVisible) return
     const video = videoRef.current
     if (!video) return
     video.playbackRate = playbackRate
-  }, [playbackRate])
+  }, [isVisible, playbackRate])
 
-  // Sync initial position when mounted
+  // Sync initial position when mounted or activeLesson changes
   useEffect(() => {
+    if (!isVisible) return
     const video = videoRef.current
     if (!video) return
     if (Math.abs(video.currentTime - currentTime) > 1.5) {
       video.currentTime = currentTime
     }
-  }, [activeLesson.id])
+  }, [isVisible, activeLesson?.id])
+
+  // If not visible, return null AFTER all hooks are called
+  if (!isVisible || !activeLesson) {
+    return null
+  }
+
+  const isVideo =
+    activeLesson.mediaType === 'video' ||
+    activeLesson.fileExtension?.toLowerCase() === 'mp4' ||
+    activeLesson.fileExtension?.toLowerCase() === 'mkv' ||
+    activeLesson.fileExtension?.toLowerCase() === 'webm'
 
   const handleTimeUpdate = (): void => {
     const video = videoRef.current
