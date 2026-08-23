@@ -200,6 +200,7 @@ export interface OrbiaApi {
     selectCoverImage: () => Promise<string | null>
     updateCourseCover: (courseId: string, coverPath: string) => Promise<{ success: boolean; error?: string }>
     updateLessonCover: (lessonId: string, coverPath: string) => Promise<{ success: boolean; error?: string }>
+    extractThumbnails: (payload?: { courseId?: string }) => Promise<{ success: boolean; updatedLessons?: number; updatedCourses?: number; error?: string }>
     list: () => Promise<Course[]>
     getById: (courseId: string) => Promise<{ course: Course; modules: (Module & { lessons: Lesson[] })[] } | null>
     delete: (courseId: string, deleteFiles: boolean) => Promise<{ success: boolean; error?: string }>

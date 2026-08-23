@@ -24,6 +24,7 @@ import type {
 import { naturalCompare } from '../utils/natural-sort'
 import { cleanTitle, normalizeModuleKey } from '../utils/title-cleaner'
 import { isMediaFile, getMediaType } from '../utils/file-utils'
+import { generateVideoFrameCover, persistCover, TEMP_COVERS_DIR } from '../utils/cover-generator'
 import { logger } from './logger.service'
 
 interface MergePreviewTargetModule {
@@ -68,6 +69,7 @@ export class DatabaseService {
       this.cleanupDuplicateModules()
       this.cleanupNonMediaLessons()
       void this.healMissingDurations()
+      void this.extractMissingVideoThumbnails()
     } catch (err) {
       logger.warn('[Database] connect auto-cleanup error:', err)
     }
@@ -2511,6 +2513,9 @@ export class DatabaseService {
     // 4. Clean up any non-media lessons
     this.cleanupNonMediaLessons()
 
+    // 5. Extract video frame thumbnails for lessons missing covers
+    void this.extractMissingVideoThumbnails()
+
     return {
       success: true,
       separatedCoursesCount: separateResult.separatedCoursesCount,
@@ -2519,6 +2524,89 @@ export class DatabaseService {
       reindexedCoursesCount: allCourses.length,
       details
     }
+  }
+
+  public async extractMissingVideoThumbnails(targetCourseId?: string): Promise<{ updatedLessons: number; updatedCourses: number }> {
+    if (!this.db || !this.currentVaultPath) return { updatedLessons: 0, updatedCourses: 0 }
+
+    let updatedLessons = 0
+    let updatedCourses = 0
+
+    try {
+      // 1. Find video lessons with missing or SVG covers
+      const lessonQuery = targetCourseId
+        ? `SELECT id, course_id as courseId, title, file_path as filePath, media_type as mediaType, cover_path as coverPath FROM lessons WHERE course_id = ? AND media_type = 'video' AND (cover_path IS NULL OR cover_path LIKE '%.svg')`
+        : `SELECT id, course_id as courseId, title, file_path as filePath, media_type as mediaType, cover_path as coverPath FROM lessons WHERE media_type = 'video' AND (cover_path IS NULL OR cover_path LIKE '%.svg')`
+
+      const lessons = this.db.prepare(lessonQuery).all(targetCourseId ? [targetCourseId] : []) as {
+        id: string
+        courseId: string
+        title: string
+        filePath: string
+        mediaType: string
+        coverPath: string | null
+      }[]
+
+      for (const les of lessons) {
+        if (!this.db || !this.currentVaultPath) break
+        if (!les.filePath || !fs.existsSync(les.filePath)) continue
+        try {
+          const frame = await generateVideoFrameCover(les.filePath, TEMP_COVERS_DIR, 3)
+          if (frame && this.db && this.currentVaultPath) {
+            const persisted = await persistCover(frame, les.courseId, this.currentVaultPath, 'lesson')
+            if (persisted) {
+              this.db.prepare(`UPDATE lessons SET cover_path = ? WHERE id = ?`).run(persisted, les.id)
+              updatedLessons++
+            }
+          }
+        } catch (err) {
+          logger.warn(`[DatabaseService] Failed to extract video thumbnail for lesson ${les.id}:`, err)
+        }
+      }
+
+      // 2. Find courses with missing or SVG covers
+      if (this.db && this.currentVaultPath) {
+        const courseQuery = targetCourseId
+          ? `SELECT id, title, root_path as rootPath, cover_path as coverPath FROM courses WHERE id = ? AND (cover_path IS NULL OR cover_path LIKE '%.svg')`
+          : `SELECT id, title, root_path as rootPath, cover_path as coverPath FROM courses WHERE (cover_path IS NULL OR cover_path LIKE '%.svg')`
+
+        const courses = this.db.prepare(courseQuery).all(targetCourseId ? [targetCourseId] : []) as {
+          id: string
+          title: string
+          rootPath: string
+          coverPath: string | null
+        }[]
+
+        for (const c of courses) {
+          if (!this.db || !this.currentVaultPath) break
+          const firstVideo = this.db.prepare(
+            `SELECT file_path as filePath, cover_path as coverPath FROM lessons WHERE course_id = ? AND media_type = 'video' AND file_path IS NOT NULL ORDER BY order_index ASC LIMIT 1`
+          ).get(c.id) as { filePath: string; coverPath: string | null } | undefined
+
+          if (firstVideo && firstVideo.coverPath && (firstVideo.coverPath.endsWith('.jpg') || firstVideo.coverPath.endsWith('.png'))) {
+            this.db.prepare(`UPDATE courses SET cover_path = ?, updated_at = ? WHERE id = ?`).run(firstVideo.coverPath, Date.now(), c.id)
+            updatedCourses++
+          } else if (firstVideo?.filePath && fs.existsSync(firstVideo.filePath)) {
+            try {
+              const frame = await generateVideoFrameCover(firstVideo.filePath, TEMP_COVERS_DIR, 3)
+              if (frame && this.db && this.currentVaultPath) {
+                const persisted = await persistCover(frame, c.id, this.currentVaultPath, 'course')
+                if (persisted) {
+                  this.db.prepare(`UPDATE courses SET cover_path = ?, updated_at = ? WHERE id = ?`).run(persisted, Date.now(), c.id)
+                  updatedCourses++
+                }
+              }
+            } catch (err) {
+              logger.warn(`[DatabaseService] Failed to extract video thumbnail for course ${c.id}:`, err)
+            }
+          }
+        }
+      }
+    } catch (err) {
+      logger.warn('[DatabaseService] extractMissingVideoThumbnails error:', err)
+    }
+
+    return { updatedLessons, updatedCourses }
   }
 
   // --- Import History ---

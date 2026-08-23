@@ -412,6 +412,17 @@ export function registerCoursesIpc(): void {
     }
   })
 
+  // Extract video frame thumbnails
+  ipcMain.handle('courses:extract-thumbnails', async (_event, payload?: { courseId?: string }) => {
+    try {
+      const res = await databaseService.extractMissingVideoThumbnails(payload?.courseId)
+      return { success: true, ...res }
+    } catch (err: unknown) {
+      logger.error('[IPC] courses:extract-thumbnails error:', err)
+      return { success: false, error: err instanceof Error ? err.message : String(err) }
+    }
+  })
+
   // Prepare a ZIP in Main-owned temporary staging. No user file changes here.
   ipcMain.handle('courses:prepare-zip-import', async (event, payload: unknown) => {
     try {

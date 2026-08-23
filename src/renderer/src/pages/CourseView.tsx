@@ -185,6 +185,12 @@ export function CourseView(): React.JSX.Element {
       fetchCourseById(selectedCourseId).catch(console.warn)
       fetchCourseProgress(selectedCourseId).catch(console.warn)
       fetchCourseHealth(selectedCourseId).catch(console.warn)
+
+      window.api.courses.extractThumbnails({ courseId: selectedCourseId }).then((res) => {
+        if (res.success && ((res.updatedLessons || 0) > 0 || (res.updatedCourses || 0) > 0)) {
+          fetchCourseById(selectedCourseId).catch(console.warn)
+        }
+      }).catch(console.warn)
     }
   }, [selectedCourseId, fetchCourseById, fetchCourseProgress, fetchCourseHealth])
 

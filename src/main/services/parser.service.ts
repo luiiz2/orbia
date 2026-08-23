@@ -15,10 +15,11 @@ import {
   isImageFile,
   isMediaFile,
   isPreservableContentFile,
-  isSubtitleFile
+  isSubtitleFile,
+  isVideoFile
 } from '../utils/file-utils'
 import type { ScannedDirectory, ScannedFile } from './scanner.service'
-import { ensureCourseCover, generateTextCover } from '../utils/cover-generator'
+import { ensureCourseCover, ensureLessonCover } from '../utils/cover-generator'
 import { probeMediaDurationsBatch } from '../utils/media-probe'
 
 interface ParsedModuleContent {
@@ -47,10 +48,12 @@ export class ParserService {
     const suggestedTitle = cleanCourseTitle(scannedDir.name)
     const rootPath = scannedDir.fullPath
 
-    // 1. Locate a root cover image; generate a fallback if missing.
+    // 1. Locate a root cover image; generate a fallback from first video frame or text if missing.
     let coverPath = this.findCoverImage(scannedDir)
     if (!coverPath) {
-      coverPath = await ensureCourseCover(rootPath, suggestedTitle)
+      const allFiles = this.collectAllFilesRecursive(scannedDir)
+      const firstVideo = allFiles.find((f) => isVideoFile(f.fullPath))
+      coverPath = await ensureCourseCover(rootPath, suggestedTitle, firstVideo?.fullPath)
     }
 
     // 2. Identify modules, playable lessons, and all other preserved content.
@@ -265,7 +268,7 @@ export class ParserService {
       const parentDirName = path.basename(path.dirname(file.fullPath))
       const title = cleanLessonTitle(file.name, parentDirName)
       const companionImg = imageFiles.find((image) => this.isCompanionImageForLesson(image, file))
-      const coverPath = companionImg ? companionImg.fullPath : await generateTextCover(title)
+      const coverPath = companionImg ? companionImg.fullPath : await ensureLessonCover(file.fullPath, title)
       const duration = durations.get(file.fullPath) || 0
 
       lessons.push({

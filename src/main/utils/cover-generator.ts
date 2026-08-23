@@ -97,7 +97,8 @@ export async function generateTextCover(
  */
 export async function generateVideoFrameCover(
   videoPath: string,
-  outputDir: string = TEMP_COVERS_DIR
+  outputDir: string = TEMP_COVERS_DIR,
+  timestampSeconds: number = 3
 ): Promise<string | null> {
   if (!fs.existsSync(videoPath)) {
     console.warn(`[CoverGenerator] Video not found: ${videoPath}`)
@@ -116,7 +117,7 @@ export async function generateVideoFrameCover(
   return new Promise((resolve) => {
     ffmpeg(videoPath)
       .screenshots({
-        timestamps: [1],
+        timestamps: [timestampSeconds],
         filename: path.basename(outputPath),
         folder: outputDir,
         size: '640x360'
@@ -129,8 +130,24 @@ export async function generateVideoFrameCover(
         }
       })
       .on('error', (err) => {
-        console.warn(`[CoverGenerator] Frame extraction failed for ${videoPath}: ${err.message}`)
-        resolve(null)
+        if (timestampSeconds > 0) {
+          ffmpeg(videoPath)
+            .screenshots({
+              timestamps: [0],
+              filename: path.basename(outputPath),
+              folder: outputDir,
+              size: '640x360'
+            })
+            .on('end', () => {
+              resolve(fs.existsSync(outputPath) ? outputPath : null)
+            })
+            .on('error', () => {
+              resolve(null)
+            })
+        } else {
+          console.warn(`[CoverGenerator] Frame extraction failed for ${videoPath}: ${err.message}`)
+          resolve(null)
+        }
       })
   })
 }
@@ -214,19 +231,25 @@ export function findExistingCoverInDir(dirPath: string): string | null {
 }
 
 /**
- * Ensures a course has a GENERAL cover (not a media frame / PDF page).
- * Priority:
+ * Ensures a course has a cover image. Priority:
  * 1. Existing cover image in course root (user-provided)
- * 2. Branded SVG placeholder with the course title
+ * 2. Real video frame from first video lesson (if media exists)
+ * 3. Branded SVG placeholder with the course title
  * Returns the cover file path. Never returns undefined.
  */
 export async function ensureCourseCover(
   courseRootPath: string,
   courseTitle: string,
+  firstVideoPath?: string,
   outputDir: string = TEMP_COVERS_DIR
 ): Promise<string> {
   const existing = findExistingCoverInDir(courseRootPath)
   if (existing) return existing
+
+  if (firstVideoPath && isVideoFile(firstVideoPath)) {
+    const videoFrame = await generateVideoFrameCover(firstVideoPath, outputDir, 3)
+    if (videoFrame) return videoFrame
+  }
 
   return generateTextCover(courseTitle, outputDir)
 }
@@ -243,7 +266,7 @@ export async function ensureLessonCover(
   outputDir: string = TEMP_COVERS_DIR
 ): Promise<string> {
   if (isVideoFile(mediaPath)) {
-    const frame = await generateVideoFrameCover(mediaPath, outputDir)
+    const frame = await generateVideoFrameCover(mediaPath, outputDir, 3)
     if (frame) return frame
   }
   if (isPdfFile(mediaPath)) {

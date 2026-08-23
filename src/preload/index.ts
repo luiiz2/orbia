@@ -39,6 +39,7 @@ const api: OrbiaApi = {
     selectCoverImage: () => ipcRenderer.invoke('courses:select-cover-image'),
     updateCourseCover: (courseId, coverPath) => ipcRenderer.invoke('courses:update-course-cover', { courseId, coverPath }),
     updateLessonCover: (lessonId, coverPath) => ipcRenderer.invoke('courses:update-lesson-cover', { lessonId, coverPath }),
+    extractThumbnails: (payload?: { courseId?: string }) => ipcRenderer.invoke('courses:extract-thumbnails', payload),
     list: () => ipcRenderer.invoke('courses:list'),
     getById: (courseId: string) => ipcRenderer.invoke('courses:get-by-id', { courseId }),
     delete: (courseId: string, deleteFiles: boolean) => ipcRenderer.invoke('courses:delete', { courseId, deleteFiles }),
