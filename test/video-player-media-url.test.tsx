@@ -45,6 +45,10 @@ vi.mock('../src/renderer/src/components/player/PlayerControls', () => ({
   PlayerControls: () => null
 }))
 
+vi.mock('../src/renderer/src/components/player/FocusTimer', () => ({
+  FocusTimer: () => null
+}))
+
 vi.mock('../src/renderer/src/components/player/DocumentLessonView', () => ({
   DocumentLessonView: () => null
 }))

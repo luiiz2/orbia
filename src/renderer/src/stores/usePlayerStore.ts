@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { Course, Module, Lesson, LessonProgress, LessonNote } from '@shared'
+import type { Course, Module, Lesson, LessonProgress, LessonNote, VideoBookmark, Flashcard } from '@shared'
 import { mediaUrl } from '../lib/utils'
 
 export interface PlayerModuleWithLessons extends Module {
@@ -25,12 +25,24 @@ export interface PlayerState {
   notes: LessonNote[]
   isLoadingNotes: boolean
 
+  // Bookmarks (v0.3)
+  bookmarks: VideoBookmark[]
+  isLoadingBookmarks: boolean
+
+  // Flashcards (v0.3)
+  flashcards: Flashcard[]
+  isLoadingFlashcards: boolean
+
   // Subtitles
   activeSubtitleTrack: string | null
   subtitleTracks: { id: string; label: string; vttUrl: string }[]
 
-  // Picture-in-Picture
+  // Picture-in-Picture & Mini-Player (v0.4)
   isPiP: boolean
+  isMiniPlayerActive: boolean
+
+  // Playback Queue ("A Seguir" / Up Next) (v0.4)
+  playbackQueue: Lesson[]
 
   // Actions
   play: () => void
@@ -45,6 +57,14 @@ export interface PlayerState {
   setTheaterMode: (theater: boolean) => void
   togglePiP: () => void
   setPiP: (isPiP: boolean) => void
+  setMiniPlayerActive: (active: boolean) => void
+  dismissMiniPlayer: () => void
+
+  // Playback Queue Actions (v0.4)
+  addToQueue: (lesson: Lesson) => void
+  removeFromQueue: (lessonId: string) => void
+  reorderQueue: (fromIndex: number, toIndex: number) => void
+  clearQueue: () => void
   loadHierarchy: (
     course: Course,
     modules: PlayerModuleWithLessons[],
@@ -64,6 +84,17 @@ export interface PlayerState {
   updateNote: (id: string, content: string) => Promise<void>
   deleteNote: (id: string) => Promise<void>
   exportNotes: (courseId: string) => Promise<string>
+
+  // Bookmark actions (v0.3)
+  fetchBookmarks: (lessonId: string) => Promise<void>
+  addBookmark: (title?: string, color?: string, timestamp?: number) => Promise<VideoBookmark | null>
+  updateBookmark: (id: string, updates: { title?: string; color?: string; timestamp?: number }) => Promise<boolean>
+  deleteBookmark: (id: string) => Promise<boolean>
+
+  // Flashcard actions (v0.3)
+  fetchFlashcards: (lessonId: string) => Promise<void>
+  addFlashcard: (question: string, answer: string, timestamp?: number) => Promise<Flashcard | null>
+  deleteFlashcard: (id: string) => Promise<boolean>
 
   // Subtitle actions
   setSubtitleTrack: (id: string | null) => void
@@ -95,12 +126,24 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   notes: [],
   isLoadingNotes: false,
 
+  // Bookmarks state (v0.3)
+  bookmarks: [],
+  isLoadingBookmarks: false,
+
+  // Flashcards state (v0.3)
+  flashcards: [],
+  isLoadingFlashcards: false,
+
   // Subtitles state
   activeSubtitleTrack: null,
   subtitleTracks: [],
 
-  // PiP state
+  // PiP & Mini-Player state (v0.4)
   isPiP: false,
+  isMiniPlayerActive: false,
+
+  // Playback Queue state (v0.4)
+  playbackQueue: [],
 
   play: () => {
     set({ isPlaying: true })
@@ -182,6 +225,42 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
   setPiP: (isPiP: boolean) => {
     set({ isPiP })
+  },
+
+  setMiniPlayerActive: (isMiniPlayerActive: boolean) => {
+    set({ isMiniPlayerActive })
+  },
+
+  dismissMiniPlayer: () => {
+    set({ isMiniPlayerActive: false, isPlaying: false })
+  },
+
+  addToQueue: (lesson: Lesson) => {
+    set((state) => {
+      if (state.playbackQueue.some((l) => l.id === lesson.id)) return state
+      return { playbackQueue: [...state.playbackQueue, lesson] }
+    })
+  },
+
+  removeFromQueue: (lessonId: string) => {
+    set((state) => ({
+      playbackQueue: state.playbackQueue.filter((l) => l.id !== lessonId)
+    }))
+  },
+
+  reorderQueue: (fromIndex: number, toIndex: number) => {
+    set((state) => {
+      const copy = [...state.playbackQueue]
+      const [moved] = copy.splice(fromIndex, 1)
+      if (moved) {
+        copy.splice(toIndex, 0, moved)
+      }
+      return { playbackQueue: copy }
+    })
+  },
+
+  clearQueue: () => {
+    set({ playbackQueue: [] })
   },
 
   loadHierarchy: async (course, modules, initialLessonId) => {
@@ -309,8 +388,12 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       activeSubtitleTrack: preparedTracks.length > 0 ? preparedTracks[0].id : null
     })
 
-    // Fetch notes for the active lesson
-    await get().fetchNotes(foundLesson.id)
+    // Fetch notes, bookmarks, and flashcards for the active lesson
+    await Promise.all([
+      get().fetchNotes(foundLesson.id),
+      get().fetchBookmarks(foundLesson.id),
+      get().fetchFlashcards(foundLesson.id)
+    ])
 
     // Record watch history
     if (activeCourse) {
@@ -329,7 +412,14 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   },
 
   nextLesson: async () => {
-    const { modulesWithLessons, activeLesson } = get()
+    const { playbackQueue, modulesWithLessons, activeLesson } = get()
+    if (playbackQueue.length > 0) {
+      const [nextQueued, ...rest] = playbackQueue
+      set({ playbackQueue: rest })
+      await get().loadLesson(nextQueued.id)
+      return true
+    }
+
     if (!activeLesson) return false
 
     const allLessons: Lesson[] = []
@@ -517,6 +607,124 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     }
   },
 
+  // Bookmark actions (v0.3)
+  fetchBookmarks: async (lessonId: string) => {
+    set({ isLoadingBookmarks: true })
+    try {
+      const bmarks = await window.api.bookmarks.listByLesson(lessonId)
+      set({ bookmarks: bmarks || [], isLoadingBookmarks: false })
+    } catch (err) {
+      console.error('Failed to fetch bookmarks:', err)
+      set({ bookmarks: [], isLoadingBookmarks: false })
+    }
+  },
+
+  addBookmark: async (title?: string, color?: string, timestamp?: number) => {
+    const { activeLesson, activeCourse, currentTime } = get()
+    if (!activeLesson || !activeCourse) return null
+    const time = timestamp !== undefined ? timestamp : currentTime
+
+    try {
+      const bmark = await window.api.bookmarks.create({
+        courseId: activeCourse.id,
+        lessonId: activeLesson.id,
+        timestamp: time,
+        title,
+        color
+      })
+      set((state) => ({
+        bookmarks: [...state.bookmarks, bmark].sort((a, b) => a.timestamp - b.timestamp)
+      }))
+      return bmark
+    } catch (err) {
+      console.error('Failed to add bookmark:', err)
+      return null
+    }
+  },
+
+  updateBookmark: async (id: string, updates: { title?: string; color?: string; timestamp?: number }) => {
+    try {
+      const ok = await window.api.bookmarks.update(id, updates)
+      if (ok) {
+        set((state) => ({
+          bookmarks: state.bookmarks
+            .map((b) => (b.id === id ? { ...b, ...updates, updatedAt: Date.now() } : b))
+            .sort((a, b) => a.timestamp - b.timestamp)
+        }))
+      }
+      return ok
+    } catch (err) {
+      console.error('Failed to update bookmark:', err)
+      return false
+    }
+  },
+
+  deleteBookmark: async (id: string) => {
+    try {
+      const ok = await window.api.bookmarks.delete(id)
+      if (ok) {
+        set((state) => ({
+          bookmarks: state.bookmarks.filter((b) => b.id !== id)
+        }))
+      }
+      return ok
+    } catch (err) {
+      console.error('Failed to delete bookmark:', err)
+      return false
+    }
+  },
+
+  // Flashcard actions (v0.3)
+  fetchFlashcards: async (lessonId: string) => {
+    set({ isLoadingFlashcards: true })
+    try {
+      const cards = await window.api.flashcards.listByLesson(lessonId)
+      set({ flashcards: cards || [], isLoadingFlashcards: false })
+    } catch (err) {
+      console.error('Failed to fetch lesson flashcards:', err)
+      set({ flashcards: [], isLoadingFlashcards: false })
+    }
+  },
+
+  addFlashcard: async (question: string, answer: string, timestamp?: number) => {
+    const { activeLesson, activeCourse, activeModule, currentTime } = get()
+    if (!activeLesson || !question.trim() || !answer.trim()) return null
+    const time = timestamp !== undefined ? timestamp : currentTime
+
+    try {
+      const card = await window.api.flashcards.create({
+        courseId: activeCourse?.id,
+        moduleId: activeModule?.id,
+        lessonId: activeLesson.id,
+        timestamp: time,
+        question: question.trim(),
+        answer: answer.trim()
+      })
+      set((state) => ({
+        flashcards: [card, ...state.flashcards]
+      }))
+      return card
+    } catch (err) {
+      console.error('Failed to add flashcard:', err)
+      return null
+    }
+  },
+
+  deleteFlashcard: async (id: string) => {
+    try {
+      const ok = await window.api.flashcards.delete(id)
+      if (ok) {
+        set((state) => ({
+          flashcards: state.flashcards.filter((f) => f.id !== id)
+        }))
+      }
+      return ok
+    } catch (err) {
+      console.error('Failed to delete flashcard:', err)
+      return false
+    }
+  },
+
   setSubtitleTrack: (id: string | null) => {
     set({ activeSubtitleTrack: id })
   },
@@ -593,9 +801,15 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       theaterMode: false,
       notes: [],
       isLoadingNotes: false,
+      bookmarks: [],
+      isLoadingBookmarks: false,
+      flashcards: [],
+      isLoadingFlashcards: false,
       activeSubtitleTrack: null,
       subtitleTracks: [],
       isPiP: false,
+      isMiniPlayerActive: false,
+      playbackQueue: [],
       brokenLessonIds: []
     })
   }

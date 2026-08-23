@@ -37,6 +37,7 @@ export interface PlayerControlsProps {
   hasPrevLesson: boolean
   bufferedEnd?: number
   notes?: import('@shared').LessonNote[]
+  bookmarks?: import('@shared').VideoBookmark[]
   onTogglePlay: () => void
   onSeek: (time: number) => void
   onSeekRelative: (deltaSeconds: number) => void
@@ -67,6 +68,7 @@ export function PlayerControls({
   hasPrevLesson,
   bufferedEnd,
   notes,
+  bookmarks,
   onTogglePlay,
   onSeek,
   onSeekRelative,
@@ -96,6 +98,7 @@ export function PlayerControls({
         duration={duration}
         bufferedEnd={bufferedEnd}
         notes={notes}
+        bookmarks={bookmarks}
         onSeek={onSeek}
         className="mb-2"
       />

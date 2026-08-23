@@ -5,6 +5,7 @@ import { SplashScreen } from './components/layout/SplashScreen'
 import { HomeView } from './pages/HomeView'
 import { CourseView } from './pages/CourseView'
 import { PlayerView } from './pages/PlayerView'
+import { ReviewView } from './pages/ReviewView'
 import { HistoryView } from './pages/HistoryView'
 import { SettingsView } from './pages/SettingsView'
 import { ImportWizard } from './components/import/ImportWizard'
@@ -48,6 +49,8 @@ export function App(): React.JSX.Element {
         return <CourseView />
       case 'player':
         return <PlayerView />
+      case 'review':
+        return <ReviewView />
       case 'history':
         return <HistoryView />
       case 'settings':

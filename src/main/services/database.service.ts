@@ -19,7 +19,16 @@ import type {
   FileOperationRecord,
   AttachedResource,
   ContentResource,
-  SubtitleTrack
+  SubtitleTrack,
+  VideoBookmark,
+  Flashcard,
+  FlashcardState,
+  FlashcardReviewGrade,
+  StudyQueueItem,
+  StudyQueueEntityType,
+  CourseGoal,
+  StudySession,
+  ReviewDashboardStats
 } from '../../types'
 import { naturalCompare } from '../utils/natural-sort'
 import { cleanTitle, normalizeModuleKey } from '../utils/title-cleaner'
@@ -65,13 +74,10 @@ export class DatabaseService {
     this.runMigrations()
     this.recoverPendingFileOperations(vaultPath)
     try {
-      this.separateMistakenlyMergedCourses()
-      this.cleanupDuplicateModules()
-      this.cleanupNonMediaLessons()
       void this.healMissingDurations()
       void this.extractMissingVideoThumbnails()
     } catch (err) {
-      logger.warn('[Database] connect auto-cleanup error:', err)
+      logger.warn('[Database] connect background healing error:', err)
     }
   }
 
@@ -81,6 +87,10 @@ export class DatabaseService {
       this.db = null
       this.currentVaultPath = null
     }
+  }
+
+  public disconnect(): void {
+    this.close()
   }
 
   public isConnected(): boolean {
@@ -368,6 +378,115 @@ export class DatabaseService {
       })()
     }
 
+    const orgMigrationId = '002_course_organization_engine'
+    const orgMigrationApplied = this.db.prepare(`SELECT id FROM _migrations WHERE id = ?`).get(orgMigrationId)
+
+    if (!orgMigrationApplied) {
+      this.db.transaction(() => {
+        const alters = [
+          `ALTER TABLE courses ADD COLUMN merged_into_course_id TEXT DEFAULT NULL REFERENCES courses(id);`,
+          `ALTER TABLE courses ADD COLUMN merge_metadata TEXT DEFAULT NULL;`,
+          `ALTER TABLE modules ADD COLUMN is_auxiliary INTEGER NOT NULL DEFAULT 0;`,
+          `ALTER TABLE modules ADD COLUMN parent_module_id TEXT DEFAULT NULL REFERENCES modules(id);`,
+          `ALTER TABLE modules ADD COLUMN has_manual_order INTEGER NOT NULL DEFAULT 0;`,
+          `ALTER TABLE lessons ADD COLUMN has_manual_order INTEGER NOT NULL DEFAULT 0;`,
+          `ALTER TABLE lessons ADD COLUMN is_multipart INTEGER NOT NULL DEFAULT 0;`,
+          `ALTER TABLE lessons ADD COLUMN parent_lesson_id TEXT DEFAULT NULL REFERENCES lessons(id);`,
+          `ALTER TABLE lessons ADD COLUMN part_number INTEGER DEFAULT NULL;`,
+          `ALTER TABLE lessons ADD COLUMN content_hash TEXT DEFAULT NULL;`,
+          `ALTER TABLE lessons ADD COLUMN fingerprint_signature TEXT DEFAULT NULL;`
+        ]
+        for (const sql of alters) {
+          try {
+            this.db!.exec(sql)
+          } catch {
+            // Ignored if column already exists
+          }
+        }
+
+        try {
+          this.db!.exec(`CREATE INDEX IF NOT EXISTS idx_courses_merged_into ON courses(merged_into_course_id);`)
+          this.db!.exec(`CREATE INDEX IF NOT EXISTS idx_lessons_content_hash ON lessons(content_hash);`)
+          this.db!.exec(`CREATE INDEX IF NOT EXISTS idx_lessons_parent ON lessons(parent_lesson_id);`)
+          this.db!.exec(`CREATE INDEX IF NOT EXISTS idx_modules_parent ON modules(parent_module_id);`)
+        } catch {
+          // Ignored
+        }
+
+        this.db!.prepare(`INSERT INTO _migrations (id, applied_at) VALUES (?, ?)`).run(orgMigrationId, Date.now())
+      })()
+    }
+
+    const v03MigrationId = '003_v03_review_and_portability'
+    const v03MigrationApplied = this.db.prepare(`SELECT id FROM _migrations WHERE id = ?`).get(v03MigrationId)
+
+    if (!v03MigrationApplied) {
+      this.db.transaction(() => {
+        this.db!.exec(`
+          CREATE TABLE IF NOT EXISTS video_bookmarks (
+            id TEXT PRIMARY KEY,
+            course_id TEXT NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+            lesson_id TEXT NOT NULL REFERENCES lessons(id) ON DELETE CASCADE,
+            timestamp REAL NOT NULL,
+            title TEXT,
+            color TEXT,
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL
+          );
+          CREATE INDEX IF NOT EXISTS idx_bookmarks_course ON video_bookmarks(course_id);
+          CREATE INDEX IF NOT EXISTS idx_bookmarks_lesson ON video_bookmarks(lesson_id);
+
+          CREATE TABLE IF NOT EXISTS flashcards (
+            id TEXT PRIMARY KEY,
+            course_id TEXT REFERENCES courses(id) ON DELETE CASCADE,
+            module_id TEXT REFERENCES modules(id) ON DELETE CASCADE,
+            lesson_id TEXT REFERENCES lessons(id) ON DELETE CASCADE,
+            timestamp REAL,
+            question TEXT NOT NULL,
+            answer TEXT NOT NULL,
+            state TEXT NOT NULL DEFAULT 'NEW',
+            due_at INTEGER,
+            interval_days INTEGER NOT NULL DEFAULT 0,
+            success_count INTEGER NOT NULL DEFAULT 0,
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL
+          );
+          CREATE INDEX IF NOT EXISTS idx_flashcards_course ON flashcards(course_id);
+          CREATE INDEX IF NOT EXISTS idx_flashcards_lesson ON flashcards(lesson_id);
+          CREATE INDEX IF NOT EXISTS idx_flashcards_due ON flashcards(due_at);
+
+          CREATE TABLE IF NOT EXISTS study_queue (
+            id TEXT PRIMARY KEY,
+            entity_type TEXT NOT NULL,
+            entity_id TEXT NOT NULL,
+            order_index INTEGER NOT NULL,
+            created_at INTEGER NOT NULL
+          );
+          CREATE INDEX IF NOT EXISTS idx_study_queue_order ON study_queue(order_index);
+
+          CREATE TABLE IF NOT EXISTS course_goals (
+            course_id TEXT PRIMARY KEY REFERENCES courses(id) ON DELETE CASCADE,
+            target_date INTEGER,
+            daily_minutes INTEGER,
+            weekly_lessons INTEGER,
+            updated_at INTEGER NOT NULL
+          );
+
+          CREATE TABLE IF NOT EXISTS study_sessions (
+            id TEXT PRIMARY KEY,
+            course_id TEXT REFERENCES courses(id) ON DELETE CASCADE,
+            started_at INTEGER NOT NULL,
+            ended_at INTEGER,
+            duration INTEGER NOT NULL DEFAULT 0,
+            source TEXT NOT NULL DEFAULT 'player'
+          );
+          CREATE INDEX IF NOT EXISTS idx_study_sessions_started ON study_sessions(started_at);
+        `)
+
+        this.db!.prepare(`INSERT INTO _migrations (id, applied_at) VALUES (?, ?)`).run(v03MigrationId, Date.now())
+      })()
+    }
+
     const userVersion = this.db.pragma('user_version', { simple: true }) as number
 
     if (userVersion < 1) {
@@ -431,31 +550,39 @@ export class DatabaseService {
       INSERT INTO courses (
         id, title, custom_title, slug, source_type, root_path, is_external,
         cover_path, description, total_duration, module_count,
-        lesson_count, is_favorite, created_at, updated_at, last_accessed_at
+        lesson_count, is_favorite, merged_into_course_id, merge_metadata,
+        created_at, updated_at, last_accessed_at
       ) VALUES (
         @id, @title, @customTitle, @slug, @sourceType, @rootPath, @isExternal,
         @coverPath, @description, @totalDuration, @moduleCount,
-        @lessonCount, @isFavorite, @createdAt, @updatedAt, @lastAccessedAt
+        @lessonCount, @isFavorite, @mergedIntoCourseId, @mergeMetadata,
+        @createdAt, @updatedAt, @lastAccessedAt
       )
     `)
 
     const insertModule = this.db!.prepare(`
       INSERT INTO modules (
-        id, course_id, title, custom_title, order_index, display_order, folder_path,
+        id, course_id, title, custom_title, order_index, display_order,
+        has_manual_order, is_auxiliary, parent_module_id, folder_path,
         duration, lesson_count, created_at
       ) VALUES (
-        @id, @courseId, @title, @customTitle, @orderIndex, @displayOrder, @folderPath,
+        @id, @courseId, @title, @customTitle, @orderIndex, @displayOrder,
+        @hasManualOrder, @isAuxiliary, @parentModuleId, @folderPath,
         @duration, @lessonCount, @createdAt
       )
     `)
 
     const insertLesson = this.db!.prepare(`
       INSERT INTO lessons (
-        id, module_id, course_id, title, custom_title, order_index, display_order, is_favorite,
+        id, module_id, course_id, title, custom_title, order_index, display_order,
+        has_manual_order, is_multipart, parent_lesson_id, part_number,
+        content_hash, fingerprint_signature, is_favorite,
         file_path, file_name, file_extension, media_type,
         duration, file_size, availability, cover_path, created_at
       ) VALUES (
-        @id, @moduleId, @courseId, @title, @customTitle, @orderIndex, @displayOrder, @isFavorite,
+        @id, @moduleId, @courseId, @title, @customTitle, @orderIndex, @displayOrder,
+        @hasManualOrder, @isMultipart, @parentLessonId, @partNumber,
+        @contentHash, @fingerprintSignature, @isFavorite,
         @filePath, @fileName, @fileExtension, @mediaType,
         @duration, @fileSize, @availability, @coverPath, @createdAt
       )
@@ -486,6 +613,8 @@ export class DatabaseService {
         moduleCount: cleanedModules.length,
         lessonCount: totalCourseLessons,
         isFavorite: course.isFavorite ? 1 : 0,
+        mergedIntoCourseId: course.mergedIntoCourseId || null,
+        mergeMetadata: course.mergeMetadata || null,
         createdAt: course.createdAt,
         updatedAt: course.updatedAt,
         lastAccessedAt: course.lastAccessedAt || null
@@ -499,10 +628,13 @@ export class DatabaseService {
           customTitle: mod.customTitle || null,
           orderIndex: mod.orderIndex,
           displayOrder: mod.displayOrder || mod.orderIndex,
+          hasManualOrder: mod.hasManualOrder ? 1 : 0,
+          isAuxiliary: mod.isAuxiliary ? 1 : 0,
+          parentModuleId: mod.parentModuleId || null,
           folderPath: mod.folderPath || null,
           duration: mod.duration,
           lessonCount: mod.lessons.length,
-          createdAt: mod.createdAt
+          createdAt: mod.createdAt || Date.now()
         })
 
         for (const resource of moduleResourcesForPersistence(mod, course.id)) {
@@ -518,6 +650,12 @@ export class DatabaseService {
             customTitle: lesson.customTitle || null,
             orderIndex: lesson.orderIndex,
             displayOrder: lesson.displayOrder || lesson.orderIndex,
+            hasManualOrder: lesson.hasManualOrder ? 1 : 0,
+            isMultipart: lesson.isMultipart ? 1 : 0,
+            parentLessonId: lesson.parentLessonId || null,
+            partNumber: lesson.partNumber || null,
+            contentHash: lesson.contentHash || null,
+            fingerprintSignature: lesson.fingerprintSignature || null,
             isFavorite: lesson.isFavorite ? 1 : 0,
             filePath: lesson.filePath,
             fileName: lesson.fileName,
@@ -548,8 +686,11 @@ export class DatabaseService {
         cover_path as coverPath, description, total_duration as totalDuration,
         module_count as moduleCount, lesson_count as lessonCount,
         is_favorite as isFavorite,
+        merged_into_course_id as mergedIntoCourseId,
+        merge_metadata as mergeMetadata,
         created_at as createdAt, updated_at as updatedAt, last_accessed_at as lastAccessedAt
       FROM courses
+      WHERE merged_into_course_id IS NULL
       ORDER BY last_accessed_at DESC NULLS LAST, created_at DESC
     `)
     const rows = stmt.all() as (Omit<Course, 'isFavorite'> & { isFavorite: number })[]
@@ -561,8 +702,7 @@ export class DatabaseService {
   }
 
   public getCourseById(
-    courseId: string,
-    options?: { skipDeduplication?: boolean }
+    courseId: string
   ): { course: Course; modules: (Module & { lessons: Lesson[] })[] } | null {
     this.ensureConnected()
 
@@ -572,6 +712,8 @@ export class DatabaseService {
         cover_path as coverPath, description, total_duration as totalDuration,
         module_count as moduleCount, lesson_count as lessonCount,
         is_favorite as isFavorite,
+        merged_into_course_id as mergedIntoCourseId,
+        merge_metadata as mergeMetadata,
         created_at as createdAt, updated_at as updatedAt, last_accessed_at as lastAccessedAt
       FROM courses
       WHERE id = ?
@@ -582,34 +724,18 @@ export class DatabaseService {
     const modulesStmt = this.db!.prepare(`
       SELECT
         id, course_id as courseId, title, custom_title as customTitle, order_index as orderIndex,
-        display_order as displayOrder,
+        display_order as displayOrder, has_manual_order as hasManualOrder,
+        is_auxiliary as isAuxiliary, parent_module_id as parentModuleId,
         folder_path as folderPath, duration, lesson_count as lessonCount,
         created_at as createdAt
       FROM modules
       WHERE course_id = ?
       ORDER BY display_order ASC, order_index ASC
     `)
-    const modules = modulesStmt.all(courseId) as Module[]
-
-    // Self-healing check for duplicate modules in database
-    if (!options?.skipDeduplication && modules.length > 1) {
-      const seenModuleKeys = new Set<string>()
-      let hasDuplicateModules = false
-      for (const mod of modules) {
-        const rawTitle = (mod.title || '').trim()
-        const key = normalizeModuleKey(rawTitle) || rawTitle.toLowerCase()
-        if (seenModuleKeys.has(key)) {
-          hasDuplicateModules = true
-          break
-        }
-        seenModuleKeys.add(key)
-      }
-
-      if (hasDuplicateModules) {
-        this.reindexCourseHierarchy(courseId)
-        return this.getCourseById(courseId, { skipDeduplication: true })
-      }
-    }
+    const modules = modulesStmt.all(courseId) as (Omit<Module, 'hasManualOrder' | 'isAuxiliary'> & {
+      hasManualOrder: number
+      isAuxiliary: number
+    })[]
 
     const lessonsStmt = this.db!.prepare(`
       SELECT
@@ -676,10 +802,12 @@ export class DatabaseService {
       }
     }
 
-    const modulesWithLessons = modules.map((mod) => {
+    const modulesWithLessons: (Module & { lessons: Lesson[] })[] = modules.map((mod) => {
       const resources = resourcesByModule.get(mod.id) || []
       return {
         ...mod,
+        hasManualOrder: Boolean(mod.hasManualOrder),
+        isAuxiliary: Boolean(mod.isAuxiliary),
         ...(resources.length > 0 ? { resources } : {}),
         lessons: lessonsByModule.get(mod.id) || []
       }
@@ -1322,6 +1450,592 @@ export class DatabaseService {
     return stmt.all(courseId) as LessonNote[]
   }
 
+  // --- Video Bookmarks Operations (v0.3) ---
+
+  public createBookmark(bookmark: {
+    id?: string
+    courseId: string
+    lessonId: string
+    timestamp: number
+    title?: string
+    color?: string
+  }): VideoBookmark {
+    this.ensureConnected()
+    const now = Date.now()
+    const id = bookmark.id || crypto.randomUUID()
+    const title = bookmark.title?.trim() || `Bookmark ${Math.floor(bookmark.timestamp)}s`
+    const color = bookmark.color || '#f59e0b'
+
+    this.db!.prepare(`
+      INSERT INTO video_bookmarks (id, course_id, lesson_id, timestamp, title, color, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(id, bookmark.courseId, bookmark.lessonId, bookmark.timestamp, title, color, now, now)
+
+    return {
+      id,
+      courseId: bookmark.courseId,
+      lessonId: bookmark.lessonId,
+      timestamp: bookmark.timestamp,
+      title,
+      color,
+      createdAt: now,
+      updatedAt: now
+    }
+  }
+
+  public updateBookmark(id: string, updates: { title?: string; color?: string; timestamp?: number }): boolean {
+    this.ensureConnected()
+    const now = Date.now()
+    const fields: string[] = []
+    const params: unknown[] = []
+
+    if (updates.title !== undefined) {
+      fields.push('title = ?')
+      params.push(updates.title.trim())
+    }
+    if (updates.color !== undefined) {
+      fields.push('color = ?')
+      params.push(updates.color)
+    }
+    if (updates.timestamp !== undefined) {
+      fields.push('timestamp = ?')
+      params.push(updates.timestamp)
+    }
+
+    if (fields.length === 0) return true
+    fields.push('updated_at = ?')
+    params.push(now)
+    params.push(id)
+
+    const res = this.db!.prepare(`UPDATE video_bookmarks SET ${fields.join(', ')} WHERE id = ?`).run(...params)
+    return res.changes > 0
+  }
+
+  public deleteBookmark(id: string): boolean {
+    this.ensureConnected()
+    const res = this.db!.prepare(`DELETE FROM video_bookmarks WHERE id = ?`).run(id)
+    return res.changes > 0
+  }
+
+  public getBookmarksByLesson(lessonId: string): VideoBookmark[] {
+    this.ensureConnected()
+    const rows = this.db!.prepare(`
+      SELECT b.id, b.course_id as courseId, b.lesson_id as lessonId, b.timestamp, b.title, b.color,
+             b.created_at as createdAt, b.updated_at as updatedAt,
+             c.title as courseTitle, l.title as lessonTitle
+      FROM video_bookmarks b
+      LEFT JOIN courses c ON b.course_id = c.id
+      LEFT JOIN lessons l ON b.lesson_id = l.id
+      WHERE b.lesson_id = ?
+      ORDER BY b.timestamp ASC
+    `).all(lessonId) as VideoBookmark[]
+    return rows
+  }
+
+  public getBookmarksByCourse(courseId: string): VideoBookmark[] {
+    this.ensureConnected()
+    const rows = this.db!.prepare(`
+      SELECT b.id, b.course_id as courseId, b.lesson_id as lessonId, b.timestamp, b.title, b.color,
+             b.created_at as createdAt, b.updated_at as updatedAt,
+             c.title as courseTitle, l.title as lessonTitle
+      FROM video_bookmarks b
+      LEFT JOIN courses c ON b.course_id = c.id
+      LEFT JOIN lessons l ON b.lesson_id = l.id
+      WHERE b.course_id = ?
+      ORDER BY b.created_at DESC
+    `).all(courseId) as VideoBookmark[]
+    return rows
+  }
+
+  public getRecentBookmarks(limit = 30): VideoBookmark[] {
+    this.ensureConnected()
+    const rows = this.db!.prepare(`
+      SELECT b.id, b.course_id as courseId, b.lesson_id as lessonId, b.timestamp, b.title, b.color,
+             b.created_at as createdAt, b.updated_at as updatedAt,
+             c.title as courseTitle, l.title as lessonTitle
+      FROM video_bookmarks b
+      LEFT JOIN courses c ON b.course_id = c.id
+      LEFT JOIN lessons l ON b.lesson_id = l.id
+      ORDER BY b.created_at DESC
+      LIMIT ?
+    `).all(limit) as VideoBookmark[]
+    return rows
+  }
+
+  // --- Flashcards Operations (v0.3) ---
+
+  public createFlashcard(card: {
+    id?: string
+    courseId?: string
+    moduleId?: string
+    lessonId?: string
+    timestamp?: number
+    question: string
+    answer: string
+    state?: FlashcardState
+    dueAt?: number
+  }): Flashcard {
+    this.ensureConnected()
+    const now = Date.now()
+    const id = card.id || crypto.randomUUID()
+    const state: FlashcardState = card.state || 'NEW'
+    const dueAt = card.dueAt || now
+
+    this.db!.prepare(`
+      INSERT INTO flashcards (
+        id, course_id, module_id, lesson_id, timestamp, question, answer,
+        state, due_at, interval_days, success_count, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      id,
+      card.courseId || null,
+      card.moduleId || null,
+      card.lessonId || null,
+      card.timestamp ?? null,
+      card.question.trim(),
+      card.answer.trim(),
+      state,
+      dueAt,
+      0,
+      0,
+      now,
+      now
+    )
+
+    return {
+      id,
+      courseId: card.courseId,
+      moduleId: card.moduleId,
+      lessonId: card.lessonId,
+      timestamp: card.timestamp,
+      question: card.question.trim(),
+      answer: card.answer.trim(),
+      state,
+      dueAt,
+      intervalDays: 0,
+      successCount: 0,
+      createdAt: now,
+      updatedAt: now
+    }
+  }
+
+  public updateFlashcard(id: string, updates: Partial<Flashcard>): boolean {
+    this.ensureConnected()
+    const now = Date.now()
+    const fields: string[] = []
+    const params: unknown[] = []
+
+    if (updates.question !== undefined) {
+      fields.push('question = ?')
+      params.push(updates.question.trim())
+    }
+    if (updates.answer !== undefined) {
+      fields.push('answer = ?')
+      params.push(updates.answer.trim())
+    }
+    if (updates.state !== undefined) {
+      fields.push('state = ?')
+      params.push(updates.state)
+    }
+    if (updates.dueAt !== undefined) {
+      fields.push('due_at = ?')
+      params.push(updates.dueAt)
+    }
+    if (updates.intervalDays !== undefined) {
+      fields.push('interval_days = ?')
+      params.push(updates.intervalDays)
+    }
+    if (updates.successCount !== undefined) {
+      fields.push('success_count = ?')
+      params.push(updates.successCount)
+    }
+
+    if (fields.length === 0) return true
+    fields.push('updated_at = ?')
+    params.push(now)
+    params.push(id)
+
+    const res = this.db!.prepare(`UPDATE flashcards SET ${fields.join(', ')} WHERE id = ?`).run(...params)
+    return res.changes > 0
+  }
+
+  public deleteFlashcard(id: string): boolean {
+    this.ensureConnected()
+    const res = this.db!.prepare(`DELETE FROM flashcards WHERE id = ?`).run(id)
+    return res.changes > 0
+  }
+
+  public getFlashcardById(id: string): Flashcard | null {
+    this.ensureConnected()
+    const row = this.db!.prepare(`
+      SELECT f.id, f.course_id as courseId, f.module_id as moduleId, f.lesson_id as lessonId,
+             f.timestamp, f.question, f.answer, f.state, f.due_at as dueAt,
+             f.interval_days as intervalDays, f.success_count as successCount,
+             f.created_at as createdAt, f.updated_at as updatedAt,
+             c.title as courseTitle, l.title as lessonTitle
+      FROM flashcards f
+      LEFT JOIN courses c ON f.course_id = c.id
+      LEFT JOIN lessons l ON f.lesson_id = l.id
+      WHERE f.id = ?
+    `).get(id) as Flashcard | undefined
+    return row || null
+  }
+
+  public getDueFlashcards(limit = 100): Flashcard[] {
+    this.ensureConnected()
+    const now = Date.now()
+    const rows = this.db!.prepare(`
+      SELECT f.id, f.course_id as courseId, f.module_id as moduleId, f.lesson_id as lessonId,
+             f.timestamp, f.question, f.answer, f.state, f.due_at as dueAt,
+             f.interval_days as intervalDays, f.success_count as successCount,
+             f.created_at as createdAt, f.updated_at as updatedAt,
+             c.title as courseTitle, l.title as lessonTitle
+      FROM flashcards f
+      LEFT JOIN courses c ON f.course_id = c.id
+      LEFT JOIN lessons l ON f.lesson_id = l.id
+      WHERE f.due_at IS NULL OR f.due_at <= ?
+      ORDER BY f.due_at ASC NULLS FIRST, f.created_at ASC
+      LIMIT ?
+    `).all(now, limit) as Flashcard[]
+    return rows
+  }
+
+  public getAllFlashcards(courseId?: string): Flashcard[] {
+    this.ensureConnected()
+    let query = `
+      SELECT f.id, f.course_id as courseId, f.module_id as moduleId, f.lesson_id as lessonId,
+             f.timestamp, f.question, f.answer, f.state, f.due_at as dueAt,
+             f.interval_days as intervalDays, f.success_count as successCount,
+             f.created_at as createdAt, f.updated_at as updatedAt,
+             c.title as courseTitle, l.title as lessonTitle
+      FROM flashcards f
+      LEFT JOIN courses c ON f.course_id = c.id
+      LEFT JOIN lessons l ON f.lesson_id = l.id
+    `
+    const params: unknown[] = []
+    if (courseId) {
+      query += ` WHERE f.course_id = ?`
+      params.push(courseId)
+    }
+    query += ` ORDER BY f.created_at DESC`
+
+    return this.db!.prepare(query).all(...params) as Flashcard[]
+  }
+
+  public getFlashcardsByLesson(lessonId: string): Flashcard[] {
+    this.ensureConnected()
+    return this.db!.prepare(`
+      SELECT f.id, f.course_id as courseId, f.module_id as moduleId, f.lesson_id as lessonId,
+             f.timestamp, f.question, f.answer, f.state, f.due_at as dueAt,
+             f.interval_days as intervalDays, f.success_count as successCount,
+             f.created_at as createdAt, f.updated_at as updatedAt,
+             c.title as courseTitle, l.title as lessonTitle
+      FROM flashcards f
+      LEFT JOIN courses c ON f.course_id = c.id
+      LEFT JOIN lessons l ON f.lesson_id = l.id
+      WHERE f.lesson_id = ?
+      ORDER BY f.timestamp ASC NULLS LAST, f.created_at ASC
+    `).all(lessonId) as Flashcard[]
+  }
+
+  public reviewFlashcard(id: string, grade: FlashcardReviewGrade): { success: boolean; flashcard?: Flashcard } {
+    this.ensureConnected()
+    const card = this.getFlashcardById(id)
+    if (!card) return { success: false }
+
+    const now = Date.now()
+    let nextInterval = 0
+    let nextDueAt = now
+    let nextSuccessCount = card.successCount
+    let nextState: FlashcardState = 'REVIEW'
+
+    if (grade === 'AGAIN') {
+      nextInterval = 0
+      nextDueAt = now + 10 * 60 * 1000 // 10 minutes
+      nextSuccessCount = 0
+      nextState = 'LEARNING'
+    } else if (grade === 'HARD') {
+      nextInterval = 1
+      nextDueAt = now + 24 * 60 * 60 * 1000 // 1 day
+      nextSuccessCount = Math.max(1, card.successCount)
+      nextState = 'LEARNING'
+    } else if (grade === 'GOOD') {
+      nextSuccessCount = card.successCount + 1
+      if (nextSuccessCount === 1) nextInterval = 3
+      else if (nextSuccessCount === 2) nextInterval = 7
+      else if (nextSuccessCount === 3) nextInterval = 14
+      else nextInterval = 30
+
+      nextDueAt = now + nextInterval * 24 * 60 * 60 * 1000
+      nextState = 'REVIEW'
+    }
+
+    this.db!.prepare(`
+      UPDATE flashcards
+      SET state = ?, due_at = ?, interval_days = ?, success_count = ?, updated_at = ?
+      WHERE id = ?
+    `).run(nextState, nextDueAt, nextInterval, nextSuccessCount, now, id)
+
+    const updated = this.getFlashcardById(id)
+    return { success: true, flashcard: updated || undefined }
+  }
+
+  // --- Study Queue Operations (v0.3) ---
+
+  public addToStudyQueue(entityType: StudyQueueEntityType, entityId: string): StudyQueueItem {
+    this.ensureConnected()
+    const existing = this.db!.prepare(`SELECT id FROM study_queue WHERE entity_type = ? AND entity_id = ?`).get(entityType, entityId) as { id: string } | undefined
+    if (existing) {
+      const items = this.getStudyQueue()
+      return items.find((i) => i.id === existing.id)!
+    }
+
+    const maxOrderRow = this.db!.prepare(`SELECT COALESCE(MAX(order_index), 0) as maxOrder FROM study_queue`).get() as { maxOrder: number } | undefined
+    const nextOrder = (maxOrderRow?.maxOrder ?? 0) + 1
+    const id = crypto.randomUUID()
+    const now = Date.now()
+
+    this.db!.prepare(`
+      INSERT INTO study_queue (id, entity_type, entity_id, order_index, created_at)
+      VALUES (?, ?, ?, ?, ?)
+    `).run(id, entityType, entityId, nextOrder, now)
+
+    const items = this.getStudyQueue()
+    return items.find((i) => i.id === id)!
+  }
+
+  public removeFromStudyQueue(id: string): boolean {
+    this.ensureConnected()
+    const res = this.db!.prepare(`DELETE FROM study_queue WHERE id = ?`).run(id)
+    return res.changes > 0
+  }
+
+  public reorderStudyQueue(id: string, direction: 'up' | 'down'): boolean {
+    this.ensureConnected()
+    const all = this.db!.prepare(`SELECT id, order_index as orderIndex FROM study_queue ORDER BY order_index ASC, created_at ASC`).all() as Array<{ id: string; orderIndex: number }>
+    const currentIndex = all.findIndex((item) => item.id === id)
+    if (currentIndex === -1) return false
+
+    const swapIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1
+    if (swapIndex < 0 || swapIndex >= all.length) return false
+
+    const currentItem = all[currentIndex]
+    const otherItem = all[swapIndex]
+
+    const tx = this.db!.transaction(() => {
+      this.db!.prepare(`UPDATE study_queue SET order_index = ? WHERE id = ?`).run(otherItem.orderIndex, currentItem.id)
+      this.db!.prepare(`UPDATE study_queue SET order_index = ? WHERE id = ?`).run(currentItem.orderIndex, otherItem.id)
+    })
+    tx()
+
+    return true
+  }
+
+  public getStudyQueue(): StudyQueueItem[] {
+    this.ensureConnected()
+    const rows = this.db!.prepare(`
+      SELECT id, entity_type as entityType, entity_id as entityId, order_index as orderIndex, created_at as createdAt
+      FROM study_queue
+      ORDER BY order_index ASC, created_at ASC
+    `).all() as Array<{ id: string; entityType: StudyQueueEntityType; entityId: string; orderIndex: number; createdAt: number }>
+
+    const results: StudyQueueItem[] = []
+
+    for (const r of rows) {
+      if (r.entityType === 'course') {
+        const c = this.db!.prepare(`SELECT id, title, cover_path as coverPath, total_duration as duration FROM courses WHERE id = ?`).get(r.entityId) as { id: string; title: string; coverPath?: string; duration: number } | undefined
+        if (c) {
+          results.push({
+            id: r.id,
+            entityType: 'course',
+            entityId: r.entityId,
+            orderIndex: r.orderIndex,
+            createdAt: r.createdAt,
+            title: c.title,
+            courseId: c.id,
+            courseTitle: c.title,
+            duration: c.duration,
+            coverPath: c.coverPath
+          })
+        }
+      } else if (r.entityType === 'module') {
+        const m = this.db!.prepare(`
+          SELECT m.id, m.title, m.course_id as courseId, m.duration, c.title as courseTitle, c.cover_path as coverPath
+          FROM modules m
+          JOIN courses c ON m.course_id = c.id
+          WHERE m.id = ?
+        `).get(r.entityId) as { id: string; title: string; courseId: string; duration: number; courseTitle: string; coverPath?: string } | undefined
+        if (m) {
+          results.push({
+            id: r.id,
+            entityType: 'module',
+            entityId: r.entityId,
+            orderIndex: r.orderIndex,
+            createdAt: r.createdAt,
+            title: m.title,
+            courseId: m.courseId,
+            courseTitle: m.courseTitle,
+            moduleTitle: m.title,
+            duration: m.duration,
+            coverPath: m.coverPath
+          })
+        }
+      } else if (r.entityType === 'lesson') {
+        const l = this.db!.prepare(`
+          SELECT l.id, l.title, l.course_id as courseId, l.duration, l.cover_path as coverPath,
+                 c.title as courseTitle, m.title as moduleTitle
+          FROM lessons l
+          JOIN courses c ON l.course_id = c.id
+          JOIN modules m ON l.module_id = m.id
+          WHERE l.id = ?
+        `).get(r.entityId) as { id: string; title: string; courseId: string; duration: number; coverPath?: string; courseTitle: string; moduleTitle: string } | undefined
+        if (l) {
+          results.push({
+            id: r.id,
+            entityType: 'lesson',
+            entityId: r.entityId,
+            orderIndex: r.orderIndex,
+            createdAt: r.createdAt,
+            title: l.title,
+            courseId: l.courseId,
+            courseTitle: l.courseTitle,
+            moduleTitle: l.moduleTitle,
+            duration: l.duration,
+            coverPath: l.coverPath
+          })
+        }
+      }
+    }
+
+    return results
+  }
+
+  // --- Course Goals Operations (v0.3) ---
+
+  public getCourseGoal(courseId: string): CourseGoal | null {
+    this.ensureConnected()
+    const row = this.db!.prepare(`
+      SELECT course_id as courseId, target_date as targetDate, daily_minutes as dailyMinutes,
+             weekly_lessons as weeklyLessons, updated_at as updatedAt
+      FROM course_goals
+      WHERE course_id = ?
+    `).get(courseId) as CourseGoal | undefined
+    return row || null
+  }
+
+  public setCourseGoal(goal: {
+    courseId: string
+    targetDate?: number
+    dailyMinutes?: number
+    weeklyLessons?: number
+  }): CourseGoal {
+    this.ensureConnected()
+    const now = Date.now()
+    this.db!.prepare(`
+      INSERT OR REPLACE INTO course_goals (course_id, target_date, daily_minutes, weekly_lessons, updated_at)
+      VALUES (?, ?, ?, ?, ?)
+    `).run(goal.courseId, goal.targetDate || null, goal.dailyMinutes || null, goal.weeklyLessons || null, now)
+
+    return {
+      courseId: goal.courseId,
+      targetDate: goal.targetDate,
+      dailyMinutes: goal.dailyMinutes,
+      weeklyLessons: goal.weeklyLessons,
+      updatedAt: now
+    }
+  }
+
+  public deleteCourseGoal(courseId: string): boolean {
+    this.ensureConnected()
+    const res = this.db!.prepare(`DELETE FROM course_goals WHERE course_id = ?`).run(courseId)
+    return res.changes > 0
+  }
+
+  // --- Study Sessions Operations (v0.3) ---
+
+  public startStudySession(session: { id?: string; courseId?: string; source?: 'player' | 'focus_timer' }): StudySession {
+    this.ensureConnected()
+    const id = session.id || crypto.randomUUID()
+    const now = Date.now()
+    const source = session.source || 'player'
+
+    this.db!.prepare(`
+      INSERT INTO study_sessions (id, course_id, started_at, duration, source)
+      VALUES (?, ?, ?, 0, ?)
+    `).run(id, session.courseId || null, now, source)
+
+    return {
+      id,
+      courseId: session.courseId,
+      startedAt: now,
+      duration: 0,
+      source
+    }
+  }
+
+  public endStudySession(id: string, duration?: number): boolean {
+    this.ensureConnected()
+    const now = Date.now()
+    let dur = duration
+    if (dur === undefined) {
+      const existing = this.db!.prepare(`SELECT started_at as startedAt FROM study_sessions WHERE id = ?`).get(id) as { startedAt: number } | undefined
+      dur = existing ? Math.max(0, Math.floor((now - existing.startedAt) / 1000)) : 0
+    }
+
+    const res = this.db!.prepare(`
+      UPDATE study_sessions SET ended_at = ?, duration = ? WHERE id = ?
+    `).run(now, dur, id)
+    return res.changes > 0
+  }
+
+  public getStudySessions(limit = 50): StudySession[] {
+    this.ensureConnected()
+    return this.db!.prepare(`
+      SELECT id, course_id as courseId, started_at as startedAt, ended_at as endedAt, duration, source
+      FROM study_sessions
+      ORDER BY started_at DESC
+      LIMIT ?
+    `).all(limit) as StudySession[]
+  }
+
+  // --- Review Dashboard Aggregator (v0.3) ---
+
+  public getReviewDashboardStats(): ReviewDashboardStats {
+    this.ensureConnected()
+    const now = Date.now()
+
+    const dueFlashcardsRow = this.db!.prepare(`
+      SELECT count(*) as cnt FROM flashcards WHERE due_at IS NULL OR due_at <= ?
+    `).get(now) as { cnt: number } | undefined
+
+    const totalFlashcardsRow = this.db!.prepare(`
+      SELECT count(*) as cnt FROM flashcards
+    `).get() as { cnt: number } | undefined
+
+    const bookmarksRow = this.db!.prepare(`
+      SELECT count(*) as cnt FROM video_bookmarks
+    `).get() as { cnt: number } | undefined
+
+    const studyQueueRow = this.db!.prepare(`
+      SELECT count(*) as cnt FROM study_queue
+    `).get() as { cnt: number } | undefined
+
+    const recentNotesRow = this.db!.prepare(`
+      SELECT count(*) as cnt FROM lesson_notes
+    `).get() as { cnt: number } | undefined
+
+    const analytics = this.getStudyAnalytics()
+
+    return {
+      dueFlashcardsCount: dueFlashcardsRow?.cnt ?? 0,
+      totalFlashcardsCount: totalFlashcardsRow?.cnt ?? 0,
+      bookmarksCount: bookmarksRow?.cnt ?? 0,
+      studyQueueCount: studyQueueRow?.cnt ?? 0,
+      recentNotesCount: recentNotesRow?.cnt ?? 0,
+      activeStreakDays: analytics.currentStreakDays
+    }
+  }
+
   // --- Vault Aggregated Stats ---
 
   public getVaultStats(): VaultStats {
@@ -1739,34 +2453,8 @@ export class DatabaseService {
     lessonCount: number
     totalDuration: number
   } {
-    const rawModules = this.db!.prepare(`
-      SELECT id, course_id as courseId, title, order_index as orderIndex, display_order as displayOrder
-      FROM modules WHERE course_id = ?
-      ORDER BY display_order ASC, order_index ASC
-    `).all(courseId) as Array<{ id: string; courseId: string; title: string; orderIndex: number; displayOrder: number }>
-
-    if (rawModules.length === 0) return { moduleCount: 0, lessonCount: 0, totalDuration: 0 }
-
-    // Step 1: Detect and merge duplicate modules that share the same semantic title
-    const modulesByTitle = new Map<string, { id: string; courseId: string; title: string }>()
-    for (const mod of rawModules) {
-      const rawTitle = (mod.title || '').trim()
-      const normalizedKey = normalizeModuleKey(rawTitle) || rawTitle.toLowerCase()
-      const existing = modulesByTitle.get(normalizedKey)
-      if (existing && existing.id !== mod.id) {
-        // Reassign all lessons from duplicate module to canonical module
-        this.db!.prepare(`UPDATE lessons SET module_id = ? WHERE module_id = ?`).run(existing.id, mod.id)
-        // Reassign all content resources from duplicate module to canonical module
-        this.db!.prepare(`UPDATE content_resources SET module_id = ? WHERE module_id = ?`).run(existing.id, mod.id)
-        // Delete duplicate module row
-        this.db!.prepare(`DELETE FROM modules WHERE id = ?`).run(mod.id)
-      } else if (!existing) {
-        modulesByTitle.set(normalizedKey, mod)
-      }
-    }
-
-    const hierarchy = this.getCourseById(courseId, { skipDeduplication: true })
-    if (!hierarchy) return { moduleCount: 0, lessonCount: 0, totalDuration: 0 }
+    const hierarchy = this.getCourseById(courseId)
+    if (!hierarchy || hierarchy.modules.length === 0) return { moduleCount: 0, lessonCount: 0, totalDuration: 0 }
 
     const sortedModules = [...hierarchy.modules].sort((a, b) =>
       (a.displayOrder || a.orderIndex) - (b.displayOrder || b.orderIndex) || naturalCompare(a.title, b.title)
@@ -1775,38 +2463,44 @@ export class DatabaseService {
     let totalCourseLessons = 0
     let totalCourseDuration = 0
 
-    for (let mIdx = 0; mIdx < sortedModules.length; mIdx++) {
-      const mod = sortedModules[mIdx]
-      const sortedLessons = [...mod.lessons].sort((a, b) =>
-        (a.displayOrder || a.orderIndex) - (b.displayOrder || b.orderIndex) || naturalCompare(a.title, b.title)
-      )
+    const tx = this.db!.transaction(() => {
+      for (let mIdx = 0; mIdx < sortedModules.length; mIdx++) {
+        const mod = sortedModules[mIdx]
+        const sortedLessons = [...mod.lessons].sort((a, b) =>
+          (a.displayOrder || a.orderIndex) - (b.displayOrder || b.orderIndex) || naturalCompare(a.title, b.title)
+        )
 
-      let modDuration = 0
-      for (let lIdx = 0; lIdx < sortedLessons.length; lIdx++) {
-        const les = sortedLessons[lIdx]
-        modDuration += les.duration || 0
+        let modDuration = 0
+        for (let lIdx = 0; lIdx < sortedLessons.length; lIdx++) {
+          const les = sortedLessons[lIdx]
+          modDuration += les.duration || 0
+          const finalDisplayOrder = les.hasManualOrder && les.displayOrder ? les.displayOrder : lIdx + 1
+          this.db!.prepare(`
+            UPDATE lessons SET order_index = ?, display_order = ? WHERE id = ?
+          `).run(lIdx + 1, finalDisplayOrder, les.id)
+        }
+
+        totalCourseLessons += sortedLessons.length
+        totalCourseDuration += modDuration
+        const finalModDisplayOrder = mod.hasManualOrder && mod.displayOrder ? mod.displayOrder : mIdx + 1
+
         this.db!.prepare(`
-          UPDATE lessons SET order_index = ?, display_order = ? WHERE id = ?
-        `).run(lIdx + 1, lIdx + 1, les.id)
+          UPDATE modules SET order_index = ?, display_order = ?, lesson_count = ?, duration = ? WHERE id = ?
+        `).run(mIdx + 1, finalModDisplayOrder, sortedLessons.length, modDuration, mod.id)
       }
 
-      totalCourseLessons += sortedLessons.length
-      totalCourseDuration += modDuration
-
       this.db!.prepare(`
-        UPDATE modules SET order_index = ?, display_order = ?, lesson_count = ?, duration = ? WHERE id = ?
-      `).run(mIdx + 1, mIdx + 1, sortedLessons.length, modDuration, mod.id)
-    }
+        UPDATE courses SET module_count = ?, lesson_count = ?, total_duration = ?, updated_at = ? WHERE id = ?
+      `).run(
+        sortedModules.length,
+        totalCourseLessons,
+        totalCourseDuration,
+        Date.now(),
+        courseId
+      )
+    })
 
-    this.db!.prepare(`
-      UPDATE courses SET module_count = ?, lesson_count = ?, total_duration = ?, updated_at = ? WHERE id = ?
-    `).run(
-      sortedModules.length,
-      totalCourseLessons,
-      totalCourseDuration,
-      Date.now(),
-      courseId
-    )
+    tx()
 
     return {
       moduleCount: sortedModules.length,
@@ -2037,13 +2731,34 @@ export class DatabaseService {
 
   public cleanupDuplicateModules(courseId?: string): void {
     this.ensureConnected()
-    if (courseId) {
-      this.reindexCourseHierarchy(courseId)
-    } else {
-      const courses = this.db!.prepare(`SELECT id FROM courses`).all() as Array<{ id: string }>
-      for (const c of courses) {
-        this.reindexCourseHierarchy(c.id)
+    const targetCourseIds = courseId
+      ? [courseId]
+      : (this.db!.prepare(`SELECT id FROM courses`).all() as Array<{ id: string }>).map((c) => c.id)
+
+    for (const cId of targetCourseIds) {
+      const rawModules = this.db!.prepare(`
+        SELECT id, course_id as courseId, title, order_index as orderIndex, display_order as displayOrder
+        FROM modules WHERE course_id = ?
+        ORDER BY display_order ASC, order_index ASC
+      `).all(cId) as Array<{ id: string; courseId: string; title: string; orderIndex: number; displayOrder: number }>
+
+      const modulesByTitle = new Map<string, { id: string; courseId: string; title: string }>()
+      for (const mod of rawModules) {
+        const rawTitle = (mod.title || '').trim()
+        const normalizedKey = normalizeModuleKey(rawTitle) || rawTitle.toLowerCase()
+        const existing = modulesByTitle.get(normalizedKey)
+        if (existing && existing.id !== mod.id) {
+          // Reassign all lessons from duplicate module to canonical module
+          this.db!.prepare(`UPDATE lessons SET module_id = ? WHERE module_id = ?`).run(existing.id, mod.id)
+          // Reassign all content resources from duplicate module to canonical module
+          this.db!.prepare(`UPDATE content_resources SET module_id = ? WHERE module_id = ?`).run(existing.id, mod.id)
+          // Delete duplicate module row
+          this.db!.prepare(`DELETE FROM modules WHERE id = ?`).run(mod.id)
+        } else if (!existing) {
+          modulesByTitle.set(normalizedKey, mod)
+        }
       }
+      this.reindexCourseHierarchy(cId)
     }
   }
 
@@ -2303,7 +3018,7 @@ export class DatabaseService {
     let separatedCoursesCount = 0
 
     for (const course of allCourses) {
-      const hierarchy = this.getCourseById(course.id, { skipDeduplication: true })
+      const hierarchy = this.getCourseById(course.id)
       if (!hierarchy || hierarchy.modules.length <= 1) continue
 
       // For each module in the course, detect its physical course root directory
@@ -2691,7 +3406,7 @@ export class DatabaseService {
     this.ensureConnected()
     if (updates.customTitle !== undefined && updates.displayOrder !== undefined) {
       this.db!.prepare(`
-        UPDATE modules SET custom_title = ?, display_order = ? WHERE id = ?
+        UPDATE modules SET custom_title = ?, display_order = ?, has_manual_order = 1 WHERE id = ?
       `).run(updates.customTitle ?? null, updates.displayOrder, moduleId)
     } else if (updates.customTitle !== undefined) {
       this.db!.prepare(`
@@ -2699,7 +3414,7 @@ export class DatabaseService {
       `).run(updates.customTitle ?? null, moduleId)
     } else if (updates.displayOrder !== undefined) {
       this.db!.prepare(`
-        UPDATE modules SET display_order = ? WHERE id = ?
+        UPDATE modules SET display_order = ?, has_manual_order = 1 WHERE id = ?
       `).run(updates.displayOrder, moduleId)
     }
   }
@@ -2708,7 +3423,7 @@ export class DatabaseService {
     this.ensureConnected()
     if (updates.customTitle !== undefined && updates.displayOrder !== undefined) {
       this.db!.prepare(`
-        UPDATE lessons SET custom_title = ?, display_order = ? WHERE id = ?
+        UPDATE lessons SET custom_title = ?, display_order = ?, has_manual_order = 1 WHERE id = ?
       `).run(updates.customTitle ?? null, updates.displayOrder, lessonId)
     } else if (updates.customTitle !== undefined) {
       this.db!.prepare(`
@@ -2716,7 +3431,7 @@ export class DatabaseService {
       `).run(updates.customTitle ?? null, lessonId)
     } else if (updates.displayOrder !== undefined) {
       this.db!.prepare(`
-        UPDATE lessons SET display_order = ? WHERE id = ?
+        UPDATE lessons SET display_order = ?, has_manual_order = 1 WHERE id = ?
       `).run(updates.displayOrder, lessonId)
     }
   }
@@ -2744,11 +3459,11 @@ export class DatabaseService {
 
     this.db!.transaction(() => {
       allModules.forEach((m, idx) => {
-        this.db!.prepare(`UPDATE modules SET display_order = ? WHERE id = ?`).run(idx + 1, m.id)
+        this.db!.prepare(`UPDATE modules SET display_order = ?, has_manual_order = 1 WHERE id = ?`).run(idx + 1, m.id)
       })
 
-      this.db!.prepare(`UPDATE modules SET display_order = ? WHERE id = ?`).run(swapIndex + 1, targetModule.id)
-      this.db!.prepare(`UPDATE modules SET display_order = ? WHERE id = ?`).run(currentIndex + 1, otherModule.id)
+      this.db!.prepare(`UPDATE modules SET display_order = ?, has_manual_order = 1 WHERE id = ?`).run(swapIndex + 1, targetModule.id)
+      this.db!.prepare(`UPDATE modules SET display_order = ?, has_manual_order = 1 WHERE id = ?`).run(currentIndex + 1, otherModule.id)
     })()
 
     return true
@@ -2777,11 +3492,11 @@ export class DatabaseService {
 
     this.db!.transaction(() => {
       allLessons.forEach((l, idx) => {
-        this.db!.prepare(`UPDATE lessons SET display_order = ? WHERE id = ?`).run(idx + 1, l.id)
+        this.db!.prepare(`UPDATE lessons SET display_order = ?, has_manual_order = 1 WHERE id = ?`).run(idx + 1, l.id)
       })
 
-      this.db!.prepare(`UPDATE lessons SET display_order = ? WHERE id = ?`).run(swapIndex + 1, targetLesson.id)
-      this.db!.prepare(`UPDATE lessons SET display_order = ? WHERE id = ?`).run(currentIndex + 1, otherLesson.id)
+      this.db!.prepare(`UPDATE lessons SET display_order = ?, has_manual_order = 1 WHERE id = ?`).run(swapIndex + 1, targetLesson.id)
+      this.db!.prepare(`UPDATE lessons SET display_order = ?, has_manual_order = 1 WHERE id = ?`).run(currentIndex + 1, otherLesson.id)
     })()
 
     return true

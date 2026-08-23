@@ -16,15 +16,20 @@ import {
   Video,
   Star,
   FileText,
-  FolderSync
+  FolderSync,
+  Target,
+  ListPlus,
+  Calendar
 } from 'lucide-react'
 import { useLibraryStore } from '../stores/useLibraryStore'
 import { usePlayerStore } from '../stores/usePlayerStore'
 import { useNavigationStore } from '../stores/useNavigationStore'
+import { useReviewStore } from '../stores/useReviewStore'
 import { useCourseProgress } from '../hooks/useCourseProgress'
 import { PdfViewerModal } from '../components/documents/PdfViewerModal'
 import { CodeViewerModal } from '../components/documents/CodeViewerModal'
 import { ReorganizeCourseModal } from '../components/library/ReorganizeCourseModal'
+import type { CourseGoal } from '@shared'
 import {
   ChevronUp,
   ChevronDown,
@@ -167,7 +172,7 @@ export function CourseView(): React.JSX.Element {
     toggleModuleCompletion,
     isLoading
   } = useLibraryStore()
-  const { loadHierarchy } = usePlayerStore()
+  const { loadHierarchy, addToQueue, playbackQueue } = usePlayerStore()
 
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState<boolean>(false)
   const [isDeleting, setIsDeleting] = useState<boolean>(false)
@@ -179,6 +184,63 @@ export function CourseView(): React.JSX.Element {
   const [isPdfModalOpen, setIsPdfModalOpen] = useState<boolean>(false)
   const [isCodeModalOpen, setIsCodeModalOpen] = useState<boolean>(false)
   const [isReorganizeModalOpen, setIsReorganizeModalOpen] = useState<boolean>(false)
+
+  // Course Goal & Study Queue state (v0.3)
+  const { addToStudyQueue } = useReviewStore()
+  const [courseGoal, setCourseGoal] = useState<CourseGoal | null>(null)
+  const [isGoalModalOpen, setIsGoalModalOpen] = useState<boolean>(false)
+  const [targetDateInput, setTargetDateInput] = useState<string>('')
+  const [weeklyLessonsInput, setWeeklyLessonsInput] = useState<number>(10)
+  const [queueAddedNotification, setQueueAddedNotification] = useState<boolean>(false)
+
+  const fetchGoal = React.useCallback(async (courseId: string) => {
+    try {
+      const goal = await window.api.goals.get(courseId)
+      setCourseGoal(goal)
+      if (goal?.targetDate) {
+        setTargetDateInput(new Date(goal.targetDate).toISOString().split('T')[0])
+      }
+      if (goal?.weeklyLessons) {
+        setWeeklyLessonsInput(goal.weeklyLessons)
+      }
+    } catch (err) {
+      console.warn('Failed to fetch course goal:', err)
+    }
+  }, [])
+
+  const handleSaveGoal = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedCourseId) return
+    const targetTimestamp = targetDateInput ? new Date(targetDateInput).getTime() : undefined
+    await window.api.goals.set({
+      courseId: selectedCourseId,
+      targetDate: targetTimestamp,
+      weeklyLessons: weeklyLessonsInput
+    })
+    await fetchGoal(selectedCourseId)
+    setIsGoalModalOpen(false)
+  }
+
+  const handleDeleteGoal = async () => {
+    if (!selectedCourseId) return
+    await window.api.goals.delete(selectedCourseId)
+    setCourseGoal(null)
+    setTargetDateInput('')
+    setIsGoalModalOpen(false)
+  }
+
+  const handleAddToQueue = async () => {
+    if (!selectedCourseId) return
+    await addToStudyQueue('course', selectedCourseId)
+    setQueueAddedNotification(true)
+    setTimeout(() => setQueueAddedNotification(false), 3000)
+  }
+
+  useEffect(() => {
+    if (selectedCourseId) {
+      fetchGoal(selectedCourseId)
+    }
+  }, [selectedCourseId, fetchGoal])
 
   useEffect(() => {
     if (selectedCourseId) {
@@ -257,6 +319,15 @@ export function CourseView(): React.JSX.Element {
   const allLessons: Lesson[] = modules.flatMap((m) => m.lessons || [])
   const firstIncompleteLesson =
     allLessons.find((l) => !progressData.isLessonCompleted(l.id)) || allLessons[0]
+
+  const remainingLessons = Math.max(0, progressData.totalLessons - progressData.completedLessons)
+  let daysLeft: number | null = null
+  let recommendedPace: number | null = null
+  if (courseGoal?.targetDate) {
+    const diffMs = courseGoal.targetDate - Date.now()
+    daysLeft = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)))
+    recommendedPace = remainingLessons > 0 ? Math.ceil((remainingLessons / daysLeft) * 10) / 10 : 0
+  }
 
   const handleStartOrResume = async (): Promise<void> => {
     await loadHierarchy(course, modules, firstIncompleteLesson?.id)
@@ -589,16 +660,60 @@ export function CourseView(): React.JSX.Element {
                 />
               </div>
 
-              <Button
-                size="lg"
-                onClick={handleStartOrResume}
-                className="w-full sm:w-auto gap-2 font-semibold shadow-lg shadow-orange-500/20 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-500 text-primary-foreground rounded-xl cursor-pointer hover:opacity-95 active:scale-[0.98] transition-all min-h-[42px]"
-              >
-                <Play className="h-4 w-4 fill-current" />
-                <span>
-                  {progressData.coursePercentage > 0 ? t('course.resume') : t('course.start')}
-                </span>
-              </Button>
+              {/* Action Buttons Row */}
+              <div className="flex flex-wrap items-center gap-2.5">
+                <Button
+                  size="lg"
+                  onClick={handleStartOrResume}
+                  className="gap-2 font-semibold shadow-lg shadow-orange-500/20 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-500 text-primary-foreground rounded-xl cursor-pointer hover:opacity-95 active:scale-[0.98] transition-all min-h-[42px]"
+                >
+                  <Play className="h-4 w-4 fill-current" />
+                  <span>
+                    {progressData.coursePercentage > 0 ? t('course.resume') : t('course.start')}
+                  </span>
+                </Button>
+
+                {/* Study Queue Button (v0.3) */}
+                <Button
+                  variant="outline"
+                  size="lg"
+                  onClick={handleAddToQueue}
+                  className="gap-2 text-xs font-semibold rounded-xl border-border/80 hover:border-blue-500/60 hover:text-blue-400 min-h-[42px]"
+                >
+                  <ListPlus className="h-4 w-4 text-blue-400" />
+                  <span>{queueAddedNotification ? 'Adicionado à Fila!' : '+ Estudar Depois'}</span>
+                </Button>
+
+                {/* Course Goal Button (v0.3) */}
+                <Button
+                  variant="outline"
+                  size="lg"
+                  onClick={() => setIsGoalModalOpen(true)}
+                  className={`gap-2 text-xs font-semibold rounded-xl border-border/80 hover:border-purple-500/60 min-h-[42px] ${
+                    courseGoal ? 'text-purple-400 border-purple-500/40 bg-purple-500/10' : 'hover:text-purple-400'
+                  }`}
+                >
+                  <Target className="h-4 w-4 text-purple-400" />
+                  <span>
+                    {courseGoal?.targetDate
+                      ? `Meta: ${new Date(courseGoal.targetDate).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}`
+                      : 'Definir Meta'}
+                  </span>
+                </Button>
+              </div>
+
+              {/* Course Goal Pace Hint (if active) */}
+              {courseGoal?.targetDate && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground pt-1">
+                  <span className="font-mono text-purple-400 font-semibold">
+                    {remainingLessons} aulas restantes
+                  </span>
+                  <span>•</span>
+                  <span>
+                    Ritmo recomendado: {daysLeft && daysLeft > 0 ? `${recommendedPace} aulas/dia (${daysLeft} dias restantes)` : 'concluído'}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -946,6 +1061,30 @@ export function CourseView(): React.JSX.Element {
                                   size="icon"
                                   onClick={(e) => {
                                     e.stopPropagation()
+                                    addToQueue(lesson)
+                                  }}
+                                  className={`h-7 w-7 rounded-lg transition-all cursor-pointer ${
+                                    playbackQueue?.some((l) => l.id === lesson.id)
+                                      ? 'text-primary opacity-100'
+                                      : 'text-muted-foreground/60 hover:text-primary hover:bg-primary/10 opacity-0 group-hover:opacity-100'
+                                  }`}
+                                  aria-label="Adicionar à fila de reprodução"
+                                >
+                                  <ListPlus className="h-3.5 w-3.5" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent side="top">
+                                {playbackQueue?.some((l) => l.id === lesson.id) ? 'Na Fila de Reprodução' : 'Tocar a Seguir'}
+                              </TooltipContent>
+                            </Tooltip>
+
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
                                     setLessonToDelete(lesson)
                                   }}
                                   className="h-7 w-7 rounded-lg text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
@@ -1150,6 +1289,89 @@ export function CourseView(): React.JSX.Element {
           }
         }}
       />
+
+      {/* Course Goal Modal (v0.3) */}
+      <Dialog open={isGoalModalOpen} onOpenChange={setIsGoalModalOpen}>
+        <DialogContent className="max-w-md bg-card/95 backdrop-blur-xl border border-border/80 p-6 rounded-3xl shadow-2xl">
+          <DialogHeader>
+            <div className="flex items-center gap-2.5 mb-1">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-purple-500/15 text-purple-400 border border-purple-500/30">
+                <Target className="h-4 w-4" />
+              </div>
+              <div>
+                <DialogTitle className="text-base font-bold text-foreground">
+                  Meta de Estudo do Curso
+                </DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground truncate max-w-[280px]">
+                  {course.title}
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <form onSubmit={handleSaveGoal} className="space-y-4 my-2">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                <Calendar className="h-3.5 w-3.5 text-purple-400" />
+                <span>Data-alvo de Conclusão</span>
+              </label>
+              <input
+                type="date"
+                value={targetDateInput}
+                onChange={(e) => setTargetDateInput(e.target.value)}
+                className="w-full text-xs bg-background/80 border border-border/80 rounded-xl px-3 py-2 text-foreground focus:outline-none focus:ring-1 focus:ring-purple-500"
+              />
+              <p className="text-[11px] text-muted-foreground">
+                O Orbia calculará o ritmo diário recomendado em aulas/dia até esta data.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-foreground">
+                Ritmo Semanal Desejado (aulas por semana)
+              </label>
+              <input
+                type="number"
+                min={1}
+                max={100}
+                value={weeklyLessonsInput}
+                onChange={(e) => setWeeklyLessonsInput(parseInt(e.target.value) || 1)}
+                className="w-full text-xs bg-background/80 border border-border/80 rounded-xl px-3 py-2 text-foreground focus:outline-none focus:ring-1 focus:ring-purple-500"
+              />
+            </div>
+
+            <DialogFooter className="gap-2 pt-2 border-t border-border/60">
+              {courseGoal && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleDeleteGoal}
+                  className="text-xs text-destructive hover:bg-destructive/10 mr-auto"
+                >
+                  <Trash2 className="h-3.5 w-3.5 mr-1" />
+                  Remover Meta
+                </Button>
+              )}
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsGoalModalOpen(false)}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                size="sm"
+                className="bg-purple-600 hover:bg-purple-500 text-white font-semibold"
+              >
+                Salvar Meta
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

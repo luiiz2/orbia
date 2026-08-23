@@ -53,6 +53,14 @@ vi.mock('../src/renderer/src/components/player/NotesPanel', () => ({
   NotesPanel: () => null
 }))
 
+vi.mock('../src/renderer/src/components/player/BookmarksPanel', () => ({
+  BookmarksPanel: () => null
+}))
+
+vi.mock('../src/renderer/src/components/player/FlashcardsPanel', () => ({
+  FlashcardsPanel: () => null
+}))
+
 vi.mock('../src/renderer/src/components/documents/PdfViewerModal', () => ({
   PdfViewerModal: () => null
 }))

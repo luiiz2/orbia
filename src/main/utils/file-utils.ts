@@ -132,6 +132,16 @@ export function getMediaType(filePath: string): MediaType {
   return 'other'
 }
 
+export function toResourceType(filePath: string): 'pdf' | 'document' | 'image' | 'archive' | 'code' | 'other' {
+  const ext = path.extname(filePath).toLowerCase()
+  if (ext === '.pdf') return 'pdf'
+  if (IMAGE_EXTENSIONS.has(ext)) return 'image'
+  if (ARCHIVE_EXTENSIONS.has(ext)) return 'archive'
+  if (CODE_EXTENSIONS.has(ext)) return 'code'
+  if (DOCUMENT_EXTENSIONS.has(ext)) return 'document'
+  return 'other'
+}
+
 /**
  * Checks if a file is playable media (video or audio)
  */

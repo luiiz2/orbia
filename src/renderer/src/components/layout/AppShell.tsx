@@ -2,6 +2,7 @@ import React from 'react'
 import { TopBar } from './TopBar'
 import { usePlayerStore } from '../../stores/usePlayerStore'
 import { useNavigationStore } from '../../stores/useNavigationStore'
+import { MiniPlayer } from '../player/MiniPlayer'
 
 export interface AppShellProps {
   children: React.ReactNode
@@ -19,7 +20,7 @@ export function AppShell({ children }: AppShellProps): React.JSX.Element {
   }
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground select-none">
+    <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground select-none relative">
       {/* Main Content Area */}
       <div className="flex flex-1 flex-col overflow-hidden">
         <TopBar />
@@ -27,6 +28,9 @@ export function AppShell({ children }: AppShellProps): React.JSX.Element {
           {children}
         </main>
       </div>
+
+      {/* Floating In-App Mini Player */}
+      <MiniPlayer />
     </div>
   )
 }

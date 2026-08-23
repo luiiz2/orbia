@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-export type ViewType = 'home' | 'course' | 'player' | 'history' | 'settings'
+export type ViewType = 'home' | 'course' | 'player' | 'history' | 'review' | 'settings'
 
 export interface NavigationState {
   currentView: ViewType
@@ -15,6 +15,7 @@ export interface NavigationState {
   navigateToCourse: (courseId: string) => void
   navigateToPlayer: (courseId?: string) => void
   navigateToHistory: () => void
+  navigateToReview: () => void
   navigateToSettings: () => void
   toggleSidebar: () => void
   setSidebarCollapsed: (collapsed: boolean) => void
@@ -56,6 +57,11 @@ export const useNavigationStore = create<NavigationState>((set) => ({
   navigateToHistory: () =>
     set({
       currentView: 'history'
+    }),
+
+  navigateToReview: () =>
+    set({
+      currentView: 'review'
     }),
 
   navigateToSettings: () =>

@@ -18,6 +18,7 @@ coverage/
 out_test.txt
 err_test.txt
 stderr.txt
+stdout.txt
 
 # Databases & User Vaults
 *.db

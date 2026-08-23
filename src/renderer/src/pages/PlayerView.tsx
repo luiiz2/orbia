@@ -11,8 +11,11 @@ import {
   AlertTriangle,
   Trash2
 } from 'lucide-react'
+import { PlaybackQueueDrawer } from '../components/player/PlaybackQueueDrawer'
 import { VideoPlayer } from '../components/player/VideoPlayer'
 import { NotesPanel } from '../components/player/NotesPanel'
+import { BookmarksPanel } from '../components/player/BookmarksPanel'
+import { FlashcardsPanel } from '../components/player/FlashcardsPanel'
 import { PdfViewerModal } from '../components/documents/PdfViewerModal'
 import { CodeViewerModal } from '../components/documents/CodeViewerModal'
 import { usePlayerStore } from '../stores/usePlayerStore'
@@ -69,6 +72,9 @@ export function PlayerView(): React.JSX.Element {
     activeLesson,
     modulesWithLessons,
     notes,
+    bookmarks,
+    flashcards,
+    playbackQueue,
     loadLesson,
     toggleComplete,
     theaterMode,
@@ -78,7 +84,7 @@ export function PlayerView(): React.JSX.Element {
   } = usePlayerStore()
 
   const { setView } = useNavigationStore()
-  const [activeTab, setActiveTab] = useState<'curriculum' | 'notes' | 'resources'>('curriculum')
+  const [activeTab, setActiveTab] = useState<'curriculum' | 'queue' | 'notes' | 'bookmarks' | 'flashcards' | 'resources'>('curriculum')
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true)
   const [selectedResource, setSelectedResource] = useState<VisibleResource | null>(null)
   const [isPdfModalOpen, setIsPdfModalOpen] = useState<boolean>(false)
@@ -194,15 +200,15 @@ export function PlayerView(): React.JSX.Element {
               />
             </div>
 
-            {/* Curriculum / Notes / Resources Tabs */}
-            <div className="flex rounded-xl bg-secondary/80 p-1 text-xs" role="tablist">
+            {/* Curriculum / Notes / Bookmarks / Flashcards / Resources Tabs */}
+            <div className="flex rounded-xl bg-secondary/80 p-1 text-xs overflow-x-auto gap-0.5 scrollbar-none" role="tablist">
               <button
                 type="button"
                 role="tab"
                 aria-selected={activeTab === 'curriculum'}
                 onClick={() => setActiveTab('curriculum')}
                 className={cn(
-                  'flex-1 py-1.5 text-center font-semibold rounded-lg transition-all cursor-pointer active:scale-95 duration-150',
+                  'flex-1 py-1.5 px-2 text-center font-semibold rounded-lg transition-all cursor-pointer active:scale-95 duration-150 whitespace-nowrap',
                   activeTab === 'curriculum'
                     ? 'bg-card text-foreground shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
@@ -213,19 +219,76 @@ export function PlayerView(): React.JSX.Element {
               <button
                 type="button"
                 role="tab"
+                aria-selected={activeTab === 'queue'}
+                onClick={() => setActiveTab('queue')}
+                className={cn(
+                  'flex-1 py-1.5 px-2 text-center font-semibold rounded-lg transition-all cursor-pointer relative active:scale-95 duration-150 whitespace-nowrap',
+                  activeTab === 'queue'
+                    ? 'bg-card text-primary shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                Fila
+                {playbackQueue && playbackQueue.length > 0 && (
+                  <span className="ml-1 rounded-full bg-primary/20 px-1 py-0.2 text-[10px] font-bold text-primary">
+                    {playbackQueue.length}
+                  </span>
+                )}
+              </button>
+              <button
+                type="button"
+                role="tab"
                 aria-selected={activeTab === 'notes'}
                 onClick={() => setActiveTab('notes')}
                 className={cn(
-                  'flex-1 py-1.5 text-center font-semibold rounded-lg transition-all cursor-pointer relative active:scale-95 duration-150',
+                  'flex-1 py-1.5 px-2 text-center font-semibold rounded-lg transition-all cursor-pointer relative active:scale-95 duration-150 whitespace-nowrap',
                   activeTab === 'notes'
                     ? 'bg-card text-foreground shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
                 )}
               >
                 {t('player.notes')}
-                {notes.length > 0 && (
-                  <span className="ml-1.5 rounded-full bg-primary/20 px-1.5 py-0.2 text-[10px] font-bold text-primary">
+                {notes && notes.length > 0 && (
+                  <span className="ml-1 rounded-full bg-primary/20 px-1 py-0.2 text-[10px] font-bold text-primary">
                     {notes.length}
+                  </span>
+                )}
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === 'bookmarks'}
+                onClick={() => setActiveTab('bookmarks')}
+                className={cn(
+                  'flex-1 py-1.5 px-2 text-center font-semibold rounded-lg transition-all cursor-pointer relative active:scale-95 duration-150 whitespace-nowrap',
+                  activeTab === 'bookmarks'
+                    ? 'bg-card text-amber-500 shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                {t('player.bookmarks', 'Marcadores')}
+                {bookmarks && bookmarks.length > 0 && (
+                  <span className="ml-1 rounded-full bg-amber-500/20 px-1 py-0.2 text-[10px] font-bold text-amber-500">
+                    {bookmarks.length}
+                  </span>
+                )}
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === 'flashcards'}
+                onClick={() => setActiveTab('flashcards')}
+                className={cn(
+                  'flex-1 py-1.5 px-2 text-center font-semibold rounded-lg transition-all cursor-pointer relative active:scale-95 duration-150 whitespace-nowrap',
+                  activeTab === 'flashcards'
+                    ? 'bg-card text-purple-400 shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                {t('player.flashcards', 'Cards')}
+                {flashcards && flashcards.length > 0 && (
+                  <span className="ml-1 rounded-full bg-purple-500/20 px-1 py-0.2 text-[10px] font-bold text-purple-400">
+                    {flashcards.length}
                   </span>
                 )}
               </button>
@@ -235,7 +298,7 @@ export function PlayerView(): React.JSX.Element {
                 aria-selected={activeTab === 'resources'}
                 onClick={() => setActiveTab('resources')}
                 className={cn(
-                  'flex-1 py-1.5 text-center font-semibold rounded-lg transition-all cursor-pointer relative active:scale-95 duration-150',
+                  'flex-1 py-1.5 px-2 text-center font-semibold rounded-lg transition-all cursor-pointer relative active:scale-95 duration-150 whitespace-nowrap',
                   activeTab === 'resources'
                     ? 'bg-card text-foreground shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
@@ -243,7 +306,7 @@ export function PlayerView(): React.JSX.Element {
               >
                 {t('player.resources')}
                 {resources.length > 0 && (
-                  <span className="ml-1.5 rounded-full bg-primary/20 px-1.5 py-0.2 text-[10px] font-bold text-primary">
+                  <span className="ml-1 rounded-full bg-primary/20 px-1 py-0.2 text-[10px] font-bold text-primary">
                     {resources.length}
                   </span>
                 )}
@@ -254,7 +317,7 @@ export function PlayerView(): React.JSX.Element {
           {/* Side Panel Content */}
           <div className="flex-1 overflow-y-auto p-3 space-y-3">
             {activeTab === 'curriculum' && (
-              modulesWithLessons.map((module, modIdx) => {
+              (modulesWithLessons || []).map((module, modIdx) => {
                 const modInfo = progressData.moduleProgress[module.id]
 
                 return (
@@ -392,8 +455,20 @@ export function PlayerView(): React.JSX.Element {
               })
             )}
 
+            {activeTab === 'queue' && (
+              <PlaybackQueueDrawer />
+            )}
+
             {activeTab === 'notes' && (
               <NotesPanel />
+            )}
+
+            {activeTab === 'bookmarks' && (
+              <BookmarksPanel />
+            )}
+
+            {activeTab === 'flashcards' && (
+              <FlashcardsPanel />
             )}
 
             {activeTab === 'resources' && (

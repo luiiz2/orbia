@@ -5,6 +5,7 @@ import { usePlayer } from '../../hooks/usePlayer'
 import { usePlayerStore } from '../../stores/usePlayerStore'
 import { useNavigationStore } from '../../stores/useNavigationStore'
 import { PlayerControls } from './PlayerControls'
+import { FocusTimer } from './FocusTimer'
 import { DocumentLessonView } from './DocumentLessonView'
 import { Button, Tooltip, TooltipTrigger, TooltipContent } from '../ui'
 import { cn, mediaUrl } from '../../lib/utils'
@@ -26,11 +27,13 @@ export function VideoPlayer({ className, onBack }: VideoPlayerProps): React.JSX.
     theaterMode,
     toggleTheater,
     notes,
+    bookmarks,
     subtitleTracks,
     activeSubtitleTrack,
     progressMap,
     markLessonBroken,
-    deleteLesson
+    deleteLesson,
+    setMiniPlayerActive
   } = usePlayerStore()
   const { setView } = useNavigationStore()
 
@@ -120,6 +123,9 @@ export function VideoPlayer({ className, onBack }: VideoPlayerProps): React.JSX.
   }
 
   const handleBackClick = (): void => {
+    if (isPlaying) {
+      setMiniPlayerActive(true)
+    }
     if (onBack) {
       onBack()
     } else if (activeCourse) {
@@ -311,6 +317,11 @@ export function VideoPlayer({ className, onBack }: VideoPlayerProps): React.JSX.
             </h2>
           </div>
         </div>
+
+        {/* Top Right: Focus Timer (v0.3) */}
+        <div className="flex items-center gap-2 pointer-events-auto">
+          <FocusTimer />
+        </div>
       </div>
 
       {/* Center Big Play/Pause Overlay Indicator (when paused) */}
@@ -384,6 +395,7 @@ export function VideoPlayer({ className, onBack }: VideoPlayerProps): React.JSX.
         hasPrevLesson={hasPrevLesson}
         bufferedEnd={bufferedEnd}
         notes={notes}
+        bookmarks={bookmarks}
         onTogglePlay={togglePlay}
         onSeek={seekTo}
         onSeekRelative={seekRelative}

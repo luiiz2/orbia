@@ -304,13 +304,18 @@ describe('Module Deduplication & Video Range Seeking', () => {
       VALUES ('les-b', 'mod-b', ?, 'Aula 2', 1, 'C:/test/2.mp4', '2.mp4', 'mp4', 'video', 100, 500, 'local', 1000)
     `).run(courseId)
 
-    // Querying getCourseById should detect the duplicate modules and self-heal automatically
+    // Querying getCourseById is strictly read-only and non-destructive
     const hierarchy = dbService.getCourseById(courseId)
     expect(hierarchy).not.toBeNull()
-    expect(hierarchy!.modules.length).toBe(1)
-    expect(hierarchy!.modules[0].title).toBe('Lovable PRO - Rafa Voss')
-    expect(hierarchy!.modules[0].lessons.length).toBe(2)
-    expect(hierarchy!.modules[0].lessons.map((l) => l.title)).toEqual(['Aula 1', 'Aula 2'])
+    expect(hierarchy!.modules.length).toBe(2)
+
+    // Explicit cleanup merges duplicate modules safely
+    dbService.cleanupDuplicateModules()
+    const cleaned = dbService.getCourseById(courseId)
+    expect(cleaned!.modules.length).toBe(1)
+    expect(cleaned!.modules[0].title).toBe('Lovable PRO - Rafa Voss')
+    expect(cleaned!.modules[0].lessons.length).toBe(2)
+    expect(cleaned!.modules[0].lessons.map((l) => l.title)).toEqual(['Aula 1', 'Aula 2'])
   })
 
   it('supports HTTP 206 Partial Content Range streaming with exact byte slices', async () => {

@@ -1,7 +1,8 @@
-﻿import React from 'react'
+import React from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   BookOpen,
+  Sparkles,
   History,
   Settings,
   Plus,
@@ -33,6 +34,11 @@ export function Sidebar(): React.JSX.Element {
       id: 'home' as const,
       label: t('nav.library'),
       icon: BookOpen
+    },
+    {
+      id: 'review' as const,
+      label: t('nav.review', 'Revisão'),
+      icon: Sparkles
     },
     {
       id: 'history' as const,

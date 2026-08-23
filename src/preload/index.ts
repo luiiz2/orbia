@@ -31,6 +31,9 @@ const api: OrbiaApi = {
     importBatch: (items) => ipcRenderer.invoke('courses:import-batch', { items }),
     getMergePreview: (courseIds) => ipcRenderer.invoke('courses:get-merge-preview', { courseIds }),
     mergeCourses: (courseIds) => ipcRenderer.invoke('courses:merge-courses', { courseIds }),
+    unmergeCourse: (courseId) => ipcRenderer.invoke('courses:unmerge-course', courseId),
+    generateOrganizationPlan: (courseId) => ipcRenderer.invoke('courses:generate-organization-plan', courseId),
+    applyOrganizationPlan: (plan) => ipcRenderer.invoke('courses:apply-organization-plan', plan),
     autoOrganize: () => ipcRenderer.invoke('courses:auto-organize'),
     separateMistakenlyMergedCourses: () => ipcRenderer.invoke('courses:separate-courses'),
     getImportHistory: () => ipcRenderer.invoke('courses:get-import-history'),
@@ -98,6 +101,73 @@ const api: OrbiaApi = {
     deleteLessonNote: (id: string) => ipcRenderer.invoke('player:delete-lesson-note', { id }),
     exportCourseNotes: (courseId: string) => ipcRenderer.invoke('player:export-course-notes', { courseId }),
     getStudyAnalytics: (dailyGoalMinutes?: number) => ipcRenderer.invoke('player:get-study-analytics', { dailyGoalMinutes })
+  },
+
+  // Video Bookmarks (v0.3)
+  bookmarks: {
+    create: (bookmark) => ipcRenderer.invoke('bookmarks:create', bookmark),
+    update: (id, updates) => ipcRenderer.invoke('bookmarks:update', { id, updates }),
+    delete: (id) => ipcRenderer.invoke('bookmarks:delete', id),
+    listByLesson: (lessonId) => ipcRenderer.invoke('bookmarks:list-by-lesson', lessonId),
+    listByCourse: (courseId) => ipcRenderer.invoke('bookmarks:list-by-course', courseId),
+    listRecent: (limit) => ipcRenderer.invoke('bookmarks:list-recent', limit)
+  },
+
+  // Flashcards (v0.3)
+  flashcards: {
+    create: (card) => ipcRenderer.invoke('flashcards:create', card),
+    update: (id, updates) => ipcRenderer.invoke('flashcards:update', { id, updates }),
+    delete: (id) => ipcRenderer.invoke('flashcards:delete', id),
+    getById: (id) => ipcRenderer.invoke('flashcards:get-by-id', id),
+    getDue: (limit) => ipcRenderer.invoke('flashcards:get-due', limit),
+    listAll: (courseId) => ipcRenderer.invoke('flashcards:list-all', courseId),
+    listByLesson: (lessonId) => ipcRenderer.invoke('flashcards:list-by-lesson', lessonId),
+    review: (id, grade) => ipcRenderer.invoke('flashcards:review', { id, grade })
+  },
+
+  // Study Queue ("Estudar Depois") (v0.3)
+  studyQueue: {
+    add: (entityType, entityId) => ipcRenderer.invoke('studyQueue:add', { entityType, entityId }),
+    remove: (id) => ipcRenderer.invoke('studyQueue:remove', id),
+    reorder: (id, direction) => ipcRenderer.invoke('studyQueue:reorder', { id, direction }),
+    list: () => ipcRenderer.invoke('studyQueue:list')
+  },
+
+  // Course Goals (v0.3)
+  goals: {
+    get: (courseId) => ipcRenderer.invoke('goals:get', courseId),
+    set: (goal) => ipcRenderer.invoke('goals:set', goal),
+    delete: (courseId) => ipcRenderer.invoke('goals:delete', courseId)
+  },
+
+  // Backup & Restore (.orbia) (v0.3)
+  backup: {
+    create: (targetFilePath, vaultName) => ipcRenderer.invoke('backup:create', { targetFilePath, vaultName }),
+    inspect: (backupFilePath) => ipcRenderer.invoke('backup:inspect', backupFilePath),
+    restore: (backupFilePath) => ipcRenderer.invoke('backup:restore', backupFilePath),
+    selectBackupFile: () => ipcRenderer.invoke('backup:select-backup-file'),
+    selectSaveBackupPath: (defaultName) => ipcRenderer.invoke('backup:select-save-path', defaultName)
+  },
+
+  // Data Exports (v0.3)
+  exports: {
+    notesMarkdown: (courseId) => ipcRenderer.invoke('exports:notes-markdown', courseId),
+    bookmarksMarkdown: (courseId) => ipcRenderer.invoke('exports:bookmarks-markdown', courseId),
+    flashcardsCsv: (courseId) => ipcRenderer.invoke('exports:flashcards-csv', courseId),
+    flashcardsMarkdown: (courseId) => ipcRenderer.invoke('exports:flashcards-markdown', courseId),
+    saveExportToFile: (defaultFileName, content) => ipcRenderer.invoke('exports:save-file', { defaultFileName, content })
+  },
+
+  // Study Sessions (v0.3)
+  sessions: {
+    start: (courseId, source) => ipcRenderer.invoke('sessions:start', { courseId, source }),
+    end: (sessionId, duration) => ipcRenderer.invoke('sessions:end', { sessionId, duration }),
+    list: (limit) => ipcRenderer.invoke('sessions:list', limit)
+  },
+
+  // Review Dashboard (v0.3)
+  review: {
+    getDashboardStats: () => ipcRenderer.invoke('review:get-dashboard-stats')
   },
 
   settings: {

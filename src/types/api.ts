@@ -192,6 +192,9 @@ export interface OrbiaApi {
     importBatch: (items: { proposal: ProposedCourseStructure; isExternal: boolean }[]) => Promise<{ success: boolean; courses?: Course[]; error?: string }>
     getMergePreview: (courseIds: string[]) => Promise<GetMergePreviewResult>
     mergeCourses: (courseIds: string[]) => Promise<{ success: boolean; canonicalCourseId?: string; error?: string; mergedGroupsCount?: number; removedCoursesCount?: number }>
+    unmergeCourse: (courseId: string) => Promise<{ success: boolean; restoredCoursesCount?: number; error?: string }>
+    generateOrganizationPlan: (courseId: string) => Promise<{ success: boolean; plan?: any; error?: string }>
+    applyOrganizationPlan: (plan: any) => Promise<{ success: boolean; appliedCount?: number; error?: string }>
     autoOrganize: () => Promise<import('./course').AutoOrganizeResult>
     separateMistakenlyMergedCourses: () => Promise<import('./course').SeparateCoursesResult>
     getImportHistory: () => Promise<import('./course').ImportHistoryEntry[]>
@@ -240,6 +243,73 @@ export interface OrbiaApi {
     deleteLessonNote: (id: string) => Promise<boolean>
     exportCourseNotes: (courseId: string) => Promise<string>
     getStudyAnalytics: (dailyGoalMinutes?: number) => Promise<import('./progress').StudyAnalytics>
+  }
+
+  // Video Bookmarks (v0.3)
+  bookmarks: {
+    create: (bookmark: { courseId: string; lessonId: string; timestamp: number; title?: string; color?: string }) => Promise<import('./review').VideoBookmark>
+    update: (id: string, updates: { title?: string; color?: string; timestamp?: number }) => Promise<boolean>
+    delete: (id: string) => Promise<boolean>
+    listByLesson: (lessonId: string) => Promise<import('./review').VideoBookmark[]>
+    listByCourse: (courseId: string) => Promise<import('./review').VideoBookmark[]>
+    listRecent: (limit?: number) => Promise<import('./review').VideoBookmark[]>
+  }
+
+  // Flashcards (v0.3)
+  flashcards: {
+    create: (card: { courseId?: string; moduleId?: string; lessonId?: string; timestamp?: number; question: string; answer: string; state?: import('./review').FlashcardState; dueAt?: number }) => Promise<import('./review').Flashcard>
+    update: (id: string, updates: Partial<import('./review').Flashcard>) => Promise<boolean>
+    delete: (id: string) => Promise<boolean>
+    getById: (id: string) => Promise<import('./review').Flashcard | null>
+    getDue: (limit?: number) => Promise<import('./review').Flashcard[]>
+    listAll: (courseId?: string) => Promise<import('./review').Flashcard[]>
+    listByLesson: (lessonId: string) => Promise<import('./review').Flashcard[]>
+    review: (id: string, grade: import('./review').FlashcardReviewGrade) => Promise<{ success: boolean; flashcard?: import('./review').Flashcard }>
+  }
+
+  // Study Queue ("Estudar Depois") (v0.3)
+  studyQueue: {
+    add: (entityType: import('./review').StudyQueueEntityType, entityId: string) => Promise<import('./review').StudyQueueItem>
+    remove: (id: string) => Promise<boolean>
+    reorder: (id: string, direction: 'up' | 'down') => Promise<boolean>
+    list: () => Promise<import('./review').StudyQueueItem[]>
+  }
+
+  // Course Goals (v0.3)
+  goals: {
+    get: (courseId: string) => Promise<import('./review').CourseGoal | null>
+    set: (goal: { courseId: string; targetDate?: number; dailyMinutes?: number; weeklyLessons?: number }) => Promise<import('./review').CourseGoal>
+    delete: (courseId: string) => Promise<boolean>
+  }
+
+  // Backup & Restore (.orbia) (v0.3)
+  backup: {
+    create: (targetFilePath?: string, vaultName?: string) => Promise<{ success: boolean; filePath: string; fileSizeBytes: number; error?: string }>
+    inspect: (backupFilePath: string) => Promise<import('./review').BackupPreview>
+    restore: (backupFilePath: string) => Promise<{ success: boolean; restoredCoursesCount: number; error?: string }>
+    selectBackupFile: () => Promise<string | null>
+    selectSaveBackupPath: (defaultName?: string) => Promise<string | null>
+  }
+
+  // Data Exports (v0.3)
+  exports: {
+    notesMarkdown: (courseId?: string) => Promise<string>
+    bookmarksMarkdown: (courseId?: string) => Promise<string>
+    flashcardsCsv: (courseId?: string) => Promise<string>
+    flashcardsMarkdown: (courseId?: string) => Promise<string>
+    saveExportToFile: (defaultFileName: string, content: string) => Promise<{ success: boolean; filePath?: string }>
+  }
+
+  // Study Sessions & Focus Timer (v0.3)
+  sessions: {
+    start: (courseId?: string, source?: 'player' | 'focus_timer') => Promise<import('./review').StudySession>
+    end: (sessionId: string, duration?: number) => Promise<boolean>
+    list: (limit?: number) => Promise<import('./review').StudySession[]>
+  }
+
+  // Review Dashboard Aggregator (v0.3)
+  review: {
+    getDashboardStats: () => Promise<import('./review').ReviewDashboardStats>
   }
 
   // App Settings

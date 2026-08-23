@@ -2,13 +2,14 @@ import React, { useState, useRef, useCallback, useEffect } from 'react'
 import { formatTime } from '../../lib/formatters'
 import { cn } from '../../lib/utils'
 
-import type { LessonNote } from '@shared'
+import type { LessonNote, VideoBookmark } from '@shared'
 
 export interface ProgressBarProps {
   currentTime: number
   duration: number
   bufferedEnd?: number
   notes?: LessonNote[]
+  bookmarks?: VideoBookmark[]
   onSeek: (time: number) => void
   className?: string
 }
@@ -18,6 +19,7 @@ export function ProgressBar({
   duration,
   bufferedEnd = 0,
   notes,
+  bookmarks,
   onSeek,
   className
 }: ProgressBarProps): React.JSX.Element {
@@ -215,6 +217,41 @@ export function ProgressBar({
                   </div>
                   <div className="truncate text-foreground text-[11px]">
                     {note.content}
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+
+        {/* Timestamped Bookmark Markers (v0.3) */}
+        {bookmarks &&
+          duration > 0 &&
+          bookmarks.map((bm) => {
+            const bmPct = Math.min(100, Math.max(0, (bm.timestamp / duration) * 100))
+            return (
+              <div
+                key={bm.id}
+                className="group/bm absolute top-1/2 -translate-x-1/2 -translate-y-1/2 z-20"
+                style={{ left: `${bmPct}%` }}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onSeek(bm.timestamp)
+                }}
+              >
+                {/* Bookmark diamond icon */}
+                <div
+                  className="h-2.5 w-2.5 rotate-45 rounded-[2px] ring-2 ring-background shadow-md hover:scale-150 transition-transform cursor-pointer"
+                  style={{ backgroundColor: bm.color || '#f59e0b' }}
+                />
+
+                {/* Bookmark hover tooltip */}
+                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 opacity-0 group-hover/bm:opacity-100 transition-opacity bg-popover text-popover-foreground text-[11px] px-2.5 py-1.5 rounded-lg shadow-xl border border-border pointer-events-none whitespace-nowrap z-40 max-w-[220px] truncate">
+                  <div className="flex items-center gap-1 font-mono text-amber-500 font-bold text-[10px]">
+                    <span>🔖</span>
+                    <span>{formatTime(bm.timestamp)}</span>
+                  </div>
+                  <div className="truncate text-foreground text-[11px] mt-0.5">
+                    {bm.title}
                   </div>
                 </div>
               </div>

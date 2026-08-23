@@ -30,6 +30,8 @@ export interface Course {
   moduleCount: number
   lessonCount: number
   isFavorite?: boolean
+  mergedIntoCourseId?: string
+  mergeMetadata?: string
   createdAt: number // Unix timestamp ms
   updatedAt: number
   lastAccessedAt?: number
@@ -45,6 +47,9 @@ export interface Module {
   customTitle?: string
   orderIndex: number
   displayOrder?: number
+  hasManualOrder?: boolean
+  isAuxiliary?: boolean
+  parentModuleId?: string
   folderPath?: string
   duration: number // Sum of lesson durations in seconds
   lessonCount: number
@@ -69,6 +74,12 @@ export interface Lesson {
   customTitle?: string
   orderIndex: number
   displayOrder?: number
+  hasManualOrder?: boolean
+  isMultipart?: boolean
+  parentLessonId?: string
+  partNumber?: number
+  contentHash?: string
+  fingerprintSignature?: string
   isFavorite?: boolean
   filePath: string // Absolute path (or source-relative URI)
   fileName: string // Original physical filename (e.g. "01 - Intro.mp4")

@@ -10,15 +10,21 @@ import {
   Check,
   ShieldCheck,
   FolderOpen,
-  Trash2
+  Trash2,
+  PackageCheck,
+  Download,
+  AlertCircle
 } from 'lucide-react'
 import { useSettingsStore } from '../stores/useSettingsStore'
 import { useVaultStore } from '../stores/useVaultStore'
 import { useNavigationStore } from '../stores/useNavigationStore'
+import { useLibraryStore } from '../stores/useLibraryStore'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card'
 import { Slider } from '../components/ui/slider'
 import { DeleteVaultModal } from '../components/vault/DeleteVaultModal'
+import { BackupPreviewModal } from '../components/vault/BackupPreviewModal'
+import type { BackupPreview } from '@shared'
 import appLogo from '../assets/icon.png'
 
 export function SettingsView(): React.JSX.Element {
@@ -26,7 +32,118 @@ export function SettingsView(): React.JSX.Element {
   const { settings, setLanguage, setTheme, updateSetting } = useSettingsStore()
   const { currentVault } = useVaultStore()
   const { setVaultModalOpen } = useNavigationStore()
+  const { fetchCourses } = useLibraryStore()
   const [deleteVaultModalOpen, setDeleteVaultModalOpen] = useState<boolean>(false)
+
+  // Backup & Portability state (v0.3)
+  const [isCreatingBackup, setIsCreatingBackup] = useState(false)
+  const [backupStatusMessage, setBackupStatusMessage] = useState<string | null>(null)
+  const [backupErrorMessage, setBackupErrorMessage] = useState<string | null>(null)
+  const [backupPreview, setBackupPreview] = useState<BackupPreview | null>(null)
+  const [selectedBackupPath, setSelectedBackupPath] = useState<string | null>(null)
+  const [isBackupPreviewModalOpen, setIsBackupPreviewModalOpen] = useState(false)
+  const [isRestoringBackup, setIsRestoringBackup] = useState(false)
+
+  const handleCreateBackup = async () => {
+    setIsCreatingBackup(true)
+    setBackupStatusMessage(null)
+    setBackupErrorMessage(null)
+    try {
+      const defaultName = `OrbiaBackup-${new Date().toISOString().split('T')[0]}.orbia`
+      const savePath = await window.api.backup.selectSaveBackupPath(defaultName)
+      if (!savePath) {
+        setIsCreatingBackup(false)
+        return
+      }
+      const res = await window.api.backup.create(savePath, currentVault?.name)
+      if (res.success) {
+        setBackupStatusMessage(`Backup salvo com sucesso em: ${res.filePath}`)
+      } else {
+        setBackupErrorMessage(res.error || 'Erro ao criar backup.')
+      }
+    } catch (err: unknown) {
+      setBackupErrorMessage(err instanceof Error ? err.message : 'Falha na criação do backup.')
+    } finally {
+      setIsCreatingBackup(false)
+    }
+  }
+
+  const handleSelectBackupForRestore = async () => {
+    setBackupStatusMessage(null)
+    setBackupErrorMessage(null)
+    try {
+      const filePath = await window.api.backup.selectBackupFile()
+      if (!filePath) return
+
+      const inspectRes = await window.api.backup.inspect(filePath)
+      if (inspectRes.valid && inspectRes.manifest) {
+        setBackupPreview(inspectRes)
+        setSelectedBackupPath(filePath)
+        setIsBackupPreviewModalOpen(true)
+      } else {
+        setBackupErrorMessage(inspectRes.error || 'Arquivo de backup inválido ou corrompido.')
+      }
+    } catch (err: unknown) {
+      setBackupErrorMessage(err instanceof Error ? err.message : 'Erro ao inspecionar backup.')
+    }
+  }
+
+  const handleConfirmRestore = async () => {
+    if (!selectedBackupPath) return
+    setIsRestoringBackup(true)
+    try {
+      const res = await window.api.backup.restore(selectedBackupPath)
+      if (res.success) {
+        setIsBackupPreviewModalOpen(false)
+        setBackupPreview(null)
+        setSelectedBackupPath(null)
+        setBackupStatusMessage('Vault restaurado com sucesso! Os cursos e dados foram recarregados.')
+        await fetchCourses()
+      } else {
+        setBackupErrorMessage(res.error || 'Falha ao restaurar backup. O banco anterior foi preservado.')
+      }
+    } catch (err: unknown) {
+      setBackupErrorMessage(err instanceof Error ? err.message : 'Falha durante restauração.')
+    } finally {
+      setIsRestoringBackup(false)
+    }
+  }
+
+  const handleExportNotes = async () => {
+    try {
+      const md = await window.api.exports.notesMarkdown()
+      const res = await window.api.exports.saveExportToFile(`Orbia-Anotacoes-${new Date().toISOString().split('T')[0]}.md`, md)
+      if (res.success) {
+        setBackupStatusMessage('Anotações exportadas com sucesso em Markdown!')
+      }
+    } catch (err: unknown) {
+      setBackupErrorMessage(err instanceof Error ? err.message : 'Erro ao exportar anotações.')
+    }
+  }
+
+  const handleExportBookmarks = async () => {
+    try {
+      const md = await window.api.exports.bookmarksMarkdown()
+      const res = await window.api.exports.saveExportToFile(`Orbia-Marcadores-${new Date().toISOString().split('T')[0]}.md`, md)
+      if (res.success) {
+        setBackupStatusMessage('Marcadores exportados com sucesso em Markdown!')
+      }
+    } catch (err: unknown) {
+      setBackupErrorMessage(err instanceof Error ? err.message : 'Erro ao exportar marcadores.')
+    }
+  }
+
+  const handleExportFlashcardsCsv = async () => {
+    try {
+      const csv = await window.api.exports.flashcardsCsv()
+      const res = await window.api.exports.saveExportToFile(`Orbia-Flashcards-${new Date().toISOString().split('T')[0]}.csv`, csv)
+      if (res.success) {
+        setBackupStatusMessage('Flashcards exportados com sucesso em CSV!')
+      }
+    } catch (err: unknown) {
+      setBackupErrorMessage(err instanceof Error ? err.message : 'Erro ao exportar flashcards.')
+    }
+  }
 
   const languages = [
     { code: 'en' as const, label: 'English (US)' },
@@ -343,6 +460,107 @@ export function SettingsView(): React.JSX.Element {
           </CardContent>
         </Card>
 
+        {/* Backup & Portability Card (v0.3) */}
+        <Card className="rounded-2xl border border-border/80 bg-card shadow-sm">
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <PackageCheck className="h-4 w-4 text-primary" />
+              <CardTitle className="text-base font-bold">{t('backup.sectionTitle', 'Backup & Portabilidade')}</CardTitle>
+            </div>
+            <CardDescription className="text-xs">
+              {t('backup.sectionDesc', 'Proteja seu progresso, histórico, anotações, flashcards e marcadores em um arquivo compacto (.orbia).')}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4 pt-1">
+            {/* Status alerts */}
+            {backupStatusMessage && (
+              <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs flex items-center justify-between animate-in fade-in">
+                <span>{backupStatusMessage}</span>
+                <button type="button" onClick={() => setBackupStatusMessage(null)} className="text-muted-foreground hover:text-foreground">
+                  <Check className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            )}
+
+            {backupErrorMessage && (
+              <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/30 text-destructive text-xs flex items-center justify-between animate-in fade-in">
+                <span>{backupErrorMessage}</span>
+                <button type="button" onClick={() => setBackupErrorMessage(null)} className="text-muted-foreground hover:text-foreground">
+                  <AlertCircle className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            )}
+
+            {/* Backup & Restore Action Buttons */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl border border-border/70 bg-secondary/20">
+              <div>
+                <p className="text-sm font-semibold text-foreground">{t('backup.vaultBackup', 'Backup do Vault')}</p>
+                <p className="text-xs text-muted-foreground">{t('backup.vaultBackupDesc', 'Gere uma cópia leve de segurança ou migre para outro computador.')}</p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <Button
+                  variant="default"
+                  size="sm"
+                  disabled={isCreatingBackup || !currentVault}
+                  onClick={handleCreateBackup}
+                  className="text-xs rounded-xl gap-1.5 font-semibold"
+                >
+                  <PackageCheck className="h-3.5 w-3.5" />
+                  <span>{isCreatingBackup ? t('backup.creating', 'Criando...') : t('backup.create', 'Criar Backup (.orbia)')}</span>
+                </Button>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={!currentVault}
+                  onClick={handleSelectBackupForRestore}
+                  className="text-xs rounded-xl gap-1.5 border-border/80 hover:border-primary"
+                >
+                  <Download className="h-3.5 w-3.5 text-primary" />
+                  <span>{t('backup.restore', 'Restaurar Backup')}</span>
+                </Button>
+              </div>
+            </div>
+
+            {/* Portable Data Exports */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-border/40">
+              <div>
+                <p className="text-sm font-semibold text-foreground">{t('backup.dataExport', 'Exportação Portátil')}</p>
+                <p className="text-xs text-muted-foreground">{t('backup.dataExportDesc', 'Exporte suas anotações e marcadores para Markdown e flashcards para Anki (CSV).')}</p>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
+                <Button
+                  variant="outline"
+                  size="xs"
+                  onClick={handleExportNotes}
+                  className="text-xs h-8 px-2.5 rounded-xl gap-1"
+                >
+                  <Download className="h-3 w-3" />
+                  <span>Notas (.md)</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="xs"
+                  onClick={handleExportBookmarks}
+                  className="text-xs h-8 px-2.5 rounded-xl gap-1"
+                >
+                  <Download className="h-3 w-3" />
+                  <span>Marcadores (.md)</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="xs"
+                  onClick={handleExportFlashcardsCsv}
+                  className="text-xs h-8 px-2.5 rounded-xl gap-1"
+                >
+                  <Download className="h-3 w-3" />
+                  <span>Flashcards (.csv)</span>
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* About Card */}
         <Card className="rounded-2xl border border-border/80 bg-card shadow-sm">
           <CardHeader className="pb-3">
@@ -382,6 +600,14 @@ export function SettingsView(): React.JSX.Element {
         vault={currentVault}
         open={deleteVaultModalOpen}
         onOpenChange={setDeleteVaultModalOpen}
+      />
+
+      <BackupPreviewModal
+        open={isBackupPreviewModalOpen}
+        onClose={() => setIsBackupPreviewModalOpen(false)}
+        preview={backupPreview}
+        onConfirmRestore={handleConfirmRestore}
+        isRestoring={isRestoringBackup}
       />
     </div>
   )

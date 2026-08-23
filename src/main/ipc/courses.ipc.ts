@@ -20,6 +20,8 @@ import { scannerService } from '../services/scanner.service'
 import { parserService } from '../services/parser.service'
 import { logger } from '../services/logger.service'
 import { reorganizerService } from '../services/reorganizer.service'
+import { courseMergeService } from '../services/organization/course-merge.service'
+import { organizationPlanService } from '../services/organization/organization-plan.service'
 import { convertSrtToVtt } from '../utils/subtitle-utils'
 import { isSubtitleFile } from '../utils/file-utils'
 
@@ -537,28 +539,50 @@ export function registerCoursesIpc(): void {
     }
   })
 
-  // Execute merge for duplicate courses across the vault
-  ipcMain.handle('courses:merge-duplicates', async () => {
-    try {
-      const result = databaseService.mergeDuplicateCourses()
-      return result
-    } catch (err: unknown) {
-      logger.error('[IPC] courses:merge-duplicates error:', err)
-      return { success: false, error: err instanceof Error ? err.message : String(err) }
-    }
-  })
-
   // Execute merge for specific selected course IDs
   ipcMain.handle('courses:merge-courses', async (_event, payload: unknown) => {
     try {
       const courseIds = normalizeMergePreviewCourseIds(payload)
-      if (!courseIds) {
+      if (!courseIds || courseIds.length < 2) {
         return { success: false, error: 'Select at least two valid courses to merge.' }
       }
-      const result = databaseService.mergeCourses(courseIds)
-      return result
+      return databaseService.mergeCourses(courseIds)
     } catch (err: unknown) {
       logger.error('[IPC] courses:merge-courses error:', err)
+      return { success: false, error: err instanceof Error ? err.message : String(err) }
+    }
+  })
+
+  // Unmerge / Undo a previous course merge
+  ipcMain.handle('courses:unmerge-course', async (_event, courseId: string) => {
+    try {
+      if (!courseId) return { success: false, error: 'Course ID is required' }
+      return courseMergeService.unmergeCourse(courseId)
+    } catch (err: unknown) {
+      logger.error('[IPC] courses:unmerge-course error:', err)
+      return { success: false, error: err instanceof Error ? err.message : String(err) }
+    }
+  })
+
+  // Generate Organization Plan (Safe corrections, Suggestions, Conflicts)
+  ipcMain.handle('courses:generate-organization-plan', async (_event, courseId: string) => {
+    try {
+      if (!courseId) return { success: false, error: 'Course ID is required' }
+      const plan = await organizationPlanService.generatePlan(courseId)
+      return { success: true, plan }
+    } catch (err: unknown) {
+      logger.error('[IPC] courses:generate-organization-plan error:', err)
+      return { success: false, error: err instanceof Error ? err.message : String(err) }
+    }
+  })
+
+  // Apply approved items of an Organization Plan
+  ipcMain.handle('courses:apply-organization-plan', async (_event, plan: any) => {
+    try {
+      if (!plan || !plan.courseId) return { success: false, error: 'Valid organization plan is required' }
+      return organizationPlanService.applyPlan(plan)
+    } catch (err: unknown) {
+      logger.error('[IPC] courses:apply-organization-plan error:', err)
       return { success: false, error: err instanceof Error ? err.message : String(err) }
     }
   })

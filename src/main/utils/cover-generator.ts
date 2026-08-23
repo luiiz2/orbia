@@ -12,9 +12,9 @@ import { isVideoFile, isPdfFile } from './file-utils'
  */
 export const TEMP_COVERS_DIR = path.join(os.tmpdir(), 'orbia-covers')
 
-/** Cover patterns searched inside a course/module root. */
+/** Cover patterns searched inside a course/module root in prioritized order. */
 const COURSE_COVER_NAMES = [
-  'cover', 'thumb', 'thumbnail', 'poster', 'folder', 'front', 'capa', 'banner'
+  'backdrop', 'fanart', 'poster', 'cover', 'capa', 'banner', 'folder', 'front', 'thumb', 'thumbnail', 'landscape', 'background'
 ]
 const IMAGE_EXTS = ['.jpg', '.jpeg', '.png', '.webp']
 
