@@ -302,6 +302,66 @@ describe('Course Health Diagnosis & Lesson Deletion', () => {
     expect(updated?.course.lessonCount).toBe(1)
   })
 
+  it('fixCourseProblems removes missing files and 0-byte corrupt lessons, restoring health', () => {
+    const courseDir = path.join(tempVaultDir, 'Courses', 'Corrupt Course')
+    const modDir = path.join(courseDir, 'Module 1')
+    fs.mkdirSync(modDir, { recursive: true })
+
+    const validVideo = path.join(modDir, '01 - Good.mp4')
+    const zeroByteVideo = path.join(modDir, '02 - Corrupt.mp4')
+    fs.writeFileSync(validVideo, Buffer.alloc(1024))
+    fs.writeFileSync(zeroByteVideo, Buffer.alloc(0))
+
+    const course: Course = {
+      id: 'course-corrupt',
+      title: 'Corrupt Course',
+      slug: 'corrupt-course',
+      sourceType: 'local-vault',
+      rootPath: courseDir,
+      totalDuration: 0,
+      moduleCount: 1,
+      lessonCount: 3,
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    }
+
+    const module: Module = {
+      id: 'mod-c',
+      courseId: course.id,
+      title: 'Module 1',
+      orderIndex: 0,
+      folderPath: modDir,
+      duration: 0,
+      lessonCount: 3,
+      createdAt: Date.now()
+    }
+
+    const lessons: Lesson[] = [
+      { id: 'l-good', moduleId: module.id, courseId: course.id, title: 'Good', orderIndex: 0, filePath: validVideo, fileName: '01 - Good.mp4', fileExtension: 'mp4', mediaType: 'video', duration: 100, fileSize: 1024, availability: 'local', createdAt: Date.now() },
+      { id: 'l-zero', moduleId: module.id, courseId: course.id, title: 'Corrupt', orderIndex: 1, filePath: zeroByteVideo, fileName: '02 - Corrupt.mp4', fileExtension: 'mp4', mediaType: 'video', duration: 0, fileSize: 0, availability: 'local', createdAt: Date.now() },
+      { id: 'l-ghost', moduleId: module.id, courseId: course.id, title: 'Ghost', orderIndex: 2, filePath: path.join(modDir, 'non-existent.mp4'), fileName: 'non-existent.mp4', fileExtension: 'mp4', mediaType: 'video', duration: 0, fileSize: 500, availability: 'local', createdAt: Date.now() }
+    ]
+
+    dbService.saveCourseWithHierarchy(course, [{ ...module, lessons }])
+
+    const initialHealth = dbService.getCourseHealth(course.id)
+    expect(initialHealth.healthy).toBe(false)
+    expect(initialHealth.problemLessons.length).toBe(2)
+
+    const fixResult = dbService.fixCourseProblems(course.id)
+    expect(fixResult.success).toBe(true)
+    expect(fixResult.removedCount).toBe(2)
+
+    const fixedHealth = dbService.getCourseHealth(course.id)
+    expect(fixedHealth.healthy).toBe(true)
+    expect(fixedHealth.problemLessons.length).toBe(0)
+
+    const updated = dbService.getCourseById(course.id)
+    expect(updated?.modules[0].lessons.length).toBe(1)
+    expect(updated?.modules[0].lessons[0].id).toBe('l-good')
+    expect(updated?.course.lessonCount).toBe(1)
+  })
+
   it('deletes a lesson and optionally deletes physical file with journal record', () => {
     const courseDir = path.join(tempVaultDir, 'Courses', 'Delete Lesson Course')
     const modDir = path.join(courseDir, 'Module 1')

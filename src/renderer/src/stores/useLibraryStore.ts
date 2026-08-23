@@ -315,6 +315,8 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
       if (res.success) {
         await get().fetchCourseById(courseId)
         await get().fetchCourseHealth(courseId)
+        await get().fetchCourseProgress(courseId)
+        await get().fetchCourses()
       }
       set({ isLoading: false })
       return res

@@ -1920,6 +1920,7 @@ export class DatabaseService {
     this.ensureConnected()
     const health = this.getCourseHealth(courseId)
     let fixedCount = 0
+    let removedCount = 0
 
     const tx = this.db!.transaction(() => {
       for (const prob of health.problemLessons) {
@@ -1952,16 +1953,21 @@ export class DatabaseService {
 
           this.db!.prepare(`DELETE FROM lessons WHERE id = ?`).run(prob.id)
           fixedCount++
+        } else if (prob.problemType === 'missing_file' || prob.problemType === 'zero_bytes') {
+          this.db!.prepare(`DELETE FROM lessons WHERE id = ?`).run(prob.id)
+          this.db!.prepare(`DELETE FROM lesson_progress WHERE lesson_id = ?`).run(prob.id)
+          this.db!.prepare(`DELETE FROM content_resources WHERE lesson_id = ?`).run(prob.id)
+          removedCount++
         }
       }
     })
 
     tx()
-    if (fixedCount > 0) {
+    if (fixedCount > 0 || removedCount > 0) {
       this.reindexCourseHierarchy(courseId)
     }
 
-    return { success: true, fixedCount, removedCount: 0 }
+    return { success: true, fixedCount, removedCount }
   }
 
   public cleanupNonMediaLessons(): void {

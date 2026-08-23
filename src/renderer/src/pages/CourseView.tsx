@@ -599,42 +599,58 @@ export function CourseView(): React.JSX.Element {
       </div>
 
       {/* Course Health / Problem Lessons Warning Banner */}
-      {courseHealth && !courseHealth.healthy && courseHealth.problemLessons.length > 0 && (
-        <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4.5 backdrop-blur-md space-y-3 animate-in fade-in duration-200 shadow-md">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30 mt-0.5">
-                <AlertTriangle className="h-5 w-5" />
-              </div>
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-bold text-amber-200">
-                    {courseHealth.problemLessons.length} aula(s) com problema identificadas
-                  </h3>
-                  <Badge variant="destructive" className="text-[10px] px-2 py-0.5">
-                    Ação recomendada
-                  </Badge>
-                </div>
-                <p className="text-xs text-zinc-300 leading-relaxed">
-                  Foram detectados arquivos ausentes, 0 bytes ou documentos/anexos registrados indevidamente como aulas de vídeo.
-                </p>
-              </div>
-            </div>
+      {courseHealth && !courseHealth.healthy && courseHealth.problemLessons.length > 0 && (() => {
+        const hasNonMedia = courseHealth.problemLessons.some((p) => p.problemType === 'non_media_type')
+        const hasMissingOrCorrupted = courseHealth.problemLessons.some((p) => p.problemType === 'missing_file' || p.problemType === 'zero_bytes')
 
-            <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
-              <Button
-                variant="default"
-                size="sm"
-                onClick={handleFixProblems}
-                disabled={isFixingProblems}
-                className="h-8.5 px-3.5 text-xs font-bold rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-primary-foreground hover:opacity-90 shadow-sm cursor-pointer"
-              >
-                {isFixingProblems ? 'Corrigindo...' : 'Mover Anexos para Materiais'}
-              </Button>
+        let buttonText = 'Corrigir e Limpar Aulas'
+        if (hasNonMedia && !hasMissingOrCorrupted) {
+          buttonText = 'Mover Anexos para Materiais'
+        } else if (!hasNonMedia && hasMissingOrCorrupted) {
+          buttonText = 'Remover Aulas Inacessíveis'
+        }
+
+        return (
+          <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4.5 backdrop-blur-md space-y-3 animate-in fade-in duration-200 shadow-md">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30 mt-0.5">
+                  <AlertTriangle className="h-5 w-5" />
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-bold text-amber-200">
+                      {courseHealth.problemLessons.length} aula(s) com problema identificadas
+                    </h3>
+                    <Badge variant="destructive" className="text-[10px] px-2 py-0.5">
+                      Ação recomendada
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-zinc-300 leading-relaxed">
+                    {hasNonMedia && hasMissingOrCorrupted
+                      ? 'Foram detectados anexos/documentos e arquivos ausentes ou vazios. O Orbia moverá anexos para Materiais e removerá links inválidos.'
+                      : hasNonMedia
+                        ? 'Foram detectados documentos e materiais registrados indevidamente como aulas de vídeo. Eles serão movidos para a aba de Materiais.'
+                        : 'Foram detectados arquivos ausentes no disco ou de 0 bytes que não podem ser reproduzidos.'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={handleFixProblems}
+                  disabled={isFixingProblems}
+                  className="h-8.5 px-3.5 text-xs font-bold rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-primary-foreground hover:opacity-90 shadow-sm cursor-pointer"
+                >
+                  {isFixingProblems ? 'Corrigindo...' : buttonText}
+                </Button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
 
       {/* Curriculum Accordion */}
       <div className="space-y-3">
