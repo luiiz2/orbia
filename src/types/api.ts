@@ -192,6 +192,8 @@ export interface OrbiaApi {
     importBatch: (items: { proposal: ProposedCourseStructure; isExternal: boolean }[]) => Promise<{ success: boolean; courses?: Course[]; error?: string }>
     getMergePreview: (courseIds: string[]) => Promise<GetMergePreviewResult>
     mergeCourses: (courseIds: string[]) => Promise<{ success: boolean; canonicalCourseId?: string; error?: string; mergedGroupsCount?: number; removedCoursesCount?: number }>
+    autoOrganize: () => Promise<import('./course').AutoOrganizeResult>
+    separateMistakenlyMergedCourses: () => Promise<import('./course').SeparateCoursesResult>
     getImportHistory: () => Promise<import('./course').ImportHistoryEntry[]>
     recordImportHistory: (entry: Omit<import('./course').ImportHistoryEntry, 'id' | 'createdAt'>) => Promise<import('./course').ImportHistoryEntry>
     clearImportHistory: () => Promise<boolean>

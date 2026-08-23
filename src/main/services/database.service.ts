@@ -22,7 +22,7 @@ import type {
   SubtitleTrack
 } from '../../types'
 import { naturalCompare } from '../utils/natural-sort'
-import { normalizeModuleKey } from '../utils/title-cleaner'
+import { cleanTitle, normalizeModuleKey } from '../utils/title-cleaner'
 import { isMediaFile, getMediaType } from '../utils/file-utils'
 import { logger } from './logger.service'
 
@@ -64,6 +64,7 @@ export class DatabaseService {
     this.runMigrations()
     this.recoverPendingFileOperations(vaultPath)
     try {
+      this.separateMistakenlyMergedCourses()
       this.cleanupDuplicateModules()
       this.cleanupNonMediaLessons()
       void this.healMissingDurations()
@@ -2280,6 +2281,243 @@ export class DatabaseService {
           removedDuplicateLessons: 0
         }
       ]
+    }
+  }
+
+  /**
+   * Automatically detects if any course in the library contains modules or lessons
+   * belonging to different course directory trees (e.g. if the user previously merged
+   * unrelated courses by mistake). Separates them into their own distinct courses,
+   * properly restoring titles, paths, modules, lessons, progress, and notes.
+   */
+  public separateMistakenlyMergedCourses(): import('../../types').SeparateCoursesResult {
+    this.ensureConnected()
+    const allCourses = this.getAllCourses()
+    if (allCourses.length === 0) return { separatedCoursesCount: 0, createdCoursesCount: 0, details: [] }
+
+    const coursesRoot = this.currentVaultPath ? path.join(this.currentVaultPath, 'Courses') : null
+    const details: import('../../types').SeparateCoursesResult['details'] = []
+    let createdCoursesCount = 0
+    let separatedCoursesCount = 0
+
+    for (const course of allCourses) {
+      const hierarchy = this.getCourseById(course.id, { skipDeduplication: true })
+      if (!hierarchy || hierarchy.modules.length <= 1) continue
+
+      // For each module in the course, detect its physical course root directory
+      const modulesByCourseRoot = new Map<string, Array<{ module: Module; lessons: Lesson[] }>>()
+
+      for (const mod of hierarchy.modules) {
+        let detectedRoot: string | null = null
+
+        // 1. Try from module folderPath
+        if (mod.folderPath) {
+          if (coursesRoot && mod.folderPath.toLowerCase().startsWith(coursesRoot.toLowerCase())) {
+            const rel = path.relative(coursesRoot, mod.folderPath)
+            const firstDir = rel.split(/[\\/]/)[0]
+            if (firstDir && firstDir !== '..' && firstDir !== '.') {
+              detectedRoot = path.join(coursesRoot, firstDir)
+            }
+          }
+          if (!detectedRoot) {
+            detectedRoot = path.dirname(mod.folderPath)
+          }
+        }
+
+        // 2. If no folderPath or not resolved, try from lesson filePaths
+        if (!detectedRoot && mod.lessons && mod.lessons.length > 0) {
+          for (const l of mod.lessons) {
+            if (l.filePath) {
+              if (coursesRoot && l.filePath.toLowerCase().startsWith(coursesRoot.toLowerCase())) {
+                const rel = path.relative(coursesRoot, l.filePath)
+                const firstDir = rel.split(/[\\/]/)[0]
+                if (firstDir && firstDir !== '..' && firstDir !== '.') {
+                  detectedRoot = path.join(coursesRoot, firstDir)
+                  break
+                }
+              }
+              if (!detectedRoot) {
+                const modDir = path.dirname(l.filePath)
+                detectedRoot = path.dirname(modDir)
+                break
+              }
+            }
+          }
+        }
+
+        const rootKey = detectedRoot ? path.normalize(detectedRoot).toLowerCase() : path.normalize(course.rootPath).toLowerCase()
+
+        if (!modulesByCourseRoot.has(rootKey)) {
+          modulesByCourseRoot.set(rootKey, [])
+        }
+        modulesByCourseRoot.get(rootKey)!.push({ module: mod, lessons: mod.lessons })
+      }
+
+      // If all modules come from the same course root, no separation needed
+      if (modulesByCourseRoot.size <= 1) continue
+
+      // There are multiple course roots! Find the primary root matching the current course
+      const courseNormRoot = path.normalize(course.rootPath).toLowerCase()
+      let primaryKey = courseNormRoot
+      if (!modulesByCourseRoot.has(primaryKey)) {
+        let maxCount = -1
+        for (const [key, mods] of modulesByCourseRoot.entries()) {
+          if (mods.length > maxCount) {
+            maxCount = mods.length
+            primaryKey = key
+          }
+        }
+      }
+
+      separatedCoursesCount++
+
+      // Separate the other groups into their own courses
+      const tx = this.db!.transaction(() => {
+        for (const [rootKey, modGroups] of modulesByCourseRoot.entries()) {
+          if (rootKey === primaryKey) continue
+
+          const samplePath = modGroups[0]?.module.folderPath || modGroups[0]?.lessons[0]?.filePath || rootKey
+          let rawCourseName = path.basename(samplePath)
+          if (coursesRoot && samplePath.toLowerCase().startsWith(coursesRoot.toLowerCase())) {
+            const rel = path.relative(coursesRoot, samplePath)
+            rawCourseName = rel.split(/[\\/]/)[0] || rawCourseName
+          }
+
+          const targetCourseTitle = cleanTitle(rawCourseName) || rawCourseName
+          const targetCourseRoot = coursesRoot && samplePath.toLowerCase().startsWith(coursesRoot.toLowerCase())
+            ? path.join(coursesRoot, rawCourseName)
+            : path.dirname(samplePath)
+
+          // Check if a course with this root path already exists
+          let targetCourse = this.db!.prepare(`SELECT id, title FROM courses WHERE LOWER(root_path) = LOWER(?)`).get(targetCourseRoot) as { id: string; title: string } | undefined
+          if (!targetCourse) {
+            const newCourseId = crypto.randomUUID()
+            const slug = (targetCourseTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'course') + '-' + newCourseId.slice(0, 6)
+            this.db!.prepare(`
+              INSERT INTO courses (
+                id, title, slug, source_type, root_path, is_external,
+                cover_path, description, total_duration, module_count,
+                lesson_count, is_favorite, created_at, updated_at
+              ) VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, 0, 0, 0, 0, ?, ?)
+            `).run(
+              newCourseId,
+              targetCourseTitle,
+              slug,
+              course.sourceType,
+              targetCourseRoot,
+              course.sourceType === 'local-ref' ? 1 : 0,
+              Date.now(),
+              Date.now()
+            )
+            targetCourse = { id: newCourseId, title: targetCourseTitle }
+            createdCoursesCount++
+          }
+
+          const targetCourseId = targetCourse.id
+          let movedLessonsCount = 0
+
+          for (const item of modGroups) {
+            const modId = item.module.id
+            this.db!.prepare(`UPDATE modules SET course_id = ? WHERE id = ?`).run(targetCourseId, modId)
+            this.db!.prepare(`UPDATE lessons SET course_id = ? WHERE module_id = ?`).run(targetCourseId, modId)
+            this.db!.prepare(`UPDATE content_resources SET course_id = ? WHERE module_id = ?`).run(targetCourseId, modId)
+            this.db!.prepare(`
+              UPDATE lesson_progress SET course_id = ? WHERE lesson_id IN (SELECT id FROM lessons WHERE module_id = ?)
+            `).run(targetCourseId, modId)
+            this.db!.prepare(`
+              UPDATE lesson_notes SET course_id = ? WHERE lesson_id IN (SELECT id FROM lessons WHERE module_id = ?)
+            `).run(targetCourseId, modId)
+            this.db!.prepare(`
+              UPDATE watch_history SET course_id = ? WHERE lesson_id IN (SELECT id FROM lessons WHERE module_id = ?)
+            `).run(targetCourseId, modId)
+
+            movedLessonsCount += item.lessons.length
+          }
+
+          this.reindexCourseHierarchy(targetCourseId)
+
+          details.push({
+            originalCourseTitle: course.title,
+            createdCourseTitle: targetCourse.title,
+            moduleCount: modGroups.length,
+            lessonCount: movedLessonsCount
+          })
+        }
+
+        this.reindexCourseHierarchy(course.id)
+      })
+
+      tx()
+    }
+
+    return {
+      separatedCoursesCount,
+      createdCoursesCount,
+      details
+    }
+  }
+
+  /**
+   * One-click automatic library organization:
+   * 1. Detects and separates any mistakenly merged courses (e.g. distinct folder roots).
+   * 2. Deduplicates modules with identical names inside all courses.
+   * 3. Smart-merges split parts of the same course (matching base titles).
+   * 4. Re-indexes and naturally orders modules and lessons across all courses.
+   */
+  public autoOrganizeLibrary(): import('../../types').AutoOrganizeResult {
+    this.ensureConnected()
+
+    const details: Array<{ action: 'separated' | 'merged' | 'deduplicated'; message: string }> = []
+
+    // 1. Separate any courses that were mistakenly merged across distinct folder roots
+    const separateResult = this.separateMistakenlyMergedCourses()
+    if (separateResult.separatedCoursesCount > 0) {
+      for (const d of separateResult.details) {
+        details.push({
+          action: 'separated',
+          message: `Separado: "${d.createdCourseTitle}" (${d.moduleCount} módulos, ${d.lessonCount} aulas) de "${d.originalCourseTitle}"`
+        })
+      }
+    }
+
+    // 2. Deduplicate duplicate modules within all courses
+    const allCourses = this.getAllCourses()
+    let deduplicatedModulesCount = 0
+    for (const c of allCourses) {
+      const beforeModules = (this.db!.prepare(`SELECT count(*) as cnt FROM modules WHERE course_id = ?`).get(c.id) as { cnt: number }).cnt
+      this.reindexCourseHierarchy(c.id)
+      const afterModules = (this.db!.prepare(`SELECT count(*) as cnt FROM modules WHERE course_id = ?`).get(c.id) as { cnt: number }).cnt
+      if (beforeModules > afterModules) {
+        const mergedMods = beforeModules - afterModules
+        deduplicatedModulesCount += mergedMods
+        details.push({
+          action: 'deduplicated',
+          message: `Curso "${c.title}": ${mergedMods} módulo(s) com mesmo nome unificado(s)`
+        })
+      }
+    }
+
+    // 3. Smart-merge duplicate/split courses that genuinely share the same normalized title
+    const mergeResult = this.mergeDuplicateCourses()
+    if (mergeResult.mergedGroupsCount > 0) {
+      for (const d of mergeResult.details) {
+        details.push({
+          action: 'merged',
+          message: `Unificado: "${d.title}" (${d.mergedCoursesCount} partes combinadas em 1 curso)`
+        })
+      }
+    }
+
+    // 4. Clean up any non-media lessons
+    this.cleanupNonMediaLessons()
+
+    return {
+      success: true,
+      separatedCoursesCount: separateResult.separatedCoursesCount,
+      mergedGroupsCount: mergeResult.mergedGroupsCount,
+      deduplicatedModulesCount,
+      reindexedCoursesCount: allCourses.length,
+      details
     }
   }
 

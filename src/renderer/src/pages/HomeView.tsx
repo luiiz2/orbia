@@ -339,11 +339,11 @@ export function HomeView(): React.JSX.Element {
 
           <div className="flex items-center gap-2 self-start sm:self-auto">
             <Button
-              variant="ghost"
+              variant="outline"
               size="sm"
               onClick={() => setIsMergeModalOpen(true)}
-              className="gap-1.5 text-xs rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/5 cursor-pointer focus-visible:ring-2 focus-visible:ring-primary min-h-[36px]"
-              title="Organizar e unir cursos com partes separadas"
+              className="gap-1.5 text-xs rounded-xl border-amber-500/30 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 hover:text-amber-200 cursor-pointer focus-visible:ring-2 focus-visible:ring-amber-400 min-h-[36px] font-semibold shadow-sm transition-all"
+              title="Organizar biblioteca e unir cursos automaticamente"
             >
               <Sparkles className="h-4 w-4 text-amber-400" />
               <span>{t('home.organizeAndMerge', 'Organizar & Unir')}</span>

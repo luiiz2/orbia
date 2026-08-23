@@ -49,6 +49,8 @@ export interface LibraryState {
   courseHealth: import('@shared').CourseHealthReport | null
   fetchCourseHealth: (courseId: string) => Promise<import('@shared').CourseHealthReport | null>
   fixCourseProblems: (courseId: string) => Promise<{ success: boolean; fixedCount: number; removedCount: number; error?: string }>
+  autoOrganizeLibrary: () => Promise<import('@shared').AutoOrganizeResult>
+  separateMistakenlyMergedCourses: () => Promise<import('@shared').SeparateCoursesResult>
   toggleFavorite: (courseId: string) => Promise<boolean>
   setSearchQuery: (query: string) => void
   setFilterStatus: (status: 'all' | 'in_progress' | 'completed' | 'favorites') => void
@@ -324,6 +326,53 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
       const errorMsg = err instanceof Error ? err.message : String(err)
       set({ isLoading: false, error: errorMsg })
       return { success: false, fixedCount: 0, removedCount: 0, error: errorMsg }
+    }
+  },
+
+  autoOrganizeLibrary: async () => {
+    try {
+      set({ isLoading: true, error: null })
+      const res = await window.api.courses.autoOrganize()
+      await get().fetchCourses()
+      const active = get().activeCourse
+      if (active) {
+        await get().fetchCourseById(active.id)
+      }
+      set({ isLoading: false })
+      return res
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : String(err)
+      set({ isLoading: false, error: errorMsg })
+      return {
+        success: false,
+        separatedCoursesCount: 0,
+        mergedGroupsCount: 0,
+        deduplicatedModulesCount: 0,
+        reindexedCoursesCount: 0,
+        details: [{ action: 'separated', message: errorMsg }]
+      }
+    }
+  },
+
+  separateMistakenlyMergedCourses: async () => {
+    try {
+      set({ isLoading: true, error: null })
+      const res = await window.api.courses.separateMistakenlyMergedCourses()
+      await get().fetchCourses()
+      const active = get().activeCourse
+      if (active) {
+        await get().fetchCourseById(active.id)
+      }
+      set({ isLoading: false })
+      return res
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : String(err)
+      set({ isLoading: false, error: errorMsg })
+      return {
+        separatedCoursesCount: 0,
+        createdCoursesCount: 0,
+        details: []
+      }
     }
   },
 

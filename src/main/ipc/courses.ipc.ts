@@ -552,6 +552,37 @@ export function registerCoursesIpc(): void {
     }
   })
 
+  // Auto-organize and smart-unify entire library automatically
+  ipcMain.handle('courses:auto-organize', async () => {
+    try {
+      return databaseService.autoOrganizeLibrary()
+    } catch (err: unknown) {
+      logger.error('[IPC] courses:auto-organize error:', err)
+      return {
+        success: false,
+        separatedCoursesCount: 0,
+        mergedGroupsCount: 0,
+        deduplicatedModulesCount: 0,
+        reindexedCoursesCount: 0,
+        details: [{ action: 'separated', message: err instanceof Error ? err.message : String(err) }]
+      }
+    }
+  })
+
+  // Separate any mistakenly merged courses by their physical directory origins
+  ipcMain.handle('courses:separate-courses', async () => {
+    try {
+      return databaseService.separateMistakenlyMergedCourses()
+    } catch (err: unknown) {
+      logger.error('[IPC] courses:separate-courses error:', err)
+      return {
+        separatedCoursesCount: 0,
+        createdCoursesCount: 0,
+        details: []
+      }
+    }
+  })
+
   // Get Import History
   ipcMain.handle('courses:get-import-history', async () => {
     try {

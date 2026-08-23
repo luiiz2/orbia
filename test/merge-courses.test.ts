@@ -516,4 +516,114 @@ describe('DatabaseService - Course Merging & Deduplication', () => {
   it('rejects merging fewer than two courses', () => {
     expect(() => dbService.mergeCoursesByIds(['only-one'])).toThrow(/two courses/i)
   })
+
+  it('separates mistakenly merged courses that originate from distinct folder trees', () => {
+    const courseDecRoot = path.join(TEST_VAULT_DIR, 'Courses', 'curso.dec')
+    const vossRoot = path.join(TEST_VAULT_DIR, 'Courses', 'voss academy')
+    fs.mkdirSync(path.join(courseDecRoot, 'Mod 1'), { recursive: true })
+    fs.mkdirSync(path.join(vossRoot, 'Intro'), { recursive: true })
+
+    const vid1 = path.join(courseDecRoot, 'Mod 1', '01 - Dec.mp4')
+    const vid2 = path.join(vossRoot, 'Intro', '01 - Voss.mp4')
+    fs.writeFileSync(vid1, Buffer.alloc(1024))
+    fs.writeFileSync(vid2, Buffer.alloc(1024))
+
+    // Create a course that contains both modules (simulating accidental merge)
+    const mergedCourse: Course = {
+      id: 'merged-id',
+      title: 'curso.dec',
+      slug: 'curso-dec',
+      sourceType: 'local-vault',
+      rootPath: courseDecRoot,
+      moduleCount: 2,
+      lessonCount: 2,
+      totalDuration: 120,
+      createdAt: 1000,
+      updatedAt: 1000
+    }
+
+    const mod1: Module & { lessons: Lesson[] } = {
+      id: 'm-dec-1',
+      courseId: mergedCourse.id,
+      title: 'Mod 1',
+      orderIndex: 1,
+      duration: 60,
+      lessonCount: 1,
+      folderPath: path.join(courseDecRoot, 'Mod 1'),
+      createdAt: 1000,
+      lessons: [{
+        id: 'l-dec-1',
+        moduleId: 'm-dec-1',
+        courseId: mergedCourse.id,
+        title: 'Aula Dec',
+        fileName: '01 - Dec.mp4',
+        filePath: vid1,
+        fileExtension: 'mp4',
+        mediaType: 'video',
+        duration: 60,
+        fileSize: 1024,
+        orderIndex: 1,
+        availability: 'local',
+        createdAt: 1000
+      }]
+    }
+
+    const mod2: Module & { lessons: Lesson[] } = {
+      id: 'm-voss-1',
+      courseId: mergedCourse.id,
+      title: 'Intro',
+      orderIndex: 2,
+      duration: 60,
+      lessonCount: 1,
+      folderPath: path.join(vossRoot, 'Intro'),
+      createdAt: 1000,
+      lessons: [{
+        id: 'l-voss-1',
+        moduleId: 'm-voss-1',
+        courseId: mergedCourse.id,
+        title: 'Aula Voss',
+        fileName: '01 - Voss.mp4',
+        filePath: vid2,
+        fileExtension: 'mp4',
+        mediaType: 'video',
+        duration: 60,
+        fileSize: 1024,
+        orderIndex: 2,
+        availability: 'local',
+        createdAt: 1000
+      }]
+    }
+
+    dbService.saveCourseWithHierarchy(mergedCourse, [mod1, mod2])
+
+    // Before separation: 1 course with 2 modules
+    expect(dbService.getAllCourses().length).toBe(1)
+    expect(dbService.getCourseById(mergedCourse.id)?.modules.length).toBe(2)
+
+    // Run separation
+    const sepResult = dbService.separateMistakenlyMergedCourses()
+    expect(sepResult.separatedCoursesCount).toBe(1)
+    expect(sepResult.createdCoursesCount).toBe(1)
+
+    // After separation: 2 courses!
+    const allCourses = dbService.getAllCourses()
+    expect(allCourses.length).toBe(2)
+
+    const decCourse = allCourses.find((c) => c.title.toLowerCase().includes('dec'))
+    const vossCourse = allCourses.find((c) => c.title.toLowerCase().includes('voss'))
+    expect(decCourse).toBeDefined()
+    expect(vossCourse).toBeDefined()
+
+    const decHierarchy = dbService.getCourseById(decCourse!.id)
+    const vossHierarchy = dbService.getCourseById(vossCourse!.id)
+    expect(decHierarchy?.modules.length).toBe(1)
+    expect(decHierarchy?.modules[0].title).toBe('Mod 1')
+    expect(vossHierarchy?.modules.length).toBe(1)
+    expect(vossHierarchy?.modules[0].title).toBe('Intro')
+  })
+
+  it('autoOrganizeLibrary separates misplaced courses and deduplicates duplicate modules automatically', () => {
+    const autoResult = dbService.autoOrganizeLibrary()
+    expect(autoResult.success).toBe(true)
+  })
 })

@@ -213,6 +213,29 @@ export interface MergeCoursesResult {
   }>
 }
 
+export interface SeparateCoursesResult {
+  separatedCoursesCount: number
+  createdCoursesCount: number
+  details: Array<{
+    originalCourseTitle: string
+    createdCourseTitle: string
+    moduleCount: number
+    lessonCount: number
+  }>
+}
+
+export interface AutoOrganizeResult {
+  success: boolean
+  separatedCoursesCount: number
+  mergedGroupsCount: number
+  deduplicatedModulesCount: number
+  reindexedCoursesCount: number
+  details: Array<{
+    action: 'separated' | 'merged' | 'deduplicated'
+    message: string
+  }>
+}
+
 /**
  * Read-only proposal for a user-reviewed course merge. It describes what a
  * later commit may do; it never authorizes deletion or a duplicate decision.
