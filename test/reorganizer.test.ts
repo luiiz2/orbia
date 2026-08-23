@@ -139,4 +139,64 @@ describe('Physical Course Reorganizer & Journal Undo Engine', () => {
     const revertedLes1 = databaseService.getLessonById(les1Id)
     expect(revertedLes1?.filePath).toBe(lesson1Path)
   })
+
+  it('handles missing source files gracefully without crashing the reorganization', () => {
+    const courseId = 'course-reorg-missing'
+    const modId = 'mod-reorg-missing'
+    const lesId = 'les-reorg-missing'
+
+    const now = Date.now()
+    const course: Course = {
+      id: courseId,
+      title: 'Missing File Course',
+      slug: 'missing-file-course',
+      sourceType: 'local-vault',
+      rootPath: courseDir,
+      totalDuration: 60,
+      moduleCount: 1,
+      lessonCount: 1,
+      createdAt: now,
+      updatedAt: now
+    }
+
+    const mod: Module = {
+      id: modId,
+      courseId,
+      title: 'Modulo 1',
+      orderIndex: 0,
+      folderPath: path.join(courseDir, 'Modulo 1'),
+      duration: 60,
+      lessonCount: 1,
+      createdAt: now
+    }
+
+    const nonExistentPath = path.join(courseDir, 'old_inbox_folder', 'ghost.mp4')
+    const les: Lesson = {
+      id: lesId,
+      moduleId: modId,
+      courseId,
+      title: 'Aula Fantasma',
+      orderIndex: 0,
+      filePath: nonExistentPath,
+      fileName: 'ghost.mp4',
+      fileExtension: '.mp4',
+      mediaType: 'video',
+      duration: 60,
+      fileSize: 100,
+      createdAt: now
+    }
+
+    databaseService.saveCourseWithHierarchy(course, [{ ...mod, lessons: [les] }])
+
+    // 1. Generate plan for non-existent file
+    const plan = reorganizerService.generateReorganizePlan(courseId)
+    // Does not produce invalid physical move mutations that would crash
+    expect(plan.proposedMutations.length).toBe(0)
+    expect(plan.conflictDetails?.length).toBeGreaterThan(0)
+
+    // 2. Applying plan succeeds gracefully with 0 errors
+    const applyResult = reorganizerService.applyReorganizePlan(plan.groupId, plan.proposedMutations, courseId)
+    expect(applyResult.success).toBe(true)
+    expect(applyResult.appliedCount).toBe(0)
+  })
 })

@@ -12,6 +12,88 @@ function sanitizeName(name: string): string {
     .trim()
 }
 
+function findFileInDir(dir: string, fileName: string, maxDepth = 4): string | null {
+  if (!fs.existsSync(dir)) return null
+  try {
+    const entries = fs.readdirSync(dir, { withFileTypes: true })
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry.name)
+      if (entry.isFile() && entry.name.toLowerCase() === fileName.toLowerCase()) {
+        return fullPath
+      }
+      if (entry.isDirectory() && maxDepth > 0 && !entry.name.startsWith('.')) {
+        const found = findFileInDir(fullPath, fileName, maxDepth - 1)
+        if (found) return found
+      }
+    }
+  } catch {}
+  return null
+}
+
+function resolveActualSourcePath(
+  sourcePath: string,
+  courseRoot: string | undefined,
+  fileName: string | undefined,
+  destinationPath: string | undefined
+): string | null {
+  // 1. Direct path check
+  if (sourcePath && fs.existsSync(sourcePath)) {
+    return sourcePath
+  }
+
+  // 2. Check if already at destination path
+  if (destinationPath && fs.existsSync(destinationPath)) {
+    return destinationPath
+  }
+
+  // 3. Search under course root if available
+  const targetFileName = fileName || (sourcePath ? path.basename(sourcePath) : '')
+  if (courseRoot && targetFileName && fs.existsSync(courseRoot)) {
+    // Check direct child
+    const directPath = path.join(courseRoot, targetFileName)
+    if (fs.existsSync(directPath)) return directPath
+
+    // Check same subfolder name if sourcePath had one
+    if (sourcePath) {
+      const parentDirName = path.basename(path.dirname(sourcePath))
+      const subfolderPath = path.join(courseRoot, parentDirName, targetFileName)
+      if (fs.existsSync(subfolderPath)) return subfolderPath
+    }
+
+    // Search within course root tree
+    const found = findFileInDir(courseRoot, targetFileName)
+    if (found) return found
+  }
+
+  return null
+}
+
+function safeMoveFile(sourcePath: string, destPath: string): void {
+  const normSource = path.normalize(sourcePath).toLowerCase()
+  const normDest = path.normalize(destPath).toLowerCase()
+  if (normSource === normDest) return
+
+  const destDir = path.dirname(destPath)
+  if (!fs.existsSync(destDir)) {
+    fs.mkdirSync(destDir, { recursive: true })
+  }
+
+  try {
+    fs.renameSync(sourcePath, destPath)
+  } catch (err: any) {
+    if (err.code === 'EXDEV' || err.code === 'EPERM' || err.code === 'EBUSY' || err.code === 'EACCES') {
+      fs.copyFileSync(sourcePath, destPath)
+      try {
+        fs.unlinkSync(sourcePath)
+      } catch (unlinkErr) {
+        logger.warn(`[Reorganizer] Could not delete source after copy: ${sourcePath}`, unlinkErr)
+      }
+    } else {
+      throw err
+    }
+  }
+}
+
 export class ReorganizerService {
   /**
    * Generates a preview plan of physical mutations to organize files and folders cleanly on disk.
@@ -37,10 +119,27 @@ export class ReorganizerService {
       for (const lesson of mod.lessons) {
         const padLesIndex = String(lesson.orderIndex > 0 ? lesson.orderIndex : lesson.orderIndex + 1).padStart(2, '0')
         const cleanLesTitle = sanitizeName(lesson.title)
-        const cleanFileName = `${padLesIndex} - ${cleanLesTitle}${lesson.fileExtension}`
+        const ext = lesson.fileExtension.startsWith('.')
+          ? lesson.fileExtension
+          : lesson.fileExtension
+            ? `.${lesson.fileExtension}`
+            : path.extname(lesson.filePath)
+        const cleanFileName = `${padLesIndex} - ${cleanLesTitle}${ext}`
         const targetFilePath = path.join(targetModPath, cleanFileName)
 
-        const normSource = path.normalize(lesson.filePath).toLowerCase()
+        const resolvedSource = resolveActualSourcePath(
+          lesson.filePath,
+          course.rootPath,
+          lesson.fileName,
+          targetFilePath
+        )
+
+        if (!resolvedSource) {
+          conflictDetails.push(`Arquivo não encontrado no disco (ignorado): ${lesson.fileName || path.basename(lesson.filePath)}`)
+          continue
+        }
+
+        const normSource = path.normalize(resolvedSource).toLowerCase()
         const normTarget = path.normalize(targetFilePath).toLowerCase()
 
         if (normSource !== normTarget) {
@@ -50,12 +149,14 @@ export class ReorganizerService {
 
           proposedMutations.push({
             type: 'move',
-            sourcePath: lesson.filePath,
+            sourcePath: resolvedSource,
             destinationPath: targetFilePath,
-            originalFileName: lesson.fileName || path.basename(lesson.filePath),
+            originalFileName: lesson.fileName || path.basename(resolvedSource),
             newFileName: cleanFileName,
             isReversible: true
           })
+        } else if (path.normalize(lesson.filePath).toLowerCase() !== normTarget) {
+          databaseService.updateLessonFilePath(lesson.id, targetFilePath, cleanFileName)
         }
       }
     }
@@ -79,6 +180,9 @@ export class ReorganizerService {
   ): { success: boolean; appliedCount: number; error?: string } {
     let appliedCount = 0
 
+    const hierarchy = courseId ? databaseService.getCourseById(courseId) : null
+    const courseRoot = hierarchy?.course?.rootPath
+
     for (const mutation of mutations) {
       const operationId = crypto.randomUUID()
       const now = Date.now()
@@ -99,18 +203,34 @@ export class ReorganizerService {
       databaseService.recordFileOperation(journalEntry)
 
       try {
-        if (!fs.existsSync(mutation.sourcePath)) {
-          throw new Error(`Arquivo de origem não encontrado: ${mutation.sourcePath}`)
+        const resolvedSource = resolveActualSourcePath(
+          mutation.sourcePath,
+          courseRoot,
+          mutation.originalFileName,
+          mutation.destinationPath
+        )
+
+        if (!resolvedSource) {
+          databaseService.updateFileOperationStatus(operationId, 'failed', 'Source file not found on disk')
+          continue
         }
 
-        const destDir = path.dirname(mutation.destinationPath)
-        if (!fs.existsSync(destDir)) {
-          fs.mkdirSync(destDir, { recursive: true })
+        const normResolved = path.normalize(resolvedSource).toLowerCase()
+        const normDest = path.normalize(mutation.destinationPath).toLowerCase()
+
+        if (normResolved === normDest) {
+          const lesson = databaseService.findLessonByFilePath(mutation.sourcePath) || databaseService.findLessonByFilePath(resolvedSource)
+          if (lesson) {
+            databaseService.updateLessonFilePath(lesson.id, mutation.destinationPath, mutation.newFileName)
+          }
+          databaseService.updateFileOperationStatus(operationId, 'completed')
+          appliedCount++
+          continue
         }
 
-        fs.renameSync(mutation.sourcePath, mutation.destinationPath)
+        safeMoveFile(resolvedSource, mutation.destinationPath)
 
-        const lesson = databaseService.findLessonByFilePath(mutation.sourcePath)
+        const lesson = databaseService.findLessonByFilePath(mutation.sourcePath) || databaseService.findLessonByFilePath(resolvedSource)
         if (lesson) {
           databaseService.updateLessonFilePath(lesson.id, mutation.destinationPath, mutation.newFileName)
         }
@@ -158,12 +278,7 @@ export class ReorganizerService {
 
       try {
         if (fs.existsSync(op.destinationPath)) {
-          const sourceDir = path.dirname(op.sourcePath)
-          if (!fs.existsSync(sourceDir)) {
-            fs.mkdirSync(sourceDir, { recursive: true })
-          }
-
-          fs.renameSync(op.destinationPath, op.sourcePath)
+          safeMoveFile(op.destinationPath, op.sourcePath)
 
           const lesson = databaseService.findLessonByFilePath(op.destinationPath)
           if (lesson) {
