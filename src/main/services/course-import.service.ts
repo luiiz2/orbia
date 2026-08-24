@@ -30,6 +30,7 @@ import {
   type MaterializeProposalCoversOptions
 } from './proposal-cover.service'
 import { vaultService } from './vault.service'
+import { optimizationQueueService, provenanceAndExclusionsService } from './optimizer'
 import { normalizeModuleKey } from '../utils/title-cleaner'
 import { naturalCompare } from '../utils/natural-sort'
 
@@ -145,6 +146,7 @@ export class CourseImportService {
         this.completeSessionSafely(session, false, warnings)
         this.recordCompletedImportSafely(session, course, warnings)
         await this.materializeCoversSafely(trustedProposal, course, modules, currentVault.path, operationGroupId, warnings)
+        this.triggerAutoOptimization(course.id)
         return { course, warnings }
       }
 
@@ -186,6 +188,7 @@ export class CourseImportService {
         await this.deleteSourceZipAfterCommit(session, operationGroupId, warnings)
       }
 
+      this.triggerAutoOptimization(course.id)
       return { course, operationGroupId, warnings }
     } catch (error) {
       const details = errorMessage(error)
@@ -416,6 +419,32 @@ export class CourseImportService {
         warnings.push(...cleanupWarnings)
       }
       warnings.push(`Course imported, but covers could not be finalized: ${details}`)
+    }
+  }
+
+  private triggerAutoOptimization(courseId: string): void {
+    try {
+      const settings = appConfigService.getOptimizationSettings()
+      if (!settings.autoOptimizeNewMedia) return
+
+      const db = databaseService.getDatabase()
+      if (!db) return
+
+      const lessons = db.prepare(`
+        SELECT id, file_path as filePath FROM lessons WHERE course_id = ? AND media_type = 'video'
+      `).all(courseId) as { id: string; filePath: string }[]
+
+      for (const l of lessons) {
+        if (provenanceAndExclusionsService.isExcluded({ lessonId: l.id, courseId })) continue
+        optimizationQueueService.enqueue({
+          lessonId: l.id,
+          courseId,
+          sourcePath: l.filePath,
+          profile: settings.defaultProfile || 'balanced'
+        })
+      }
+    } catch (err) {
+      // Non-blocking catch
     }
   }
 }

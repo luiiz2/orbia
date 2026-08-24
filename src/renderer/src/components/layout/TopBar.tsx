@@ -13,6 +13,7 @@ import { useLibraryStore } from '../../stores/useLibraryStore'
 import { useVaultStore } from '../../stores/useVaultStore'
 import { useNavigationStore } from '../../stores/useNavigationStore'
 import { useProfileStore } from '../../stores/useProfileStore'
+import { useOptimizerStore } from '../../stores/useOptimizerStore'
 import { useTheme } from './ThemeProvider'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
@@ -31,6 +32,7 @@ export function TopBar(): React.JSX.Element {
   const { currentVault } = useVaultStore()
   const { currentView, setView, setImportModalOpen, setVaultModalOpen } = useNavigationStore()
   const { activeProfile } = useProfileStore()
+  const { setOptimizerModalOpen, queue } = useOptimizerStore()
   const { theme, setTheme } = useTheme()
 
   const navItems = [
@@ -151,6 +153,20 @@ export function TopBar(): React.JSX.Element {
           title="Personalizar Aparência & Tema"
         >
           <span className="text-xs">🎨</span>
+        </Button>
+
+        {/* Media Storage Optimizer Button (v0.7) */}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setOptimizerModalOpen(true)}
+          className="relative h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5 rounded-lg shrink-0"
+          title="Otimizador de Armazenamento de Vídeo"
+        >
+          <span className="text-xs">🗜️</span>
+          {queue.some((q) => q.status === 'encoding') && (
+            <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-primary animate-ping" />
+          )}
         </Button>
 
         {/* Local Profile Switcher Button */}

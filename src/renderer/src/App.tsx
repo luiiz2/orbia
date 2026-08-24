@@ -24,6 +24,7 @@ import {
   ProfileOnboardingModal,
   StartupProfilePicker
 } from './components/studio'
+import { OptimizerDashboardModal, VisualComparatorModal } from './components/optimizer'
 import { useNavigationStore } from './stores/useNavigationStore'
 import { useVaultStore } from './stores/useVaultStore'
 import { useSettingsStore } from './stores/useSettingsStore'
@@ -136,6 +137,8 @@ export function App(): React.JSX.Element {
                 <AutomationRulesModal />
                 <ProfileSelectorModal open={isProfileModalOpen} onOpenChange={setProfileModalOpen} />
                 <ThemeEditorModal open={isThemeModalOpen} onOpenChange={setThemeModalOpen} />
+                <OptimizerDashboardModal />
+                <VisualComparatorModal />
               </>
             ))}
       </TooltipProvider>

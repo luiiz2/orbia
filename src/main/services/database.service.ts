@@ -269,6 +269,62 @@ export class DatabaseService {
         created_at      INTEGER NOT NULL,
         error_details   TEXT
       );
+
+      -- Media Optimization Queue (v0.7)
+      CREATE TABLE IF NOT EXISTS optimization_queue (
+        id                TEXT PRIMARY KEY,
+        lesson_id         TEXT NOT NULL REFERENCES lessons(id) ON DELETE CASCADE,
+        course_id         TEXT REFERENCES courses(id) ON DELETE CASCADE,
+        source_path       TEXT NOT NULL,
+        temp_output_path  TEXT,
+        final_output_path TEXT,
+        backup_path       TEXT,
+        profile           TEXT NOT NULL,
+        target_codec      TEXT NOT NULL,
+        target_resolution TEXT,
+        estimated_savings INTEGER NOT NULL DEFAULT 0,
+        actual_savings    INTEGER,
+        status            TEXT NOT NULL DEFAULT 'queued',
+        progress_percent  REAL NOT NULL DEFAULT 0,
+        current_fps       REAL,
+        current_speed     TEXT,
+        eta_seconds       INTEGER,
+        retry_count       INTEGER NOT NULL DEFAULT 0,
+        error_message     TEXT,
+        is_shared_file    INTEGER NOT NULL DEFAULT 0,
+        shared_confirmation_given INTEGER NOT NULL DEFAULT 0,
+        created_at        INTEGER NOT NULL,
+        updated_at        INTEGER NOT NULL
+      );
+
+      -- Media Optimization Provenance Records (Anti-Generation Loss)
+      CREATE TABLE IF NOT EXISTS optimization_records (
+        id                    TEXT PRIMARY KEY,
+        lesson_id             TEXT NOT NULL REFERENCES lessons(id) ON DELETE CASCADE,
+        original_path         TEXT NOT NULL,
+        original_size         INTEGER NOT NULL,
+        original_codec        TEXT NOT NULL,
+        original_resolution   TEXT NOT NULL,
+        original_bitrate      INTEGER NOT NULL,
+        original_fingerprint  TEXT NOT NULL,
+        optimized_path        TEXT NOT NULL,
+        optimized_size        INTEGER NOT NULL,
+        optimized_codec       TEXT NOT NULL,
+        optimized_resolution  TEXT NOT NULL,
+        backup_path           TEXT,
+        profile_used          TEXT NOT NULL,
+        actual_savings_bytes  INTEGER NOT NULL DEFAULT 0,
+        created_at            INTEGER NOT NULL
+      );
+
+      -- Optimization Exclusions & Inheritance Rules
+      CREATE TABLE IF NOT EXISTS optimization_exclusions (
+        id          TEXT PRIMARY KEY,
+        scope_type  TEXT NOT NULL,
+        scope_id    TEXT NOT NULL,
+        is_excluded INTEGER NOT NULL DEFAULT 1,
+        created_at  INTEGER NOT NULL
+      );
     `)
 
     // 2. Safe column migrations for existing tables
@@ -315,7 +371,14 @@ export class DatabaseService {
       `CREATE INDEX IF NOT EXISTS idx_history_course_watched ON watch_history(course_id, watched_at DESC);`,
       `CREATE INDEX IF NOT EXISTS idx_journal_group ON file_operations(group_id);`,
       `CREATE INDEX IF NOT EXISTS idx_journal_time ON file_operations(timestamp DESC);`,
-      `CREATE INDEX IF NOT EXISTS idx_import_history_time ON import_history(created_at DESC);`
+      `CREATE INDEX IF NOT EXISTS idx_import_history_time ON import_history(created_at DESC);`,
+      `CREATE INDEX IF NOT EXISTS idx_opt_queue_status ON optimization_queue(status);`,
+      `CREATE INDEX IF NOT EXISTS idx_opt_queue_created ON optimization_queue(created_at ASC);`,
+      `CREATE INDEX IF NOT EXISTS idx_opt_queue_lesson ON optimization_queue(lesson_id);`,
+      `CREATE INDEX IF NOT EXISTS idx_opt_records_lesson ON optimization_records(lesson_id);`,
+      `CREATE INDEX IF NOT EXISTS idx_opt_records_path ON optimization_records(optimized_path);`,
+      `CREATE INDEX IF NOT EXISTS idx_opt_records_fingerprint ON optimization_records(original_fingerprint);`,
+      `CREATE INDEX IF NOT EXISTS idx_opt_exclusions_scope ON optimization_exclusions(scope_type, scope_id);`
     ]
 
     for (const sql of indexMigrations) {

@@ -242,6 +242,38 @@ const api: OrbiaApi = {
     deleteCourseRelationship: (id) => ipcRenderer.invoke('discovery:delete-relationship', id)
   },
 
+  // Media Optimization Engine (v0.7)
+  optimizer: {
+    analyzeVault: (profile) => ipcRenderer.invoke('optimizer:analyze-vault', profile),
+    getHardwareCapabilities: () => ipcRenderer.invoke('optimizer:get-hardware-capabilities'),
+    queueVaultOptimization: (options) => ipcRenderer.invoke('optimizer:queue-vault-optimization', options),
+    queueLessonOptimization: (lessonId, profile, allowShared) => ipcRenderer.invoke('optimizer:queue-lesson-optimization', lessonId, profile, allowShared),
+    listQueue: () => ipcRenderer.invoke('optimizer:list-queue'),
+    pauseJob: (jobId) => ipcRenderer.invoke('optimizer:pause-job', jobId),
+    resumeJob: (jobId) => ipcRenderer.invoke('optimizer:resume-job', jobId),
+    cancelJob: (jobId) => ipcRenderer.invoke('optimizer:cancel-job', jobId),
+    retryJob: (jobId) => ipcRenderer.invoke('optimizer:retry-job', jobId),
+    clearCompletedQueue: () => ipcRenderer.invoke('optimizer:clear-completed-queue'),
+    pauseAll: () => ipcRenderer.invoke('optimizer:pause-all'),
+    resumeAll: () => ipcRenderer.invoke('optimizer:resume-all'),
+    generateVisualComparison: (lessonId, profile) => ipcRenderer.invoke('optimizer:generate-visual-comparison', lessonId, profile),
+    listRecords: (limit) => ipcRenderer.invoke('optimizer:list-records', limit),
+    restoreOriginal: (recordId) => ipcRenderer.invoke('optimizer:restore-original', recordId),
+    reoptimizeLesson: (lessonId, profile) => ipcRenderer.invoke('optimizer:reoptimize-lesson', lessonId, profile),
+    getMetrics: () => ipcRenderer.invoke('optimizer:get-metrics'),
+    getSettings: () => ipcRenderer.invoke('optimizer:get-settings'),
+    updateSettings: (settings) => ipcRenderer.invoke('optimizer:update-settings', settings),
+    listExclusions: () => ipcRenderer.invoke('optimizer:list-exclusions'),
+    setExclusion: (scopeType, scopeId, isExcluded) => ipcRenderer.invoke('optimizer:set-exclusion', scopeType, scopeId, isExcluded),
+    onProgress: (callback) => {
+      const handler = (_event: Electron.IpcRendererEvent, item: import('../types/optimizer').OptimizationQueueItem) => callback(item)
+      ipcRenderer.on('optimizer:progress', handler)
+      return () => {
+        ipcRenderer.removeListener('optimizer:progress', handler)
+      }
+    }
+  },
+
   settings: {
     get: () => ipcRenderer.invoke('settings:get'),
     set: (key, value) => ipcRenderer.invoke('settings:set', { key, value })

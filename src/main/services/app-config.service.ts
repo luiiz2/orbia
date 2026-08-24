@@ -729,6 +729,58 @@ export class AppConfigService {
     return true
   }
 
+  public getOptimizationSettings(): import('../../types/optimizer').OptimizationSettings {
+    this.ensureInitialized()
+    const defaultSettings: import('../../types/optimizer').OptimizationSettings = {
+      autoOptimizeNewMedia: false,
+      autoOptimizeMinSavingsPercent: 20,
+      defaultProfile: 'balanced',
+      resourceMode: 'automatic',
+      maxConcurrentJobs: 1,
+      pauseWhileWatching: true,
+      pauseOnBattery: true,
+      continueWhenWindowClosed: true,
+      backupRetentionDays: 7,
+      customBackupDirectory: undefined
+    }
+
+    const stmt = this.db!.prepare(`SELECT key, value FROM app_settings WHERE key LIKE 'opt_%'`)
+    const rows = stmt.all() as { key: string; value: string }[]
+
+    const res = { ...defaultSettings }
+    for (const row of rows) {
+      const field = row.key.replace(/^opt_/, '')
+      try {
+        const parsed = JSON.parse(row.value)
+        if (field in res) {
+          ;(res as Record<string, unknown>)[field] = parsed
+        }
+      } catch {
+        if (field in res) {
+          ;(res as Record<string, unknown>)[field] = row.value
+        }
+      }
+    }
+    return res
+  }
+
+  public updateOptimizationSettings(updates: Partial<import('../../types/optimizer').OptimizationSettings>): boolean {
+    this.ensureInitialized()
+    const tx = this.db!.transaction((entries: [string, unknown][]) => {
+      const upsert = this.db!.prepare(`
+        INSERT INTO app_settings (key, value)
+        VALUES (?, ?)
+        ON CONFLICT(key) DO UPDATE SET value = excluded.value
+      `)
+      for (const [key, value] of entries) {
+        upsert.run(`opt_${key}`, JSON.stringify(value))
+      }
+    })
+
+    tx(Object.entries(updates))
+    return true
+  }
+
   public close(): void {
     if (this.db) {
       this.db.close()

@@ -8,4 +8,5 @@ export * from './review'
 export * from './studio'
 export * from './theme'
 export * from './discovery'
+export * from './optimizer'
 

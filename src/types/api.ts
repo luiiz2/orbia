@@ -401,6 +401,50 @@ export interface OrbiaApi {
     deleteCourseRelationship: (id: string) => Promise<boolean>
   }
 
+  // Media Optimization Engine (v0.7)
+  optimizer: {
+    analyzeVault: (profile?: import('./optimizer').OptimizationProfile) => Promise<import('./optimizer').VaultOptimizationAnalysis>
+    getHardwareCapabilities: () => Promise<import('./optimizer').HardwareCapabilities>
+    queueVaultOptimization: (options?: {
+      profile?: import('./optimizer').OptimizationProfile
+      excludedLessonIds?: string[]
+      allowSharedOptimization?: boolean
+    }) => Promise<{ queuedCount: number }>
+    queueLessonOptimization: (
+      lessonId: string,
+      profile?: import('./optimizer').OptimizationProfile,
+      allowShared?: boolean
+    ) => Promise<{ success: boolean; jobId?: string }>
+    listQueue: () => Promise<import('./optimizer').OptimizationQueueItem[]>
+    pauseJob: (jobId: string) => Promise<boolean>
+    resumeJob: (jobId: string) => Promise<boolean>
+    cancelJob: (jobId: string) => Promise<boolean>
+    retryJob: (jobId: string) => Promise<boolean>
+    clearCompletedQueue: () => Promise<boolean>
+    pauseAll: () => Promise<boolean>
+    resumeAll: () => Promise<boolean>
+    generateVisualComparison: (
+      lessonId: string,
+      profile?: import('./optimizer').OptimizationProfile
+    ) => Promise<import('./optimizer').VisualComparisonResult>
+    listRecords: (limit?: number) => Promise<import('./optimizer').OptimizationRecord[]>
+    restoreOriginal: (recordId: string) => Promise<{ success: boolean; error?: string }>
+    reoptimizeLesson: (
+      lessonId: string,
+      profile?: import('./optimizer').OptimizationProfile
+    ) => Promise<{ success: boolean; error?: string }>
+    getMetrics: () => Promise<import('./optimizer').StorageOptimizerMetrics>
+    getSettings: () => Promise<import('./optimizer').OptimizationSettings>
+    updateSettings: (settings: Partial<import('./optimizer').OptimizationSettings>) => Promise<boolean>
+    listExclusions: () => Promise<import('./optimizer').OptimizationExclusionRule[]>
+    setExclusion: (
+      scopeType: import('./optimizer').OptimizationExclusionRule['scopeType'],
+      scopeId: string,
+      isExcluded: boolean
+    ) => Promise<boolean>
+    onProgress: (callback: (item: import('./optimizer').OptimizationQueueItem) => void) => () => void
+  }
+
   // App Settings
   settings: {
     get: () => Promise<AppSettings>
