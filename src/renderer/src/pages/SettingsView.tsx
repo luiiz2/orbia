@@ -44,7 +44,7 @@ export function SettingsView(): React.JSX.Element {
   const [isBackupPreviewModalOpen, setIsBackupPreviewModalOpen] = useState(false)
   const [isRestoringBackup, setIsRestoringBackup] = useState(false)
 
-  const handleCreateBackup = async () => {
+  const handleCreateBackup = async (): Promise<void> => {
     setIsCreatingBackup(true)
     setBackupStatusMessage(null)
     setBackupErrorMessage(null)
@@ -68,7 +68,7 @@ export function SettingsView(): React.JSX.Element {
     }
   }
 
-  const handleSelectBackupForRestore = async () => {
+  const handleSelectBackupForRestore = async (): Promise<void> => {
     setBackupStatusMessage(null)
     setBackupErrorMessage(null)
     try {
@@ -88,7 +88,7 @@ export function SettingsView(): React.JSX.Element {
     }
   }
 
-  const handleConfirmRestore = async () => {
+  const handleConfirmRestore = async (): Promise<void> => {
     if (!selectedBackupPath) return
     setIsRestoringBackup(true)
     try {
@@ -109,7 +109,7 @@ export function SettingsView(): React.JSX.Element {
     }
   }
 
-  const handleExportNotes = async () => {
+  const handleExportNotes = async (): Promise<void> => {
     try {
       const md = await window.api.exports.notesMarkdown()
       const res = await window.api.exports.saveExportToFile(`Orbia-Anotacoes-${new Date().toISOString().split('T')[0]}.md`, md)
@@ -121,7 +121,7 @@ export function SettingsView(): React.JSX.Element {
     }
   }
 
-  const handleExportBookmarks = async () => {
+  const handleExportBookmarks = async (): Promise<void> => {
     try {
       const md = await window.api.exports.bookmarksMarkdown()
       const res = await window.api.exports.saveExportToFile(`Orbia-Marcadores-${new Date().toISOString().split('T')[0]}.md`, md)
@@ -133,7 +133,7 @@ export function SettingsView(): React.JSX.Element {
     }
   }
 
-  const handleExportFlashcardsCsv = async () => {
+  const handleExportFlashcardsCsv = async (): Promise<void> => {
     try {
       const csv = await window.api.exports.flashcardsCsv()
       const res = await window.api.exports.saveExportToFile(`Orbia-Flashcards-${new Date().toISOString().split('T')[0]}.csv`, csv)

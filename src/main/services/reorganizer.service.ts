@@ -26,7 +26,9 @@ function findFileInDir(dir: string, fileName: string, maxDepth = 4): string | nu
         if (found) return found
       }
     }
-  } catch {}
+  } catch (err) {
+    logger.debug('[Reorganizer] Error reading dir in findFileInDir:', err)
+  }
   return null
 }
 
@@ -80,8 +82,9 @@ function safeMoveFile(sourcePath: string, destPath: string): void {
 
   try {
     fs.renameSync(sourcePath, destPath)
-  } catch (err: any) {
-    if (err.code === 'EXDEV' || err.code === 'EPERM' || err.code === 'EBUSY' || err.code === 'EACCES') {
+  } catch (err: unknown) {
+    const nodeErr = err as NodeJS.ErrnoException
+    if (nodeErr.code === 'EXDEV' || nodeErr.code === 'EPERM' || nodeErr.code === 'EBUSY' || nodeErr.code === 'EACCES') {
       fs.copyFileSync(sourcePath, destPath)
       try {
         fs.unlinkSync(sourcePath)

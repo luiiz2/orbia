@@ -5,4 +5,7 @@ export * from './journal'
 export * from './api'
 export * from './notes'
 export * from './review'
+export * from './studio'
+export * from './theme'
+export * from './discovery'
 

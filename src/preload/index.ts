@@ -170,6 +170,78 @@ const api: OrbiaApi = {
     getDashboardStats: () => ipcRenderer.invoke('review:get-dashboard-stats')
   },
 
+  // Library Studio & Customization (v0.5)
+  studio: {
+    listAppearances: (courseId, includeHidden) => ipcRenderer.invoke('studio:list-appearances', courseId, includeHidden),
+    updateAppearance: (id, updates) => ipcRenderer.invoke('studio:update-appearance', id, updates),
+    createReference: (entityType, entityId, targetCourseId, parentAppearanceId) => ipcRenderer.invoke('studio:create-reference', entityType, entityId, targetCourseId, parentAppearanceId),
+    deleteAppearance: (appearanceId) => ipcRenderer.invoke('studio:delete-appearance', appearanceId),
+    setHidden: (appearanceIds, isHidden) => ipcRenderer.invoke('studio:set-hidden', appearanceIds, isHidden),
+
+    createSection: (courseId, title, moduleId) => ipcRenderer.invoke('studio:create-section', courseId, title, moduleId),
+    updateSection: (id, updates) => ipcRenderer.invoke('studio:update-section', id, updates),
+    deleteSection: (id) => ipcRenderer.invoke('studio:delete-section', id),
+    listSections: (courseId) => ipcRenderer.invoke('studio:list-sections', courseId),
+
+    createCollection: (name, description, color, icon) => ipcRenderer.invoke('studio:create-collection', name, description, color, icon),
+    updateCollection: (id, updates) => ipcRenderer.invoke('studio:update-collection', id, updates),
+    deleteCollection: (id) => ipcRenderer.invoke('studio:delete-collection', id),
+    listCollections: () => ipcRenderer.invoke('studio:list-collections'),
+    addItemsToCollection: (collectionId, appearanceIds) => ipcRenderer.invoke('studio:add-items-to-collection', collectionId, appearanceIds),
+    removeItemsFromCollection: (collectionId, appearanceIds) => ipcRenderer.invoke('studio:remove-items-from-collection', collectionId, appearanceIds),
+
+    listCustomFieldDefinitions: () => ipcRenderer.invoke('studio:list-custom-field-definitions'),
+    createCustomFieldDefinition: (name, fieldType, options) => ipcRenderer.invoke('studio:create-custom-field-definition', name, fieldType, options),
+    deleteCustomFieldDefinition: (id) => ipcRenderer.invoke('studio:delete-custom-field-definition', id),
+    getCustomFieldValues: (entityId) => ipcRenderer.invoke('studio:get-custom-field-values', entityId),
+    setCustomFieldValue: (entityId, fieldId, value) => ipcRenderer.invoke('studio:set-custom-field-value', entityId, fieldId, value),
+
+    courseToModule: (sourceCourseId, targetCourseId) => ipcRenderer.invoke('studio:course-to-module', sourceCourseId, targetCourseId),
+    moduleToCourse: (moduleId, newCourseTitle) => ipcRenderer.invoke('studio:module-to-course', moduleId, newCourseTitle),
+    moveItems: (appearanceIds, targetParentId, targetCourseId) => ipcRenderer.invoke('studio:move-items', appearanceIds, targetParentId, targetCourseId),
+    createCourseFromSelection: (appearanceIds, courseTitle) => ipcRenderer.invoke('studio:create-course-from-selection', appearanceIds, courseTitle),
+
+    listHistory: (limit) => ipcRenderer.invoke('studio:list-history', limit),
+    undo: (historyId) => ipcRenderer.invoke('studio:undo', historyId),
+
+    renamePreview: (appearanceIds, options) => ipcRenderer.invoke('studio:rename-preview', appearanceIds, options),
+    renameApply: (items) => ipcRenderer.invoke('studio:rename-apply', items),
+    applySpreadsheetDraft: (changes) => ipcRenderer.invoke('studio:apply-spreadsheet-draft', changes),
+
+    listAutomationRules: () => ipcRenderer.invoke('studio:list-automation-rules'),
+    saveAutomationRule: (rule) => ipcRenderer.invoke('studio:save-automation-rule', rule),
+    deleteAutomationRule: (id) => ipcRenderer.invoke('studio:delete-automation-rule', id),
+    executeAutomationRule: (ruleId) => ipcRenderer.invoke('studio:execute-automation-rule', ruleId),
+
+    listProfiles: () => ipcRenderer.invoke('studio:list-profiles'),
+    createProfile: (name, avatarPath) => ipcRenderer.invoke('studio:create-profile', name, avatarPath),
+    updateProfile: (id, updates) => ipcRenderer.invoke('studio:update-profile', id, updates),
+    deleteProfile: (id) => ipcRenderer.invoke('studio:delete-profile', id),
+
+    listThemePresets: () => ipcRenderer.invoke('studio:list-theme-presets'),
+    saveThemePreset: (preset) => ipcRenderer.invoke('studio:save-theme-preset', preset),
+    getResolvedTheme: (profileId, vaultPath, courseId, sectionId) => ipcRenderer.invoke('studio:get-resolved-theme', profileId, vaultPath, courseId, sectionId),
+    saveAppearanceOverride: (scopeType, scopeId, overrides, presetId) => ipcRenderer.invoke('studio:save-appearance-override', scopeType, scopeId, overrides, presetId),
+    resetAppearanceOverride: (scopeType, scopeId, category) => ipcRenderer.invoke('studio:reset-appearance-override', scopeType, scopeId, category),
+    exportThemePackage: (presetId, targetPath) => ipcRenderer.invoke('studio:export-theme-package', presetId, targetPath),
+    importThemePackage: (filePath) => ipcRenderer.invoke('studio:import-theme-package', filePath)
+  },
+
+  discovery: {
+    getDiscoveryRails: (profileId) => ipcRenderer.invoke('discovery:get-rails', profileId),
+    getSimilarCourses: (courseId, limit) => ipcRenderer.invoke('discovery:get-similar-courses', courseId, limit),
+    getTimeBasedRecommendations: (minutes, profileId) => ipcRenderer.invoke('discovery:get-time-recommendations', minutes, profileId),
+    getSurpriseMe: (profileId, mode) => ipcRenderer.invoke('discovery:get-surprise-me', profileId, mode),
+    getCategoryDiscovery: () => ipcRenderer.invoke('discovery:get-category-discovery'),
+    getLibraryInsights: () => ipcRenderer.invoke('discovery:get-insights'),
+    getProfileDiscoveryPreferences: (profileId) => ipcRenderer.invoke('discovery:get-profile-preferences', profileId),
+    saveProfileDiscoveryPreferences: (preferences) => ipcRenderer.invoke('discovery:save-profile-preferences', preferences),
+    submitFeedback: (profileId, courseId, feedbackType) => ipcRenderer.invoke('discovery:submit-feedback', profileId, courseId, feedbackType),
+    listCourseRelationships: (courseId) => ipcRenderer.invoke('discovery:list-relationships', courseId),
+    addCourseRelationship: (sourceCourseId, targetCourseId, relationshipType) => ipcRenderer.invoke('discovery:add-relationship', sourceCourseId, targetCourseId, relationshipType),
+    deleteCourseRelationship: (id) => ipcRenderer.invoke('discovery:delete-relationship', id)
+  },
+
   settings: {
     get: () => ipcRenderer.invoke('settings:get'),
     set: (key, value) => ipcRenderer.invoke('settings:set', { key, value })
@@ -193,6 +265,6 @@ if (process.contextIsolated) {
 } else {
   // @ts-ignore (fallback when context isolation is disabled)
   window.electron = electronAPI
-  // @ts-ignore
+  // @ts-ignore (fallback when context isolation is disabled)
   window.api = api
 }

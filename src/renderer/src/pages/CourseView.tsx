@@ -29,6 +29,7 @@ import { useCourseProgress } from '../hooks/useCourseProgress'
 import { PdfViewerModal } from '../components/documents/PdfViewerModal'
 import { CodeViewerModal } from '../components/documents/CodeViewerModal'
 import { ReorganizeCourseModal } from '../components/library/ReorganizeCourseModal'
+import { SimilarCoursesRail } from '../components/discovery'
 import type { CourseGoal } from '@shared'
 import {
   ChevronUp,
@@ -1164,6 +1165,9 @@ export function CourseView(): React.JSX.Element {
             )
           })}
         </Accordion>
+
+        {/* Similar Courses Rail (v0.6 Discovery) */}
+        <SimilarCoursesRail courseId={course.id} />
       </div>
 
       {/* Delete Course Confirmation Dialog */}

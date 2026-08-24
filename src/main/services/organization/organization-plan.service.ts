@@ -196,7 +196,7 @@ export class OrganizationPlanService {
    * Applies the approved items of an Organization Plan in an atomic SQLite transaction.
    */
   public applyPlan(plan: OrganizationPlan): ApplyOrganizationPlanResult {
-    const rawDb = (this.db as any).db
+    const rawDb = this.db.getDatabase()
     if (!rawDb) throw new Error('Database is not connected.')
 
     let safeCount = 0

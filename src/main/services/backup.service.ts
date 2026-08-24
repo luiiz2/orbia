@@ -35,7 +35,7 @@ export class BackupService {
       }
 
       // Checkpoint WAL if connected
-      const rawDb = (this.db as any).db
+      const rawDb = (this.db as unknown as { db: import('better-sqlite3').Database | null }).db
       if (rawDb) {
         try {
           rawDb.pragma('wal_checkpoint(TRUNCATE)')
@@ -55,10 +55,10 @@ export class BackupService {
 
       if (rawDb) {
         try {
-          courseCount = (rawDb.prepare('SELECT count(*) as cnt FROM courses WHERE merged_into_course_id IS NULL').get() as any)?.cnt || 0
-          notesCount = (rawDb.prepare('SELECT count(*) as cnt FROM lesson_notes').get() as any)?.cnt || 0
-          flashcardsCount = (rawDb.prepare('SELECT count(*) as cnt FROM flashcards').get() as any)?.cnt || 0
-          bookmarksCount = (rawDb.prepare('SELECT count(*) as cnt FROM video_bookmarks').get() as any)?.cnt || 0
+          courseCount = (rawDb.prepare('SELECT count(*) as cnt FROM courses WHERE merged_into_course_id IS NULL').get() as { cnt: number } | undefined)?.cnt || 0
+          notesCount = (rawDb.prepare('SELECT count(*) as cnt FROM lesson_notes').get() as { cnt: number } | undefined)?.cnt || 0
+          flashcardsCount = (rawDb.prepare('SELECT count(*) as cnt FROM flashcards').get() as { cnt: number } | undefined)?.cnt || 0
+          bookmarksCount = (rawDb.prepare('SELECT count(*) as cnt FROM video_bookmarks').get() as { cnt: number } | undefined)?.cnt || 0
         } catch {
           // Ignored
         }
@@ -110,13 +110,13 @@ export class BackupService {
         filePath: options.targetFilePath,
         fileSizeBytes: stats.size
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Failed to create backup:', err)
       return {
         success: false,
         filePath: options.targetFilePath,
         fileSizeBytes: 0,
-        error: err?.message || String(err)
+        error: err instanceof Error ? err.message : String(err)
       }
     }
   }
@@ -198,12 +198,12 @@ export class BackupService {
         filePath: backupFilePath,
         fileSizeBytes: stats.size
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       return {
         valid: false,
         filePath: backupFilePath,
         fileSizeBytes: 0,
-        error: `Failed to inspect backup: ${err?.message || String(err)}`
+        error: `Failed to inspect backup: ${err instanceof Error ? err.message : String(err)}`
       }
     }
   }
@@ -259,7 +259,7 @@ export class BackupService {
 
       // Step 4: Reconnect SQLite and verify integrity
       this.db.connect(options.vaultPath)
-      const rawDb = (this.db as any).db
+      const rawDb = (this.db as unknown as { db: import('better-sqlite3').Database | null }).db
       if (rawDb) {
         const integrity = rawDb.pragma('integrity_check', { simple: true })
         if (integrity !== 'ok') {
@@ -280,7 +280,7 @@ export class BackupService {
         success: true,
         restoredCoursesCount: preview.manifest.courseCount
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Failed to restore backup, rolling back:', err)
 
       // Rollback
@@ -298,7 +298,7 @@ export class BackupService {
       return {
         success: false,
         restoredCoursesCount: 0,
-        error: `Restore failed: ${err?.message || String(err)}`
+        error: `Restore failed: ${err instanceof Error ? err.message : String(err)}`
       }
     }
   }

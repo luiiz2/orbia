@@ -314,3 +314,42 @@ export interface CourseHealthReport {
   problemLessons: CourseProblemLesson[]
 }
 
+export interface OrganizationPlanItem {
+  id: string
+  title: string
+  description: string
+  category: 'SAFE_CORRECTION' | 'SUGGESTION' | 'CONFLICT_DECISION'
+  targetEntity: 'COURSE' | 'MODULE' | 'LESSON'
+  entityId?: string
+  actionType:
+    | 'REORDER_NATURAL'
+    | 'RELINK_RENAMED_FILE'
+    | 'RELINK_MOVED_FILE'
+    | 'CONSOLIDATE_SAME_MODULE_DUPLICATE'
+    | 'FLAG_CROSS_MODULE_DUPLICATE'
+    | 'FLAG_SEQUENCE_GAP'
+    | 'CLASSIFY_AUXILIARY_SECTION'
+    | 'CLEAN_GENERIC_TITLE'
+  details?: Record<string, unknown>
+  approved: boolean
+}
+
+export interface OrganizationPlan {
+  planId: string
+  courseId: string
+  courseTitle: string
+  safeCorrections: OrganizationPlanItem[]
+  suggestions: OrganizationPlanItem[]
+  conflicts: OrganizationPlanItem[]
+  totalItems: number
+}
+
+export interface ApplyOrganizationPlanResult {
+  success: boolean
+  appliedCount: number
+  safeCount: number
+  suggestionsCount: number
+  conflictsCount: number
+  error?: string
+}
+

@@ -36,7 +36,9 @@ export function applyThemeToDOM(theme: Theme): 'dark' | 'light' {
 
   try {
     localStorage.setItem('orbia_theme', theme)
-  } catch {}
+  } catch {
+    // Ignore localStorage failures in restricted contexts
+  }
 
   return resolved
 }

@@ -15,7 +15,11 @@ vi.mock('react-i18next', () => ({
         : options?.name
           ? `${key}:${options.name}`
           : key
-  })
+  }),
+  initReactI18next: {
+    type: '3rdParty',
+    init: () => {}
+  }
 }))
 
 vi.mock('../src/renderer/src/stores/useLibraryStore', () => ({

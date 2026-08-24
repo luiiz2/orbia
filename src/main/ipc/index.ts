@@ -3,6 +3,8 @@ import { registerCoursesIpc } from './courses.ipc'
 import { registerPlayerIpc } from './player.ipc'
 import { registerSettingsIpc } from './settings.ipc'
 import { registerReviewIpc } from './review.ipc'
+import { registerStudioIpc } from './studio.ipc'
+import { registerDiscoveryIpc } from './discovery.ipc'
 
 export function registerAllIpc(): void {
   registerVaultIpc()
@@ -10,4 +12,8 @@ export function registerAllIpc(): void {
   registerPlayerIpc()
   registerSettingsIpc()
   registerReviewIpc()
+  registerStudioIpc()
+  registerDiscoveryIpc()
 }
+
+

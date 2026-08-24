@@ -12,7 +12,7 @@ export class ExportService {
    * Exports study notes to clean Markdown format grouped by course and lesson.
    */
   public exportNotesMarkdown(courseId?: string): string {
-    const rawDb = (this.db as any).db
+    const rawDb = this.db.getDatabase()
     if (!rawDb) throw new Error('Database is not connected.')
 
     let query = `
@@ -68,7 +68,7 @@ export class ExportService {
    * Exports video bookmarks to clean Markdown format grouped by course and lesson.
    */
   public exportBookmarksMarkdown(courseId?: string): string {
-    const rawDb = (this.db as any).db
+    const rawDb = this.db.getDatabase()
     if (!rawDb) throw new Error('Database is not connected.')
 
     let query = `
@@ -124,7 +124,7 @@ export class ExportService {
    * Exports flashcards to RFC 4180 CSV format compatible with Anki import.
    */
   public exportFlashcardsCsv(courseId?: string): string {
-    const rawDb = (this.db as any).db
+    const rawDb = this.db.getDatabase()
     if (!rawDb) throw new Error('Database is not connected.')
 
     let query = `
@@ -177,7 +177,7 @@ export class ExportService {
    * Exports flashcards to Markdown format.
    */
   public exportFlashcardsMarkdown(courseId?: string): string {
-    const rawDb = (this.db as any).db
+    const rawDb = this.db.getDatabase()
     if (!rawDb) throw new Error('Database is not connected.')
 
     let query = `

@@ -38,6 +38,16 @@ export function TopBar(): React.JSX.Element {
       isActive: currentView === 'home' || currentView === 'course' || currentView === 'player'
     },
     {
+      id: 'discover' as const,
+      label: 'Descobrir',
+      isActive: currentView === 'discover'
+    },
+    {
+      id: 'studio' as const,
+      label: 'Studio',
+      isActive: currentView === 'studio'
+    },
+    {
       id: 'history' as const,
       label: t('nav.history'),
       isActive: currentView === 'history'
@@ -128,6 +138,28 @@ export function TopBar(): React.JSX.Element {
           <span className="hidden lg:inline max-w-[120px] truncate font-medium">
             {currentVault?.name || t('nav.changeVault')}
           </span>
+        </Button>
+
+        {/* Studio Theme Editor Button */}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => useNavigationStore.getState().setThemeModalOpen(true)}
+          className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-white/5 rounded-lg"
+          title="Personalizar Aparência & Tema"
+        >
+          <span className="text-xs">🎨</span>
+        </Button>
+
+        {/* Local Profile Switcher Button */}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => useNavigationStore.getState().setProfileModalOpen(true)}
+          className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-white/5 rounded-lg"
+          title="Perfis Locais"
+        >
+          <span className="text-xs">👤</span>
         </Button>
 
         <DropdownMenu>

@@ -528,7 +528,7 @@ export function ImportWizard({ open, onOpenChange }: ImportWizardProps): React.J
   const attentionItems = batchItems.filter(
     (item) => item.status === 'validation-failed' || item.status === 'error'
   )
-  const isBusy = isCommitting || committingRef.current
+  const isBusy = isCommitting
 
   return (
     <Dialog

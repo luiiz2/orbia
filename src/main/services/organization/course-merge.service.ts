@@ -1,5 +1,6 @@
 import crypto from 'node:crypto'
 import { databaseService, type DatabaseService } from '../database.service'
+import { logger } from '../logger.service'
 import type {
   Module,
   Lesson,
@@ -136,7 +137,7 @@ export class CourseMergeService {
    */
   public async mergeCourses(options: CourseMergeOptions): Promise<MergeCoursesResult> {
     await this.getMergePreview([options.primaryCourseId, ...options.secondaryCourseIds])
-    const rawDb = (this.db as any).db
+    const rawDb = this.db.getDatabase()
     if (!rawDb) throw new Error('Database is not connected.')
 
     const primaryCourse = this.db.getCourseById(options.primaryCourseId)
@@ -224,7 +225,7 @@ export class CourseMergeService {
    * Reverses a previous course merge and restores all secondary courses.
    */
   public unmergeCourse(mergedCourseId: string): UnmergeCourseResult {
-    const rawDb = (this.db as any).db
+    const rawDb = this.db.getDatabase()
     if (!rawDb) throw new Error('Database is not connected.')
 
     const secondaries = rawDb.prepare(`
@@ -241,8 +242,8 @@ export class CourseMergeService {
       for (const sec of secondaries) {
         if (!sec.mergeMetadata) continue
         try {
-          const snapshot = JSON.parse(sec.mergeMetadata)
-          const secRecord = snapshot.secondaries?.find((s: any) => s.course.id === sec.id)
+          const snapshot = JSON.parse(sec.mergeMetadata) as { secondaries?: Array<{ course: { id: string }; moduleIds?: string[] }> }
+          const secRecord = snapshot.secondaries?.find((s) => s.course.id === sec.id)
           if (secRecord) {
             // Restore modules
             for (const modId of secRecord.moduleIds || []) {
@@ -260,7 +261,7 @@ export class CourseMergeService {
           this.db.reindexCourseHierarchy(sec.id)
           restoredCount++
         } catch (err) {
-          // parse error
+          logger.warn('Failed to parse and restore secondary snapshot:', err)
         }
       }
 

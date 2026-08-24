@@ -59,6 +59,7 @@ try {
   console.warn('   Aviso ao atualizar atalhos:', err.message)
 }
 
+const pkg = require('../package.json')
 console.log('==================================================')
-console.log('✨ Orbia atualizado com sucesso para a versão v0.4!')
+console.log(`✨ Orbia atualizado com sucesso para a versão v${pkg.version}!`)
 console.log('==================================================')

@@ -70,7 +70,7 @@ export async function getStagedFileHash(filePath: string, sizeBytes?: number, mt
     const digest = hash.digest('hex')
     HASH_CACHE.set(cacheKey, { hash: digest, signature })
     return digest
-  } catch (err) {
+  } catch {
     return ''
   }
 }

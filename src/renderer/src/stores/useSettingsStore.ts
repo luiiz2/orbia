@@ -88,7 +88,9 @@ export const useSettingsStore = create<SettingsState>((set) => ({
       if (mergedSettings.language) {
         try {
           localStorage.setItem('i18nextLng', mergedSettings.language)
-        } catch {}
+        } catch {
+          // Ignore localStorage failure in restrictive environments
+        }
         i18n.changeLanguage(mergedSettings.language).catch((err) => {
           console.warn('Failed to change language:', err)
         })
@@ -106,7 +108,9 @@ export const useSettingsStore = create<SettingsState>((set) => ({
     try {
       try {
         localStorage.setItem('i18nextLng', lang)
-      } catch {}
+      } catch {
+        // Ignore localStorage failure in restrictive environments
+      }
       await window.api.settings.set('language', lang)
       await i18n.changeLanguage(lang)
       set((state) => ({

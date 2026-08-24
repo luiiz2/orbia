@@ -33,7 +33,7 @@ export async function assessMediaHealth(filePath: string): Promise<MediaHealthAs
     const stat = await fs.promises.stat(filePath)
     exists = true
     sizeBytes = stat.size
-  } catch (err: any) {
+  } catch {
     return {
       filePath,
       exists: false,
@@ -73,7 +73,7 @@ export async function assessMediaHealth(filePath: string): Promise<MediaHealthAs
       // Missing or zero duration
       isPlayable = true // may still be valid format
     }
-  } catch (err: any) {
+  } catch {
     isCorrupted = true
     isPlayable = false
     errorReason = 'Media stream or metadata could not be decoded'

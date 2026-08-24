@@ -89,6 +89,10 @@ export class DatabaseService {
     }
   }
 
+  public getDatabase(): Database.Database | null {
+    return this.db
+  }
+
   public disconnect(): void {
     this.close()
   }
@@ -487,10 +491,257 @@ export class DatabaseService {
       })()
     }
 
+    const v05MigrationId = '005_v05_library_studio'
+    const v05MigrationApplied = this.db.prepare(`SELECT id FROM _migrations WHERE id = ?`).get(v05MigrationId)
+
+    if (!v05MigrationApplied) {
+      this.db.transaction(() => {
+        this.db!.exec(`
+          CREATE TABLE IF NOT EXISTS library_appearances (
+            id TEXT PRIMARY KEY,
+            entity_type TEXT NOT NULL CHECK(entity_type IN ('course', 'module', 'section', 'lesson', 'resource')),
+            entity_id TEXT NOT NULL,
+            root_course_id TEXT NOT NULL,
+            parent_appearance_id TEXT REFERENCES library_appearances(id) ON DELETE CASCADE,
+            section_id TEXT,
+            custom_title TEXT,
+            display_order INTEGER NOT NULL DEFAULT 0,
+            is_reference INTEGER NOT NULL DEFAULT 0,
+            is_hidden INTEGER NOT NULL DEFAULT 0,
+            tags TEXT NOT NULL DEFAULT '[]',
+            custom_metadata TEXT NOT NULL DEFAULT '{}',
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL
+          );
+          CREATE INDEX IF NOT EXISTS idx_appearances_root ON library_appearances(root_course_id);
+          CREATE INDEX IF NOT EXISTS idx_appearances_parent ON library_appearances(parent_appearance_id);
+          CREATE INDEX IF NOT EXISTS idx_appearances_entity ON library_appearances(entity_id);
+          CREATE INDEX IF NOT EXISTS idx_appearances_hidden ON library_appearances(is_hidden);
+
+          CREATE TABLE IF NOT EXISTS library_sections (
+            id TEXT PRIMARY KEY,
+            course_id TEXT NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+            module_id TEXT REFERENCES modules(id) ON DELETE CASCADE,
+            title TEXT NOT NULL,
+            display_order INTEGER NOT NULL DEFAULT 0,
+            created_at INTEGER NOT NULL
+          );
+          CREATE INDEX IF NOT EXISTS idx_sections_course ON library_sections(course_id);
+
+          CREATE TABLE IF NOT EXISTS collections (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            description TEXT,
+            color TEXT,
+            icon TEXT,
+            created_at INTEGER NOT NULL
+          );
+
+          CREATE TABLE IF NOT EXISTS collection_items (
+            collection_id TEXT NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
+            appearance_id TEXT NOT NULL REFERENCES library_appearances(id) ON DELETE CASCADE,
+            order_index INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY (collection_id, appearance_id)
+          );
+
+          CREATE TABLE IF NOT EXISTS custom_field_definitions (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL UNIQUE,
+            field_type TEXT NOT NULL CHECK(field_type IN ('text', 'number', 'date', 'boolean', 'select', 'rating', 'color', 'tag', 'url')),
+            options TEXT,
+            created_at INTEGER NOT NULL
+          );
+
+          CREATE TABLE IF NOT EXISTS custom_field_values (
+            entity_id TEXT NOT NULL,
+            field_id TEXT NOT NULL REFERENCES custom_field_definitions(id) ON DELETE CASCADE,
+            value TEXT NOT NULL,
+            PRIMARY KEY (entity_id, field_id)
+          );
+          CREATE INDEX IF NOT EXISTS idx_custom_values_entity ON custom_field_values(entity_id);
+
+          CREATE TABLE IF NOT EXISTS automation_rules (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            priority INTEGER NOT NULL DEFAULT 0,
+            is_active INTEGER NOT NULL DEFAULT 1,
+            execution_mode TEXT NOT NULL CHECK(execution_mode IN ('automatic', 'manual')),
+            trigger_event TEXT NOT NULL,
+            conditions_json TEXT NOT NULL,
+            actions_json TEXT NOT NULL,
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL
+          );
+
+          CREATE TABLE IF NOT EXISTS studio_history (
+            id TEXT PRIMARY KEY,
+            action_type TEXT NOT NULL,
+            description TEXT NOT NULL,
+            diff_payload TEXT NOT NULL,
+            timestamp INTEGER NOT NULL,
+            is_undone INTEGER NOT NULL DEFAULT 0
+          );
+          CREATE INDEX IF NOT EXISTS idx_studio_history_time ON studio_history(timestamp DESC);
+        `)
+
+        const alters = [
+          `ALTER TABLE courses ADD COLUMN is_hidden INTEGER NOT NULL DEFAULT 0;`,
+          `ALTER TABLE modules ADD COLUMN is_hidden INTEGER NOT NULL DEFAULT 0;`,
+          `ALTER TABLE lessons ADD COLUMN is_hidden INTEGER NOT NULL DEFAULT 0;`,
+          `ALTER TABLE content_resources ADD COLUMN is_hidden INTEGER NOT NULL DEFAULT 0;`
+        ]
+        for (const sql of alters) {
+          try {
+            this.db!.exec(sql)
+          } catch {
+            // Ignored if column already exists
+          }
+        }
+
+        this.backfillLibraryAppearances()
+
+        this.db!.prepare(`INSERT INTO _migrations (id, applied_at) VALUES (?, ?)`).run(v05MigrationId, Date.now())
+      })()
+    }
+
+    // 7. Migration 006: Discovery, Course Relationships & Feedback (v0.6)
+    const v06MigrationId = '006_v06_discovery'
+    const hasApplied006 = this.db.prepare(`SELECT 1 FROM _migrations WHERE id = ?`).get(v06MigrationId)
+
+    if (!hasApplied006) {
+      this.db.transaction(() => {
+        this.db!.exec(`
+          CREATE TABLE IF NOT EXISTS course_relationships (
+            id                TEXT PRIMARY KEY,
+            source_course_id  TEXT NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+            target_course_id  TEXT NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+            relationship_type TEXT NOT NULL CHECK(relationship_type IN ('prerequisite', 'sequel', 'same_journey', 'related')),
+            display_order     INTEGER NOT NULL DEFAULT 0,
+            created_at        INTEGER NOT NULL
+          );
+          CREATE INDEX IF NOT EXISTS idx_course_rel_source ON course_relationships(source_course_id);
+          CREATE INDEX IF NOT EXISTS idx_course_rel_target ON course_relationships(target_course_id);
+
+          CREATE TABLE IF NOT EXISTS recommendation_feedback (
+            profile_id    TEXT NOT NULL,
+            course_id     TEXT NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+            feedback_type TEXT NOT NULL CHECK(feedback_type IN ('like', 'dislike', 'not_interested', 'show_less', 'show_more')),
+            updated_at    INTEGER NOT NULL,
+            PRIMARY KEY (profile_id, course_id)
+          );
+          CREATE INDEX IF NOT EXISTS idx_feedback_profile ON recommendation_feedback(profile_id);
+
+          CREATE TABLE IF NOT EXISTS recommendation_exposures (
+            profile_id      TEXT NOT NULL,
+            course_id       TEXT NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+            last_exposed_at INTEGER NOT NULL,
+            exposure_count  INTEGER NOT NULL DEFAULT 1,
+            PRIMARY KEY (profile_id, course_id)
+          );
+          CREATE INDEX IF NOT EXISTS idx_exposures_profile ON recommendation_exposures(profile_id, last_exposed_at DESC);
+
+          CREATE INDEX IF NOT EXISTS idx_lesson_progress_updated ON lesson_progress(updated_at DESC);
+          CREATE INDEX IF NOT EXISTS idx_courses_created_at ON courses(created_at DESC);
+        `)
+
+        this.db!.prepare(`INSERT INTO _migrations (id, applied_at) VALUES (?, ?)`).run(v06MigrationId, Date.now())
+      })()
+    }
+
     const userVersion = this.db.pragma('user_version', { simple: true }) as number
 
     if (userVersion < 1) {
       this.db.pragma('user_version = 1')
+    }
+  }
+
+  private backfillLibraryAppearances(): void {
+    if (!this.db) return
+
+    const now = Date.now()
+    const courses = this.db.prepare(`SELECT id, custom_title, is_hidden FROM courses`).all() as { id: string; custom_title?: string; is_hidden?: number }[]
+    const insertApp = this.db.prepare(`
+      INSERT OR IGNORE INTO library_appearances (
+        id, entity_type, entity_id, root_course_id, parent_appearance_id, section_id,
+        custom_title, display_order, is_reference, is_hidden, tags, custom_metadata, created_at, updated_at
+      ) VALUES (
+        @id, @entityType, @entityId, @rootCourseId, @parentAppearanceId, @sectionId,
+        @customTitle, @displayOrder, @isReference, @isHidden, @tags, @customMetadata, @createdAt, @updatedAt
+      )
+    `)
+
+    for (const c of courses) {
+      const courseAppId = `app_course_${c.id}`
+      insertApp.run({
+        id: courseAppId,
+        entityType: 'course',
+        entityId: c.id,
+        rootCourseId: c.id,
+        parentAppearanceId: null,
+        sectionId: null,
+        customTitle: c.custom_title || null,
+        displayOrder: 0,
+        isReference: 0,
+        isHidden: c.is_hidden || 0,
+        tags: '[]',
+        customMetadata: '{}',
+        createdAt: now,
+        updatedAt: now
+      })
+
+      const modules = this.db.prepare(`
+        SELECT id, course_id, custom_title, display_order, is_hidden
+        FROM modules
+        WHERE course_id = ?
+        ORDER BY display_order ASC
+      `).all(c.id) as { id: string; course_id: string; custom_title?: string; display_order: number; is_hidden?: number }[]
+
+      for (const m of modules) {
+        const modAppId = `app_mod_${m.id}`
+        insertApp.run({
+          id: modAppId,
+          entityType: 'module',
+          entityId: m.id,
+          rootCourseId: c.id,
+          parentAppearanceId: courseAppId,
+          sectionId: null,
+          customTitle: m.custom_title || null,
+          displayOrder: m.display_order,
+          isReference: 0,
+          isHidden: m.is_hidden || 0,
+          tags: '[]',
+          customMetadata: '{}',
+          createdAt: now,
+          updatedAt: now
+        })
+
+        const lessons = this.db.prepare(`
+          SELECT id, module_id, course_id, custom_title, display_order, is_hidden
+          FROM lessons
+          WHERE module_id = ?
+          ORDER BY display_order ASC
+        `).all(m.id) as { id: string; module_id: string; course_id: string; custom_title?: string; display_order: number; is_hidden?: number }[]
+
+        for (const l of lessons) {
+          const lesAppId = `app_les_${l.id}`
+          insertApp.run({
+            id: lesAppId,
+            entityType: 'lesson',
+            entityId: l.id,
+            rootCourseId: c.id,
+            parentAppearanceId: modAppId,
+            sectionId: null,
+            customTitle: l.custom_title || null,
+            displayOrder: l.display_order,
+            isReference: 0,
+            isHidden: l.is_hidden || 0,
+            tags: '[]',
+            customMetadata: '{}',
+            createdAt: now,
+            updatedAt: now
+          })
+        }
+      }
     }
   }
 
@@ -2629,7 +2880,9 @@ export class DatabaseService {
             if (fs.existsSync(prob.filePath)) {
               fileSize = fs.statSync(prob.filePath).size
             }
-          } catch {}
+          } catch (statErr) {
+            logger.debug('Failed to stat problem non-media lesson file:', statErr)
+          }
 
           this.db!.prepare(`
             INSERT OR REPLACE INTO content_resources (
@@ -2832,7 +3085,7 @@ export class DatabaseService {
     }
 
     if (activeDates.length > 0) {
-      const toUtcDays = (dateStr: string) => {
+      const toUtcDays = (dateStr: string): number => {
         const [y, m, d] = dateStr.split('-').map(Number)
         return Math.floor(Date.UTC(y, m - 1, d) / (24 * 60 * 60 * 1000))
       }

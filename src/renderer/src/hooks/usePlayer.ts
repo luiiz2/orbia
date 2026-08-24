@@ -133,6 +133,17 @@ export function usePlayer({ videoRef, containerRef }: UsePlayerProps): UsePlayer
   )
 
   /**
+   * Auto-advance countdown
+   */
+  const cancelAutoAdvance = useCallback(() => {
+    if (autoAdvanceIntervalRef.current) {
+      clearInterval(autoAdvanceIntervalRef.current)
+      autoAdvanceIntervalRef.current = null
+    }
+    setAutoAdvanceCountdown(null)
+  }, [])
+
+  /**
    * Play / Pause toggle
    */
   const togglePlay = useCallback(() => {
@@ -148,7 +159,7 @@ export function usePlayer({ videoRef, containerRef }: UsePlayerProps): UsePlayer
       storePause()
       persistProgress(video.currentTime, video.duration)
     }
-  }, [videoRef, storePlay, storePause, persistProgress])
+  }, [videoRef, storePlay, storePause, persistProgress, cancelAutoAdvance])
 
   const play = useCallback(() => {
     const video = videoRef.current
@@ -157,7 +168,7 @@ export function usePlayer({ videoRef, containerRef }: UsePlayerProps): UsePlayer
       storePlay()
       cancelAutoAdvance()
     }
-  }, [videoRef, storePlay])
+  }, [videoRef, storePlay, cancelAutoAdvance])
 
   const pause = useCallback(() => {
     const video = videoRef.current
@@ -284,17 +295,6 @@ export function usePlayer({ videoRef, containerRef }: UsePlayerProps): UsePlayer
       storeSetSubtitleTrack(subtitleTracks[0].id)
     }
   }, [activeSubtitleTrack, subtitleTracks, storeSetSubtitleTrack])
-
-  /**
-   * Auto-advance countdown
-   */
-  const cancelAutoAdvance = useCallback(() => {
-    if (autoAdvanceIntervalRef.current) {
-      clearInterval(autoAdvanceIntervalRef.current)
-      autoAdvanceIntervalRef.current = null
-    }
-    setAutoAdvanceCountdown(null)
-  }, [])
 
   const skipToNextNow = useCallback(() => {
     cancelAutoAdvance()

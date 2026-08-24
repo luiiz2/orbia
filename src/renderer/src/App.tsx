@@ -3,6 +3,7 @@ import { ThemeProvider } from './components/layout/ThemeProvider'
 import { AppShell } from './components/layout/AppShell'
 import { SplashScreen } from './components/layout/SplashScreen'
 import { HomeView } from './pages/HomeView'
+import { DiscoverView } from './pages/DiscoverView'
 import { CourseView } from './pages/CourseView'
 import { PlayerView } from './pages/PlayerView'
 import { ReviewView } from './pages/ReviewView'
@@ -11,17 +12,37 @@ import { SettingsView } from './pages/SettingsView'
 import { ImportWizard } from './components/import/ImportWizard'
 import { VaultModal } from './components/vault/VaultModal'
 import { VaultSelector } from './components/vault/VaultSelector'
+import {
+  BulkActionBar,
+  DraftReviewModal,
+  OrganizationHistoryModal,
+  CustomFieldsModal,
+  AutomationRulesModal,
+  ProfileSelectorModal,
+  ThemeEditorModal,
+  LibrarySpreadsheet
+} from './components/studio'
 import { useNavigationStore } from './stores/useNavigationStore'
 import { useVaultStore } from './stores/useVaultStore'
 import { useSettingsStore } from './stores/useSettingsStore'
 import { useLibraryStore } from './stores/useLibraryStore'
+import { useProfileStore } from './stores/useProfileStore'
 import { TooltipProvider } from './components/ui/tooltip'
 
 export function App(): React.JSX.Element {
-  const { currentView, isImportModalOpen, setImportModalOpen } = useNavigationStore()
+  const {
+    currentView,
+    isImportModalOpen,
+    setImportModalOpen,
+    isThemeModalOpen,
+    setThemeModalOpen,
+    isProfileModalOpen,
+    setProfileModalOpen
+  } = useNavigationStore()
   const { init: initVault, currentVault } = useVaultStore()
   const { init: initSettings } = useSettingsStore()
   const { fetchCourses } = useLibraryStore()
+  const { fetchProfiles, fetchResolvedTheme } = useProfileStore()
   const [isAppReady, setIsAppReady] = useState(false)
   const [isSplashDone, setIsSplashDone] = useState(false)
 
@@ -31,6 +52,8 @@ export function App(): React.JSX.Element {
         await initSettings()
         await initVault()
         await fetchCourses()
+        await fetchProfiles()
+        await fetchResolvedTheme()
       } catch (err) {
         console.warn('[App] Preload error:', err)
       } finally {
@@ -39,18 +62,22 @@ export function App(): React.JSX.Element {
     }
 
     preloadData()
-  }, [initSettings, initVault, fetchCourses])
+  }, [initSettings, initVault, fetchCourses, fetchProfiles, fetchResolvedTheme])
 
   const renderActiveView = (): React.ReactNode => {
     switch (currentView) {
       case 'home':
         return <HomeView />
+      case 'discover':
+        return <DiscoverView />
       case 'course':
         return <CourseView />
       case 'player':
         return <PlayerView />
       case 'review':
         return <ReviewView />
+      case 'studio':
+        return <LibrarySpreadsheet />
       case 'history':
         return <HistoryView />
       case 'settings':
@@ -73,6 +100,13 @@ export function App(): React.JSX.Element {
             <AppShell>{renderActiveView()}</AppShell>
             <ImportWizard open={isImportModalOpen} onOpenChange={setImportModalOpen} />
             <VaultModal />
+            <BulkActionBar />
+            <DraftReviewModal />
+            <OrganizationHistoryModal />
+            <CustomFieldsModal />
+            <AutomationRulesModal />
+            <ProfileSelectorModal open={isProfileModalOpen} onOpenChange={setProfileModalOpen} />
+            <ThemeEditorModal open={isThemeModalOpen} onOpenChange={setThemeModalOpen} />
           </>
         )}
       </TooltipProvider>
@@ -81,4 +115,5 @@ export function App(): React.JSX.Element {
 }
 
 export default App
+
 

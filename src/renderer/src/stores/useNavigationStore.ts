@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-export type ViewType = 'home' | 'course' | 'player' | 'history' | 'review' | 'settings'
+export type ViewType = 'home' | 'discover' | 'course' | 'player' | 'history' | 'review' | 'settings' | 'studio'
 
 export interface NavigationState {
   currentView: ViewType
@@ -8,19 +8,25 @@ export interface NavigationState {
   isSidebarCollapsed: boolean
   isImportModalOpen: boolean
   isVaultModalOpen: boolean
+  isThemeModalOpen: boolean
+  isProfileModalOpen: boolean
 
   // Actions
   setView: (view: ViewType, courseId?: string) => void
   navigateToHome: () => void
+  navigateToDiscover: () => void
   navigateToCourse: (courseId: string) => void
   navigateToPlayer: (courseId?: string) => void
   navigateToHistory: () => void
   navigateToReview: () => void
+  navigateToStudio: () => void
   navigateToSettings: () => void
   toggleSidebar: () => void
   setSidebarCollapsed: (collapsed: boolean) => void
   setImportModalOpen: (open: boolean) => void
   setVaultModalOpen: (open: boolean) => void
+  setThemeModalOpen: (open: boolean) => void
+  setProfileModalOpen: (open: boolean) => void
 }
 
 export const useNavigationStore = create<NavigationState>((set) => ({
@@ -29,6 +35,8 @@ export const useNavigationStore = create<NavigationState>((set) => ({
   isSidebarCollapsed: false,
   isImportModalOpen: false,
   isVaultModalOpen: false,
+  isThemeModalOpen: false,
+  isProfileModalOpen: false,
 
   setView: (view, courseId) =>
     set({
@@ -39,6 +47,12 @@ export const useNavigationStore = create<NavigationState>((set) => ({
   navigateToHome: () =>
     set({
       currentView: 'home',
+      selectedCourseId: null
+    }),
+
+  navigateToDiscover: () =>
+    set({
+      currentView: 'discover',
       selectedCourseId: null
     }),
 
@@ -64,6 +78,11 @@ export const useNavigationStore = create<NavigationState>((set) => ({
       currentView: 'review'
     }),
 
+  navigateToStudio: () =>
+    set({
+      currentView: 'studio'
+    }),
+
   navigateToSettings: () =>
     set({
       currentView: 'settings'
@@ -87,5 +106,16 @@ export const useNavigationStore = create<NavigationState>((set) => ({
   setVaultModalOpen: (isVaultModalOpen) =>
     set({
       isVaultModalOpen
+    }),
+
+  setThemeModalOpen: (isThemeModalOpen) =>
+    set({
+      isThemeModalOpen
+    }),
+
+  setProfileModalOpen: (isProfileModalOpen) =>
+    set({
+      isProfileModalOpen
     })
 }))
+

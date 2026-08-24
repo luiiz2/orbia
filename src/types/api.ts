@@ -193,8 +193,8 @@ export interface OrbiaApi {
     getMergePreview: (courseIds: string[]) => Promise<GetMergePreviewResult>
     mergeCourses: (courseIds: string[]) => Promise<{ success: boolean; canonicalCourseId?: string; error?: string; mergedGroupsCount?: number; removedCoursesCount?: number }>
     unmergeCourse: (courseId: string) => Promise<{ success: boolean; restoredCoursesCount?: number; error?: string }>
-    generateOrganizationPlan: (courseId: string) => Promise<{ success: boolean; plan?: any; error?: string }>
-    applyOrganizationPlan: (plan: any) => Promise<{ success: boolean; appliedCount?: number; error?: string }>
+    generateOrganizationPlan: (courseId: string) => Promise<{ success: boolean; plan?: import('./course').OrganizationPlan; error?: string }>
+    applyOrganizationPlan: (plan: import('./course').OrganizationPlan) => Promise<{ success: boolean; appliedCount?: number; error?: string }>
     autoOrganize: () => Promise<import('./course').AutoOrganizeResult>
     separateMistakenlyMergedCourses: () => Promise<import('./course').SeparateCoursesResult>
     getImportHistory: () => Promise<import('./course').ImportHistoryEntry[]>
@@ -312,6 +312,95 @@ export interface OrbiaApi {
     getDashboardStats: () => Promise<import('./review').ReviewDashboardStats>
   }
 
+  // Library Studio & Customization Engine (v0.5)
+  studio: {
+    // Appearances
+    listAppearances: (courseId?: string, includeHidden?: boolean) => Promise<import('./studio').LibraryAppearance[]>
+    updateAppearance: (id: string, updates: Partial<import('./studio').LibraryAppearance>) => Promise<boolean>
+    createReference: (entityType: import('./studio').StudioEntityType, entityId: string, targetCourseId: string, parentAppearanceId?: string) => Promise<import('./studio').LibraryAppearance>
+    deleteAppearance: (appearanceId: string) => Promise<{ success: boolean; promotedAppearanceId?: string }>
+    setHidden: (appearanceIds: string[], isHidden: boolean) => Promise<boolean>
+
+    // Sections
+    createSection: (courseId: string, title: string, moduleId?: string) => Promise<import('./studio').LibrarySection>
+    updateSection: (id: string, updates: Partial<import('./studio').LibrarySection>) => Promise<boolean>
+    deleteSection: (id: string) => Promise<boolean>
+    listSections: (courseId: string) => Promise<import('./studio').LibrarySection[]>
+
+    // Collections
+    createCollection: (name: string, description?: string, color?: string, icon?: string) => Promise<import('./studio').Collection>
+    updateCollection: (id: string, updates: Partial<import('./studio').Collection>) => Promise<boolean>
+    deleteCollection: (id: string) => Promise<boolean>
+    listCollections: () => Promise<import('./studio').Collection[]>
+    addItemsToCollection: (collectionId: string, appearanceIds: string[]) => Promise<boolean>
+    removeItemsFromCollection: (collectionId: string, appearanceIds: string[]) => Promise<boolean>
+
+    // Custom Metadata Fields
+    listCustomFieldDefinitions: () => Promise<import('./studio').CustomFieldDefinition[]>
+    createCustomFieldDefinition: (name: string, fieldType: import('./studio').CustomFieldType, options?: string[]) => Promise<import('./studio').CustomFieldDefinition>
+    deleteCustomFieldDefinition: (id: string) => Promise<boolean>
+    getCustomFieldValues: (entityId: string) => Promise<Record<string, string>>
+    setCustomFieldValue: (entityId: string, fieldId: string, value: string) => Promise<boolean>
+
+    // Semantic Structural Operations
+    courseToModule: (sourceCourseId: string, targetCourseId: string) => Promise<{ success: boolean; newModuleId?: string; error?: string }>
+    moduleToCourse: (moduleId: string, newCourseTitle?: string) => Promise<{ success: boolean; newCourseId?: string; error?: string }>
+    moveItems: (appearanceIds: string[], targetParentId: string | null, targetCourseId: string) => Promise<{ success: boolean; movedCount: number }>
+    createCourseFromSelection: (appearanceIds: string[], courseTitle: string) => Promise<{ success: boolean; newCourse?: Course; error?: string }>
+
+    // History & Transactional Undo
+    listHistory: (limit?: number) => Promise<import('./studio').StudioHistoryEntry[]>
+    undo: (historyId: string) => Promise<{ success: boolean; error?: string }>
+
+    // Bulk Editing & Spreadsheet Drafts
+    renamePreview: (appearanceIds: string[], options: import('./studio').BulkRenameOptions) => Promise<import('./studio').BulkRenamePreviewItem[]>
+    renameApply: (items: { appearanceId: string; newTitle: string }[]) => Promise<boolean>
+    applySpreadsheetDraft: (changes: import('./studio').SpreadsheetDraftChange[]) => Promise<{ success: boolean; appliedCount: number }>
+
+    // Automation Rules
+    listAutomationRules: () => Promise<import('./studio').AutomationRule[]>
+    saveAutomationRule: (rule: Omit<import('./studio').AutomationRule, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }) => Promise<import('./studio').AutomationRule>
+    deleteAutomationRule: (id: string) => Promise<boolean>
+    executeAutomationRule: (ruleId: string) => Promise<{ success: boolean; affectedCount: number }>
+
+    // Local Profiles
+    listProfiles: () => Promise<import('./theme').LocalProfile[]>
+    createProfile: (name: string, avatarPath?: string) => Promise<import('./theme').LocalProfile>
+    updateProfile: (id: string, updates: Partial<import('./theme').LocalProfile>) => Promise<boolean>
+    deleteProfile: (id: string) => Promise<boolean>
+
+    // Themes & Appearance Cascades
+    listThemePresets: () => Promise<import('./theme').ThemePreset[]>
+    saveThemePreset: (preset: Omit<import('./theme').ThemePreset, 'id' | 'createdAt'> & { id?: string }) => Promise<import('./theme').ThemePreset>
+    getResolvedTheme: (profileId?: string, vaultPath?: string, courseId?: string, sectionId?: string) => Promise<import('./theme').ResolvedTheme>
+    saveAppearanceOverride: (scopeType: import('./theme').ThemeScope, scopeId: string, overrides: Partial<import('./theme').ThemeConfig>, presetId?: string) => Promise<boolean>
+    resetAppearanceOverride: (scopeType: import('./theme').ThemeScope, scopeId: string, category?: string) => Promise<boolean>
+    exportThemePackage: (presetId: string, targetPath?: string) => Promise<{ success: boolean; filePath?: string; error?: string }>
+    importThemePackage: (filePath: string) => Promise<{ success: boolean; preset?: import('./theme').ThemePreset; error?: string }>
+  }
+
+  // Discovery & Smart Recommendations (v0.6)
+  discovery: {
+    getDiscoveryRails: (profileId?: string) => Promise<import('./discovery').DiscoveryRail[]>
+    getSimilarCourses: (courseId: string, limit?: number) => Promise<import('./discovery').DiscoveryItem[]>
+    getTimeBasedRecommendations: (minutes: number, profileId?: string) => Promise<import('./discovery').TimeBasedRecommendation[]>
+    getSurpriseMe: (profileId?: string, mode?: 'continue' | 'start_new' | 'quick_lesson' | 'random') => Promise<import('./discovery').SurpriseRecommendation | null>
+    getCategoryDiscovery: () => Promise<import('./discovery').CategoryDiscoveryData[]>
+    getLibraryInsights: () => Promise<import('./discovery').LibraryInsights>
+
+    // Profile Discovery Preferences
+    getProfileDiscoveryPreferences: (profileId: string) => Promise<import('./discovery').ProfileDiscoveryPreferences>
+    saveProfileDiscoveryPreferences: (preferences: import('./discovery').ProfileDiscoveryPreferences) => Promise<boolean>
+
+    // Recommendation Feedback
+    submitFeedback: (profileId: string, courseId: string, feedbackType: import('./discovery').RecommendationFeedbackType) => Promise<boolean>
+
+    // Course Relationships & Journeys
+    listCourseRelationships: (courseId?: string) => Promise<import('./discovery').CourseRelationship[]>
+    addCourseRelationship: (sourceCourseId: string, targetCourseId: string, relationshipType: import('./discovery').CourseRelationshipType) => Promise<import('./discovery').CourseRelationship>
+    deleteCourseRelationship: (id: string) => Promise<boolean>
+  }
+
   // App Settings
   settings: {
     get: () => Promise<AppSettings>
@@ -326,3 +415,4 @@ export interface OrbiaApi {
     getPathForFile: (file: File) => string
   }
 }
+

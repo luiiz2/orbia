@@ -9,7 +9,9 @@ import type {
   ImportSourceCapability,
   SelectedCourseSource,
   Course,
-  ProposedCourseStructure
+  ProposedCourseStructure,
+  OrganizationPlan,
+  ImportHistoryEntry
 } from '../../types'
 import { databaseService } from '../services/database.service'
 import { vaultService } from '../services/vault.service'
@@ -215,7 +217,7 @@ export function normalizeMergePreviewCourseIds(payload: unknown): string[] | nul
 const LEGACY_IMPORT_UNAVAILABLE_ERROR =
   'Legacy import channels are disabled. Select a source with the native picker and use the import session preview before committing.'
 
-function legacyImportUnavailableResult() {
+function legacyImportUnavailableResult(): { success: false; error: string } {
   return { success: false, error: LEGACY_IMPORT_UNAVAILABLE_ERROR }
 }
 
@@ -577,7 +579,7 @@ export function registerCoursesIpc(): void {
   })
 
   // Apply approved items of an Organization Plan
-  ipcMain.handle('courses:apply-organization-plan', async (_event, plan: any) => {
+  ipcMain.handle('courses:apply-organization-plan', async (_event, plan: OrganizationPlan) => {
     try {
       if (!plan || !plan.courseId) return { success: false, error: 'Valid organization plan is required' }
       return organizationPlanService.applyPlan(plan)
@@ -629,7 +631,7 @@ export function registerCoursesIpc(): void {
   })
 
   // Record Import History Entry
-  ipcMain.handle('courses:record-import-history', async (_event, payload: any) => {
+  ipcMain.handle('courses:record-import-history', async (_event, payload: Omit<ImportHistoryEntry, 'id' | 'importedAt'>) => {
     try {
       return databaseService.recordImportHistory(payload)
     } catch (err) {

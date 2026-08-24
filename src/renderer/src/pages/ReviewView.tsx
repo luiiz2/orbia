@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Sparkles,
@@ -80,19 +80,19 @@ export function ReviewView(): React.JSX.Element {
     fetchStudyQueue()
   }, [fetchDashboardStats, fetchDueFlashcards, fetchAllFlashcards, fetchRecentBookmarks, fetchStudyQueue])
 
-  // Reset answer reveal when active card changes
-  useEffect(() => {
+  const handleStartReview = (): void => {
     setIsAnswerRevealed(false)
-  }, [activeCardIndex, isReviewSessionActive])
-
-  const handleReviewGrade = async (grade: FlashcardReviewGrade) => {
-    const currentCard = dueFlashcards[activeCardIndex]
-    if (!currentCard) return
-    await reviewCard(currentCard.id, grade)
-    setIsAnswerRevealed(false)
+    startReviewSession()
   }
 
-  const handleCreateFlashcard = async (e: React.FormEvent) => {
+  const handleReviewGrade = async (grade: FlashcardReviewGrade): Promise<void> => {
+    const currentCard = dueFlashcards[activeCardIndex]
+    if (!currentCard) return
+    setIsAnswerRevealed(false)
+    await reviewCard(currentCard.id, grade)
+  }
+
+  const handleCreateFlashcard = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault()
     if (!newQuestion.trim() || !newAnswer.trim()) return
 
@@ -108,7 +108,7 @@ export function ReviewView(): React.JSX.Element {
     setIsCreateCardModalOpen(false)
   }
 
-  const handlePlayQueueItem = async (item: StudyQueueItem) => {
+  const handlePlayQueueItem = async (item: StudyQueueItem): Promise<void> => {
     if (item.entityType === 'course') {
       navigateToCourse(item.entityId)
     } else if (item.entityType === 'lesson') {
@@ -123,7 +123,7 @@ export function ReviewView(): React.JSX.Element {
     }
   }
 
-  const handleExportFlashcardsCsv = async () => {
+  const handleExportFlashcardsCsv = async (): Promise<void> => {
     try {
       const csv = await window.api.exports.flashcardsCsv()
       const res = await window.api.exports.saveExportToFile(`Orbia-Flashcards-${new Date().toISOString().split('T')[0]}.csv`, csv)
@@ -136,7 +136,7 @@ export function ReviewView(): React.JSX.Element {
     }
   }
 
-  const handleExportBookmarks = async () => {
+  const handleExportBookmarks = async (): Promise<void> => {
     try {
       const md = await window.api.exports.bookmarksMarkdown()
       const res = await window.api.exports.saveExportToFile(`Orbia-Marcadores-${new Date().toISOString().split('T')[0]}.md`, md)
@@ -151,6 +151,8 @@ export function ReviewView(): React.JSX.Element {
 
   const currentReviewCard = dueFlashcards[activeCardIndex]
 
+  const now = useMemo(() => Date.now(), [allFlashcards, flashcardFilter])
+
   const filteredFlashcards = allFlashcards.filter((card) => {
     const matchesSearch =
       card.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -160,7 +162,7 @@ export function ReviewView(): React.JSX.Element {
     if (!matchesSearch) return false
 
     if (flashcardFilter === 'ALL') return true
-    if (flashcardFilter === 'DUE') return card.dueAt <= Date.now()
+    if (flashcardFilter === 'DUE') return card.dueAt <= now
     return card.state === flashcardFilter
   })
 
@@ -194,7 +196,7 @@ export function ReviewView(): React.JSX.Element {
         <div className="flex items-center gap-2">
           {dueFlashcards.length > 0 && !isReviewSessionActive && (
             <Button
-              onClick={startReviewSession}
+              onClick={handleStartReview}
               className="gap-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-lg shadow-purple-600/20 font-semibold"
             >
               <Play className="h-4 w-4 fill-current" />
@@ -430,7 +432,7 @@ export function ReviewView(): React.JSX.Element {
                 {dueFlashcards.length > 0 && (
                   <Button
                     size="lg"
-                    onClick={startReviewSession}
+                    onClick={handleStartReview}
                     className="gap-2 bg-purple-600 hover:bg-purple-500 text-white font-bold shadow-lg shadow-purple-600/30 shrink-0"
                   >
                     <Play className="h-4 w-4 fill-current" />

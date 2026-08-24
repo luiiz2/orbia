@@ -25,9 +25,9 @@ const PART_SUFFIX_PATTERNS = [
   // " - Parte 1", " - Part 2", " - Pt 3", " - Parte 01", " _part_2"
   /[-_\s]+(?:parte|part|pt|disc|disco|cd)\s*(\d+)\b/i,
   // "(Parte 1)", "[Part 2]", "{Pt 3}"
-  /[(\[{]\s*(?:parte|part|pt|disc|disco|cd)\s*(\d+)\s*[)\]}]/i,
+  /[([{]\s*(?:parte|part|pt|disc|disco|cd)\s*(\d+)\s*[)\]}]/i,
   // " - 1 de 3", " - 1 of 3", "(1 of 3)"
-  /[-_\s(\[{]\s*(\d+)\s*(?:de|of)\s*\d+\s*[)\]}]?/i
+  /[-_\s([{]\s*(\d+)\s*(?:de|of)\s*\d+\s*[)\]}]?/i
 ]
 
 /**
@@ -42,7 +42,7 @@ export function extractPartInfo(fileName: string): { baseStem: string; partNumbe
       const partNumber = parseInt(match[1], 10)
       if (!isNaN(partNumber) && partNumber > 0) {
         const baseStem = stem.replace(pattern, '').replace(/[-_\s]+$/, '').trim()
-        const partLabel = match[0].replace(/^[-_\s(\[{]+/, '').replace(/[)\]}]+$/, '').trim()
+        const partLabel = match[0].replace(/^[-_\s([{]+/, '').replace(/[)\]}]+$/, '').trim()
         return {
           baseStem: baseStem || stem,
           partNumber,
