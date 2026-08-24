@@ -1,5 +1,5 @@
 import React from 'react'
-import { Play, Star, Plus, Check, Info, Clock, CheckCircle2 } from 'lucide-react'
+import { Play, Star, Plus, Check, Info, Clock, CheckCircle2, SlidersHorizontal } from 'lucide-react'
 import { CourseCover } from '../ui/CourseCover'
 import { Badge } from '../ui/badge'
 import { Tooltip, TooltipTrigger, TooltipContent } from '../ui/tooltip'
@@ -22,6 +22,7 @@ export interface MediaCardProps {
   onToggleFavorite?: () => void
   onAddToQueue?: () => void
   onMoreInfo?: () => void
+  onOrganize?: () => void
   className?: string
   aspectRatio?: 'video' | 'square'
   type?: 'course' | 'lesson'
@@ -43,6 +44,7 @@ export function MediaCard({
   onToggleFavorite,
   onAddToQueue,
   onMoreInfo,
+  onOrganize,
   className = '',
   aspectRatio = 'video',
   type = 'course'
@@ -186,6 +188,27 @@ export function MediaCard({
               </TooltipTrigger>
               <TooltipContent side="top" className="text-xs font-semibold">
                 {isQueued ? 'Na Fila' : 'Tocar a Seguir'}
+              </TooltipContent>
+            </Tooltip>
+          )}
+
+          {onOrganize && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onOrganize()
+                  }}
+                  aria-label="Organizar curso"
+                  className="flex h-7 w-7 items-center justify-center rounded-lg bg-black/70 hover:bg-orange-600/90 text-white/80 hover:text-white border border-white/15 backdrop-blur-md transition-colors cursor-pointer"
+                >
+                  <SlidersHorizontal className="h-3.5 w-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="text-xs font-semibold">
+                Organizar Curso
               </TooltipContent>
             </Tooltip>
           )}

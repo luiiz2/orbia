@@ -18,7 +18,7 @@ import { useNavigationStore } from '../stores/useNavigationStore'
 import { usePlayerStore } from '../stores/usePlayerStore'
 import { useReviewStore } from '../stores/useReviewStore'
 import { Button, Skeleton } from '../components/ui'
-import { ContinueWatchingRail, MergeCoursesModal } from '../components/library'
+import { ContinueWatchingRail, MergeCoursesModal, QuickCourseOrganizerModal } from '../components/library'
 import { StreamingHero, MediaRail, MediaCard } from '../components/streaming'
 import { matchesAnyField } from '../lib/search-utils'
 import appLogo from '../assets/icon.png'
@@ -53,6 +53,7 @@ export function HomeView(): React.JSX.Element {
     fetchStudyQueue
   } = useReviewStore()
   const [isMergeModalOpen, setIsMergeModalOpen] = useState<boolean>(false)
+  const [organizeCourseId, setOrganizeCourseId] = useState<string | null>(null)
 
   useEffect(() => {
     if (currentVault) {
@@ -290,6 +291,7 @@ export function HomeView(): React.JSX.Element {
                   onClick={() => navigateToCourse(course.id)}
                   onToggleFavorite={() => toggleFavorite(course.id).catch(console.warn)}
                   onMoreInfo={() => navigateToCourse(course.id)}
+                  onOrganize={() => setOrganizeCourseId(course.id)}
                 />
               </div>
             )
@@ -322,6 +324,7 @@ export function HomeView(): React.JSX.Element {
                   onClick={() => navigateToCourse(course.id)}
                   onToggleFavorite={() => toggleFavorite(course.id).catch(console.warn)}
                   onMoreInfo={() => navigateToCourse(course.id)}
+                  onOrganize={() => setOrganizeCourseId(course.id)}
                 />
               </div>
             )
@@ -354,6 +357,7 @@ export function HomeView(): React.JSX.Element {
                   onClick={() => navigateToCourse(course.id)}
                   onToggleFavorite={() => toggleFavorite(course.id).catch(console.warn)}
                   onMoreInfo={() => navigateToCourse(course.id)}
+                  onOrganize={() => setOrganizeCourseId(course.id)}
                 />
               </div>
             )
@@ -551,6 +555,7 @@ export function HomeView(): React.JSX.Element {
                   onClick={() => navigateToCourse(course.id)}
                   onToggleFavorite={() => toggleFavorite(course.id).catch(console.warn)}
                   onMoreInfo={() => navigateToCourse(course.id)}
+                  onOrganize={() => setOrganizeCourseId(course.id)}
                 />
               )
             })}
@@ -565,6 +570,13 @@ export function HomeView(): React.JSX.Element {
           onOpenChange={(open) => setIsMergeModalOpen(open)}
         />
       )}
+
+      {/* Quick Course Organizer Modal directly on Library */}
+      <QuickCourseOrganizerModal
+        courseId={organizeCourseId}
+        open={Boolean(organizeCourseId)}
+        onOpenChange={(open) => !open && setOrganizeCourseId(null)}
+      />
     </div>
   )
 }

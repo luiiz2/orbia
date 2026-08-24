@@ -4,7 +4,8 @@ import {
   Link as LinkIcon,
   Clock,
   CheckCircle2,
-  Star
+  Star,
+  SlidersHorizontal
 } from 'lucide-react'
 import type { Course } from '@shared'
 import { Badge, Tooltip, TooltipTrigger, TooltipContent, CourseCover } from '../ui'
@@ -13,9 +14,10 @@ import { formatDurationHuman } from '../../lib/formatters'
 
 interface CourseCardProps {
   course: Course
+  onOrganize?: () => void
 }
 
-export function CourseCard({ course }: CourseCardProps): React.JSX.Element {
+export function CourseCard({ course, onOrganize }: CourseCardProps): React.JSX.Element {
   const { t } = useTranslation()
   const { progressSummaries, toggleFavorite } = useLibraryStore()
   const { navigateToCourse } = useNavigationStore()
@@ -49,9 +51,9 @@ export function CourseCard({ course }: CourseCardProps): React.JSX.Element {
           className="h-full w-full"
         />
 
-        {/* Favorite Button (Top Left) */}
+        {/* Actions (Top Left): Favorite + Quick Organize */}
         <div
-          className="absolute top-2 left-2 z-30"
+          className="absolute top-2 left-2 z-30 flex items-center gap-1.5"
           onClick={(e) => e.stopPropagation()}
         >
           <Tooltip>
@@ -86,6 +88,27 @@ export function CourseCard({ course }: CourseCardProps): React.JSX.Element {
                 : t('course.favorite', 'Adicionar aos Favoritos')}
             </TooltipContent>
           </Tooltip>
+
+          {onOrganize && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onOrganize()
+                  }}
+                  className="flex h-7.5 w-7.5 items-center justify-center rounded-md bg-black/60 text-white/80 hover:text-white hover:bg-orange-600 border border-white/15 backdrop-blur-md transition-all duration-200 cursor-pointer shadow-xs opacity-0 group-hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  aria-label="Organizar curso"
+                >
+                  <SlidersHorizontal className="h-3.5 w-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right" className="text-xs font-semibold">
+                Organizar Curso
+              </TooltipContent>
+            </Tooltip>
+          )}
         </div>
 
         {/* Top status badges */}

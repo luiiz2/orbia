@@ -20,7 +20,7 @@ import {
   AutomationRulesModal,
   ProfileSelectorModal,
   ThemeEditorModal,
-  LibrarySpreadsheet
+  VisualLibraryStudio
 } from './components/studio'
 import { useNavigationStore } from './stores/useNavigationStore'
 import { useVaultStore } from './stores/useVaultStore'
@@ -77,7 +77,7 @@ export function App(): React.JSX.Element {
       case 'review':
         return <ReviewView />
       case 'studio':
-        return <LibrarySpreadsheet />
+        return <VisualLibraryStudio />
       case 'history':
         return <HistoryView />
       case 'settings':
