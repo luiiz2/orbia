@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { LocalProfile, ThemePreset, ResolvedTheme, ThemeScope, ThemeConfig } from '@shared'
+import { useSettingsStore } from './useSettingsStore'
 
 interface ProfileStoreState {
   profiles: LocalProfile[]
@@ -127,20 +128,63 @@ export const useProfileStore = create<ProfileStoreState>((set, get) => ({
 
   applyResolvedThemeToDom: (theme: ResolvedTheme) => {
     const root = document.documentElement
+    if (!root) return
+
+    if (root.style && typeof root.style.removeProperty === 'function') {
+      const colorProps = [
+        '--background',
+        '--foreground',
+        '--card',
+        '--card-foreground',
+        '--popover',
+        '--popover-foreground',
+        '--primary',
+        '--primary-foreground',
+        '--secondary',
+        '--secondary-foreground',
+        '--accent',
+        '--accent-foreground',
+        '--border',
+        '--input',
+        '--ring',
+        '--card-border'
+      ]
+      for (const prop of colorProps) {
+        root.style.removeProperty(prop)
+      }
+    }
+
+    const currentTheme = useSettingsStore.getState().settings?.theme || 'dark'
+    const isLight =
+      currentTheme === 'light' ||
+      (currentTheme === 'system' &&
+        typeof window !== 'undefined' &&
+        typeof window.matchMedia === 'function' &&
+        window.matchMedia('(prefers-color-scheme: light)').matches)
+
+    // If active mode is light, do not inject dark background tokens on html element
+    if (isLight) {
+      if (theme.cardStyle?.borderRadius) {
+        root.style.setProperty('--radius', `${theme.cardStyle.borderRadius}px`)
+      }
+      return
+    }
+
     const tokens = theme.colorTokens
+    if (tokens) {
+      if (tokens.background) root.style.setProperty('--background', tokens.background)
+      if (tokens.foreground) root.style.setProperty('--foreground', tokens.foreground)
+      if (tokens.primary) root.style.setProperty('--primary', tokens.primary)
+      if (tokens.primaryForeground) root.style.setProperty('--primary-foreground', tokens.primaryForeground)
+      if (tokens.secondary) root.style.setProperty('--secondary', tokens.secondary)
+      if (tokens.secondaryForeground) root.style.setProperty('--secondary-foreground', tokens.secondaryForeground)
+      if (tokens.accent) root.style.setProperty('--accent', tokens.accent)
+      if (tokens.card) root.style.setProperty('--card', tokens.card)
+      if (tokens.border) root.style.setProperty('--border', tokens.border)
+      if (tokens.cardBorder) root.style.setProperty('--card-border', tokens.cardBorder)
+    }
 
-    if (tokens.background) root.style.setProperty('--background', tokens.background)
-    if (tokens.foreground) root.style.setProperty('--foreground', tokens.foreground)
-    if (tokens.primary) root.style.setProperty('--primary', tokens.primary)
-    if (tokens.primaryForeground) root.style.setProperty('--primary-foreground', tokens.primaryForeground)
-    if (tokens.secondary) root.style.setProperty('--secondary', tokens.secondary)
-    if (tokens.secondaryForeground) root.style.setProperty('--secondary-foreground', tokens.secondaryForeground)
-    if (tokens.accent) root.style.setProperty('--accent', tokens.accent)
-    if (tokens.card) root.style.setProperty('--card', tokens.card)
-    if (tokens.border) root.style.setProperty('--border', tokens.border)
-    if (tokens.cardBorder) root.style.setProperty('--card-border', tokens.cardBorder)
-
-    if (theme.cardStyle.borderRadius) {
+    if (theme.cardStyle?.borderRadius) {
       root.style.setProperty('--radius', `${theme.cardStyle.borderRadius}px`)
     }
   }

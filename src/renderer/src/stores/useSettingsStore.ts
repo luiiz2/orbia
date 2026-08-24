@@ -55,6 +55,30 @@ function applyTheme(theme: 'dark' | 'light' | 'system'): void {
 
   if (root.style) {
     root.style.colorScheme = isLight ? 'light' : 'dark'
+
+    if (typeof root.style.removeProperty === 'function') {
+      const colorProps = [
+        '--background',
+        '--foreground',
+        '--card',
+        '--card-foreground',
+        '--popover',
+        '--popover-foreground',
+        '--primary',
+        '--primary-foreground',
+        '--secondary',
+        '--secondary-foreground',
+        '--accent',
+        '--accent-foreground',
+        '--border',
+        '--input',
+        '--ring',
+        '--card-border'
+      ]
+      for (const prop of colorProps) {
+        root.style.removeProperty(prop)
+      }
+    }
   }
 
   try {

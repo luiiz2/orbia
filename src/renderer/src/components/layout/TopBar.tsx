@@ -60,9 +60,9 @@ export function TopBar(): React.JSX.Element {
   ]
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 w-full items-center gap-3 border-b border-border/60 bg-background/85 px-4 backdrop-blur-xl transition-colors select-none">
+    <header className="sticky top-0 z-30 flex h-14 w-full items-center justify-between gap-4 border-b border-border/60 bg-background/90 px-4 backdrop-blur-xl transition-colors select-none">
       {/* Left: Logo + Streaming-style Nav Links */}
-      <div className="flex items-center gap-5 min-w-0">
+      <div className="flex items-center gap-4 shrink-0">
         <div className="flex items-center gap-2 shrink-0">
           <img src={appLogo} alt="Orbia" className="h-7 w-7 object-contain drop-shadow" />
           <span className="text-base font-extrabold tracking-tight text-orbia-gradient hidden sm:inline">
@@ -70,14 +70,14 @@ export function TopBar(): React.JSX.Element {
           </span>
         </div>
 
-        <nav className="hidden md:flex items-center gap-1">
+        <nav className="hidden md:flex items-center gap-1 shrink-0">
           {navItems.map((item) => (
             <button
               key={item.id}
               type="button"
               onClick={() => setView(item.id)}
               className={cn(
-                'relative px-3 py-1.5 text-[13px] font-semibold rounded-md transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+                'relative px-3 py-1.5 text-[13px] font-semibold rounded-md transition-colors cursor-pointer whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
                 item.isActive
                   ? 'text-primary'
                   : 'text-muted-foreground hover:text-foreground'
@@ -93,7 +93,7 @@ export function TopBar(): React.JSX.Element {
       </div>
 
       {/* Center: Global Search Input */}
-      <div className="mx-auto flex w-full max-w-md items-center">
+      <div className="flex flex-1 items-center justify-center max-w-md mx-2 min-w-0">
         <div className="relative w-full">
           <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground pointer-events-none" />
           <Input
@@ -101,13 +101,13 @@ export function TopBar(): React.JSX.Element {
             placeholder={`${t('common.search')}...`}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-8.5 w-full rounded-lg bg-white/5 pl-9 pr-8 text-xs border-border/60 text-foreground placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-primary/60 focus-visible:border-primary/50 transition-all"
+            className="h-8.5 w-full rounded-lg bg-black/5 dark:bg-white/5 pl-9 pr-8 text-xs border-border/60 text-foreground placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-primary/60 focus-visible:border-primary/50 transition-all"
           />
           {searchQuery && (
             <button
               type="button"
               onClick={() => setSearchQuery('')}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-white/10 cursor-pointer"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
               title="Clear search"
             >
               <X className="h-3 w-3" />
@@ -117,11 +117,11 @@ export function TopBar(): React.JSX.Element {
       </div>
 
       {/* Right: Import / Vault / Theme */}
-      <div className="flex items-center gap-2 shrink-0">
+      <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
         <Button
           size="sm"
           onClick={() => setImportModalOpen(true)}
-          className="h-8 gap-1.5 px-3 text-xs font-semibold rounded-lg bg-gradient-to-r from-orange-500 via-orange-600 to-amber-500 text-primary-foreground hover:opacity-95 active:scale-[0.98] transition-all"
+          className="h-8 gap-1.5 px-3 text-xs font-semibold rounded-lg bg-gradient-to-r from-orange-500 via-orange-600 to-amber-500 text-primary-foreground hover:opacity-95 active:scale-[0.98] transition-all shrink-0"
         >
           <Plus className="h-3.5 w-3.5 stroke-[2.5]" />
           <span className="hidden sm:inline">{t('nav.importCourse')}</span>
@@ -131,7 +131,7 @@ export function TopBar(): React.JSX.Element {
           variant="ghost"
           size="sm"
           onClick={() => setVaultModalOpen(true)}
-          className="h-8 gap-1.5 px-2.5 text-xs text-muted-foreground hover:text-foreground hover:bg-white/5 rounded-lg transition-all"
+          className="h-8 gap-1.5 px-2.5 text-xs text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5 rounded-lg transition-all shrink-0"
           title={currentVault ? currentVault.path : t('nav.changeVault')}
         >
           <FolderOpen className="h-3.5 w-3.5 text-primary" />
@@ -145,7 +145,7 @@ export function TopBar(): React.JSX.Element {
           variant="ghost"
           size="icon"
           onClick={() => useNavigationStore.getState().setThemeModalOpen(true)}
-          className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-white/5 rounded-lg"
+          className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5 rounded-lg shrink-0"
           title="Personalizar Aparência & Tema"
         >
           <span className="text-xs">🎨</span>
@@ -156,7 +156,7 @@ export function TopBar(): React.JSX.Element {
           variant="ghost"
           size="icon"
           onClick={() => useNavigationStore.getState().setProfileModalOpen(true)}
-          className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-white/5 rounded-lg"
+          className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5 rounded-lg shrink-0"
           title="Perfis Locais"
         >
           <span className="text-xs">👤</span>
@@ -167,7 +167,7 @@ export function TopBar(): React.JSX.Element {
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-white/5 rounded-lg"
+              className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5 rounded-lg shrink-0"
               aria-label={t('settings.theme')}
             >
               {theme === 'light' ? (

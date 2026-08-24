@@ -34,6 +34,31 @@ export function applyThemeToDOM(theme: Theme): 'dark' | 'light' {
     root.style.colorScheme = 'dark'
   }
 
+  // Clear inline color overrides so .light/.dark stylesheet definitions take effect
+  if (root.style && typeof root.style.removeProperty === 'function') {
+    const colorProps = [
+      '--background',
+      '--foreground',
+      '--card',
+      '--card-foreground',
+      '--popover',
+      '--popover-foreground',
+      '--primary',
+      '--primary-foreground',
+      '--secondary',
+      '--secondary-foreground',
+      '--accent',
+      '--accent-foreground',
+      '--border',
+      '--input',
+      '--ring',
+      '--card-border'
+    ]
+    for (const prop of colorProps) {
+      root.style.removeProperty(prop)
+    }
+  }
+
   try {
     localStorage.setItem('orbia_theme', theme)
   } catch {
