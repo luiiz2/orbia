@@ -85,7 +85,13 @@ export const useProfileStore = create<ProfileStoreState>((set, get) => ({
   updateProfile: async (id: string, updates: Partial<LocalProfile>) => {
     try {
       const ok = await window.api.studio.updateProfile(id, updates)
-      if (ok) await get().fetchProfiles()
+      if (ok) {
+        await get().fetchProfiles()
+        const currentActive = get().activeProfile
+        if (currentActive && currentActive.id === id) {
+          set({ activeProfile: { ...currentActive, ...updates } })
+        }
+      }
       return ok
     } catch (err) {
       console.warn('Failed to update profile:', err)
@@ -96,7 +102,16 @@ export const useProfileStore = create<ProfileStoreState>((set, get) => ({
   deleteProfile: async (id: string) => {
     try {
       const ok = await window.api.studio.deleteProfile(id)
-      if (ok) await get().fetchProfiles()
+      if (ok) {
+        const deletedWasActive = get().activeProfile?.id === id
+        await get().fetchProfiles()
+        if (deletedWasActive) {
+          const list = get().profiles
+          if (list.length > 0) {
+            get().setActiveProfile(list[0])
+          }
+        }
+      }
       return ok
     } catch (err) {
       console.warn('Failed to delete profile:', err)

@@ -20,7 +20,9 @@ import {
   AutomationRulesModal,
   ProfileSelectorModal,
   ThemeEditorModal,
-  VisualLibraryStudio
+  VisualLibraryStudio,
+  ProfileOnboardingModal,
+  StartupProfilePicker
 } from './components/studio'
 import { useNavigationStore } from './stores/useNavigationStore'
 import { useVaultStore } from './stores/useVaultStore'
@@ -42,9 +44,14 @@ export function App(): React.JSX.Element {
   const { init: initVault, currentVault } = useVaultStore()
   const { init: initSettings } = useSettingsStore()
   const { fetchCourses } = useLibraryStore()
-  const { fetchProfiles, fetchResolvedTheme } = useProfileStore()
+  const { profiles, fetchProfiles, fetchResolvedTheme, setActiveProfile } = useProfileStore()
   const [isAppReady, setIsAppReady] = useState(false)
   const [isSplashDone, setIsSplashDone] = useState(false)
+
+  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState<boolean>(() => {
+    return localStorage.getItem('orbia_profile_onboarding_done') === 'true'
+  })
+  const [hasSelectedStartupProfile, setHasSelectedStartupProfile] = useState<boolean>(false)
 
   useEffect(() => {
     async function preloadData(): Promise<void> {
@@ -93,22 +100,44 @@ export function App(): React.JSX.Element {
         {!isSplashDone && (
           <SplashScreen isReady={isAppReady} onFinish={() => setIsSplashDone(true)} />
         )}
-        {!currentVault ? (
-          <VaultSelector />
-        ) : (
-          <>
-            <AppShell>{renderActiveView()}</AppShell>
-            <ImportWizard open={isImportModalOpen} onOpenChange={setImportModalOpen} />
-            <VaultModal />
-            <BulkActionBar />
-            <DraftReviewModal />
-            <OrganizationHistoryModal />
-            <CustomFieldsModal />
-            <AutomationRulesModal />
-            <ProfileSelectorModal open={isProfileModalOpen} onOpenChange={setProfileModalOpen} />
-            <ThemeEditorModal open={isThemeModalOpen} onOpenChange={setThemeModalOpen} />
-          </>
+
+        {isSplashDone && !hasCompletedOnboarding && (
+          <ProfileOnboardingModal
+            open={true}
+            onFinish={() => setHasCompletedOnboarding(true)}
+          />
         )}
+
+        {isSplashDone && hasCompletedOnboarding && profiles.length > 1 && !hasSelectedStartupProfile && (
+          <StartupProfilePicker
+            onSelect={(profile) => {
+              setActiveProfile(profile)
+              setHasSelectedStartupProfile(true)
+            }}
+          />
+        )}
+
+        {isSplashDone &&
+          (!hasCompletedOnboarding
+            ? null
+            : profiles.length > 1 && !hasSelectedStartupProfile
+            ? null
+            : !currentVault
+            ? <VaultSelector />
+            : (
+              <>
+                <AppShell>{renderActiveView()}</AppShell>
+                <ImportWizard open={isImportModalOpen} onOpenChange={setImportModalOpen} />
+                <VaultModal />
+                <BulkActionBar />
+                <DraftReviewModal />
+                <OrganizationHistoryModal />
+                <CustomFieldsModal />
+                <AutomationRulesModal />
+                <ProfileSelectorModal open={isProfileModalOpen} onOpenChange={setProfileModalOpen} />
+                <ThemeEditorModal open={isThemeModalOpen} onOpenChange={setThemeModalOpen} />
+              </>
+            ))}
       </TooltipProvider>
     </ThemeProvider>
   )

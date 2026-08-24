@@ -12,6 +12,7 @@ import {
 import { useLibraryStore } from '../../stores/useLibraryStore'
 import { useVaultStore } from '../../stores/useVaultStore'
 import { useNavigationStore } from '../../stores/useNavigationStore'
+import { useProfileStore } from '../../stores/useProfileStore'
 import { useTheme } from './ThemeProvider'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
@@ -21,7 +22,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger
 } from '../ui/dropdown-menu'
-import { cn } from '../../lib/utils'
+import { cn, mediaUrl } from '../../lib/utils'
 import appLogo from '../../assets/icon.png'
 
 export function TopBar(): React.JSX.Element {
@@ -29,6 +30,7 @@ export function TopBar(): React.JSX.Element {
   const { searchQuery, setSearchQuery } = useLibraryStore()
   const { currentVault } = useVaultStore()
   const { currentView, setView, setImportModalOpen, setVaultModalOpen } = useNavigationStore()
+  const { activeProfile } = useProfileStore()
   const { theme, setTheme } = useTheme()
 
   const navItems = [
@@ -156,10 +158,20 @@ export function TopBar(): React.JSX.Element {
           variant="ghost"
           size="icon"
           onClick={() => useNavigationStore.getState().setProfileModalOpen(true)}
-          className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5 rounded-lg shrink-0"
-          title="Perfis Locais"
+          className="h-8 w-8 p-0 rounded-full hover:ring-2 hover:ring-primary/40 transition-all shrink-0 cursor-pointer overflow-hidden"
+          title={`Perfil: ${activeProfile?.name || 'Principal'}`}
         >
-          <span className="text-xs">👤</span>
+          {activeProfile?.avatarPath ? (
+            <img
+              src={mediaUrl(activeProfile.avatarPath)}
+              alt={activeProfile.name}
+              className="h-7 w-7 rounded-full object-cover border border-border/80"
+            />
+          ) : (
+            <div className="h-7 w-7 rounded-full bg-gradient-to-tr from-orange-500 to-amber-400 text-white font-bold text-xs flex items-center justify-center shadow-xs">
+              {activeProfile ? activeProfile.name.charAt(0).toUpperCase() : 'P'}
+            </div>
+          )}
         </Button>
 
         <DropdownMenu>
