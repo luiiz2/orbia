@@ -59,7 +59,10 @@ describe('local source adapters', () => {
 
     const batches = await collect(adapter.reconcile({ root }))
     expect(batches).toHaveLength(1)
-    expect(batches[0].items.map((item) => item.relativePath)).toEqual(['Guide.pdf', 'Module/Lesson.mp4'])
+    expect(batches[0].items.map((item) => item.relativePath)).toEqual([
+      'Guide.pdf',
+      'Module/Lesson.mp4'
+    ])
     expect(batches[0].items[0]).toMatchObject({
       providerItemIdentity: 'Guide.pdf',
       relativePath: 'Guide.pdf',
@@ -82,15 +85,33 @@ describe('local source adapters', () => {
       seekable: true
     })
     expect(await read(handle.stream)).toEqual(Buffer.from('cdef'))
-    await expect(adapter.open({ provider: 'local-folder', path: lessonPath }, { start: 5, end: 2 }))
-      .rejects.toThrow('Invalid byte range')
-    await expect(adapter.open({ provider: 'local-folder', path: lessonPath }, { start: -1, end: 1 }))
-      .rejects.toThrow('Invalid byte range')
-    await expect(adapter.open({ provider: 'local-folder', path: lessonPath }, { start: 0, end: 6 }))
-      .rejects.toThrow('Invalid byte range')
-    await expect(adapter.open({ provider: 'local-folder', path: path.join(localRoot, 'Module') }))
-      .rejects.toThrow('regular file')
-    await expect(adapter.probe({ provider: 'local-folder', path: lessonPath })).resolves.toEqual({
+    await expect(
+      adapter.open(
+        { provider: 'local-folder', path: lessonPath },
+        { start: 5, end: 2 }
+      )
+    ).rejects.toThrow('Invalid byte range')
+    await expect(
+      adapter.open(
+        { provider: 'local-folder', path: lessonPath },
+        { start: -1, end: 1 }
+      )
+    ).rejects.toThrow('Invalid byte range')
+    await expect(
+      adapter.open(
+        { provider: 'local-folder', path: lessonPath },
+        { start: 0, end: 6 }
+      )
+    ).rejects.toThrow('Invalid byte range')
+    await expect(
+      adapter.open({
+        provider: 'local-folder',
+        path: path.join(localRoot, 'Module')
+      })
+    ).rejects.toThrow('regular file')
+    await expect(
+      adapter.probe({ provider: 'local-folder', path: lessonPath })
+    ).resolves.toEqual({
       fileSize: 6,
       mimeType: 'video/mp4'
     })
@@ -99,13 +120,20 @@ describe('local source adapters', () => {
   it('rejects missing and file roots before scanning', async () => {
     const adapter = new LocalFolderSourceAdapter()
 
-    await expect(adapter.identifyRoot({ provider: 'local-folder', path: lessonPath })).rejects.toThrow('directory')
-    await expect(adapter.identifyRoot({ provider: 'local-folder', path: path.join(tempPath, 'missing') })).rejects.toThrow()
+    await expect(
+      adapter.identifyRoot({ provider: 'local-folder', path: lessonPath })
+    ).rejects.toThrow('directory')
+    await expect(
+      adapter.identifyRoot({
+        provider: 'local-folder',
+        path: path.join(tempPath, 'missing')
+      })
+    ).rejects.toThrow()
   })
 
   it('keeps managed-offline reads inside the resolved app-owned cache root', async () => {
     const adapter = new ManagedOfflineSourceAdapter({
-      resolveCacheRoot: (cacheId) => cacheId === 'cache-1' ? cacheRoot : null
+      resolveCacheRoot: (cacheId) => (cacheId === 'cache-1' ? cacheRoot : null)
     })
     const root = { provider: 'managed-offline' as const, cacheId: 'cache-1' }
     const item: SourceItemLocator = {
@@ -140,44 +168,79 @@ describe('local source adapters', () => {
       seekable: true
     })
     expect(await read(rangedHandle.stream)).toEqual(Buffer.from('ach'))
-    await expect(adapter.probe(item)).resolves.toEqual({ fileSize: 6, mimeType: 'video/mp4' })
-    await expect(adapter.open({ ...item, relativePath: '../escape.mp4' })).rejects.toThrow('outside its cache root')
-    await expect(adapter.open({ ...item, relativePath: path.resolve(cacheRoot, 'asset-1.mp4') })).rejects.toThrow('outside its cache root')
-    await expect(adapter.open({ ...item, cacheId: 'unknown' })).rejects.toThrow('Unknown managed cache')
-    await expect(adapter.open({ ...item, relativePath: 'folder' })).rejects.toThrow('regular file')
-    await expect(adapter.open(item, { start: -1, end: 1 })).rejects.toThrow('Invalid byte range')
-    await expect(adapter.open(item, { start: 5, end: 2 })).rejects.toThrow('Invalid byte range')
-    await expect(adapter.open(item, { start: 0, end: 6 })).rejects.toThrow('Invalid byte range')
+    await expect(adapter.probe(item)).resolves.toEqual({
+      fileSize: 6,
+      mimeType: 'video/mp4'
+    })
+    await expect(
+      adapter.open({ ...item, relativePath: '../escape.mp4' })
+    ).rejects.toThrow('outside its cache root')
+    await expect(
+      adapter.open({
+        ...item,
+        relativePath: path.resolve(cacheRoot, 'asset-1.mp4')
+      })
+    ).rejects.toThrow('outside its cache root')
+    await expect(adapter.open({ ...item, cacheId: 'unknown' })).rejects.toThrow(
+      'Unknown managed cache'
+    )
+    await expect(
+      adapter.open({ ...item, relativePath: 'folder' })
+    ).rejects.toThrow('regular file')
+    await expect(adapter.open(item, { start: -1, end: 1 })).rejects.toThrow(
+      'Invalid byte range'
+    )
+    await expect(adapter.open(item, { start: 5, end: 2 })).rejects.toThrow(
+      'Invalid byte range'
+    )
+    await expect(adapter.open(item, { start: 0, end: 6 })).rejects.toThrow(
+      'Invalid byte range'
+    )
   })
 
   it('rejects a managed cache root that is missing or not a directory', async () => {
     const adapter = new ManagedOfflineSourceAdapter({
       resolveCacheRoot: (cacheId) => {
         if (cacheId === 'file-cache') return lessonPath
-        if (cacheId === 'missing-cache') return path.join(tempPath, 'missing-cache')
+        if (cacheId === 'missing-cache')
+          return path.join(tempPath, 'missing-cache')
         return null
       }
     })
 
-    await expect(adapter.identifyRoot({ provider: 'managed-offline', cacheId: 'file-cache' }))
-      .rejects.toThrow('not a directory')
-    await expect(adapter.identifyRoot({ provider: 'managed-offline', cacheId: 'missing-cache' }))
-      .rejects.toThrow()
+    await expect(
+      adapter.identifyRoot({
+        provider: 'managed-offline',
+        cacheId: 'file-cache'
+      })
+    ).rejects.toThrow('not a directory')
+    await expect(
+      adapter.identifyRoot({
+        provider: 'managed-offline',
+        cacheId: 'missing-cache'
+      })
+    ).rejects.toThrow()
   })
 
   it('registers the local and managed adapters through one explicit manager seam', () => {
     const manager = new SourceManagerService({} as SourceRepositoryService)
 
     registerBuiltinSourceAdapters(manager, {
-      resolveCacheRoot: (cacheId) => cacheId === 'cache-1' ? cacheRoot : null
+      resolveCacheRoot: (cacheId) => (cacheId === 'cache-1' ? cacheRoot : null)
     })
 
-    expect(manager.getAdapter('local-folder')).toBeInstanceOf(LocalFolderSourceAdapter)
-    expect(manager.getAdapter('managed-offline')).toBeInstanceOf(ManagedOfflineSourceAdapter)
+    expect(manager.getAdapter('local-folder')).toBeInstanceOf(
+      LocalFolderSourceAdapter
+    )
+    expect(manager.getAdapter('managed-offline')).toBeInstanceOf(
+      ManagedOfflineSourceAdapter
+    )
   })
 
   it('registers only the local adapter automatically on the global manager', () => {
-    expect(sourceManagerService.getAdapter('local-folder')).toBeInstanceOf(LocalFolderSourceAdapter)
+    expect(sourceManagerService.getAdapter('local-folder')).toBeInstanceOf(
+      LocalFolderSourceAdapter
+    )
     expect(() => sourceManagerService.getAdapter('managed-offline')).toThrow(
       'No source adapter registered'
     )
@@ -194,20 +257,22 @@ describe('local source adapters', () => {
     }
 
     const adapter = new ManagedOfflineSourceAdapter({
-      resolveCacheRoot: (cacheId) => cacheId === 'cache-1' ? cacheRoot : null
+      resolveCacheRoot: (cacheId) => (cacheId === 'cache-1' ? cacheRoot : null)
     })
 
-    await expect(adapter.open({
-      provider: 'managed-offline',
-      cacheId: 'cache-1',
-      assetId: 'linked',
-      relativePath: 'linked.mp4'
-    })).rejects.toThrow('outside its cache root')
+    await expect(
+      adapter.open({
+        provider: 'managed-offline',
+        cacheId: 'cache-1',
+        assetId: 'linked',
+        relativePath: 'linked.mp4'
+      })
+    ).rejects.toThrow('outside its cache root')
   })
 
   it('rejects a managed path that resolves outside the cache after its descriptor opens', async () => {
     const adapter = new ManagedOfflineSourceAdapter({
-      resolveCacheRoot: (cacheId) => cacheId === 'cache-1' ? cacheRoot : null
+      resolveCacheRoot: (cacheId) => (cacheId === 'cache-1' ? cacheRoot : null)
     })
     const item: SourceItemLocator = {
       provider: 'managed-offline',
@@ -221,20 +286,24 @@ describe('local source adapters', () => {
     let candidateResolutions = 0
     fs.writeFileSync(outsidePath, 'outside')
 
-    const realpathSpy = vi.spyOn(fs.promises, 'realpath').mockImplementation(async (input) => {
-      const resolvedInput = path.resolve(input.toString())
-      if (resolvedInput === candidatePath) {
-        candidateResolutions += 1
-        return candidateResolutions === 1 ? candidatePath : outsidePath
-      }
-      return nativeRealpath(input)
-    })
+    const realpathSpy = vi
+      .spyOn(fs.promises, 'realpath')
+      .mockImplementation(async (input) => {
+        const resolvedInput = path.resolve(input.toString())
+        if (resolvedInput === candidatePath) {
+          candidateResolutions += 1
+          return candidateResolutions === 1 ? candidatePath : outsidePath
+        }
+        return nativeRealpath(input)
+      })
 
     try {
-      await expect(adapter.open(item).then((handle) => {
-        handle.stream.destroy()
-        throw new Error('Managed source escape was accepted')
-      })).rejects.toThrow('outside its cache root')
+      await expect(
+        adapter.open(item).then((handle) => {
+          handle.stream.destroy()
+          throw new Error('Managed source escape was accepted')
+        })
+      ).rejects.toThrow('outside its cache root')
     } finally {
       realpathSpy.mockRestore()
     }

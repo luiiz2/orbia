@@ -20,9 +20,8 @@ export class SourceManagerService {
   private readonly sourceSyncService: SourceSyncService
 
   public constructor(private readonly repository: SourceRepositoryService) {
-    this.sourceSyncService = new SourceSyncService(
-      repository,
-      (provider) => this.getAdapter(provider)
+    this.sourceSyncService = new SourceSyncService(repository, (provider) =>
+      this.getAdapter(provider)
     )
   }
 

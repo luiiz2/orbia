@@ -281,15 +281,19 @@ export class SourceRepositoryService {
     }
 
     db.transaction(() => {
-      db.prepare(`
+      db.prepare(
+        `
         INSERT INTO source_sync_runs (
           id, source_id, source_root_id, trigger, status, scanned_items, changed_items, started_at
         ) VALUES (?, ?, ?, ?, 'running', 0, 0, ?)
-      `).run(run.id, run.sourceId, run.sourceRootId, run.trigger, run.startedAt)
-      db.prepare(`UPDATE source_roots SET availability = 'syncing', updated_at = ? WHERE id = ?`)
-        .run(startedAt, root.id)
-      db.prepare(`UPDATE content_sources SET availability = 'syncing', updated_at = ? WHERE id = ?`)
-        .run(startedAt, root.source_id)
+      `
+      ).run(run.id, run.sourceId, run.sourceRootId, run.trigger, run.startedAt)
+      db.prepare(
+        `UPDATE source_roots SET availability = 'syncing', updated_at = ? WHERE id = ?`
+      ).run(startedAt, root.id)
+      db.prepare(
+        `UPDATE content_sources SET availability = 'syncing', updated_at = ? WHERE id = ?`
+      ).run(startedAt, root.source_id)
     })()
 
     return run
@@ -306,20 +310,26 @@ export class SourceRepositoryService {
     return db.transaction(() => {
       const run = this.requireRunningSyncRun(db, runId)
       const existingItems = db
-        .prepare(`
+        .prepare(
+          `
           SELECT id, provider_item_identity, fingerprint
           FROM source_items
           WHERE source_root_id = ?
-        `)
+        `
+        )
         .all(run.source_root_id) as SourceSyncItemRow[]
       const existingItemsByIdentity = new Map(
         existingItems.map((item) => [item.provider_item_identity, item])
       )
-      const unmatchedItems = new Map(existingItems.map((item) => [item.id, item]))
+      const unmatchedItems = new Map(
+        existingItems.map((item) => [item.id, item])
+      )
       const matchedItemsByIdentity = new Map<string, SourceSyncItemRow>()
 
       for (const item of items) {
-        const existingItem = existingItemsByIdentity.get(item.providerItemIdentity)
+        const existingItem = existingItemsByIdentity.get(
+          item.providerItemIdentity
+        )
         if (existingItem) {
           matchedItemsByIdentity.set(item.providerItemIdentity, existingItem)
           unmatchedItems.delete(existingItem.id)
@@ -329,39 +339,58 @@ export class SourceRepositoryService {
       const unmatchedItemsByFingerprint = new Map<string, SourceSyncItemRow[]>()
       for (const item of unmatchedItems.values()) {
         if (!item.fingerprint?.trim()) continue
-        const candidates = unmatchedItemsByFingerprint.get(item.fingerprint) ?? []
+        const candidates =
+          unmatchedItemsByFingerprint.get(item.fingerprint) ?? []
         candidates.push(item)
         unmatchedItemsByFingerprint.set(item.fingerprint, candidates)
       }
-      const unmatchedSnapshotItemsByFingerprint = new Map<string, SourceSnapshotItem[]>()
+      const unmatchedSnapshotItemsByFingerprint = new Map<
+        string,
+        SourceSnapshotItem[]
+      >()
       for (const item of items) {
-        if (matchedItemsByIdentity.has(item.providerItemIdentity) || !item.fingerprint?.trim()) continue
-        const candidates = unmatchedSnapshotItemsByFingerprint.get(item.fingerprint) ?? []
+        if (
+          matchedItemsByIdentity.has(item.providerItemIdentity) ||
+          !item.fingerprint?.trim()
+        )
+          continue
+        const candidates =
+          unmatchedSnapshotItemsByFingerprint.get(item.fingerprint) ?? []
         candidates.push(item)
         unmatchedSnapshotItemsByFingerprint.set(item.fingerprint, candidates)
       }
-      for (const [fingerprint, snapshotItems] of unmatchedSnapshotItemsByFingerprint) {
+      for (const [
+        fingerprint,
+        snapshotItems
+      ] of unmatchedSnapshotItemsByFingerprint) {
         const existingMatches = unmatchedItemsByFingerprint.get(fingerprint)
         if (snapshotItems.length === 1 && existingMatches?.length === 1) {
           const existingItem = existingMatches[0]
-          matchedItemsByIdentity.set(snapshotItems[0].providerItemIdentity, existingItem)
+          matchedItemsByIdentity.set(
+            snapshotItems[0].providerItemIdentity,
+            existingItem
+          )
           unmatchedItems.delete(existingItem.id)
         }
       }
       let changedItems = 0
 
       for (const item of items) {
-        const existingItem = matchedItemsByIdentity.get(item.providerItemIdentity)
+        const existingItem = matchedItemsByIdentity.get(
+          item.providerItemIdentity
+        )
 
         if (existingItem) {
-          db.prepare(`
+          db.prepare(
+            `
             UPDATE source_items
             SET provider_item_identity = ?, parent_provider_identity = ?, name = ?, relative_path = ?,
                 locator_json = ?, mime_type = ?, size = ?, duration = ?, width = ?, height = ?,
                 technical_metadata_json = ?, revision = ?, fingerprint = ?, checksum = ?,
                 availability = ?, updated_at = ?
             WHERE id = ?
-          `).run(
+          `
+          ).run(
             item.providerItemIdentity,
             item.parentProviderIdentity ?? null,
             item.name,
@@ -372,7 +401,9 @@ export class SourceRepositoryService {
             item.technicalMetadata?.duration ?? null,
             item.technicalMetadata?.width ?? null,
             item.technicalMetadata?.height ?? null,
-            item.technicalMetadata ? JSON.stringify(item.technicalMetadata) : null,
+            item.technicalMetadata
+              ? JSON.stringify(item.technicalMetadata)
+              : null,
             item.revision ?? null,
             item.fingerprint ?? null,
             item.checksum ?? null,
@@ -381,13 +412,15 @@ export class SourceRepositoryService {
             existingItem.id
           )
         } else {
-          db.prepare(`
+          db.prepare(
+            `
             INSERT INTO source_items (
               id, source_id, source_root_id, provider, provider_item_identity, parent_provider_identity,
               name, relative_path, locator_json, mime_type, size, duration, width, height,
               technical_metadata_json, revision, fingerprint, checksum, availability, created_at, updated_at
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-          `).run(
+          `
+          ).run(
             randomUUID(),
             run.source_id,
             run.source_root_id,
@@ -402,7 +435,9 @@ export class SourceRepositoryService {
             item.technicalMetadata?.duration ?? null,
             item.technicalMetadata?.width ?? null,
             item.technicalMetadata?.height ?? null,
-            item.technicalMetadata ? JSON.stringify(item.technicalMetadata) : null,
+            item.technicalMetadata
+              ? JSON.stringify(item.technicalMetadata)
+              : null,
             item.revision ?? null,
             item.fingerprint ?? null,
             item.checksum ?? null,
@@ -423,18 +458,23 @@ export class SourceRepositoryService {
         changedItems += markMissing.run(completedAt, item.id).changes
       }
 
-      db.prepare(`
+      db.prepare(
+        `
         UPDATE source_sync_runs
         SET status = 'completed', scanned_items = ?, changed_items = ?, finished_at = ?, error_message = NULL
         WHERE id = ?
-      `).run(items.length, changedItems, completedAt, run.id)
-      db.prepare(`
+      `
+      ).run(items.length, changedItems, completedAt, run.id)
+      db.prepare(
+        `
         UPDATE source_roots
         SET availability = 'available', last_synced_at = ?, last_verified_at = ?, updated_at = ?
         WHERE id = ?
-      `).run(completedAt, completedAt, completedAt, run.source_root_id)
-      db.prepare(`UPDATE content_sources SET availability = 'available', updated_at = ? WHERE id = ?`)
-        .run(completedAt, run.source_id)
+      `
+      ).run(completedAt, completedAt, completedAt, run.source_root_id)
+      db.prepare(
+        `UPDATE content_sources SET availability = 'available', updated_at = ? WHERE id = ?`
+      ).run(completedAt, run.source_id)
 
       return {
         runId: run.id,
@@ -452,15 +492,19 @@ export class SourceRepositoryService {
 
     db.transaction(() => {
       const run = this.requireRunningSyncRun(db, runId)
-      db.prepare(`
+      db.prepare(
+        `
         UPDATE source_sync_runs
         SET status = 'failed', error_message = 'Source synchronization failed', finished_at = ?
         WHERE id = ?
-      `).run(completedAt, run.id)
-      db.prepare(`UPDATE source_roots SET availability = 'error', updated_at = ? WHERE id = ?`)
-        .run(completedAt, run.source_root_id)
-      db.prepare(`UPDATE content_sources SET availability = 'error', updated_at = ? WHERE id = ?`)
-        .run(completedAt, run.source_id)
+      `
+      ).run(completedAt, run.id)
+      db.prepare(
+        `UPDATE source_roots SET availability = 'error', updated_at = ? WHERE id = ?`
+      ).run(completedAt, run.source_root_id)
+      db.prepare(
+        `UPDATE content_sources SET availability = 'error', updated_at = ? WHERE id = ?`
+      ).run(completedAt, run.source_id)
     })()
   }
 
@@ -489,13 +533,15 @@ export class SourceRepositoryService {
     runId: string
   ): SourceSyncRunRow {
     const run = db
-      .prepare(`
+      .prepare(
+        `
         SELECT
           id, source_id, source_root_id, trigger, status, cursor_before, cursor_after,
           scanned_items, changed_items, started_at, finished_at, error_message
         FROM source_sync_runs
         WHERE id = ? AND status = 'running'
-      `)
+      `
+      )
       .get(runId) as SourceSyncRunRow | undefined
     if (!run) throw new Error(`No running source sync found: ${runId}`)
     return run
