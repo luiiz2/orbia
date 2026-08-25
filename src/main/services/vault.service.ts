@@ -4,16 +4,22 @@ import crypto from 'node:crypto'
 import type { Vault, VaultStats } from '../../types'
 import { appConfigService } from './app-config.service'
 import { databaseService } from './database.service'
+import { sourceWatchService } from './sources/source-watch.service'
 
 export class VaultService {
   private currentVault: Vault | null = null
+
+  public constructor(
+    private readonly onVaultOpened: () => void = () => undefined
+  ) {}
 
   /**
    * Creates a new Vault on disk and initializes its SQLite database.
    */
   public async createVault(vaultPath: string, name: string): Promise<Vault> {
     const trimmedPath = vaultPath.trim()
-    const trimmedName = name.trim() || path.basename(trimmedPath) || 'Study Vault'
+    const trimmedName =
+      name.trim() || path.basename(trimmedPath) || 'Study Vault'
 
     // 1. Create main vault directory if missing
     if (!fs.existsSync(trimmedPath)) {
@@ -33,7 +39,10 @@ export class VaultService {
     // Create .gitignore inside .orbia
     const gitignorePath = path.join(orbiaPath, '.gitignore')
     if (!fs.existsSync(gitignorePath)) {
-      await fs.promises.writeFile(gitignorePath, '# Orbia local cache\n*.log\n*.tmp\n')
+      await fs.promises.writeFile(
+        gitignorePath,
+        '# Orbia local cache\n*.log\n*.tmp\n'
+      )
     }
 
     // 3. Connect and initialize library.db
@@ -53,6 +62,7 @@ export class VaultService {
     appConfigService.registerVault(vault)
     appConfigService.setSetting('lastVaultPath', trimmedPath)
     this.currentVault = vault
+    this.onVaultOpened()
 
     return vault
   }
@@ -110,6 +120,7 @@ export class VaultService {
 
     appConfigService.setSetting('lastVaultPath', trimmedPath)
     this.currentVault = vault
+    this.onVaultOpened()
 
     return vault
   }
@@ -157,7 +168,10 @@ export class VaultService {
   /**
    * Removes a vault from registry, and optionally deletes physical files from disk.
    */
-  public async deleteVault(vaultPath: string, deleteFiles: boolean): Promise<boolean> {
+  public async deleteVault(
+    vaultPath: string,
+    deleteFiles: boolean
+  ): Promise<boolean> {
     const trimmedPath = vaultPath.trim()
 
     // 1. If currently connected to this vault, close the DB connection
@@ -182,4 +196,4 @@ export class VaultService {
   }
 }
 
-export const vaultService = new VaultService()
+export const vaultService = new VaultService(() => sourceWatchService.restart())
