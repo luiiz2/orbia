@@ -207,11 +207,37 @@ export interface OfflineAsset {
 export type SourceSyncRunStatus =
   'running' | 'completed' | 'failed' | 'cancelled'
 
+export type SourceSyncTrigger = 'manual' | 'startup' | 'periodic' | 'watch'
+
+export interface SourceSyncResult {
+  runId: string
+  sourceId: string
+  sourceRootId: string
+  scannedItems: number
+  changedItems: number
+  completedAt: number
+}
+
+export interface SourceSnapshotItem {
+  providerItemIdentity: string
+  parentProviderIdentity?: string
+  locator: SourceItemLocator
+  name: string
+  relativePath: string
+  size: number
+  availability: SourceAvailability
+  mimeType?: string
+  fingerprint?: string
+  revision?: string
+  checksum?: string
+  technicalMetadata?: SourceTechnicalMetadata
+}
+
 export interface SourceSyncRun {
   id: string
   sourceId: string
   sourceRootId: string
-  trigger: string
+  trigger: SourceSyncTrigger
   cursorBefore?: string
   cursorAfter?: string
   status: SourceSyncRunStatus
