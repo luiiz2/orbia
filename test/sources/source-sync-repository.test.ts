@@ -130,6 +130,78 @@ describe('SourceRepositoryService source synchronization', () => {
     expect(canonicalSnapshot(db)).toEqual(before)
   })
 
+  it('reserves exact snapshot identities before matching fingerprint renames', () => {
+    const run = repository.beginSync('root-local', 'manual', 100)
+
+    repository.completeSync(run.id, [
+      {
+        providerItemIdentity: 'Module/renamed.mp4',
+        locator: { provider: 'local-folder', path: 'C:/Course/Module/renamed.mp4' },
+        name: 'renamed.mp4',
+        relativePath: 'Module/renamed.mp4',
+        size: 6,
+        availability: 'available',
+        fingerprint: 'same-content'
+      },
+      {
+        providerItemIdentity: 'Module/original.mp4',
+        locator: { provider: 'local-folder', path: 'C:/Course/Module/original.mp4' },
+        name: 'original.mp4',
+        relativePath: 'Module/original.mp4',
+        size: 6,
+        availability: 'available',
+        fingerprint: 'same-content'
+      }
+    ], 200)
+
+    expect(db.prepare(`SELECT id, availability FROM source_items WHERE provider_item_identity = ?`).get('Module/original.mp4'))
+      .toEqual({ id: 'item-linked', availability: 'available' })
+    expect(db.prepare(`SELECT id, availability FROM source_items WHERE provider_item_identity = ?`).get('Module/renamed.mp4'))
+      .toMatchObject({ id: expect.any(String), availability: 'available' })
+    expect(db.prepare(`SELECT source_item_id FROM canonical_source_links WHERE id = 'link-1'`).get())
+      .toEqual({ source_item_id: 'item-linked' })
+  })
+
+  it('does not reuse a fingerprint ID when multiple unmatched snapshot items share it', () => {
+    const run = repository.beginSync('root-local', 'manual', 100)
+
+    repository.completeSync(run.id, [
+      {
+        providerItemIdentity: 'Module/new-a.mp4',
+        locator: { provider: 'local-folder', path: 'C:/Course/Module/new-a.mp4' },
+        name: 'new-a.mp4',
+        relativePath: 'Module/new-a.mp4',
+        size: 6,
+        availability: 'available',
+        fingerprint: 'same-content'
+      },
+      {
+        providerItemIdentity: 'Module/new-b.mp4',
+        locator: { provider: 'local-folder', path: 'C:/Course/Module/new-b.mp4' },
+        name: 'new-b.mp4',
+        relativePath: 'Module/new-b.mp4',
+        size: 6,
+        availability: 'available',
+        fingerprint: 'same-content'
+      }
+    ], 200)
+
+    expect(db.prepare(`SELECT provider_item_identity, availability FROM source_items WHERE id = 'item-linked'`).get())
+      .toEqual({ provider_item_identity: 'Module/original.mp4', availability: 'missing' })
+    const newItems = db.prepare(`
+      SELECT id, availability FROM source_items
+      WHERE provider_item_identity IN ('Module/new-a.mp4', 'Module/new-b.mp4')
+      ORDER BY provider_item_identity
+    `).all() as Array<{ id: string; availability: string }>
+    expect(newItems).toEqual([
+      { id: expect.any(String), availability: 'available' },
+      { id: expect.any(String), availability: 'available' }
+    ])
+    expect(newItems.map((item) => item.id)).not.toContain('item-linked')
+    expect(db.prepare(`SELECT source_item_id FROM canonical_source_links WHERE id = 'link-1'`).get())
+      .toEqual({ source_item_id: 'item-linked' })
+  })
+
   it('marks absent items missing without deleting their links', () => {
     const before = canonicalSnapshot(db)
     const run = repository.beginSync('root-local', 'manual', 100)

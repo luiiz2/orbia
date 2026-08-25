@@ -312,26 +312,46 @@ export class SourceRepositoryService {
           WHERE source_root_id = ?
         `)
         .all(run.source_root_id) as SourceSyncItemRow[]
-      const itemsByIdentity = new Map(
+      const existingItemsByIdentity = new Map(
         existingItems.map((item) => [item.provider_item_identity, item])
       )
       const unmatchedItems = new Map(existingItems.map((item) => [item.id, item]))
+      const matchedItemsByIdentity = new Map<string, SourceSyncItemRow>()
+
+      for (const item of items) {
+        const existingItem = existingItemsByIdentity.get(item.providerItemIdentity)
+        if (existingItem) {
+          matchedItemsByIdentity.set(item.providerItemIdentity, existingItem)
+          unmatchedItems.delete(existingItem.id)
+        }
+      }
+
+      const unmatchedItemsByFingerprint = new Map<string, SourceSyncItemRow[]>()
+      for (const item of unmatchedItems.values()) {
+        if (!item.fingerprint?.trim()) continue
+        const candidates = unmatchedItemsByFingerprint.get(item.fingerprint) ?? []
+        candidates.push(item)
+        unmatchedItemsByFingerprint.set(item.fingerprint, candidates)
+      }
+      const unmatchedSnapshotItemsByFingerprint = new Map<string, SourceSnapshotItem[]>()
+      for (const item of items) {
+        if (matchedItemsByIdentity.has(item.providerItemIdentity) || !item.fingerprint?.trim()) continue
+        const candidates = unmatchedSnapshotItemsByFingerprint.get(item.fingerprint) ?? []
+        candidates.push(item)
+        unmatchedSnapshotItemsByFingerprint.set(item.fingerprint, candidates)
+      }
+      for (const [fingerprint, snapshotItems] of unmatchedSnapshotItemsByFingerprint) {
+        const existingMatches = unmatchedItemsByFingerprint.get(fingerprint)
+        if (snapshotItems.length === 1 && existingMatches?.length === 1) {
+          const existingItem = existingMatches[0]
+          matchedItemsByIdentity.set(snapshotItems[0].providerItemIdentity, existingItem)
+          unmatchedItems.delete(existingItem.id)
+        }
+      }
       let changedItems = 0
 
       for (const item of items) {
-        let existingItem = itemsByIdentity.get(item.providerItemIdentity)
-        if (existingItem) {
-          unmatchedItems.delete(existingItem.id)
-        } else if (item.fingerprint?.trim()) {
-          const fingerprintMatches = [...unmatchedItems.values()].filter(
-            (candidate) =>
-              candidate.fingerprint?.trim() && candidate.fingerprint === item.fingerprint
-          )
-          if (fingerprintMatches.length === 1) {
-            existingItem = fingerprintMatches[0]
-            unmatchedItems.delete(existingItem.id)
-          }
-        }
+        const existingItem = matchedItemsByIdentity.get(item.providerItemIdentity)
 
         if (existingItem) {
           db.prepare(`
