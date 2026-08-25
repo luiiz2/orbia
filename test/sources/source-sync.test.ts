@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -18,7 +18,6 @@ import { SourceManagerService } from '../../src/main/services/sources/source-man
 import { SourceRepositoryService } from '../../src/main/services/sources/source-repository.service'
 import type {
   SourceItemLocator,
-  SourceRootLocator,
   SourceTechnicalMetadata
 } from '../../src/types/source'
 
@@ -140,6 +139,41 @@ describe('SourceSyncService', () => {
     expect(db.prepare(`SELECT COUNT(*) AS count FROM source_items`).get()).toEqual({ count: 0 })
   })
 
+  it('calls failSync once when completeSync errors after beginSync', async () => {
+    const beginSyncSpy = vi.spyOn(repository, 'beginSync')
+    const completeSyncSpy = vi
+      .spyOn(repository, 'completeSync')
+      .mockImplementation(() => {
+        expect(beginSyncSpy).toHaveBeenCalledOnce()
+        throw new Error('raw complete failure at C:/private/secret.mp4')
+      })
+    const failSyncSpy = vi.spyOn(repository, 'failSync')
+    const adapter = createAdapter(async function* () {
+      yield { items: [createLocalItem('Guide.pdf', 'guide-fingerprint')] }
+    })
+    const service = new SourceSyncService(repository, () => adapter, () => 350)
+
+    await expect(service.syncRoot('root-local', 'manual')).rejects.toMatchObject({
+      message: 'Source synchronization failed'
+    })
+
+    expect(completeSyncSpy).toHaveBeenCalledOnce()
+    expect(failSyncSpy).toHaveBeenCalledOnce()
+    const db = databaseService.getDatabase()
+    if (!db) throw new Error('Expected connected database')
+
+    expect(db.prepare(`
+      SELECT status, error_message, scanned_items, changed_items, finished_at
+      FROM source_sync_runs
+    `).get()).toEqual({
+      status: 'failed',
+      error_message: 'Source synchronization failed',
+      scanned_items: 0,
+      changed_items: 0,
+      finished_at: 350
+    })
+  })
+
   it('fails before beginSync for an unknown root or an unregistered provider', async () => {
     const adapterResolver: SourceAdapterResolver = () => {
       throw new Error('No source adapter registered for provider: google-drive')
@@ -209,7 +243,7 @@ function createAdapter(
 ): SourceAdapter {
   return {
     provider: 'local-folder',
-    identifyRoot: async (_locator: SourceRootLocator) => ({
+    identifyRoot: async () => ({
       providerRootIdentity: 'C:/Course',
       displayName: 'Local',
       availability: 'available'
@@ -222,6 +256,6 @@ function createAdapter(
       ...(range ? { contentRange: range } : {}),
       seekable: true
     }),
-    probe: async (_item: SourceItemLocator): Promise<SourceTechnicalMetadata> => ({})
+    probe: async (): Promise<SourceTechnicalMetadata> => ({})
   }
 }
