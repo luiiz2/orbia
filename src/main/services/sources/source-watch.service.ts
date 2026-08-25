@@ -81,6 +81,13 @@ export class SourceWatchService {
     this.watchers.clear()
   }
 
+  public async stopAndWait(): Promise<void> {
+    this.stop()
+    await Promise.allSettled(
+      [...this.activeSyncs.values()].map((activeSync) => activeSync.promise)
+    )
+  }
+
   public refresh(trigger: SourceSyncTrigger): Promise<void> {
     return this.refreshRoots(this.manager.listRoots(), trigger)
   }
@@ -134,6 +141,9 @@ export class SourceWatchService {
     rootId: string,
     trigger: SourceSyncTrigger
   ): Promise<SourceSyncResult> {
+    if (!this.started)
+      return Promise.reject(new Error('Source synchronization unavailable'))
+
     const activeSync = this.activeSyncs.get(rootId)
     if (activeSync) {
       activeSync.followUp = trigger

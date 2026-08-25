@@ -10,7 +10,9 @@ export class VaultService {
   private currentVault: Vault | null = null
 
   public constructor(
-    private readonly onVaultOpened: () => void = () => undefined
+    private readonly onVaultOpened: () => void = () => undefined,
+    private readonly beforeVaultChange: () => Promise<void> = async () =>
+      undefined
   ) {}
 
   /**
@@ -45,10 +47,13 @@ export class VaultService {
       )
     }
 
-    // 3. Connect and initialize library.db
+    // 3. Finish source work for the previous Vault before switching databases
+    await this.beforeVaultChange()
+
+    // 4. Connect and initialize library.db
     databaseService.connect(trimmedPath)
 
-    // 4. Construct Vault domain entity
+    // 5. Construct Vault domain entity
     const now = Date.now()
     const vault: Vault = {
       id: crypto.randomUUID(),
@@ -58,7 +63,7 @@ export class VaultService {
       lastOpened: now
     }
 
-    // 5. Register in App Config DB
+    // 6. Register in App Config DB
     appConfigService.registerVault(vault)
     appConfigService.setSetting('lastVaultPath', trimmedPath)
     this.currentVault = vault
@@ -96,6 +101,8 @@ export class VaultService {
     if (!fs.existsSync(coursesPath)) {
       await fs.promises.mkdir(coursesPath, { recursive: true })
     }
+
+    await this.beforeVaultChange()
 
     // Connect DB
     databaseService.connect(trimmedPath)
@@ -196,4 +203,7 @@ export class VaultService {
   }
 }
 
-export const vaultService = new VaultService(() => sourceWatchService.restart())
+export const vaultService = new VaultService(
+  () => sourceWatchService.restart(),
+  () => sourceWatchService.stopAndWait()
+)

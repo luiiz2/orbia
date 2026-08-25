@@ -30,12 +30,21 @@ describe('source watch vault lifecycle', () => {
 
   it('reactivates source watching after every successful create or open', async () => {
     const onVaultOpened = vi.fn()
-    const service = new VaultService(onVaultOpened)
+    const beforeVaultChange = vi.fn(async () => undefined)
+    const service = new VaultService(onVaultOpened, beforeVaultChange)
 
     await service.createVault(vaultPath, 'Connected Vault')
+    expect(beforeVaultChange).toHaveBeenCalledTimes(1)
     expect(onVaultOpened).toHaveBeenCalledTimes(1)
+    expect(beforeVaultChange.mock.invocationCallOrder[0]).toBeLessThan(
+      onVaultOpened.mock.invocationCallOrder[0]
+    )
 
     await service.openVault(vaultPath)
+    expect(beforeVaultChange).toHaveBeenCalledTimes(2)
     expect(onVaultOpened).toHaveBeenCalledTimes(2)
+    expect(beforeVaultChange.mock.invocationCallOrder[1]).toBeLessThan(
+      onVaultOpened.mock.invocationCallOrder[1]
+    )
   })
 })

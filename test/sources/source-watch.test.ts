@@ -159,6 +159,36 @@ describe('SourceWatchService', () => {
     expect(manager.syncRoot).toHaveBeenLastCalledWith(root.id, 'manual')
   })
 
+  it('stops and waits for an active sync before accepting work for another vault', async () => {
+    vi.useFakeTimers()
+    let resolveStartup: ((value: SourceSyncResult) => void) | undefined
+    const manager = createManager({} as SourceAdapter)
+    manager.syncRoot.mockImplementation(
+      (_: string, trigger: SourceSyncTrigger) =>
+        new Promise((resolve) => {
+          if (trigger === 'startup') resolveStartup = resolve
+        })
+    )
+    const service = new SourceWatchService(manager)
+
+    service.start()
+    const stopped = service.stopAndWait()
+    await expect(service.syncRoot(root.id, 'manual')).rejects.toThrow(
+      'Source synchronization unavailable'
+    )
+
+    let finished = false
+    void stopped.then(() => {
+      finished = true
+    })
+    await settle()
+    expect(finished).toBe(false)
+
+    resolveStartup!(createResult('startup'))
+    await stopped
+    expect(finished).toBe(true)
+  })
+
   it('debounces repeated watcher hints into one watch sync', async () => {
     vi.useFakeTimers()
     let dirty: ((hint: { reason: 'changed' }) => void) | undefined
