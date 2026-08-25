@@ -8,6 +8,7 @@ import { sourceWatchService } from './sources/source-watch.service'
 
 export class VaultService {
   private currentVault: Vault | null = null
+  private vaultChangeQueue: Promise<void> = Promise.resolve()
 
   public constructor(
     private readonly onVaultOpened: () => void = () => undefined,
@@ -18,7 +19,14 @@ export class VaultService {
   /**
    * Creates a new Vault on disk and initializes its SQLite database.
    */
-  public async createVault(vaultPath: string, name: string): Promise<Vault> {
+  public createVault(vaultPath: string, name: string): Promise<Vault> {
+    return this.enqueueVaultChange(() => this.createVaultNow(vaultPath, name))
+  }
+
+  private async createVaultNow(
+    vaultPath: string,
+    name: string
+  ): Promise<Vault> {
     const trimmedPath = vaultPath.trim()
     const trimmedName =
       name.trim() || path.basename(trimmedPath) || 'Study Vault'
@@ -75,7 +83,11 @@ export class VaultService {
   /**
    * Opens an existing Vault directory and connects to its library.db.
    */
-  public async openVault(vaultPath: string): Promise<Vault> {
+  public openVault(vaultPath: string): Promise<Vault> {
+    return this.enqueueVaultChange(() => this.openVaultNow(vaultPath))
+  }
+
+  private async openVaultNow(vaultPath: string): Promise<Vault> {
     const trimmedPath = vaultPath.trim()
 
     if (!fs.existsSync(trimmedPath)) {
@@ -175,7 +187,16 @@ export class VaultService {
   /**
    * Removes a vault from registry, and optionally deletes physical files from disk.
    */
-  public async deleteVault(
+  public deleteVault(
+    vaultPath: string,
+    deleteFiles: boolean
+  ): Promise<boolean> {
+    return this.enqueueVaultChange(() =>
+      this.deleteVaultNow(vaultPath, deleteFiles)
+    )
+  }
+
+  private async deleteVaultNow(
     vaultPath: string,
     deleteFiles: boolean
   ): Promise<boolean> {
@@ -186,6 +207,7 @@ export class VaultService {
       this.currentVault?.path === trimmedPath ||
       databaseService.getCurrentVaultPath() === trimmedPath
     ) {
+      await this.beforeVaultChange()
       databaseService.close()
       this.currentVault = null
       appConfigService.setSetting('lastVaultPath', '')
@@ -200,6 +222,21 @@ export class VaultService {
     }
 
     return true
+  }
+
+  private async enqueueVaultChange<T>(operation: () => Promise<T>): Promise<T> {
+    const previousChange = this.vaultChangeQueue
+    let releaseChange!: () => void
+    this.vaultChangeQueue = new Promise<void>((resolve) => {
+      releaseChange = resolve
+    })
+
+    await previousChange
+    try {
+      return await operation()
+    } finally {
+      releaseChange()
+    }
   }
 }
 

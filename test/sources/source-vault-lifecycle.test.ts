@@ -46,5 +46,46 @@ describe('source watch vault lifecycle', () => {
     expect(beforeVaultChange.mock.invocationCallOrder[1]).toBeLessThan(
       onVaultOpened.mock.invocationCallOrder[1]
     )
+
+    await service.deleteVault(vaultPath, false)
+    expect(beforeVaultChange).toHaveBeenCalledTimes(3)
+    expect(onVaultOpened).toHaveBeenCalledTimes(2)
+  })
+
+  it('serializes concurrent vault changes around the database switch', async () => {
+    const secondVaultPath = path.join(tempRoot, 'second-vault')
+    let releaseFirstChange: (() => void) | undefined
+    const beforeVaultChange = vi
+      .fn<() => Promise<void>>()
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            releaseFirstChange = resolve
+          })
+      )
+      .mockResolvedValue(undefined)
+    const onVaultOpened = vi.fn()
+    const service = new VaultService(onVaultOpened, beforeVaultChange)
+
+    const firstChange = service.createVault(vaultPath, 'First Vault')
+    const secondChange = service.createVault(secondVaultPath, 'Second Vault')
+
+    await vi.waitFor(() => {
+      expect(fs.existsSync(path.join(vaultPath, '.orbia', 'covers'))).toBe(true)
+    })
+    await new Promise<void>((resolve) => setImmediate(resolve))
+    expect(beforeVaultChange).toHaveBeenCalledTimes(1)
+    expect(fs.existsSync(path.join(secondVaultPath, '.orbia', 'covers'))).toBe(
+      false
+    )
+
+    releaseFirstChange!()
+    await Promise.all([firstChange, secondChange])
+
+    expect(beforeVaultChange).toHaveBeenCalledTimes(2)
+    expect(onVaultOpened).toHaveBeenCalledTimes(2)
+    expect(fs.existsSync(path.join(secondVaultPath, '.orbia', 'covers'))).toBe(
+      true
+    )
   })
 })
