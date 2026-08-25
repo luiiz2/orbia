@@ -41,6 +41,14 @@ export interface SourceChangeBatch {
   items: SourceAdapterItem[]
 }
 
+export interface SourceDirtyHint {
+  reason: 'changed'
+}
+
+export interface SourceWatchDisposable {
+  dispose(): void
+}
+
 export interface SourceRootIdentity {
   providerRootIdentity: string
   displayName: string
@@ -55,6 +63,10 @@ export interface SourceAdapter {
   reconcile(input: {
     root: SourceRootLocator
   }): AsyncIterable<SourceChangeBatch>
+  watch?(
+    root: SourceRootLocator,
+    onDirty: (hint: SourceDirtyHint) => void
+  ): Promise<SourceWatchDisposable>
   open(item: SourceItemLocator, range?: ByteRange): Promise<SourceReadHandle>
   probe(item: SourceItemLocator): Promise<SourceTechnicalMetadata>
 }

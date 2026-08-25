@@ -14,8 +14,10 @@ import {
   type ByteRange,
   type SourceAdapter,
   type SourceChangeBatch,
+  type SourceDirtyHint,
   type SourceReadHandle,
-  type SourceRootIdentity
+  type SourceRootIdentity,
+  type SourceWatchDisposable
 } from '../source-adapter'
 
 export class LocalFolderSourceAdapter implements SourceAdapter {
@@ -72,6 +74,21 @@ export class LocalFolderSourceAdapter implements SourceAdapter {
       )
 
     yield { items }
+  }
+
+  public async watch(
+    locator: SourceRootLocator,
+    onDirty: (hint: SourceDirtyHint) => void
+  ): Promise<SourceWatchDisposable> {
+    const root = this.requireRoot(locator)
+    try {
+      const watcher = fs.watch(root.path, { recursive: true }, () => {
+        onDirty({ reason: 'changed' })
+      })
+      return { dispose: () => watcher.close() }
+    } catch {
+      return { dispose: () => undefined }
+    }
   }
 
   public async open(

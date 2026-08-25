@@ -243,7 +243,8 @@ const api: OrbiaApi = {
   },
 
   sources: {
-    listSummaries: () => ipcRenderer.invoke('sources:list-summaries')
+    listSummaries: () => ipcRenderer.invoke('sources:list-summaries'),
+    syncNow: (rootId) => ipcRenderer.invoke('sources:sync-now', { rootId })
   },
 
   // Media Optimization Engine (v0.7)

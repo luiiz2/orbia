@@ -404,6 +404,7 @@ export interface OrbiaApi {
   // Connected Library (v0.8)
   sources: {
     listSummaries: () => Promise<import('./source').SourceSummary[]>
+    syncNow: (rootId: string) => Promise<import('./source').SourceSyncResult>
   }
 
   // Media Optimization Engine (v0.7)

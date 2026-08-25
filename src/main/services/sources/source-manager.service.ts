@@ -1,5 +1,6 @@
 import type {
   SourceProvider,
+  SourceRoot,
   SourceSummary,
   SourceSyncResult,
   SourceSyncTrigger
@@ -38,6 +39,10 @@ export class SourceManagerService {
 
   public listSummaries(): SourceSummary[] {
     return this.repository.listSummaries()
+  }
+
+  public listRoots(): SourceRoot[] {
+    return this.repository.listRoots()
   }
 
   public syncRoot(
