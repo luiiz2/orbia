@@ -6,6 +6,7 @@ import { registerReviewIpc } from './review.ipc'
 import { registerStudioIpc } from './studio.ipc'
 import { registerDiscoveryIpc } from './discovery.ipc'
 import { registerOptimizerIpc } from './optimizer.ipc'
+import { registerSourcesIpc } from './sources.ipc'
 
 export function registerAllIpc(): void {
   registerVaultIpc()
@@ -16,6 +17,6 @@ export function registerAllIpc(): void {
   registerStudioIpc()
   registerDiscoveryIpc()
   registerOptimizerIpc()
+  registerSourcesIpc()
 }
-
 

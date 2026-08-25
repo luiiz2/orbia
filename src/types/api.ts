@@ -401,6 +401,11 @@ export interface OrbiaApi {
     deleteCourseRelationship: (id: string) => Promise<boolean>
   }
 
+  // Connected Library (v0.8)
+  sources: {
+    listSummaries: () => Promise<import('./source').SourceSummary[]>
+  }
+
   // Media Optimization Engine (v0.7)
   optimizer: {
     analyzeVault: (profile?: import('./optimizer').OptimizationProfile) => Promise<import('./optimizer').VaultOptimizationAnalysis>

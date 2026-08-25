@@ -242,6 +242,10 @@ const api: OrbiaApi = {
     deleteCourseRelationship: (id) => ipcRenderer.invoke('discovery:delete-relationship', id)
   },
 
+  sources: {
+    listSummaries: () => ipcRenderer.invoke('sources:list-summaries')
+  },
+
   // Media Optimization Engine (v0.7)
   optimizer: {
     analyzeVault: (profile) => ipcRenderer.invoke('optimizer:analyze-vault', profile),

@@ -9,4 +9,4 @@ export * from './studio'
 export * from './theme'
 export * from './discovery'
 export * from './optimizer'
-
+export * from './source'

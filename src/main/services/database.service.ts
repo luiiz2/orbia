@@ -71,13 +71,18 @@ export class DatabaseService {
     this.db.pragma('foreign_keys = ON')
     this.currentVaultPath = vaultPath
 
-    this.runMigrations()
-    this.recoverPendingFileOperations(vaultPath)
     try {
-      void this.healMissingDurations()
-      void this.extractMissingVideoThumbnails()
-    } catch (err) {
-      logger.warn('[Database] connect background healing error:', err)
+      this.runMigrations()
+      this.recoverPendingFileOperations(vaultPath)
+      try {
+        void this.healMissingDurations()
+        void this.extractMissingVideoThumbnails()
+      } catch (err) {
+        logger.warn('[Database] connect background healing error:', err)
+      }
+    } catch (error) {
+      this.close()
+      throw error
     }
   }
 
@@ -711,10 +716,444 @@ export class DatabaseService {
       })()
     }
 
+    const v08MigrationId = '007_v08_connected_library'
+    const hasApplied008 = this.db.prepare(`SELECT 1 FROM _migrations WHERE id = ?`).get(v08MigrationId)
+
+    if (!hasApplied008) {
+      const sourceTableNames = new Set([
+        'content_sources',
+        'source_roots',
+        'source_items',
+        'canonical_source_links',
+        'source_match_candidates',
+        'offline_assets',
+        'source_sync_runs'
+      ])
+      const userDataTables = (this.db.prepare(`
+        SELECT name
+        FROM sqlite_master
+        WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name <> '_migrations'
+        ORDER BY name
+      `).all() as Array<{ name: string }>).filter(({ name }) => !sourceTableNames.has(name))
+      const quoteIdentifier = (name: string): string => `"${name.replaceAll('"', '""')}"`
+      const hashUserDataRows = (database: Database.Database): string => {
+        const hash = crypto.createHash('sha256')
+
+        for (const { name } of userDataTables) {
+          const table = quoteIdentifier(name)
+          const columns = database.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>
+          const columnNames = columns.map((column) => column.name)
+          const orderBy = columnNames.map(quoteIdentifier).join(', ')
+          hash.update(`${JSON.stringify([name, columnNames])}\n`)
+
+          const rows = database.prepare(`SELECT * FROM ${table} ORDER BY ${orderBy}`).iterate() as Iterable<Record<string, unknown>>
+          for (const row of rows) {
+            const values = columnNames.map((columnName) => {
+              const value = row[columnName]
+              if (Buffer.isBuffer(value)) return { type: 'blob', value: value.toString('base64') }
+              if (value === null) return { type: 'null' }
+              return { type: typeof value, value }
+            })
+            hash.update(`${JSON.stringify(values)}\n`)
+          }
+        }
+
+        return hash.digest('hex')
+      }
+      const hasUserData = userDataTables.some(({ name }) => {
+        const row = this.db!.prepare(`SELECT 1 AS present FROM ${quoteIdentifier(name)} LIMIT 1`).get()
+        return row !== undefined
+      })
+
+      if (hasUserData) {
+        const dbPath = this.db.name
+        const backupPath = `${dbPath}.v0.8.bak`
+        const expectedBackupHash = hashUserDataRows(this.db)
+        let temporaryBackupPath: string | null = null
+        let backupDb: Database.Database | null = null
+
+        try {
+          const checkpointRows = this.db.pragma('wal_checkpoint(FULL)') as Array<{
+            busy: number
+            log: number
+            checkpointed: number
+          }>
+          const checkpoint = checkpointRows[0]
+          if (!checkpoint || checkpoint.busy !== 0 || checkpoint.checkpointed !== checkpoint.log) {
+            throw new Error(`WAL checkpoint incomplete: ${JSON.stringify(checkpoint ?? null)}`)
+          }
+
+          const backupExists = fs.existsSync(backupPath)
+          if (!backupExists) {
+            temporaryBackupPath = `${backupPath}.${crypto.randomUUID()}.tmp`
+            const quotedBackupPath = this.db.prepare(`SELECT quote(?) AS value`).get(temporaryBackupPath) as { value: string }
+            this.db.exec(`VACUUM INTO ${quotedBackupPath.value}`)
+          }
+
+          backupDb = new Database(temporaryBackupPath ?? backupPath, { readonly: true, fileMustExist: true })
+          if (backupDb.pragma('integrity_check', { simple: true }) !== 'ok') {
+            throw new Error('Backup integrity check failed')
+          }
+          if (backupDb.prepare(`PRAGMA foreign_key_check`).all().length > 0) {
+            throw new Error('Backup foreign-key check failed')
+          }
+          if (hashUserDataRows(backupDb) !== expectedBackupHash) {
+            throw new Error('Backup row validation failed')
+          }
+
+          backupDb.close()
+          backupDb = null
+          if (temporaryBackupPath) {
+            if (fs.existsSync(backupPath)) {
+              throw new Error('Backup appeared before snapshot publication')
+            }
+            fs.renameSync(temporaryBackupPath, backupPath)
+            temporaryBackupPath = null
+          }
+        } catch (error) {
+          throw new Error(`Failed to validate v0.8 migration backup: ${String(error)}`)
+        } finally {
+          backupDb?.close()
+          if (temporaryBackupPath && fs.existsSync(temporaryBackupPath)) {
+            fs.rmSync(temporaryBackupPath, { force: true })
+          }
+        }
+      }
+
+      this.db.transaction(() => {
+        this.db!.exec(`
+          CREATE TABLE content_sources (
+            id                 TEXT PRIMARY KEY,
+            provider           TEXT NOT NULL CHECK(provider IN ('local-folder', 'removable', 'google-drive', 'managed-offline')),
+            display_name       TEXT NOT NULL,
+            account_identity   TEXT,
+            legacy_source_type TEXT,
+            legacy_config_json TEXT,
+            preference_weight  REAL NOT NULL DEFAULT 0,
+            availability       TEXT NOT NULL CHECK(availability IN ('available', 'offline', 'disconnected', 'auth-required', 'missing', 'syncing', 'error', 'relink-required')),
+            created_at         INTEGER NOT NULL,
+            updated_at         INTEGER NOT NULL
+          );
+
+          CREATE TABLE source_roots (
+            id                     TEXT PRIMARY KEY,
+            source_id              TEXT NOT NULL REFERENCES content_sources(id) ON DELETE CASCADE,
+            provider_root_identity TEXT NOT NULL,
+            display_name           TEXT NOT NULL,
+            local_path             TEXT,
+            stable_device_id       TEXT,
+            mount_hint             TEXT,
+            relative_base          TEXT,
+            sync_cursor            TEXT,
+            sync_corpus_json       TEXT,
+            availability           TEXT NOT NULL CHECK(availability IN ('available', 'offline', 'disconnected', 'auth-required', 'missing', 'syncing', 'error', 'relink-required')),
+            last_synced_at         INTEGER,
+            last_verified_at       INTEGER,
+            provider_config_json   TEXT,
+            created_at             INTEGER NOT NULL,
+            updated_at             INTEGER NOT NULL,
+            UNIQUE(id, source_id),
+            UNIQUE(source_id, provider_root_identity)
+          );
+
+          CREATE TABLE source_items (
+            id                      TEXT PRIMARY KEY,
+            source_id               TEXT NOT NULL REFERENCES content_sources(id) ON DELETE CASCADE,
+            source_root_id          TEXT NOT NULL,
+            provider                TEXT NOT NULL CHECK(provider IN ('local-folder', 'removable', 'google-drive', 'managed-offline')),
+            provider_item_identity  TEXT NOT NULL,
+            parent_provider_identity TEXT,
+            name                    TEXT NOT NULL,
+            relative_path           TEXT NOT NULL,
+            locator_json            TEXT NOT NULL,
+            mime_type               TEXT,
+            size                    INTEGER CHECK(size IS NULL OR size >= 0),
+            duration                REAL CHECK(duration IS NULL OR duration >= 0),
+            width                   INTEGER CHECK(width IS NULL OR width > 0),
+            height                  INTEGER CHECK(height IS NULL OR height > 0),
+            technical_metadata_json TEXT,
+            revision                TEXT,
+            fingerprint             TEXT,
+            checksum                TEXT,
+            availability            TEXT NOT NULL CHECK(availability IN ('available', 'offline', 'disconnected', 'auth-required', 'missing', 'syncing', 'error', 'relink-required')),
+            created_at              INTEGER NOT NULL,
+            updated_at              INTEGER NOT NULL,
+            FOREIGN KEY(source_root_id, source_id) REFERENCES source_roots(id, source_id) ON DELETE CASCADE,
+            UNIQUE(source_id, provider_item_identity)
+          );
+
+          CREATE TABLE canonical_source_links (
+            id             TEXT PRIMARY KEY,
+            lesson_id      TEXT REFERENCES lessons(id) ON DELETE CASCADE,
+            resource_id    TEXT REFERENCES content_resources(id) ON DELETE CASCADE,
+            source_item_id TEXT NOT NULL REFERENCES source_items(id) ON DELETE CASCADE,
+            is_manual      INTEGER NOT NULL DEFAULT 0 CHECK(is_manual IN (0, 1)),
+            is_preferred   INTEGER NOT NULL DEFAULT 0 CHECK(is_preferred IN (0, 1)),
+            created_at     INTEGER NOT NULL,
+            updated_at     INTEGER NOT NULL,
+            CHECK((lesson_id IS NOT NULL AND resource_id IS NULL) OR (lesson_id IS NULL AND resource_id IS NOT NULL))
+          );
+
+          CREATE TABLE source_match_candidates (
+            id             TEXT PRIMARY KEY,
+            lesson_id      TEXT REFERENCES lessons(id) ON DELETE CASCADE,
+            resource_id    TEXT REFERENCES content_resources(id) ON DELETE CASCADE,
+            source_item_id TEXT NOT NULL REFERENCES source_items(id) ON DELETE CASCADE,
+            confidence     REAL NOT NULL CHECK(confidence >= 0 AND confidence <= 1),
+            evidence_json  TEXT NOT NULL DEFAULT '{}',
+            review_status  TEXT NOT NULL CHECK(review_status IN ('pending', 'accepted', 'rejected')),
+            decided_at     INTEGER,
+            created_at     INTEGER NOT NULL,
+            updated_at     INTEGER NOT NULL,
+            CHECK((lesson_id IS NOT NULL AND resource_id IS NULL) OR (lesson_id IS NULL AND resource_id IS NOT NULL))
+          );
+
+          CREATE TABLE offline_assets (
+            id                      TEXT PRIMARY KEY,
+            source_item_id          TEXT NOT NULL REFERENCES source_items(id) ON DELETE CASCADE,
+            original_source_item_id TEXT REFERENCES source_items(id) ON DELETE SET NULL,
+            cache_id                TEXT,
+            asset_id                TEXT,
+            vault_relative_path     TEXT NOT NULL,
+            availability            TEXT NOT NULL DEFAULT 'offline' CHECK(availability IN ('available', 'offline', 'disconnected', 'auth-required', 'missing', 'syncing', 'error', 'relink-required')),
+            size                    INTEGER CHECK(size IS NULL OR size >= 0),
+            checksum                TEXT,
+            state                   TEXT NOT NULL CHECK(state IN ('pending', 'valid', 'invalid')),
+            is_pinned               INTEGER NOT NULL DEFAULT 0 CHECK(is_pinned IN (0, 1)),
+            policy_reason           TEXT,
+            codec                   TEXT,
+            width                   INTEGER CHECK(width IS NULL OR width > 0),
+            height                  INTEGER CHECK(height IS NULL OR height > 0),
+            optimizer_profile_json  TEXT,
+            last_validated_at       INTEGER,
+            last_accessed_at        INTEGER,
+            created_at              INTEGER NOT NULL,
+            updated_at              INTEGER NOT NULL
+          );
+
+          CREATE TABLE source_sync_runs (
+            id              TEXT PRIMARY KEY,
+            source_id       TEXT NOT NULL REFERENCES content_sources(id) ON DELETE CASCADE,
+            source_root_id  TEXT NOT NULL,
+            trigger         TEXT NOT NULL,
+            status          TEXT NOT NULL CHECK(status IN ('running', 'completed', 'failed', 'cancelled')),
+            cursor_before   TEXT,
+            cursor_after    TEXT,
+            scanned_items   INTEGER NOT NULL DEFAULT 0,
+            changed_items   INTEGER NOT NULL DEFAULT 0,
+            error_message   TEXT,
+            started_at      INTEGER NOT NULL,
+            finished_at     INTEGER,
+            FOREIGN KEY(source_root_id, source_id) REFERENCES source_roots(id, source_id) ON DELETE CASCADE
+          );
+
+          CREATE INDEX idx_source_roots_source ON source_roots(source_id);
+          CREATE INDEX idx_source_items_identity ON source_items(source_id, provider_item_identity);
+          CREATE INDEX idx_source_items_availability ON source_items(source_id, availability);
+          CREATE INDEX idx_canonical_source_links_lesson ON canonical_source_links(lesson_id);
+          CREATE INDEX idx_canonical_source_links_resource ON canonical_source_links(resource_id);
+          CREATE INDEX idx_source_match_candidates_pending ON source_match_candidates(review_status, source_item_id);
+          CREATE INDEX idx_offline_assets_state ON offline_assets(state, is_pinned);
+          CREATE INDEX idx_source_sync_runs_history ON source_sync_runs(source_root_id, started_at DESC);
+        `)
+
+        this.backfillLegacySourceLinks()
+
+        const expectedItems = this.db!.prepare(`
+          SELECT
+            (SELECT count(*) FROM lessons) + (SELECT count(*) FROM content_resources) AS count
+        `).get() as { count: number }
+        const sourceItems = this.db!.prepare(`SELECT count(*) AS count FROM source_items`).get() as { count: number }
+        const sourceLinks = this.db!.prepare(`SELECT count(*) AS count FROM canonical_source_links`).get() as { count: number }
+        const foreignKeyIssues = this.db!.prepare(`PRAGMA foreign_key_check`).all()
+
+        if (sourceItems.count !== expectedItems.count || sourceLinks.count !== expectedItems.count || foreignKeyIssues.length > 0) {
+          throw new Error('Connected-library migration validation failed')
+        }
+
+        this.db!.prepare(`INSERT INTO _migrations (id, applied_at) VALUES (?, ?)`).run(v08MigrationId, Date.now())
+      })()
+    }
+
     const userVersion = this.db.pragma('user_version', { simple: true }) as number
 
     if (userVersion < 1) {
       this.db.pragma('user_version = 1')
+    }
+  }
+
+  private backfillLegacySourceLinks(): void {
+    if (!this.db) throw new Error('Database is not connected to any vault.')
+
+    const localAvailability = (localPath: string): 'available' | 'missing' | 'relink-required' => {
+      if (localPath === '') return 'relink-required'
+      return fs.existsSync(localPath) ? 'available' : 'missing'
+    }
+    const safeRelativePath = (rootPath: string, itemPath: string, untrustedName: string): string => {
+      const fallback = path.win32.basename(path.posix.basename(untrustedName)).replaceAll('..', '') || 'unnamed'
+      const pathApi = path.win32.isAbsolute(rootPath) && path.win32.isAbsolute(itemPath)
+        ? path.win32
+        : path.posix.isAbsolute(rootPath) && path.posix.isAbsolute(itemPath)
+          ? path.posix
+          : null
+
+      if (!pathApi) return fallback
+      const relative = pathApi.relative(pathApi.resolve(rootPath), pathApi.resolve(itemPath))
+      if (relative === '' || relative === '..' || relative.startsWith(`..${pathApi.sep}`) || pathApi.isAbsolute(relative)) {
+        return fallback
+      }
+      return relative.split(pathApi.sep).join('/')
+    }
+
+    const courses = this.db.prepare(`
+      SELECT id, title, source_type, root_path, created_at, updated_at
+      FROM courses
+      ORDER BY id
+    `).all() as Array<{
+      id: string
+      title: string
+      source_type: string
+      root_path: string
+      created_at: number
+      updated_at: number
+    }>
+    const insertSource = this.db.prepare(`
+      INSERT INTO content_sources (
+        id, provider, display_name, account_identity, legacy_source_type, legacy_config_json,
+        availability, created_at, updated_at
+      ) VALUES (?, 'local-folder', ?, NULL, ?, ?, ?, ?, ?)
+    `)
+    const insertRoot = this.db.prepare(`
+      INSERT INTO source_roots (
+        id, source_id, provider_root_identity, display_name, local_path, sync_cursor,
+        availability, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?)
+    `)
+    const insertItem = this.db.prepare(`
+      INSERT INTO source_items (
+        id, source_id, source_root_id, provider, provider_item_identity, parent_provider_identity,
+        name, relative_path, locator_json, mime_type, size, duration, width, height,
+        technical_metadata_json, revision, fingerprint, checksum, availability, created_at, updated_at
+      ) VALUES (?, ?, ?, 'local-folder', ?, NULL, ?, ?, ?, NULL, ?, ?, NULL, NULL, ?, NULL, ?, ?, ?, ?, ?)
+    `)
+    const insertLink = this.db.prepare(`
+      INSERT INTO canonical_source_links (
+        id, lesson_id, resource_id, source_item_id, is_manual, is_preferred, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, 0, 1, ?, ?)
+    `)
+
+    for (const course of courses) {
+      const sourceId = `legacy-source:${course.id}`
+      const rootId = `legacy-root:${course.id}`
+      const rootAvailability = localAvailability(course.root_path)
+
+      insertSource.run(
+        sourceId,
+        course.title,
+        course.source_type,
+        JSON.stringify({ sourceType: course.source_type }),
+        rootAvailability,
+        course.created_at,
+        course.updated_at
+      )
+      insertRoot.run(
+        rootId,
+        sourceId,
+        rootId,
+        course.title,
+        course.root_path,
+        rootAvailability,
+        course.created_at,
+        course.updated_at
+      )
+
+      const lessons = this.db.prepare(`
+        SELECT id, title, file_path, file_name, duration, file_size, content_hash, fingerprint_signature, created_at
+        FROM lessons
+        WHERE course_id = ?
+        ORDER BY id
+      `).all(course.id) as Array<{
+        id: string
+        title: string
+        file_path: string
+        file_name: string
+        duration: number
+        file_size: number
+        content_hash: string | null
+        fingerprint_signature: string | null
+        created_at: number
+      }>
+
+      for (const lesson of lessons) {
+        const itemId = `legacy-lesson:${lesson.id}`
+        insertItem.run(
+          itemId,
+          sourceId,
+          rootId,
+          itemId,
+          lesson.file_name || lesson.title,
+          safeRelativePath(course.root_path, lesson.file_path, lesson.file_name || lesson.title),
+          JSON.stringify({ provider: 'local-folder', path: lesson.file_path }),
+          lesson.file_size,
+          lesson.duration,
+          JSON.stringify({ duration: lesson.duration }),
+          lesson.fingerprint_signature,
+          lesson.content_hash,
+          localAvailability(lesson.file_path),
+          lesson.created_at,
+          lesson.created_at
+        )
+        insertLink.run(
+          `legacy-link-lesson:${lesson.id}`,
+          lesson.id,
+          null,
+          itemId,
+          lesson.created_at,
+          lesson.created_at
+        )
+      }
+
+      const resources = this.db.prepare(`
+        SELECT id, name, file_path, file_size, created_at
+        FROM content_resources
+        WHERE course_id = ?
+        ORDER BY id
+      `).all(course.id) as Array<{
+        id: string
+        name: string
+        file_path: string
+        file_size: number
+        created_at: number
+      }>
+
+      for (const resource of resources) {
+        const itemId = `legacy-resource:${resource.id}`
+        insertItem.run(
+          itemId,
+          sourceId,
+          rootId,
+          itemId,
+          resource.name,
+          safeRelativePath(course.root_path, resource.file_path, resource.name),
+          JSON.stringify({ provider: 'local-folder', path: resource.file_path }),
+          resource.file_size,
+          null,
+          JSON.stringify({ size: resource.file_size }),
+          null,
+          null,
+          localAvailability(resource.file_path),
+          resource.created_at,
+          resource.created_at
+        )
+        insertLink.run(
+          `legacy-link-resource:${resource.id}`,
+          null,
+          resource.id,
+          itemId,
+          resource.created_at,
+          resource.created_at
+        )
+      }
     }
   }
 

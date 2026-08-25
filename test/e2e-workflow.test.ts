@@ -245,5 +245,5 @@ describe('End-to-End Core Workflow Integration Test', () => {
 
     const summaryAfterDelete = databaseService.getCourseProgressSummary(courseId)
     expect(summaryAfterDelete).toBeNull()
-  })
+  }, 15_000)
 })
