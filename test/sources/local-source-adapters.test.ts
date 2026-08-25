@@ -5,7 +5,11 @@ import path from 'node:path'
 import type { SourceItemLocator } from '../../src/types/source'
 import { LocalFolderSourceAdapter } from '../../src/main/services/sources/adapters/local-folder.adapter'
 import { ManagedOfflineSourceAdapter } from '../../src/main/services/sources/adapters/managed-offline.adapter'
-import { registerBuiltinSourceAdapters, SourceManagerService } from '../../src/main/services/sources/source-manager.service'
+import {
+  registerBuiltinSourceAdapters,
+  SourceManagerService,
+  sourceManagerService
+} from '../../src/main/services/sources/source-manager.service'
 import type { SourceRepositoryService } from '../../src/main/services/sources/source-repository.service'
 
 async function collect<T>(iterable: AsyncIterable<T>): Promise<T[]> {
@@ -56,6 +60,16 @@ describe('local source adapters', () => {
     const batches = await collect(adapter.reconcile({ root }))
     expect(batches).toHaveLength(1)
     expect(batches[0].items.map((item) => item.relativePath)).toEqual(['Guide.pdf', 'Module/Lesson.mp4'])
+    expect(batches[0].items[0]).toMatchObject({
+      providerItemIdentity: 'Guide.pdf',
+      relativePath: 'Guide.pdf',
+      fingerprint: expect.any(String)
+    })
+    expect(batches[0].items[1]).toMatchObject({
+      providerItemIdentity: 'Module/Lesson.mp4',
+      relativePath: 'Module/Lesson.mp4',
+      fingerprint: expect.any(String)
+    })
 
     const handle = await adapter.open(
       { provider: 'local-folder', path: lessonPath },
@@ -108,8 +122,10 @@ describe('local source adapters', () => {
     const batches = await collect(adapter.reconcile({ root }))
     expect(batches[0].items).toEqual([
       expect.objectContaining({
+        providerItemIdentity: 'asset-1',
         relativePath: 'asset-1.mp4',
-        locator: item
+        locator: item,
+        fingerprint: expect.any(String)
       })
     ])
 
@@ -158,6 +174,13 @@ describe('local source adapters', () => {
 
     expect(manager.getAdapter('local-folder')).toBeInstanceOf(LocalFolderSourceAdapter)
     expect(manager.getAdapter('managed-offline')).toBeInstanceOf(ManagedOfflineSourceAdapter)
+  })
+
+  it('registers only the local adapter automatically on the global manager', () => {
+    expect(sourceManagerService.getAdapter('local-folder')).toBeInstanceOf(LocalFolderSourceAdapter)
+    expect(() => sourceManagerService.getAdapter('managed-offline')).toThrow(
+      'No source adapter registered'
+    )
   })
 
   it('rejects a managed cache symlink that resolves outside the cache root', async () => {

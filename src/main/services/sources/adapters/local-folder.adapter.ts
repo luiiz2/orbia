@@ -52,16 +52,21 @@ export class LocalFolderSourceAdapter implements SourceAdapter {
     const resolvedRoot = path.resolve(root.path)
     const items = this.scanner
       .collectAllFiles(scanned)
-      .map((file) => ({
-        locator: { provider: 'local-folder' as const, path: file.fullPath },
-        name: file.name,
-        relativePath: path
+      .map((file) => {
+        const relativePath = path
           .relative(resolvedRoot, file.fullPath)
           .split(path.sep)
-          .join('/'),
-        size: file.sizeBytes,
-        availability: 'available' as const
-      }))
+          .join('/')
+        return {
+          providerItemIdentity: relativePath,
+          locator: { provider: 'local-folder' as const, path: file.fullPath },
+          name: file.name,
+          relativePath,
+          size: file.sizeBytes,
+          availability: 'available' as const,
+          fingerprint: file.fingerprint
+        }
+      })
       .sort((left, right) =>
         naturalCompare(left.relativePath, right.relativePath)
       )

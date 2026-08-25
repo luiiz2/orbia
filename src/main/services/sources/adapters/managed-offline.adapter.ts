@@ -67,6 +67,7 @@ export class ManagedOfflineSourceAdapter implements SourceAdapter {
           extension ? -extension.length : undefined
         )
         return {
+          providerItemIdentity: assetId,
           locator: {
             provider: 'managed-offline' as const,
             cacheId: root.cacheId,
@@ -76,7 +77,8 @@ export class ManagedOfflineSourceAdapter implements SourceAdapter {
           name: file.name,
           relativePath,
           size: file.sizeBytes,
-          availability: 'offline' as const
+          availability: 'offline' as const,
+          fingerprint: file.fingerprint
         }
       })
       .sort((left, right) =>

@@ -23,12 +23,17 @@ export interface SourceReadHandle {
 }
 
 export interface SourceAdapterItem {
+  providerItemIdentity: string
+  parentProviderIdentity?: string
   locator: SourceItemLocator
   name: string
   relativePath: string
   size: number
   availability: SourceAvailability
   mimeType?: string
+  fingerprint?: string
+  revision?: string
+  checksum?: string
   technicalMetadata?: SourceTechnicalMetadata
 }
 
