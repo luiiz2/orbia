@@ -1,10 +1,22 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { OrbiaApi, SourceSummary, SourceSyncResult } from '../../src/types'
+import type {
+  CanonicalSourceLink,
+  OrbiaApi,
+  SourceMatchCandidateView,
+  SourceMatchSummary,
+  SourceSummary,
+  SourceSyncResult
+} from '../../src/types'
 
 const state = vi.hoisted(() => ({
   handlers: new Map<string, (event: unknown) => Promise<unknown> | unknown>(),
   listSummaries: vi.fn(),
   managerSyncRoot: vi.fn(),
+  listMatchCandidates: vi.fn(),
+  linkSourceToCanonical: vi.fn(),
+  unlinkSourceFromCanonical: vi.fn(),
+  reviewMatchCandidate: vi.fn(),
+  matchRoot: vi.fn(),
   watchSyncRoot: vi.fn(),
   loggerError: vi.fn()
 }))
@@ -23,7 +35,12 @@ vi.mock('electron', () => ({
 vi.mock('../../src/main/services/sources/source-manager.service', () => ({
   sourceManagerService: {
     listSummaries: state.listSummaries,
-    syncRoot: state.managerSyncRoot
+    syncRoot: state.managerSyncRoot,
+    listMatchCandidates: state.listMatchCandidates,
+    linkSourceToCanonical: state.linkSourceToCanonical,
+    unlinkSourceFromCanonical: state.unlinkSourceFromCanonical,
+    reviewMatchCandidate: state.reviewMatchCandidate,
+    matchRoot: state.matchRoot
   }
 }))
 
@@ -47,6 +64,11 @@ describe('source summaries IPC', () => {
     state.handlers.clear()
     state.listSummaries.mockReset()
     state.managerSyncRoot.mockReset()
+    state.listMatchCandidates.mockReset()
+    state.linkSourceToCanonical.mockReset()
+    state.unlinkSourceFromCanonical.mockReset()
+    state.reviewMatchCandidate.mockReset()
+    state.matchRoot.mockReset()
     state.watchSyncRoot.mockReset()
     state.loggerError.mockReset()
     ;({ registerSourcesIpc } = await import('../../src/main/ipc/sources.ipc'))
@@ -72,7 +94,12 @@ describe('source summaries IPC', () => {
 
     expect([...state.handlers.keys()]).toEqual([
       'sources:list-summaries',
-      'sources:sync-now'
+      'sources:sync-now',
+      'sources:list-candidates',
+      'sources:link',
+      'sources:unlink',
+      'sources:review-candidate',
+      'sources:match-root'
     ])
     await expect(
       state.handlers.get('sources:list-summaries')!({})
@@ -81,7 +108,12 @@ describe('source summaries IPC', () => {
     const bridge: Pick<OrbiaApi, 'sources'> = {
       sources: {
         listSummaries: async () => [],
-        syncNow: async () => createSyncResult()
+        syncNow: async () => createSyncResult(),
+        listCandidates: async () => [],
+        link: async () => createLink(),
+        unlink: async () => true,
+        reviewCandidate: async () => createCandidate(),
+        matchRoot: async () => createMatchSummary()
       }
     }
     await expect(bridge.sources.listSummaries()).resolves.toEqual([])
@@ -143,6 +175,84 @@ describe('source summaries IPC', () => {
       '[IPC] sources:sync-now failed'
     )
   })
+
+  it('supports path-free candidate review and manual link actions', async () => {
+    const candidate = createCandidate()
+    const link = createLink()
+    const summary = createMatchSummary()
+    state.listMatchCandidates.mockReturnValue([candidate])
+    state.linkSourceToCanonical.mockReturnValue(link)
+    state.unlinkSourceFromCanonical.mockReturnValue(true)
+    state.reviewMatchCandidate.mockReturnValue(candidate)
+    state.matchRoot.mockResolvedValue(summary)
+
+    registerSourcesIpc()
+
+    await expect(
+      state.handlers.get('sources:list-candidates')!({}, { status: 'pending' })
+    ).resolves.toEqual([candidate])
+    await expect(
+      state.handlers.get('sources:link')!(
+        {},
+        {
+          sourceItemId: 'item-1',
+          canonicalType: 'lesson',
+          canonicalId: 'lesson-1'
+        }
+      )
+    ).resolves.toEqual(link)
+    await expect(
+      state.handlers.get('sources:unlink')!(
+        {},
+        {
+          sourceItemId: 'item-1',
+          canonicalType: 'lesson',
+          canonicalId: 'lesson-1'
+        }
+      )
+    ).resolves.toBe(true)
+    await expect(
+      state.handlers.get('sources:review-candidate')!(
+        {},
+        { candidateId: 'candidate-1', decision: 'accepted' }
+      )
+    ).resolves.toEqual(candidate)
+    await expect(
+      state.handlers.get('sources:match-root')!({}, { rootId: 'root-1' })
+    ).resolves.toEqual(summary)
+
+    expect(state.linkSourceToCanonical).toHaveBeenCalledWith(
+      'item-1',
+      'lesson',
+      'lesson-1'
+    )
+    expect(JSON.stringify([candidate, link, summary])).not.toContain('path')
+  })
+
+  it('rejects invalid source action payloads before calling the service', async () => {
+    registerSourcesIpc()
+
+    await expect(
+      state.handlers.get('sources:list-candidates')!({}, { status: 'invalid' })
+    ).rejects.toThrow('Invalid source match status')
+    await expect(
+      state.handlers.get('sources:link')!(
+        {},
+        {
+          sourceItemId: 'item\u0000',
+          canonicalType: 'lesson',
+          canonicalId: 'lesson-1'
+        }
+      )
+    ).rejects.toThrow('Invalid source item ID')
+    await expect(
+      state.handlers.get('sources:review-candidate')!(
+        {},
+        { candidateId: 'candidate-1', decision: 'pending' }
+      )
+    ).rejects.toThrow('Invalid source match decision')
+    expect(state.linkSourceToCanonical).not.toHaveBeenCalled()
+  })
 })
 
 function createSyncResult(): SourceSyncResult {
@@ -156,4 +266,44 @@ function createSyncResult(): SourceSyncResult {
     scannedItems: 3,
     changedItems: 1
   }
+}
+
+function createCandidate(): SourceMatchCandidateView {
+  return {
+    id: 'candidate-1',
+    sourceItemId: 'item-1',
+    sourceName: 'Aula 01.mp4',
+    sourceProvider: 'local-folder',
+    canonicalType: 'lesson',
+    canonicalId: 'lesson-1',
+    canonicalTitle: 'Aula 01',
+    confidence: 0.9,
+    evidence: {
+      thresholdVersion: 'source-match-v1',
+      courseContext: 'same',
+      signals: [],
+      strongContentMatch: true,
+      technicalMetadataCompatible: true,
+      duplicateAcrossCourses: false
+    },
+    status: 'pending',
+    createdAt: 1
+  }
+}
+
+function createLink(): CanonicalSourceLink {
+  return {
+    id: 'link-1',
+    sourceItemId: 'item-1',
+    canonicalType: 'lesson',
+    canonicalId: 'lesson-1',
+    isManual: true,
+    isPreferred: false,
+    createdAt: 1,
+    updatedAt: 1
+  }
+}
+
+function createMatchSummary(): SourceMatchSummary {
+  return { evaluated: 1, autoLinked: 1, pending: 0, duplicates: 0 }
 }

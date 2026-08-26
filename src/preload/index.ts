@@ -244,7 +244,12 @@ const api: OrbiaApi = {
 
   sources: {
     listSummaries: () => ipcRenderer.invoke('sources:list-summaries'),
-    syncNow: (rootId) => ipcRenderer.invoke('sources:sync-now', { rootId })
+    syncNow: (rootId) => ipcRenderer.invoke('sources:sync-now', { rootId }),
+    listCandidates: (status) => ipcRenderer.invoke('sources:list-candidates', { status }),
+    link: (sourceItemId, canonicalType, canonicalId) => ipcRenderer.invoke('sources:link', { sourceItemId, canonicalType, canonicalId }),
+    unlink: (sourceItemId, canonicalType, canonicalId) => ipcRenderer.invoke('sources:unlink', { sourceItemId, canonicalType, canonicalId }),
+    reviewCandidate: (candidateId, decision) => ipcRenderer.invoke('sources:review-candidate', { candidateId, decision }),
+    matchRoot: (rootId) => ipcRenderer.invoke('sources:match-root', { rootId })
   },
 
   // Media Optimization Engine (v0.7)

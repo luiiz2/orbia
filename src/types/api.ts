@@ -405,6 +405,11 @@ export interface OrbiaApi {
   sources: {
     listSummaries: () => Promise<import('./source').SourceSummary[]>
     syncNow: (rootId: string) => Promise<import('./source').SourceSyncResult>
+    listCandidates: (status?: import('./source').SourceMatchStatus) => Promise<import('./source').SourceMatchCandidateView[]>
+    link: (sourceItemId: string, canonicalType: import('./source').CanonicalSourceType, canonicalId: string) => Promise<import('./source').CanonicalSourceLink>
+    unlink: (sourceItemId: string, canonicalType: import('./source').CanonicalSourceType, canonicalId: string) => Promise<boolean>
+    reviewCandidate: (candidateId: string, decision: Exclude<import('./source').SourceMatchStatus, 'pending'>) => Promise<import('./source').SourceMatchCandidateView>
+    matchRoot: (rootId: string) => Promise<import('./source').SourceMatchSummary>
   }
 
   // Media Optimization Engine (v0.7)
