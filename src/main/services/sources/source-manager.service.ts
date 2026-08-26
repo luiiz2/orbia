@@ -2,6 +2,11 @@ import type {
   SourceProvider,
   SourceRoot,
   SourceSummary,
+  SourceMatchCandidateView,
+  SourceMatchStatus,
+  SourceMatchSummary,
+  CanonicalSourceLink,
+  CanonicalSourceType,
   SourceSyncResult,
   SourceSyncTrigger
 } from '../../../types/source'
@@ -12,17 +17,20 @@ import {
   type ManagedOfflineSourceAdapterDependencies
 } from './adapters/managed-offline.adapter'
 import type { SourceAdapter } from './source-adapter'
+import { SourceMatchingService } from './source-matching.service'
 import { SourceRepositoryService } from './source-repository.service'
 import { SourceSyncService } from './source-sync.service'
 
 export class SourceManagerService {
   private readonly adapters = new Map<SourceProvider, SourceAdapter>()
   private readonly sourceSyncService: SourceSyncService
+  private readonly sourceMatchingService: SourceMatchingService
 
   public constructor(private readonly repository: SourceRepositoryService) {
     this.sourceSyncService = new SourceSyncService(repository, (provider) =>
       this.getAdapter(provider)
     )
+    this.sourceMatchingService = new SourceMatchingService(repository)
   }
 
   public register(adapter: SourceAdapter): void {
@@ -48,7 +56,63 @@ export class SourceManagerService {
     rootId: string,
     trigger: SourceSyncTrigger = 'manual'
   ): Promise<SourceSyncResult> {
-    return this.sourceSyncService.syncRoot(rootId, trigger)
+    return this.syncRootAndMatch(rootId, trigger)
+  }
+
+  public listMatchCandidates(
+    status?: SourceMatchStatus
+  ): SourceMatchCandidateView[] {
+    return this.repository.listMatchCandidates(status)
+  }
+
+  public linkSourceToCanonical(
+    sourceItemId: string,
+    canonicalType: CanonicalSourceType,
+    canonicalId: string
+  ): CanonicalSourceLink {
+    return this.repository.linkSourceToCanonical(
+      sourceItemId,
+      canonicalType,
+      canonicalId,
+      Date.now()
+    )
+  }
+
+  public unlinkSourceFromCanonical(
+    sourceItemId: string,
+    canonicalType: CanonicalSourceType,
+    canonicalId: string
+  ): boolean {
+    return this.repository.unlinkSourceFromCanonical(
+      sourceItemId,
+      canonicalType,
+      canonicalId,
+      Date.now()
+    )
+  }
+
+  public reviewMatchCandidate(
+    candidateId: string,
+    decision: Exclude<SourceMatchStatus, 'pending'>
+  ): SourceMatchCandidateView {
+    return this.repository.reviewMatchCandidate(
+      candidateId,
+      decision,
+      Date.now()
+    )
+  }
+
+  public matchRoot(rootId: string): Promise<SourceMatchSummary> {
+    return this.sourceMatchingService.matchRoot(rootId)
+  }
+
+  private async syncRootAndMatch(
+    rootId: string,
+    trigger: SourceSyncTrigger
+  ): Promise<SourceSyncResult> {
+    const result = await this.sourceSyncService.syncRoot(rootId, trigger)
+    await this.sourceMatchingService.matchRoot(rootId)
+    return result
   }
 }
 
