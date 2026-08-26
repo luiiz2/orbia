@@ -1,11 +1,18 @@
 import type Database from 'better-sqlite3'
 import { randomUUID } from 'node:crypto'
 import type {
+  CanonicalSourceLink,
   CanonicalSourceType,
   SourceAvailability,
   SourceDefinition,
   SourceItem,
   SourceItemLocator,
+  SourceMatchCandidate,
+  SourceMatchCandidateView,
+  SourceMatchEvaluation,
+  SourceMatchEvidence,
+  SourceMatchStatus,
+  SourceMatchTarget,
   SourceProvider,
   SourceRoot,
   SourceRootLocator,
@@ -55,11 +62,15 @@ interface SourceItemRow {
   source_id: string
   source_root_id: string
   provider: SourceProvider
+  provider_item_identity: string
+  parent_provider_identity: string | null
   name: string
   relative_path: string
   locator_json: string
   mime_type: string | null
   size: number | null
+  duration: number | null
+  fingerprint: string | null
   revision: string | null
   checksum: string | null
   availability: SourceAvailability
@@ -100,6 +111,46 @@ interface SourceSummaryRow {
   available_item_count: number
   missing_item_count: number
   last_synced_at: number | null
+}
+
+interface MatchTargetRow {
+  canonical_type: CanonicalSourceType
+  canonical_id: string
+  course_id: string
+  course_root_path: string
+  title: string
+  file_name: string
+  file_path: string
+  file_size: number | null
+  duration: number | null
+  content_hash: string | null
+  fingerprint_signature: string | null
+}
+
+interface MatchCandidateRow {
+  id: string
+  source_item_id: string
+  source_name: string
+  source_provider: SourceProvider
+  canonical_type: CanonicalSourceType
+  canonical_id: string
+  canonical_title: string
+  confidence: number
+  evidence_json: string
+  review_status: SourceMatchStatus
+  decided_at: number | null
+  created_at: number
+}
+
+interface CanonicalLinkRow {
+  id: string
+  source_item_id: string
+  lesson_id: string | null
+  resource_id: string | null
+  is_manual: number
+  is_preferred: number
+  created_at: number
+  updated_at: number
 }
 
 function parseOptionalObject(
@@ -223,8 +274,10 @@ export class SourceRepositoryService {
       .prepare(
         `
       SELECT
-        id, source_id, source_root_id, provider, name, relative_path, locator_json,
-        mime_type, size, revision, checksum, availability, technical_metadata_json, created_at, updated_at
+        id, source_id, source_root_id, provider, provider_item_identity,
+        parent_provider_identity, name, relative_path, locator_json, mime_type,
+        size, duration, fingerprint, revision, checksum, availability,
+        technical_metadata_json, created_at, updated_at
       FROM source_items
       WHERE id = ?
     `
@@ -244,9 +297,11 @@ export class SourceRepositoryService {
         `
       SELECT
         source_items.id, source_items.source_id, source_items.source_root_id, source_items.provider,
+        source_items.provider_item_identity, source_items.parent_provider_identity,
         source_items.name, source_items.relative_path, source_items.locator_json, source_items.mime_type,
-        source_items.size, source_items.revision, source_items.checksum, source_items.availability,
-        source_items.technical_metadata_json, source_items.created_at, source_items.updated_at
+        source_items.size, source_items.duration, source_items.fingerprint, source_items.revision,
+        source_items.checksum, source_items.availability, source_items.technical_metadata_json,
+        source_items.created_at, source_items.updated_at
       FROM source_items
       JOIN canonical_source_links ON canonical_source_links.source_item_id = source_items.id
       WHERE canonical_source_links.${column} = ?
@@ -256,6 +311,325 @@ export class SourceRepositoryService {
       .all(canonicalId) as SourceItemRow[]
 
     return rows.map((row) => this.mapItem(row))
+  }
+
+  public listMatchTargets(): SourceMatchTarget[] {
+    const rows = this.requireDatabase()
+      .prepare(
+        `
+        SELECT
+          'lesson' AS canonical_type,
+          lessons.id AS canonical_id,
+          lessons.course_id,
+          courses.root_path AS course_root_path,
+          lessons.title,
+          lessons.file_name,
+          lessons.file_path,
+          lessons.file_size,
+          lessons.duration,
+          lessons.content_hash,
+          lessons.fingerprint_signature
+        FROM lessons
+        JOIN courses ON courses.id = lessons.course_id
+        UNION ALL
+        SELECT
+          'content-resource' AS canonical_type,
+          content_resources.id AS canonical_id,
+          content_resources.course_id,
+          courses.root_path AS course_root_path,
+          content_resources.name AS title,
+          content_resources.name AS file_name,
+          content_resources.file_path,
+          content_resources.file_size,
+          NULL AS duration,
+          NULL AS content_hash,
+          NULL AS fingerprint_signature
+        FROM content_resources
+        JOIN courses ON courses.id = content_resources.course_id
+        ORDER BY title COLLATE NOCASE, canonical_id
+      `
+      )
+      .all() as MatchTargetRow[]
+
+    return rows.map((row) => ({
+      canonicalType: row.canonical_type,
+      canonicalId: row.canonical_id,
+      courseId: row.course_id,
+      title: row.title,
+      fileName: row.file_name,
+      relativePath: relativePathFromRoot(
+        row.course_root_path,
+        row.file_path,
+        row.file_name
+      ),
+      ...(row.file_size === null ? {} : { size: row.file_size }),
+      ...(row.duration === null ? {} : { duration: row.duration }),
+      ...((row.fingerprint_signature ?? row.content_hash)
+        ? { fingerprint: row.fingerprint_signature ?? row.content_hash! }
+        : {}),
+      ...(row.duration === null
+        ? {}
+        : { technicalMetadata: { duration: row.duration } })
+    }))
+  }
+
+  public listUnlinkedMatchItems(rootId: string): SourceItem[] {
+    const rows = this.requireDatabase()
+      .prepare(
+        `
+        SELECT
+          source_items.id,
+          source_items.source_id,
+          source_items.source_root_id,
+          source_items.provider,
+          source_items.provider_item_identity,
+          source_items.parent_provider_identity,
+          source_items.name,
+          source_items.relative_path,
+          source_items.locator_json,
+          source_items.mime_type,
+          source_items.size,
+          source_items.duration,
+          source_items.fingerprint,
+          source_items.revision,
+          source_items.checksum,
+          source_items.availability,
+          source_items.technical_metadata_json,
+          source_items.created_at,
+          source_items.updated_at
+        FROM source_items
+        LEFT JOIN canonical_source_links
+          ON canonical_source_links.source_item_id = source_items.id
+        WHERE source_items.source_root_id = ?
+          AND canonical_source_links.id IS NULL
+        ORDER BY source_items.relative_path COLLATE NOCASE, source_items.id
+      `
+      )
+      .all(rootId) as SourceItemRow[]
+
+    return rows.map((row) => this.mapItem(row))
+  }
+
+  public getRootMatchCourseId(rootId: string): string | undefined {
+    const db = this.requireDatabase()
+    const root = db
+      .prepare(`SELECT local_path FROM source_roots WHERE id = ?`)
+      .get(rootId) as { local_path: string | null } | undefined
+    if (!root?.local_path) return undefined
+
+    const courses = db
+      .prepare(`SELECT id, root_path FROM courses`)
+      .all() as Array<{ id: string; root_path: string }>
+    return courses.find((course) =>
+      pathsEqual(course.root_path, root.local_path!)
+    )?.id
+  }
+
+  public upsertMatchCandidate(
+    evaluation: SourceMatchEvaluation,
+    now: number
+  ): SourceMatchCandidate {
+    const db = this.requireDatabase()
+    const status = actionToMatchStatus(evaluation.action)
+    const targetColumn = canonicalTargetColumn(evaluation.canonicalType)
+
+    return db.transaction(() => {
+      this.assertSourceItemExists(db, evaluation.sourceItemId)
+      this.assertCanonicalTargetExists(
+        db,
+        evaluation.canonicalType,
+        evaluation.canonicalId
+      )
+
+      const existing = db
+        .prepare(
+          `
+          SELECT id
+          FROM source_match_candidates
+          WHERE source_item_id = ? AND ${targetColumn} = ?
+        `
+        )
+        .get(evaluation.sourceItemId, evaluation.canonicalId) as
+        { id: string } | undefined
+      const decidedAt = status === 'pending' ? null : now
+      const evidence = JSON.stringify(evaluation.evidence)
+
+      if (existing) {
+        db.prepare(
+          `
+          UPDATE source_match_candidates
+          SET confidence = ?, evidence_json = ?, review_status = ?, decided_at = ?, updated_at = ?
+          WHERE id = ?
+        `
+        ).run(
+          evaluation.confidence,
+          evidence,
+          status,
+          decidedAt,
+          now,
+          existing.id
+        )
+        if (status === 'accepted') {
+          this.linkSourceToCanonicalInTransaction(
+            db,
+            evaluation.sourceItemId,
+            evaluation.canonicalType,
+            evaluation.canonicalId,
+            false,
+            now
+          )
+        }
+        return this.mapCandidate(db, this.requireCandidateRow(db, existing.id))
+      }
+
+      const id = randomUUID()
+      db.prepare(
+        `
+        INSERT INTO source_match_candidates (
+          id, lesson_id, resource_id, source_item_id, confidence, evidence_json,
+          review_status, decided_at, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `
+      ).run(
+        id,
+        evaluation.canonicalType === 'lesson' ? evaluation.canonicalId : null,
+        evaluation.canonicalType === 'content-resource'
+          ? evaluation.canonicalId
+          : null,
+        evaluation.sourceItemId,
+        evaluation.confidence,
+        evidence,
+        status,
+        decidedAt,
+        now,
+        now
+      )
+      if (status === 'accepted') {
+        this.linkSourceToCanonicalInTransaction(
+          db,
+          evaluation.sourceItemId,
+          evaluation.canonicalType,
+          evaluation.canonicalId,
+          false,
+          now
+        )
+      }
+      return this.mapCandidate(db, this.requireCandidateRow(db, id))
+    })()
+  }
+
+  public listMatchCandidates(
+    status?: SourceMatchStatus
+  ): SourceMatchCandidateView[] {
+    const rows = this.requireDatabase()
+      .prepare(
+        `
+        SELECT
+          source_match_candidates.id,
+          source_match_candidates.source_item_id,
+          source_items.name AS source_name,
+          source_items.provider AS source_provider,
+          CASE
+            WHEN source_match_candidates.lesson_id IS NOT NULL THEN 'lesson'
+            ELSE 'content-resource'
+          END AS canonical_type,
+          COALESCE(source_match_candidates.lesson_id, source_match_candidates.resource_id) AS canonical_id,
+          COALESCE(lessons.title, content_resources.name) AS canonical_title,
+          source_match_candidates.confidence,
+          source_match_candidates.evidence_json,
+          source_match_candidates.review_status,
+          source_match_candidates.decided_at,
+          source_match_candidates.created_at
+        FROM source_match_candidates
+        JOIN source_items ON source_items.id = source_match_candidates.source_item_id
+        LEFT JOIN lessons ON lessons.id = source_match_candidates.lesson_id
+        LEFT JOIN content_resources ON content_resources.id = source_match_candidates.resource_id
+        WHERE (? IS NULL OR source_match_candidates.review_status = ?)
+        ORDER BY source_match_candidates.created_at, source_match_candidates.id
+      `
+      )
+      .all(status ?? null, status ?? null) as MatchCandidateRow[]
+
+    return rows.map((row) => this.mapCandidateView(row))
+  }
+
+  public linkSourceToCanonical(
+    sourceItemId: string,
+    canonicalType: CanonicalSourceType,
+    canonicalId: string,
+    now: number
+  ): CanonicalSourceLink {
+    return this.requireDatabase().transaction(() =>
+      this.linkSourceToCanonicalInTransaction(
+        this.requireDatabase(),
+        sourceItemId,
+        canonicalType,
+        canonicalId,
+        true,
+        now
+      )
+    )()
+  }
+
+  public unlinkSourceFromCanonical(
+    sourceItemId: string,
+    canonicalType: CanonicalSourceType,
+    canonicalId: string,
+    now: number
+  ): boolean {
+    const db = this.requireDatabase()
+    const targetColumn = canonicalTargetColumn(canonicalType)
+    return db.transaction(() => {
+      const result = db
+        .prepare(
+          `
+          DELETE FROM canonical_source_links
+          WHERE source_item_id = ? AND ${targetColumn} = ?
+        `
+        )
+        .run(sourceItemId, canonicalId)
+      if (result.changes > 0) {
+        db.prepare(
+          `
+          UPDATE source_match_candidates
+          SET review_status = 'rejected', decided_at = ?, updated_at = ?
+          WHERE source_item_id = ? AND ${targetColumn} = ?
+        `
+        ).run(now, now, sourceItemId, canonicalId)
+      }
+      return result.changes > 0
+    })()
+  }
+
+  public reviewMatchCandidate(
+    candidateId: string,
+    decision: Exclude<SourceMatchStatus, 'pending'>,
+    now: number
+  ): SourceMatchCandidateView {
+    const db = this.requireDatabase()
+    return db.transaction(() => {
+      const candidate = this.requireCandidateRow(db, candidateId)
+      const canonicalType = candidate.canonical_type
+      const canonicalId = candidate.canonical_id
+      if (decision === 'accepted') {
+        this.linkSourceToCanonicalInTransaction(
+          db,
+          candidate.source_item_id,
+          canonicalType,
+          canonicalId,
+          true,
+          now
+        )
+      }
+      db.prepare(
+        `
+        UPDATE source_match_candidates
+        SET review_status = ?, decided_at = ?, updated_at = ?
+        WHERE id = ?
+      `
+      ).run(decision, now, now, candidateId)
+      return this.mapCandidateView(this.requireCandidateRow(db, candidateId))
+    })()
   }
 
   public beginSync(
@@ -508,6 +882,177 @@ export class SourceRepositoryService {
     })()
   }
 
+  private linkSourceToCanonicalInTransaction(
+    db: Database.Database,
+    sourceItemId: string,
+    canonicalType: CanonicalSourceType,
+    canonicalId: string,
+    isManual: boolean,
+    now: number
+  ): CanonicalSourceLink {
+    this.assertSourceItemExists(db, sourceItemId)
+    this.assertCanonicalTargetExists(db, canonicalType, canonicalId)
+    const targetColumn = canonicalTargetColumn(canonicalType)
+    const existingLinks = db
+      .prepare(
+        `
+        SELECT id, source_item_id, lesson_id, resource_id, is_manual, is_preferred, created_at, updated_at
+        FROM canonical_source_links
+        WHERE source_item_id = ?
+      `
+      )
+      .all(sourceItemId) as CanonicalLinkRow[]
+    const existing = existingLinks.find(
+      (link) => link[targetColumn] === canonicalId
+    )
+    if (existing) {
+      if (isManual && existing.is_manual === 0) {
+        db.prepare(
+          `UPDATE canonical_source_links SET is_manual = 1, updated_at = ? WHERE id = ?`
+        ).run(now, existing.id)
+        existing.is_manual = 1
+        existing.updated_at = now
+      }
+      return this.mapCanonicalLink(existing)
+    }
+    if (existingLinks.length > 0) {
+      throw new Error('Source item already linked to another canonical item')
+    }
+
+    const link: CanonicalLinkRow = {
+      id: randomUUID(),
+      source_item_id: sourceItemId,
+      lesson_id: canonicalType === 'lesson' ? canonicalId : null,
+      resource_id: canonicalType === 'content-resource' ? canonicalId : null,
+      is_manual: isManual ? 1 : 0,
+      is_preferred: 0,
+      created_at: now,
+      updated_at: now
+    }
+    db.prepare(
+      `
+      INSERT INTO canonical_source_links (
+        id, lesson_id, resource_id, source_item_id, is_manual, is_preferred, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `
+    ).run(
+      link.id,
+      link.lesson_id,
+      link.resource_id,
+      link.source_item_id,
+      link.is_manual,
+      link.is_preferred,
+      link.created_at,
+      link.updated_at
+    )
+    return this.mapCanonicalLink(link)
+  }
+
+  private assertSourceItemExists(
+    db: Database.Database,
+    sourceItemId: string
+  ): void {
+    const row = db
+      .prepare(`SELECT id FROM source_items WHERE id = ?`)
+      .get(sourceItemId)
+    if (!row) throw new Error('Unknown source item')
+  }
+
+  private assertCanonicalTargetExists(
+    db: Database.Database,
+    canonicalType: CanonicalSourceType,
+    canonicalId: string
+  ): void {
+    const table = canonicalType === 'lesson' ? 'lessons' : 'content_resources'
+    const row = db
+      .prepare(`SELECT id FROM ${table} WHERE id = ?`)
+      .get(canonicalId)
+    if (!row) throw new Error('Unknown canonical target')
+  }
+
+  private requireCandidateRow(
+    db: Database.Database,
+    candidateId: string
+  ): MatchCandidateRow {
+    const row = db
+      .prepare(
+        `
+        SELECT
+          source_match_candidates.id,
+          source_match_candidates.source_item_id,
+          source_items.name AS source_name,
+          source_items.provider AS source_provider,
+          CASE
+            WHEN source_match_candidates.lesson_id IS NOT NULL THEN 'lesson'
+            ELSE 'content-resource'
+          END AS canonical_type,
+          COALESCE(source_match_candidates.lesson_id, source_match_candidates.resource_id) AS canonical_id,
+          COALESCE(lessons.title, content_resources.name) AS canonical_title,
+          source_match_candidates.confidence,
+          source_match_candidates.evidence_json,
+          source_match_candidates.review_status,
+          source_match_candidates.decided_at,
+          source_match_candidates.created_at
+        FROM source_match_candidates
+        JOIN source_items ON source_items.id = source_match_candidates.source_item_id
+        LEFT JOIN lessons ON lessons.id = source_match_candidates.lesson_id
+        LEFT JOIN content_resources ON content_resources.id = source_match_candidates.resource_id
+        WHERE source_match_candidates.id = ?
+      `
+      )
+      .get(candidateId) as MatchCandidateRow | undefined
+    if (!row) throw new Error('Unknown source match candidate')
+    return row
+  }
+
+  private mapCandidate(
+    _db: Database.Database,
+    row: MatchCandidateRow
+  ): SourceMatchCandidate {
+    const evidence = parseMatchEvidence(row.evidence_json)
+    return {
+      id: row.id,
+      sourceItemId: row.source_item_id,
+      canonicalType: row.canonical_type,
+      canonicalId: row.canonical_id,
+      confidence: row.confidence,
+      evidence,
+      status: row.review_status,
+      ...(row.decided_at === null ? {} : { decidedAt: row.decided_at }),
+      createdAt: row.created_at
+    }
+  }
+
+  private mapCandidateView(row: MatchCandidateRow): SourceMatchCandidateView {
+    return {
+      id: row.id,
+      sourceItemId: row.source_item_id,
+      sourceName: row.source_name,
+      sourceProvider: row.source_provider,
+      canonicalType: row.canonical_type,
+      canonicalId: row.canonical_id,
+      canonicalTitle: row.canonical_title,
+      confidence: row.confidence,
+      evidence: parseMatchEvidence(row.evidence_json),
+      status: row.review_status,
+      ...(row.decided_at === null ? {} : { decidedAt: row.decided_at }),
+      createdAt: row.created_at
+    }
+  }
+
+  private mapCanonicalLink(row: CanonicalLinkRow): CanonicalSourceLink {
+    return {
+      id: row.id,
+      sourceItemId: row.source_item_id,
+      canonicalType: row.lesson_id ? 'lesson' : 'content-resource',
+      canonicalId: row.lesson_id ?? row.resource_id!,
+      isManual: row.is_manual === 1,
+      isPreferred: row.is_preferred === 1,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at
+    }
+  }
+
   private requireDatabase(): Database.Database {
     const database = this.databaseService.getDatabase()
     if (!database)
@@ -623,7 +1168,16 @@ export class SourceRepositoryService {
   private mapItem(row: SourceItemRow): SourceItem {
     const locator = parseOptionalObject(row.locator_json) as
       SourceItemLocator | undefined
-    const technicalMetadata = parseOptionalObject(row.technical_metadata_json)
+    const parsedTechnicalMetadata = parseOptionalObject(
+      row.technical_metadata_json
+    )
+    const technicalMetadata =
+      row.duration === null && !parsedTechnicalMetadata
+        ? undefined
+        : {
+            ...(parsedTechnicalMetadata ?? {}),
+            ...(row.duration === null ? {} : { duration: row.duration })
+          }
     if (!locator)
       throw new Error(`Source item ${row.id} has an invalid locator`)
 
@@ -633,10 +1187,17 @@ export class SourceRepositoryService {
       sourceRootId: row.source_root_id,
       provider: row.provider,
       locator,
+      ...(row.provider_item_identity
+        ? { providerItemIdentity: row.provider_item_identity }
+        : {}),
+      ...(row.parent_provider_identity
+        ? { parentProviderIdentity: row.parent_provider_identity }
+        : {}),
       relativePath: row.relative_path,
       name: row.name,
       ...(row.mime_type ? { mimeType: row.mime_type } : {}),
       ...(row.size === null ? {} : { size: row.size }),
+      ...(row.fingerprint ? { fingerprint: row.fingerprint } : {}),
       ...(row.revision ? { revision: row.revision } : {}),
       ...(row.checksum ? { checksum: row.checksum } : {}),
       availability: row.availability,
@@ -647,4 +1208,77 @@ export class SourceRepositoryService {
       updatedAt: row.updated_at
     } as SourceItem
   }
+}
+
+function actionToMatchStatus(
+  action: SourceMatchEvaluation['action']
+): SourceMatchStatus {
+  if (action === 'auto-link') return 'accepted'
+  if (action === 'review') return 'pending'
+  return 'rejected'
+}
+
+function canonicalTargetColumn(
+  canonicalType: CanonicalSourceType
+): 'lesson_id' | 'resource_id' {
+  if (canonicalType === 'lesson') return 'lesson_id'
+  if (canonicalType === 'content-resource') return 'resource_id'
+  throw new Error('Invalid canonical source type')
+}
+
+function parseMatchEvidence(value: string): SourceMatchEvidence {
+  try {
+    const parsed: unknown = JSON.parse(value)
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return parsed as SourceMatchEvidence
+    }
+  } catch {
+    // Use a fixed safe fallback for legacy rows.
+  }
+  return {
+    thresholdVersion: 'unknown',
+    courseContext: 'unknown',
+    signals: [],
+    strongContentMatch: false,
+    technicalMetadataCompatible: false,
+    duplicateAcrossCourses: false
+  }
+}
+
+function relativePathFromRoot(
+  rootPath: string,
+  filePath: string,
+  fallback: string
+): string {
+  const normalizedRoot = normalizePath(rootPath)
+  const normalizedFile = normalizePath(filePath)
+  if (
+    normalizedFile.startsWith(`${normalizedRoot}/`) &&
+    normalizedFile.length > normalizedRoot.length + 1
+  ) {
+    return normalizedFile.slice(normalizedRoot.length + 1)
+  }
+  return normalizeRelativePath(fallback)
+}
+
+function pathsEqual(left: string, right: string): boolean {
+  return normalizePath(left) === normalizePath(right)
+}
+
+function normalizePath(value: string): string {
+  return value
+    .replace(/\\/g, '/')
+    .replace(/\/+/g, '/')
+    .replace(/\/$/, '')
+    .toLocaleLowerCase()
+}
+
+function normalizeRelativePath(value: string): string {
+  const normalized = value
+    .replace(/\\/g, '/')
+    .replace(/\/+/g, '/')
+    .replace(/^\/+/, '')
+  return normalized.includes('..') || /^[a-z]:\//i.test(normalized)
+    ? (normalized.split('/').pop() ?? 'unknown')
+    : normalized
 }
