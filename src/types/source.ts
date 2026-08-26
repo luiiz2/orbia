@@ -136,10 +136,12 @@ interface SourceItemBase {
   id: string
   sourceId: string
   sourceRootId: string
+  parentProviderIdentity?: string
   relativePath: string
   name: string
   mimeType?: string
   size?: number
+  fingerprint?: string
   revision?: string
   checksum?: string
   availability: SourceAvailability
@@ -171,13 +173,103 @@ export interface CanonicalSourceLink {
 
 export type SourceMatchStatus = 'pending' | 'accepted' | 'rejected'
 
+export const SOURCE_MATCH_THRESHOLD_VERSION = 'source-match-v1'
+
+export type SourceMatchAction = 'auto-link' | 'review' | 'separate'
+
+export type SourceMatchCourseContext = 'same' | 'different' | 'unknown'
+
+export type SourceMatchSignalKind =
+  | 'checksum'
+  | 'fingerprint'
+  | 'title'
+  | 'relative-structure'
+  | 'duration'
+  | 'size'
+  | 'technical-metadata'
+
+export interface SourceMatchSignal {
+  kind: SourceMatchSignalKind
+  matched: boolean
+  score: number
+}
+
+export interface SourceMatchEvidence {
+  thresholdVersion: string
+  courseContext: SourceMatchCourseContext
+  signals: SourceMatchSignal[]
+  strongContentMatch: boolean
+  technicalMetadataCompatible: boolean
+  duplicateAcrossCourses: boolean
+}
+
+export interface SourceMatchTarget {
+  canonicalType: CanonicalSourceType
+  canonicalId: string
+  courseId: string
+  title: string
+  fileName: string
+  relativePath: string
+  size?: number
+  duration?: number
+  fingerprint?: string
+  checksum?: string
+  technicalMetadata?: SourceTechnicalMetadata
+}
+
+export interface SourceMatchInput {
+  source: {
+    sourceItemId: string
+    courseId?: string
+    name: string
+    relativePath: string
+    size?: number
+    duration?: number
+    fingerprint?: string
+    checksum?: string
+    technicalMetadata?: SourceTechnicalMetadata
+  }
+  target: SourceMatchTarget
+}
+
+export interface SourceMatchEvaluation {
+  sourceItemId: string
+  canonicalType: CanonicalSourceType
+  canonicalId: string
+  confidence: number
+  action: SourceMatchAction
+  evidence: SourceMatchEvidence
+}
+
+export interface SourceMatchCandidateView {
+  id: string
+  sourceItemId: string
+  sourceName: string
+  sourceProvider: SourceProvider
+  canonicalType: CanonicalSourceType
+  canonicalId: string
+  canonicalTitle: string
+  confidence: number
+  evidence: SourceMatchEvidence
+  status: SourceMatchStatus
+  decidedAt?: number
+  createdAt: number
+}
+
+export interface SourceMatchSummary {
+  evaluated: number
+  autoLinked: number
+  pending: number
+  duplicates: number
+}
+
 export interface SourceMatchCandidate {
   id: string
   sourceItemId: string
   canonicalType: CanonicalSourceType
   canonicalId: string
   confidence: number
-  evidence?: Record<string, unknown>
+  evidence?: SourceMatchEvidence
   status: SourceMatchStatus
   decidedAt?: number
   createdAt: number
