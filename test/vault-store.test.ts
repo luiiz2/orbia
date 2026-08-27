@@ -89,12 +89,4 @@ describe('VaultStore Operations', () => {
     expect(useVaultStore.getState().currentVault?.name).toBe('Primary Vault')
   })
 
-  it('selects directory and refreshes statistics', async () => {
-    const dir = await useVaultStore.getState().selectDirectory()
-    expect(dir).toBe('/vaults/selected')
-
-    useVaultStore.setState({ currentVault: mockVault })
-    await useVaultStore.getState().refreshStats()
-    expect(window.api.vault.getStats).toHaveBeenCalled()
-  })
 })

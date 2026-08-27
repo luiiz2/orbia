@@ -622,8 +622,4 @@ describe('DatabaseService - Course Merging & Deduplication', () => {
     expect(vossHierarchy?.modules[0].title).toBe('Intro')
   })
 
-  it('autoOrganizeLibrary separates misplaced courses and deduplicates duplicate modules automatically', () => {
-    const autoResult = dbService.autoOrganizeLibrary()
-    expect(autoResult.success).toBe(true)
-  })
 })

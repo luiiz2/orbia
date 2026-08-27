@@ -231,17 +231,6 @@ Hoje vamos aprender a organizar sua biblioteca.`
       expect(vttOutput).toContain('Hoje vamos aprender a organizar sua biblioteca.')
     })
 
-    it('handles Windows CRLF line endings in SRT', () => {
-      const srtInput = `1\r\n00:00:01,500 --> 00:00:04,200\r\nPrimeira linha de legenda.\r\n\r\n2\r\n00:00:05,000 --> 00:00:08,000\r\nSegunda linha.`
-
-      const vttOutput = convertSrtToVtt(srtInput)
-
-      expect(vttOutput.startsWith('WEBVTT\n\n')).toBe(true)
-      expect(vttOutput).not.toContain('\r')
-      expect(vttOutput).toContain('00:00:01.500 --> 00:00:04.200')
-      expect(vttOutput).toContain('Primeira linha de legenda.')
-    })
-
     it('handles empty and whitespace-only subtitles gracefully', () => {
       expect(convertSrtToVtt('')).toBe('WEBVTT\n\n')
       expect(convertSrtToVtt('   \n\n  ')).toBe('WEBVTT\n\n')

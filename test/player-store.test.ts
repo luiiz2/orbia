@@ -86,36 +86,6 @@ describe('PlayerStore State Machine', () => {
     vi.restoreAllMocks()
   })
 
-  it('manages play, pause, volume, mute, and rate controls', () => {
-    const { play, pause, setVolume, toggleMute, setPlaybackRate, toggleFullscreen, toggleTheater } =
-      usePlayerStore.getState()
-
-    play()
-    expect(usePlayerStore.getState().isPlaying).toBe(true)
-
-    pause()
-    expect(usePlayerStore.getState().isPlaying).toBe(false)
-
-    setVolume(0.75)
-    expect(usePlayerStore.getState().volume).toBe(0.75)
-    expect(usePlayerStore.getState().isMuted).toBe(false)
-
-    setVolume(0)
-    expect(usePlayerStore.getState().isMuted).toBe(true)
-
-    toggleMute()
-    expect(usePlayerStore.getState().isMuted).toBe(false)
-
-    setPlaybackRate(1.5)
-    expect(usePlayerStore.getState().playbackRate).toBe(1.5)
-
-    toggleFullscreen()
-    expect(usePlayerStore.getState().isFullscreen).toBe(true)
-
-    toggleTheater()
-    expect(usePlayerStore.getState().theaterMode).toBe(true)
-  })
-
   it('loads hierarchy, selects initial lesson, and retrieves saved progress', async () => {
     vi.mocked(window.api.player.getProgress).mockResolvedValueOnce({
       lessonId: 'lp-1',

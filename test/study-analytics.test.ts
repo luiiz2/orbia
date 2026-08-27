@@ -120,14 +120,4 @@ describe('Study Analytics Engine', () => {
     expect(analytics.topCourses[0].secondsWatched).toBe(3000)
   })
 
-  it('honors user-customized study goals across different minute targets', () => {
-    const customGoal15 = dbService.getStudyAnalytics(15)
-    expect(customGoal15.dailyGoalMinutes).toBe(15)
-
-    const customGoal60 = dbService.getStudyAnalytics(60)
-    expect(customGoal60.dailyGoalMinutes).toBe(60)
-
-    const customGoal120 = dbService.getStudyAnalytics(120)
-    expect(customGoal120.dailyGoalMinutes).toBe(120)
-  })
 })

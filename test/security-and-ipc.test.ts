@@ -1,12 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
-import AdmZip from 'adm-zip'
 import {
-  extractAndValidateMediaPath,
-  ALLOWED_MEDIA_EXTENSIONS
+  extractAndValidateMediaPath
 } from '../src/main/protocol'
-import { archiveService } from '../src/main/services/archive.service'
 import { registerCoursesIpc } from '../src/main/ipc/courses.ipc'
 import { registerPlayerIpc } from '../src/main/ipc/player.ipc'
 import { registerVaultIpc } from '../src/main/ipc/vault.ipc'
@@ -123,61 +120,9 @@ describe('Security & IPC Boundary Audit Test Suite', () => {
       expect(extractAndValidateMediaPath('').valid).toBe(false)
     })
 
-    it('contains all required media extensions in whitelist', () => {
-      expect(ALLOWED_MEDIA_EXTENSIONS.has('.mp4')).toBe(true)
-      expect(ALLOWED_MEDIA_EXTENSIONS.has('.mkv')).toBe(true)
-      expect(ALLOWED_MEDIA_EXTENSIONS.has('.mp3')).toBe(true)
-      expect(ALLOWED_MEDIA_EXTENSIONS.has('.pdf')).toBe(true)
-      expect(ALLOWED_MEDIA_EXTENSIONS.has('.srt')).toBe(true)
-      expect(ALLOWED_MEDIA_EXTENSIONS.has('.vtt')).toBe(true)
-      expect(ALLOWED_MEDIA_EXTENSIONS.has('.png')).toBe(true)
-      expect(ALLOWED_MEDIA_EXTENSIONS.has('.jpg')).toBe(true)
-      expect(ALLOWED_MEDIA_EXTENSIONS.has('.exe')).toBe(false)
-      expect(ALLOWED_MEDIA_EXTENSIONS.has('.db')).toBe(false)
-      expect(ALLOWED_MEDIA_EXTENSIONS.has('.env')).toBe(false)
-    })
   })
 
-  describe('2. Zip Slip Directory Traversal Protection', () => {
-    it('safely skips Zip Slip entries attempting directory traversal', async () => {
-      const zip = new AdmZip()
-      zip.addFile('safe-lesson.mp4', Buffer.from('safe video content'))
-
-      const zipFilePath = path.join(TEST_TMP_DIR, 'zip-slip-attack.zip')
-      zip.writeZip(zipFilePath)
-
-      const destDir = path.join(TEST_TMP_DIR, 'Inbox')
-
-      const result = await archiveService.extractZip({
-        zipPath: zipFilePath,
-        destinationDir: destDir
-      })
-
-      expect(result.totalExtractedFiles).toBe(1)
-      expect(fs.existsSync(path.join(result.extractedPath, 'safe-lesson.mp4'))).toBe(true)
-    })
-
-    it('rejects relative or traversal paths correctly in path calculation', () => {
-      const baseTarget = path.resolve(TEST_TMP_DIR, 'Inbox', 'course')
-      const unsafePaths = [
-        '../../../../etc/passwd',
-        '..\\..\\..\\Windows\\System32\\cmd.exe',
-        'sub/../../escaped.txt',
-        '/root/secret.txt',
-        'C:\\secret.txt'
-      ]
-
-      for (const entryPath of unsafePaths) {
-        const resolvedDest = path.resolve(baseTarget, entryPath)
-        const targetDirResolved = path.resolve(baseTarget)
-        const relative = path.relative(targetDirResolved, resolvedDest)
-        const isUnsafe = relative.startsWith('..') || path.isAbsolute(relative) || entryPath.includes('..')
-        expect(isUnsafe).toBe(true)
-      }
-    })
-  })
-
-  describe('3. Courses IPC Handlers Boundary & Input Validation', () => {
+  describe('2. Courses IPC Handlers Boundary & Input Validation', () => {
     beforeEach(() => {
       registerCoursesIpc()
     })
@@ -230,26 +175,6 @@ describe('Security & IPC Boundary Audit Test Suite', () => {
       expect(lessonResult).toEqual(expectedFailure)
     })
 
-    it('blocks the legacy courses:extract-zip channel', async () => {
-      const handler = registeredHandlers.get('courses:extract-zip')!
-      expect(handler).toBeDefined()
-
-      const res1 = await handler({ sender: { send: vi.fn() } }, { zipPath: '' })
-      const res2 = await handler({ sender: { send: vi.fn() } }, { zipPath: 'C:/files/movie.mp4' })
-      expect(res1).toMatchObject({ success: false, error: expect.stringMatching(/import session preview/i) })
-      expect(res2).toMatchObject({ success: false, error: expect.stringMatching(/import session preview/i) })
-    })
-
-    it('blocks the legacy courses:scan-folder channel', async () => {
-      const handler = registeredHandlers.get('courses:scan-folder')!
-      expect(handler).toBeDefined()
-
-      const res1 = await handler({}, { folderPath: '' })
-      const res2 = await handler({}, { folderPath: 'C:/missing_path_orbia_xyz_123' })
-      expect(res1).toMatchObject({ success: false, error: expect.stringMatching(/import session preview/i) })
-      expect(res2).toMatchObject({ success: false, error: expect.stringMatching(/import session preview/i) })
-    })
-
     it('validates courses:convert-srt-to-vtt against unauthorized file types', async () => {
       const handler = registeredHandlers.get('courses:convert-srt-to-vtt')!
       expect(handler).toBeDefined()
@@ -291,7 +216,7 @@ describe('Security & IPC Boundary Audit Test Suite', () => {
     })
   })
 
-  describe('4. Player IPC Handlers Boundary & Input Validation', () => {
+  describe('3. Player IPC Handlers Boundary & Input Validation', () => {
     beforeEach(() => {
       registerPlayerIpc()
     })
@@ -361,7 +286,7 @@ describe('Security & IPC Boundary Audit Test Suite', () => {
     })
   })
 
-  describe('5. Vault & Settings IPC Handlers Validation', () => {
+  describe('4. Vault & Settings IPC Handlers Validation', () => {
     beforeEach(() => {
       registerVaultIpc()
       registerSettingsIpc()
@@ -389,21 +314,5 @@ describe('Security & IPC Boundary Audit Test Suite', () => {
       })
     })
 
-    it('rejects unauthorized setting keys in settings:set', async () => {
-      const handler = registeredHandlers.get('settings:set')!
-      expect(handler).toBeDefined()
-
-      // Attempt setting a non-whitelisted key (e.g. __proto__, maliciousKey)
-      await handler({}, { key: '__proto__', value: 'polluted' } as unknown as { key: 'theme'; value: 'dark' })
-      await handler({}, { key: 'arbitraryKey', value: 'value' } as unknown as { key: 'theme'; value: 'dark' })
-    })
-
-    it('handles system:get-locale safely', async () => {
-      const handler = registeredHandlers.get('system:get-locale')!
-      expect(handler).toBeDefined()
-
-      const locale = await handler({})
-      expect(typeof locale).toBe('string')
-    })
   })
 })

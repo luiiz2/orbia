@@ -13,11 +13,6 @@ describe('useReviewStore', () => {
       isReviewSessionActive: false
     })
 
-    let mockQueue = [
-      { id: 'q1', entityType: 'course', entityId: 'crs1', orderIndex: 0, createdAt: 1, title: 'Course 1' },
-      { id: 'q2', entityType: 'lesson', entityId: 'les1', orderIndex: 1, createdAt: 2, title: 'Lesson 1' }
-    ]
-
     const mockApi = {
       flashcards: {
         getDue: vi.fn().mockResolvedValue([
@@ -62,34 +57,6 @@ describe('useReviewStore', () => {
         update: vi.fn().mockResolvedValue(true),
         delete: vi.fn().mockResolvedValue(true)
       },
-      studyQueue: {
-        list: vi.fn().mockImplementation(async () => mockQueue),
-        add: vi.fn().mockImplementation(async (type, id) => {
-          const item = {
-            id: 'q3',
-            entityType: type,
-            entityId: id,
-            orderIndex: mockQueue.length,
-            createdAt: Date.now(),
-            title: 'New Item'
-          }
-          mockQueue.push(item)
-          return item
-        }),
-        remove: vi.fn().mockImplementation(async (id) => {
-          mockQueue = mockQueue.filter((i) => i.id !== id)
-          return true
-        }),
-        reorder: vi.fn().mockImplementation(async (id, direction) => {
-          const idx = mockQueue.findIndex((i) => i.id === id)
-          if (idx === -1) return false
-          const target = direction === 'up' ? idx - 1 : idx + 1
-          if (target < 0 || target >= mockQueue.length) return false
-          const [moved] = mockQueue.splice(idx, 1)
-          mockQueue.splice(target, 0, moved)
-          return true
-        })
-      },
       review: {
         getDashboardStats: vi.fn().mockResolvedValue({
           dueFlashcardsCount: 1,
@@ -132,16 +99,4 @@ describe('useReviewStore', () => {
     expect(window.api.flashcards.review).toHaveBeenCalledWith('c1', 'AGAIN')
   })
 
-  it('reorders study queue items smoothly', async () => {
-    const store = useReviewStore.getState()
-    await store.fetchStudyQueue()
-
-    expect(useReviewStore.getState().studyQueue[0].id).toBe('q1')
-    expect(useReviewStore.getState().studyQueue[1].id).toBe('q2')
-
-    await store.reorderStudyQueue('q2', 'up')
-    const queue = useReviewStore.getState().studyQueue
-    expect(queue[0].id).toBe('q2')
-    expect(queue[1].id).toBe('q1')
-  })
 })

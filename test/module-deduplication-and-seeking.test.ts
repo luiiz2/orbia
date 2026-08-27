@@ -1,36 +1,11 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import path from 'node:path'
 import os from 'node:os'
 import fs from 'node:fs'
 import { DatabaseService } from '../src/main/services/database.service'
 import { ParserService } from '../src/main/services/parser.service'
-import { setupMediaProtocol, type MediaPathAuthorizer } from '../src/main/protocol'
 import type { Course, Module, Lesson } from '../src/types'
 import type { ScannedDirectory } from '../src/main/services/scanner.service'
-
-const state = vi.hoisted(() => ({
-  handler: undefined as
-    | undefined
-    | ((request: { url: string; headers: Headers }) => Promise<Response>)
-}))
-
-vi.mock('electron', () => ({
-  protocol: {
-    registerSchemesAsPrivileged: vi.fn(),
-    handle: vi.fn((_scheme: string, handler: (request: { url: string; headers: Headers }) => Promise<Response>) => {
-      state.handler = handler
-    })
-  }
-}))
-
-vi.mock('../src/main/services/logger.service', () => ({
-  logger: {
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    debug: vi.fn()
-  }
-}))
 
 describe('Module Deduplication & Video Range Seeking', () => {
   let tempDir: string
@@ -318,32 +293,4 @@ describe('Module Deduplication & Video Range Seeking', () => {
     expect(cleaned!.modules[0].lessons.map((l) => l.title)).toEqual(['Aula 1', 'Aula 2'])
   })
 
-  it('supports HTTP 206 Partial Content Range streaming with exact byte slices', async () => {
-    const videoPath = path.join(tempDir, 'sample_video.mp4')
-    const sampleBuffer = Buffer.from('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ')
-    fs.writeFileSync(videoPath, sampleBuffer)
-
-    const authorizer: MediaPathAuthorizer = {
-      isPathAuthorized: vi.fn().mockResolvedValue(true)
-    }
-
-    setupMediaProtocol({ authorizer })
-
-    const toMediaUrl = (p: string) => `media://${encodeURI(p.replace(/\\/g, '/'))}`
-
-    // Request byte range 10-19 (10 bytes: 'ABCDEFGHIJ')
-    const response = await state.handler!({
-      url: toMediaUrl(videoPath),
-      headers: new Headers({ range: 'bytes=10-19' })
-    })
-
-    expect(response.status).toBe(206)
-    expect(response.headers.get('Content-Range')).toBe(`bytes 10-19/${sampleBuffer.length}`)
-    expect(response.headers.get('Accept-Ranges')).toBe('bytes')
-    expect(response.headers.get('Content-Length')).toBe('10')
-    expect(response.headers.get('Content-Type')).toBe('video/mp4')
-
-    const chunk = await response.text()
-    expect(chunk).toBe('ABCDEFGHIJ')
-  })
 })

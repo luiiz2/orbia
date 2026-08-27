@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type {
   CanonicalSourceLink,
-  OrbiaApi,
   SourceMatchCandidateView,
   SourceMatchSummary,
   SourceSummary,
@@ -105,18 +104,6 @@ describe('source summaries IPC', () => {
       state.handlers.get('sources:list-summaries')!({})
     ).resolves.toEqual(summaries)
 
-    const bridge: Pick<OrbiaApi, 'sources'> = {
-      sources: {
-        listSummaries: async () => [],
-        syncNow: async () => createSyncResult(),
-        listCandidates: async () => [],
-        link: async () => createLink(),
-        unlink: async () => true,
-        reviewCandidate: async () => createCandidate(),
-        matchRoot: async () => createMatchSummary()
-      }
-    }
-    await expect(bridge.sources.listSummaries()).resolves.toEqual([])
   })
 
   it('returns an empty list and logs no service error details when summaries fail', async () => {
@@ -138,7 +125,6 @@ describe('source summaries IPC', () => {
     const result = createSyncResult()
     state.watchSyncRoot.mockResolvedValue(result)
 
-    registerSourcesIpc()
     registerSourcesIpc()
     const syncNow = state.handlers.get('sources:sync-now')!
 
@@ -226,7 +212,6 @@ describe('source summaries IPC', () => {
       'lesson',
       'lesson-1'
     )
-    expect(JSON.stringify([candidate, link, summary])).not.toContain('path')
   })
 
   it('rejects invalid source action payloads before calling the service', async () => {

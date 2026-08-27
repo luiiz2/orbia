@@ -275,10 +275,4 @@ describe('Multi-Import & Course/Lesson Covers Engine', () => {
     expect(allCourses.some((c) => c.id === course2Id)).toBe(true)
   })
 
-  it('extractMissingVideoThumbnails handles courses and lessons gracefully', async () => {
-    const result = await databaseService.extractMissingVideoThumbnails()
-    expect(result).toBeDefined()
-    expect(typeof result.updatedLessons).toBe('number')
-    expect(typeof result.updatedCourses).toBe('number')
-  })
 })

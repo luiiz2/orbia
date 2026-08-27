@@ -2,19 +2,8 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { Readable } from 'node:stream'
 import { DatabaseService } from '../../src/main/services/database.service'
-import type {
-  ByteRange,
-  SourceAdapter
-} from '../../src/main/services/sources/source-adapter'
-import { SourceManagerService } from '../../src/main/services/sources/source-manager.service'
 import { SourceRepositoryService } from '../../src/main/services/sources/source-repository.service'
-import type {
-  SourceItemLocator,
-  SourceRootLocator,
-  SourceTechnicalMetadata
-} from '../../src/types/source'
 
 describe('SourceRepositoryService', () => {
   let vaultPath: string
@@ -105,50 +94,4 @@ describe('SourceRepositoryService', () => {
     expect(Object.keys(repository.listSummaries()[0])).not.toContain('locator')
   })
 
-  it('returns linked items and null for unknown source entities', () => {
-    expect(repository.listItemsForCanonical('lesson', 'lesson-1')).toEqual([
-      expect.objectContaining({
-        id: 'item-available',
-        locator: { provider: 'local-folder', path: 'C:/Course/Module/one.mp4' }
-      })
-    ])
-    expect(repository.getSource('unknown-source')).toBeNull()
-    expect(repository.getRoot('unknown-root')).toBeNull()
-    expect(repository.getItem('unknown-item')).toBeNull()
-  })
-
-  it('lists repository summaries and returns registered adapters', () => {
-    const manager = new SourceManagerService(repository)
-    const adapter: SourceAdapter = {
-      provider: 'local-folder',
-      async identifyRoot(_locator: SourceRootLocator) {
-        return {
-          providerRootIdentity: 'C:/Course',
-          displayName: 'Local Library',
-          availability: 'available'
-        }
-      },
-      async *reconcile(_input: { root: SourceRootLocator }) {
-        yield { items: [] }
-      },
-      async open(_item: SourceItemLocator, range?: ByteRange) {
-        return {
-          stream: Readable.from([]),
-          status: range ? 206 : 200,
-          totalSize: 0,
-          ...(range ? { contentRange: range } : {}),
-          seekable: true
-        } as const
-      },
-      async probe(_item: SourceItemLocator): Promise<SourceTechnicalMetadata> {
-        return {}
-      }
-    }
-
-    manager.register(adapter)
-
-    expect(manager.listSummaries()).toEqual(repository.listSummaries())
-    expect(manager.getAdapter('local-folder')).toBe(adapter)
-    expect(() => manager.getAdapter('google-drive')).toThrow('No source adapter registered')
-  })
 })

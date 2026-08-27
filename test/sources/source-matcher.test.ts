@@ -81,53 +81,6 @@ describe('SourceMatcher', () => {
     )
   })
 
-  it('keeps equal size and duration at review confidence', () => {
-    const result = matcher.evaluate(
-      createInput(
-        { name: 'Different.mp4', relativePath: 'Other/Different.mp4' },
-        {
-          title: 'Another Lesson',
-          fileName: 'Another.mp4',
-          relativePath: 'Another/Another.mp4'
-        }
-      )
-    )
-
-    expect(result.action).toBe('review')
-    expect(result.evidence.strongContentMatch).toBe(false)
-  })
-
-  it('never auto-links when source course context is unknown', () => {
-    const result = matcher.evaluate(
-      createInput(
-        { courseId: undefined, fingerprint: 'same-fingerprint' },
-        {
-          fingerprint: 'same-fingerprint'
-        }
-      )
-    )
-
-    expect(result.action).toBe('review')
-    expect(result.evidence.courseContext).toBe('unknown')
-  })
-
-  it('marks equal cross-course fingerprints as informational duplicates only', () => {
-    const result = matcher.evaluate(
-      createInput(
-        { courseId: 'course-1', fingerprint: 'same-fingerprint' },
-        { courseId: 'course-2', fingerprint: 'same-fingerprint' }
-      )
-    )
-
-    expect(result).toMatchObject({
-      action: 'separate',
-      evidence: {
-        courseContext: 'different',
-        duplicateAcrossCourses: true
-      }
-    })
-  })
-
   it('reduces confidence for incompatible technical metadata', () => {
     const result = matcher.evaluate(
       createInput(

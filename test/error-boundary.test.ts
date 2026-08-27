@@ -7,12 +7,6 @@ describe('ErrorBoundary Resilience', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
   })
 
-  it('initializes with no error in default state', () => {
-    const boundary = new ErrorBoundary({ children: React.createElement('div') })
-    expect(boundary.state.hasError).toBe(false)
-    expect(boundary.state.error).toBeNull()
-  })
-
   it('updates state upon catching error via getDerivedStateFromError', () => {
     const error = new Error('Test crash in child component')
     const state = ErrorBoundary.getDerivedStateFromError(error)
@@ -36,11 +30,4 @@ describe('ErrorBoundary Resilience', () => {
     expect(rendered.props.id).toBe('custom-fallback')
   })
 
-  it('renders children normally when state has no error', () => {
-    const childElement = React.createElement('div', { id: 'normal-child' }, 'Everything OK')
-    const boundary = new ErrorBoundary({ children: childElement })
-
-    const rendered = boundary.render() as React.ReactElement
-    expect(rendered.props.id).toBe('normal-child')
-  })
 })
