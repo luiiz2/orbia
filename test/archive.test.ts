@@ -24,13 +24,6 @@ describe('ArchiveService (.zip extraction)', () => {
     }
   })
 
-  it('should correctly identify .zip files', () => {
-    expect(archiveService.isZipFile('course.zip')).toBe(true)
-    expect(archiveService.isZipFile('COURSE.ZIP')).toBe(true)
-    expect(archiveService.isZipFile('C:/files/course.mp4')).toBe(false)
-    expect(archiveService.isZipFile('')).toBe(false)
-  })
-
   it('should extract a valid zip archive with lessons and modules', async () => {
     const zip = new AdmZip()
     zip.addFile('Module 01/01 - Introduction.mp4', Buffer.from('fake video 1'))

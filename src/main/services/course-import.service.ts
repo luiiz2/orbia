@@ -31,6 +31,7 @@ import {
 } from './proposal-cover.service'
 import { vaultService } from './vault.service'
 import { optimizationQueueService, provenanceAndExclusionsService } from './optimizer'
+import { transcriptionService } from './transcription/transcription.service'
 import { normalizeModuleKey } from '../utils/title-cleaner'
 import { naturalCompare } from '../utils/natural-sort'
 
@@ -147,6 +148,7 @@ export class CourseImportService {
         this.recordCompletedImportSafely(session, course, warnings)
         await this.materializeCoversSafely(trustedProposal, course, modules, currentVault.path, operationGroupId, warnings)
         this.triggerAutoOptimization(course.id)
+        this.triggerAutoTranscription(course.id)
         return { course, warnings }
       }
 
@@ -189,6 +191,7 @@ export class CourseImportService {
       }
 
       this.triggerAutoOptimization(course.id)
+      this.triggerAutoTranscription(course.id)
       return { course, operationGroupId, warnings }
     } catch (error) {
       const details = errorMessage(error)
@@ -443,8 +446,16 @@ export class CourseImportService {
           profile: settings.defaultProfile || 'balanced'
         })
       }
-    } catch (err) {
+    } catch {
       // Non-blocking catch
+    }
+  }
+
+  private triggerAutoTranscription(courseId: string): void {
+    try {
+      transcriptionService.enqueueAutomaticallyIfEnabled(courseId)
+    } catch {
+      // Transcription is an optional, non-blocking import follow-up.
     }
   }
 }

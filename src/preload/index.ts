@@ -100,7 +100,8 @@ const api: OrbiaApi = {
     updateLessonNote: (id: string, content: string) => ipcRenderer.invoke('player:update-lesson-note', { id, content }),
     deleteLessonNote: (id: string) => ipcRenderer.invoke('player:delete-lesson-note', { id }),
     exportCourseNotes: (courseId: string) => ipcRenderer.invoke('player:export-course-notes', { courseId }),
-    getStudyAnalytics: (dailyGoalMinutes?: number) => ipcRenderer.invoke('player:get-study-analytics', { dailyGoalMinutes })
+    getStudyAnalytics: (dailyGoalMinutes?: number) => ipcRenderer.invoke('player:get-study-analytics', { dailyGoalMinutes }),
+    setActive: (active: boolean) => ipcRenderer.invoke('player:set-active', { active })
   },
 
   // Video Bookmarks (v0.3)
@@ -284,9 +285,84 @@ const api: OrbiaApi = {
     }
   },
 
+  transcription: {
+    getCurrent: (lessonId: string) => ipcRenderer.invoke('transcription:get-current', { lessonId }),
+    listVersions: (lessonId: string) => ipcRenderer.invoke('transcription:list-versions', { lessonId }),
+    getSubtitleCandidate: (lessonId: string, language?: string) =>
+      ipcRenderer.invoke('transcription:get-subtitle-candidate', { lessonId, language }),
+    enqueueLesson: (lessonId: string, options?: import('../types').TranscriptionOptions) =>
+      ipcRenderer.invoke('transcription:enqueue-lesson', { lessonId, options }),
+    enqueueModule: (moduleId: string, options?: import('../types').TranscriptionOptions) =>
+      ipcRenderer.invoke('transcription:enqueue-module', { moduleId, options }),
+    enqueueCourse: (courseId: string, options?: import('../types').TranscriptionOptions) =>
+      ipcRenderer.invoke('transcription:enqueue-course', { courseId, options }),
+    reuseSubtitle: (lessonId: string, language?: string) =>
+      ipcRenderer.invoke('transcription:reuse-subtitle', { lessonId, language }),
+    listQueue: () => ipcRenderer.invoke('transcription:list-queue'),
+    pauseJob: (jobId: string) => ipcRenderer.invoke('transcription:pause-job', { jobId }),
+    resumeJob: (jobId: string) => ipcRenderer.invoke('transcription:resume-job', { jobId }),
+    cancelJob: (jobId: string) => ipcRenderer.invoke('transcription:cancel-job', { jobId }),
+    retryJob: (jobId: string) => ipcRenderer.invoke('transcription:retry-job', { jobId }),
+    getSettings: () => ipcRenderer.invoke('transcription:get-settings'),
+    updateSettings: (settings: Partial<import('../types').TranscriptionSettings>) =>
+      ipcRenderer.invoke('transcription:update-settings', settings),
+    getCourseAutoTranscribe: (courseId: string) =>
+      ipcRenderer.invoke('transcription:get-course-auto-transcribe', { courseId }),
+    setCourseAutoTranscribe: (courseId: string, enabled: boolean) =>
+      ipcRenderer.invoke('transcription:set-course-auto-transcribe', { courseId, enabled }),
+    onProgress: (callback: (event: import('../types').TranscriptProgressEvent) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, progress: import('../types').TranscriptProgressEvent) => callback(progress)
+      ipcRenderer.on('transcription:progress', handler)
+      return () => ipcRenderer.removeListener('transcription:progress', handler)
+    }
+  },
+
   settings: {
     get: () => ipcRenderer.invoke('settings:get'),
     set: (key, value) => ipcRenderer.invoke('settings:set', { key, value })
+  },
+
+  ai: {
+    getSettings: () => ipcRenderer.invoke('ai:get-settings'),
+    saveProvider: (input) => ipcRenderer.invoke('ai:save-provider', input),
+    setRoute: (input) => ipcRenderer.invoke('ai:set-route', input),
+    setPrivacyMode: (privacyMode) => ipcRenderer.invoke('ai:set-privacy-mode', privacyMode),
+    setAllowedCloudDataTypes: (dataTypes) => ipcRenderer.invoke('ai:set-allowed-cloud-data-types', dataTypes),
+    discoverModels: (providerId) => ipcRenderer.invoke('ai:discover-models', providerId),
+    health: (providerId, modelId) => ipcRenderer.invoke('ai:health', { providerId, modelId }),
+    chat: (input) => ipcRenderer.invoke('ai:chat', input),
+    embed: (input) => ipcRenderer.invoke('ai:embed', input)
+  },
+
+  semanticIndex: {
+    getStatus: () => ipcRenderer.invoke('semantic-index:get-status'),
+    getMetrics: () => ipcRenderer.invoke('semantic-index:get-metrics'),
+    getSettings: () => ipcRenderer.invoke('semantic-index:get-settings'),
+    updateSettings: (settings) => ipcRenderer.invoke('semantic-index:update-settings', settings),
+    enqueue: (input) => ipcRenderer.invoke('semantic-index:enqueue', input),
+    rebuild: (input) => ipcRenderer.invoke('semantic-index:rebuild', input),
+    refreshSource: (selection, options) => ipcRenderer.invoke('semantic-index:refresh-source', { selection, options }),
+    removeSource: (selection) => ipcRenderer.invoke('semantic-index:remove-source', { selection }),
+    listQueue: () => ipcRenderer.invoke('semantic-index:list-queue'),
+    pauseJob: (jobId) => ipcRenderer.invoke('semantic-index:pause-job', { jobId }),
+    resumeJob: (jobId) => ipcRenderer.invoke('semantic-index:resume-job', { jobId }),
+    cancelJob: (jobId) => ipcRenderer.invoke('semantic-index:cancel-job', { jobId }),
+    retryJob: (jobId) => ipcRenderer.invoke('semantic-index:retry-job', { jobId }),
+    onProgress: (callback) => {
+      const listener = (_event: IpcRendererEvent, item: import('../types').OptimizationQueueItem) => callback(item)
+      ipcRenderer.on('semantic-index:progress', listener)
+      return () => ipcRenderer.removeListener('semantic-index:progress', listener)
+    }
+  },
+
+  chat: {
+    ask: (input) => ipcRenderer.invoke('chat:ask', input),
+    cancel: (requestId) => ipcRenderer.invoke('chat:cancel', { requestId }),
+    listConversations: () => ipcRenderer.invoke('chat:list-conversations'),
+    getConversation: (id) => ipcRenderer.invoke('chat:get-conversation', { id }),
+    renameConversation: (id, title) => ipcRenderer.invoke('chat:rename-conversation', { id, title }),
+    deleteConversation: (id) => ipcRenderer.invoke('chat:delete-conversation', { id }),
+    resolveSource: (input) => ipcRenderer.invoke('chat:resolve-source', input)
   },
 
   system: {

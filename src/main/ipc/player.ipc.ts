@@ -2,8 +2,13 @@ import { ipcMain } from 'electron'
 import { databaseService } from '../services/database.service'
 import { appConfigService } from '../services/app-config.service'
 import { logger } from '../services/logger.service'
+import { resourceManagerService } from '../services/optimizer/resource-manager.service'
 
 export function registerPlayerIpc(): void {
+  ipcMain.handle('player:set-active', async (_event, payload: { active?: unknown }) => {
+    resourceManagerService.setPlayerActive(Boolean(payload?.active))
+  })
+
   ipcMain.handle(
     'player:save-progress',
     async (

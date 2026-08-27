@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Settings,
@@ -13,7 +13,8 @@ import {
   Trash2,
   PackageCheck,
   Download,
-  AlertCircle
+  AlertCircle,
+  FileText
 } from 'lucide-react'
 import { useSettingsStore } from '../stores/useSettingsStore'
 import { useVaultStore } from '../stores/useVaultStore'
@@ -24,6 +25,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../co
 import { Slider } from '../components/ui/slider'
 import { DeleteVaultModal } from '../components/vault/DeleteVaultModal'
 import { BackupPreviewModal } from '../components/vault/BackupPreviewModal'
+import { AiSettingsSection } from '../components/settings/AiSettingsSection'
 import type { BackupPreview } from '@shared'
 import appLogo from '../assets/icon.png'
 
@@ -43,6 +45,43 @@ export function SettingsView(): React.JSX.Element {
   const [selectedBackupPath, setSelectedBackupPath] = useState<string | null>(null)
   const [isBackupPreviewModalOpen, setIsBackupPreviewModalOpen] = useState(false)
   const [isRestoringBackup, setIsRestoringBackup] = useState(false)
+  const [autoTranscribeNewLessons, setAutoTranscribeNewLessons] = useState(false)
+  const [isSavingTranscriptionSettings, setIsSavingTranscriptionSettings] = useState(false)
+
+  useEffect(() => {
+    let active = true
+    if (!currentVault) {
+      setAutoTranscribeNewLessons(false)
+      return () => {
+        active = false
+      }
+    }
+
+    window.api.transcription.getSettings()
+      .then((transcriptionSettings) => {
+        if (active) setAutoTranscribeNewLessons(transcriptionSettings.autoTranscribeNewLessons)
+      })
+      .catch((error: unknown) => console.warn('Failed to load transcription settings:', error))
+
+    return () => {
+      active = false
+    }
+  }, [currentVault?.path])
+
+  const handleAutoTranscribeToggle = async (): Promise<void> => {
+    const nextValue = !autoTranscribeNewLessons
+    setAutoTranscribeNewLessons(nextValue)
+    setIsSavingTranscriptionSettings(true)
+    try {
+      const saved = await window.api.transcription.updateSettings({ autoTranscribeNewLessons: nextValue })
+      if (!saved) setAutoTranscribeNewLessons(!nextValue)
+    } catch (error: unknown) {
+      setAutoTranscribeNewLessons(!nextValue)
+      console.warn('Failed to update transcription settings:', error)
+    } finally {
+      setIsSavingTranscriptionSettings(false)
+    }
+  }
 
   const handleCreateBackup = async (): Promise<void> => {
     setIsCreatingBackup(true)
@@ -313,6 +352,44 @@ export function SettingsView(): React.JSX.Element {
                 onValueChange={(vals) => updateSetting('completionThreshold', vals[0] / 100)}
                 className="py-2"
               />
+            </div>
+          </CardContent>
+        </Card>
+
+        <AiSettingsSection />
+
+        {/* Transcription Settings Card */}
+        <Card className="rounded-2xl border border-border/80 bg-card shadow-sm">
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <FileText className="h-4 w-4 text-primary" />
+              <CardTitle className="text-base font-bold">{t('settings.transcription')}</CardTitle>
+            </div>
+            <CardDescription className="text-xs">{t('settings.transcriptionDesc')}</CardDescription>
+          </CardHeader>
+          <CardContent className="pt-1">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-foreground">{t('settings.autoTranscribeNewLessons')}</p>
+                <p className="text-xs text-muted-foreground">{t('settings.autoTranscribeNewLessonsDesc')}</p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={autoTranscribeNewLessons}
+                aria-label={t('settings.autoTranscribeNewLessons')}
+                disabled={!currentVault || isSavingTranscriptionSettings}
+                onClick={() => void handleAutoTranscribeToggle()}
+                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50 ${
+                  autoTranscribeNewLessons ? 'bg-primary' : 'bg-secondary'
+                }`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+                    autoTranscribeNewLessons ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
+              </button>
             </div>
           </CardContent>
         </Card>

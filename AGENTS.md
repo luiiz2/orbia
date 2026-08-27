@@ -189,3 +189,14 @@ High-priority business logic is backed by 39+ automated test suites in `test/`:
   2. `npm run typecheck` (verify Node and Web TypeScript types)
   3. `npm run build` (verify Vite and Electron bundles compile)
 
+### Permanent Test-Creation Policy
+
+Keep the test suite small, focused, fast, and valuable. Before adding a test, audit nearby coverage and answer: **what meaningful regression would this catch that existing tests would not?**
+
+- Classify relevant existing tests as `KEEP`, `MERGE`, `REMOVE`, or `IMPROVE` before changing the suite.
+- Create tests only for meaningful regression protection: business rules, critical workflows, data integrity, persistence, parsing/import/export, integrations, destructive behavior, realistic high-risk edge cases, or real bugs.
+- Prefer extending or merging an existing test and using a readable parameterized case over creating a new file or a test for every function, component, hook, or helper.
+- Do not create tests merely to increase coverage, preserve a test count, verify constants/framework behavior, or duplicate another layer's protection.
+- Remove redundant, obsolete, fragile, or low-value tests when better coverage supersedes them; do not modify production behavior just to keep a low-value test passing.
+- Treat every test as maintenance cost. If its regression-prevention value is not clear and greater than that cost, do not add it.
+

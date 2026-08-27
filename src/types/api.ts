@@ -2,6 +2,44 @@ import type { ContentResource, Course, MediaType, MergePreview, Module, Lesson, 
 import type { Vault, AppSettings, VaultStats } from './vault'
 import type { LessonProgress, WatchHistoryEntry, CourseProgressSummary } from './progress'
 import type { LessonNote } from './notes'
+import type {
+  AiChatInput,
+  AiChatResponse,
+  AiDataType,
+  AiEmbeddingRequest,
+  AiEmbeddingResponse,
+  AiModel,
+  AiPrivacyMode,
+  AiProviderHealth,
+  AiProviderId,
+  AiProviderUpdate,
+  AiRouteUpdate,
+  AiSettingsSnapshot
+} from './ai'
+import type {
+  Transcript,
+  TranscriptProgressEvent,
+  TranscriptSummary,
+  TranscriptionBatchResult,
+  TranscriptionEnqueueResult,
+  TranscriptionOptions,
+  TranscriptionSettings
+} from './transcription'
+import type {
+  SemanticIndexEnqueueInput,
+  SemanticIndexMetrics,
+  SemanticIndexSettings,
+  SemanticIndexStatus,
+  SemanticSourceSelection
+} from './semantic-index'
+import type {
+  ChatConversation,
+  ChatConversationSummary,
+  GroundedChatRequest,
+  GroundedChatResponse,
+  SourceNavigationRequest,
+  SourceNavigationResult
+} from './grounded-chat'
 
 export interface SelectedCourseSource {
   path: string
@@ -243,6 +281,35 @@ export interface OrbiaApi {
     deleteLessonNote: (id: string) => Promise<boolean>
     exportCourseNotes: (courseId: string) => Promise<string>
     getStudyAnalytics: (dailyGoalMinutes?: number) => Promise<import('./progress').StudyAnalytics>
+    setActive: (active: boolean) => Promise<void>
+  }
+
+  // Transcription Engine & Transcript Storage (v0.9 Phase 2)
+  transcription: {
+    getCurrent: (lessonId: string) => Promise<Transcript | null>
+    listVersions: (lessonId: string) => Promise<TranscriptSummary[]>
+    getSubtitleCandidate: (lessonId: string, language?: string) => Promise<{
+      resourceId: string
+      filePath: string
+      language?: string
+      label?: string
+      sourceRevision: string
+      segments: import('./transcription').TranscriptSegment[]
+    } | null>
+    enqueueLesson: (lessonId: string, options?: TranscriptionOptions) => Promise<TranscriptionEnqueueResult>
+    enqueueModule: (moduleId: string, options?: TranscriptionOptions) => Promise<TranscriptionBatchResult>
+    enqueueCourse: (courseId: string, options?: TranscriptionOptions) => Promise<TranscriptionBatchResult>
+    reuseSubtitle: (lessonId: string, language?: string) => Promise<Transcript | null>
+    listQueue: () => Promise<import('./optimizer').OptimizationQueueItem[]>
+    pauseJob: (jobId: string) => Promise<boolean>
+    resumeJob: (jobId: string) => Promise<boolean>
+    cancelJob: (jobId: string) => Promise<boolean>
+    retryJob: (jobId: string) => Promise<boolean>
+    getSettings: () => Promise<TranscriptionSettings>
+    updateSettings: (settings: Partial<TranscriptionSettings>) => Promise<boolean>
+    getCourseAutoTranscribe: (courseId: string) => Promise<boolean>
+    setCourseAutoTranscribe: (courseId: string, enabled: boolean) => Promise<boolean>
+    onProgress: (callback: (event: TranscriptProgressEvent) => void) => () => void
   }
 
   // Video Bookmarks (v0.3)
@@ -460,6 +527,51 @@ export interface OrbiaApi {
   settings: {
     get: () => Promise<AppSettings>
     set: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => Promise<void>
+  }
+
+  // AI foundation (Phase 1)
+  ai: {
+    getSettings: () => Promise<AiSettingsSnapshot>
+    saveProvider: (input: AiProviderUpdate) => Promise<AiSettingsSnapshot>
+    setRoute: (input: AiRouteUpdate) => Promise<AiSettingsSnapshot>
+    setPrivacyMode: (privacyMode: AiPrivacyMode) => Promise<AiSettingsSnapshot>
+    setAllowedCloudDataTypes: (dataTypes: AiDataType[]) => Promise<AiSettingsSnapshot>
+    discoverModels: (providerId: AiProviderId) => Promise<AiModel[]>
+    health: (providerId: AiProviderId, modelId?: string) => Promise<AiProviderHealth>
+    chat: (input: AiChatInput) => Promise<AiChatResponse>
+    embed: (input: AiEmbeddingRequest) => Promise<AiEmbeddingResponse>
+  }
+
+  // Content extraction, embeddings and local semantic index (v0.9 Phase 3)
+  semanticIndex: {
+    getStatus: () => Promise<SemanticIndexStatus>
+    getMetrics: () => Promise<SemanticIndexMetrics>
+    getSettings: () => Promise<SemanticIndexSettings>
+    updateSettings: (settings: Partial<SemanticIndexSettings>) => Promise<boolean>
+    enqueue: (input: SemanticIndexEnqueueInput) => Promise<import('./optimizer').OptimizationQueueItem>
+    rebuild: (input: Omit<SemanticIndexEnqueueInput, 'rebuild'>) => Promise<import('./optimizer').OptimizationQueueItem>
+    refreshSource: (
+      selection: SemanticSourceSelection,
+      options?: Omit<SemanticIndexEnqueueInput, 'scope' | 'rebuild'>
+    ) => Promise<import('./optimizer').OptimizationQueueItem>
+    removeSource: (selection: SemanticSourceSelection) => Promise<boolean>
+    listQueue: () => Promise<import('./optimizer').OptimizationQueueItem[]>
+    pauseJob: (jobId: string) => Promise<boolean>
+    resumeJob: (jobId: string) => Promise<boolean>
+    cancelJob: (jobId: string) => Promise<boolean>
+    retryJob: (jobId: string) => Promise<boolean>
+    onProgress: (callback: (item: import('./optimizer').OptimizationQueueItem) => void) => () => void
+  }
+
+  // Grounded chat and source navigation (v0.9 Phase 4)
+  chat: {
+    ask: (input: GroundedChatRequest) => Promise<GroundedChatResponse>
+    cancel: (requestId: string) => Promise<boolean>
+    listConversations: () => Promise<ChatConversationSummary[]>
+    getConversation: (id: string) => Promise<ChatConversation | null>
+    renameConversation: (id: string, title: string) => Promise<boolean>
+    deleteConversation: (id: string) => Promise<boolean>
+    resolveSource: (input: SourceNavigationRequest) => Promise<SourceNavigationResult>
   }
 
   // System

@@ -16,6 +16,7 @@ import {
   Video,
   Star,
   FileText,
+  Loader2,
   FolderSync,
   Target,
   ListPlus,
@@ -185,6 +186,8 @@ export function CourseView(): React.JSX.Element {
   const [isPdfModalOpen, setIsPdfModalOpen] = useState<boolean>(false)
   const [isCodeModalOpen, setIsCodeModalOpen] = useState<boolean>(false)
   const [isReorganizeModalOpen, setIsReorganizeModalOpen] = useState<boolean>(false)
+  const [autoTranscribe, setAutoTranscribe] = useState<boolean>(false)
+  const [isUpdatingAutoTranscribe, setIsUpdatingAutoTranscribe] = useState<boolean>(false)
 
   // Course Goal & Study Queue state (v0.3)
   const { addToStudyQueue } = useReviewStore()
@@ -193,6 +196,8 @@ export function CourseView(): React.JSX.Element {
   const [targetDateInput, setTargetDateInput] = useState<string>('')
   const [weeklyLessonsInput, setWeeklyLessonsInput] = useState<number>(10)
   const [queueAddedNotification, setQueueAddedNotification] = useState<boolean>(false)
+  const [isQueueingTranscription, setIsQueueingTranscription] = useState<boolean>(false)
+  const [queueingModuleId, setQueueingModuleId] = useState<string | null>(null)
 
   const fetchGoal = React.useCallback(async (courseId: string) => {
     try {
@@ -237,11 +242,72 @@ export function CourseView(): React.JSX.Element {
     setTimeout(() => setQueueAddedNotification(false), 3000)
   }
 
+  const handleAutoTranscribeToggle = async (): Promise<void> => {
+    if (!selectedCourseId || isUpdatingAutoTranscribe) return
+    const nextValue = !autoTranscribe
+    setAutoTranscribe(nextValue)
+    setIsUpdatingAutoTranscribe(true)
+    try {
+      const saved = await window.api.transcription.setCourseAutoTranscribe(selectedCourseId, nextValue)
+      if (!saved) setAutoTranscribe(!nextValue)
+    } catch (error: unknown) {
+      setAutoTranscribe(!nextValue)
+      console.warn('Failed to update course transcription settings:', error)
+    } finally {
+      setIsUpdatingAutoTranscribe(false)
+    }
+  }
+
+  const handleTranscribeCourse = async (): Promise<void> => {
+    if (!selectedCourseId || isQueueingTranscription) return
+    setIsQueueingTranscription(true)
+    try {
+      await window.api.transcription.enqueueCourse(selectedCourseId, { autoDetect: true, reuseExistingSubtitle: true })
+    } catch (error: unknown) {
+      console.warn('Failed to queue course transcription:', error)
+    } finally {
+      setIsQueueingTranscription(false)
+    }
+  }
+
+  const handleTranscribeModule = async (moduleId: string): Promise<void> => {
+    if (queueingModuleId) return
+    setQueueingModuleId(moduleId)
+    try {
+      await window.api.transcription.enqueueModule(moduleId, { autoDetect: true, reuseExistingSubtitle: true })
+    } catch (error: unknown) {
+      console.warn('Failed to queue module transcription:', error)
+    } finally {
+      setQueueingModuleId(null)
+    }
+  }
+
   useEffect(() => {
     if (selectedCourseId) {
       fetchGoal(selectedCourseId)
     }
   }, [selectedCourseId, fetchGoal])
+
+  useEffect(() => {
+    let active = true
+    if (!selectedCourseId) {
+      setAutoTranscribe(false)
+      return () => {
+        active = false
+      }
+    }
+
+    setAutoTranscribe(false)
+    window.api.transcription.getCourseAutoTranscribe(selectedCourseId)
+      .then((enabled) => {
+        if (active) setAutoTranscribe(enabled)
+      })
+      .catch((error: unknown) => console.warn('Failed to load course transcription settings:', error))
+
+    return () => {
+      active = false
+    }
+  }, [selectedCourseId])
 
   useEffect(() => {
     if (selectedCourseId) {
@@ -701,6 +767,33 @@ export function CourseView(): React.JSX.Element {
                       : 'Definir Meta'}
                   </span>
                 </Button>
+
+                <Button
+                  variant="outline"
+                  size="lg"
+                  onClick={() => void handleTranscribeCourse()}
+                  disabled={isQueueingTranscription}
+                  className="gap-2 text-xs font-semibold rounded-xl border-border/80 hover:border-primary/60 hover:text-primary min-h-[42px]"
+                >
+                  {isQueueingTranscription ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4 text-primary" />}
+                  <span>{t('course.transcribeCourse', 'Transcribe course')}</span>
+                </Button>
+
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={autoTranscribe}
+                  aria-label={t('course.autoTranscribe', 'Automatically transcribe new lessons')}
+                  disabled={isUpdatingAutoTranscribe}
+                  onClick={() => void handleAutoTranscribeToggle()}
+                  className="flex min-h-[42px] items-center gap-2 rounded-xl border border-border/80 px-3 text-left text-xs font-semibold text-muted-foreground transition-colors hover:border-primary/50 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <FileText className="h-4 w-4 text-primary" />
+                  <span className="max-w-32">{t('course.autoTranscribe', 'Auto-transcribe new lessons')}</span>
+                  <span className={`relative inline-flex h-5 w-9 shrink-0 rounded-full transition-colors ${autoTranscribe ? 'bg-primary' : 'bg-secondary'}`}>
+                    <span className={`inline-block h-4 w-4 translate-y-0.5 rounded-full bg-white shadow transition-transform ${autoTranscribe ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                  </span>
+                </button>
               </div>
 
               {/* Course Goal Pace Hint (if active) */}
@@ -857,6 +950,20 @@ export function CourseView(): React.JSX.Element {
                         {modInfo?.completedLessons || 0} / {modInfo?.totalLessons || module.lessons.length}{' '}
                         {t('course.lessons')}
                       </span>
+                      <button
+                        type="button"
+                        aria-label={t('course.transcribeModule', 'Transcribe module')}
+                        title={t('course.transcribeModule', 'Transcribe module')}
+                        onClick={(event) => {
+                          event.preventDefault()
+                          event.stopPropagation()
+                          void handleTranscribeModule(module.id)
+                        }}
+                        disabled={queueingModuleId !== null}
+                        className="rounded p-1 text-muted-foreground transition-colors hover:bg-secondary/70 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {queueingModuleId === module.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileText className="h-3.5 w-3.5" />}
+                      </button>
                       {modInfo && modInfo.duration > 0 && (
                         <span className="font-mono text-muted-foreground/80">
                           {formatDurationHuman(modInfo.duration)}

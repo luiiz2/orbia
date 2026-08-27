@@ -96,6 +96,16 @@ export function usePlayer({ videoRef, containerRef }: UsePlayerProps): UsePlayer
     resumedRef.current = false
   }, [activeLesson?.id])
 
+  // The main-process resource manager uses this signal to give playback
+  // priority over background transcription and optimization jobs.
+  useEffect(() => {
+    if (typeof window === 'undefined' || !activeLesson || !window.api?.player?.setActive) return
+    void window.api.player.setActive(isPlaying).catch(() => undefined)
+    return () => {
+      void window.api.player.setActive(false).catch(() => undefined)
+    }
+  }, [activeLesson?.id, isPlaying])
+
   // Determine if next / prev lessons exist
   const allLessons = modulesWithLessons.flatMap((m) => m.lessons || [])
   const currentIndex = activeLesson ? allLessons.findIndex((l) => l.id === activeLesson.id) : -1

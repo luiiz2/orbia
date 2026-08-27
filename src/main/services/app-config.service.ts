@@ -2,6 +2,22 @@ import Database from 'better-sqlite3'
 import path from 'node:path'
 import fs from 'node:fs'
 import type { Vault, AppSettings } from '../../types'
+import {
+  AI_CAPABILITIES,
+  AI_DATA_TYPES,
+  AI_PRIVACY_MODES,
+  AI_PROVIDER_IDS,
+  AI_TASKS,
+  createDefaultAiSettings,
+  type AiCapability,
+  type AiDataType,
+  type AiModelAssignment,
+  type AiPrivacyMode,
+  type AiProviderId,
+  type AiRoute,
+  type AiSettingsSnapshot,
+  type AiTask
+} from '../../types/ai'
 
 function getAppUserDataPath(): string {
   try {
@@ -105,6 +121,12 @@ export class AppConfigService {
         discovery_mode        TEXT NOT NULL DEFAULT 'balanced',
         prefer_short_content  INTEGER NOT NULL DEFAULT 0,
         updated_at            INTEGER NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS ai_credentials (
+        provider_id       TEXT PRIMARY KEY,
+        encrypted_secret TEXT NOT NULL,
+        updated_at       INTEGER NOT NULL
       );
     `)
 
@@ -366,6 +388,7 @@ export class AppConfigService {
 
     const settings: Record<string, unknown> = { ...defaultSettings }
     for (const row of rows) {
+      if (row.key.startsWith('ai.')) continue
       try {
         settings[row.key] = JSON.parse(row.value)
       } catch {
@@ -385,6 +408,196 @@ export class AppConfigService {
       ON CONFLICT(key) DO UPDATE SET value = excluded.value
     `)
     stmt.run(key, serialized)
+  }
+
+  // --- AI Configuration ---
+
+  public getAiSettings(): AiSettingsSnapshot {
+    this.ensureInitialized()
+    const defaults = createDefaultAiSettings()
+    const row = this.db!.prepare(`SELECT value FROM app_settings WHERE key = 'ai.config'`).get() as
+      | { value: string }
+      | undefined
+
+    let stored: Record<string, unknown> = {}
+    if (row) {
+      try {
+        const parsed: unknown = JSON.parse(row.value)
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          stored = parsed as Record<string, unknown>
+        }
+      } catch {
+        stored = {}
+      }
+    }
+
+    const providers = { ...defaults.providers }
+    if (stored.providers && typeof stored.providers === 'object' && !Array.isArray(stored.providers)) {
+      const savedProviders = stored.providers as Record<string, unknown>
+      for (const providerId of AI_PROVIDER_IDS) {
+        const saved = savedProviders[providerId]
+        if (!saved || typeof saved !== 'object' || Array.isArray(saved)) continue
+        const value = saved as Record<string, unknown>
+        const baseUrl = typeof value.baseUrl === 'string' ? value.baseUrl : providers[providerId].baseUrl
+        const enabled = typeof value.enabled === 'boolean' ? value.enabled : providers[providerId].enabled
+        providers[providerId] = { ...providers[providerId], baseUrl, enabled }
+      }
+    }
+
+    const routes = { ...defaults.routes }
+    if (stored.routes && typeof stored.routes === 'object' && !Array.isArray(stored.routes)) {
+      const savedRoutes = stored.routes as Record<string, unknown>
+      for (const task of AI_TASKS) {
+        const savedRoute = savedRoutes[task]
+        if (!savedRoute || typeof savedRoute !== 'object' || Array.isArray(savedRoute)) continue
+        const value = savedRoute as Record<string, unknown>
+        routes[task] = {
+          primary: this.parseAiAssignment(value.primary),
+          fallback: this.parseAiAssignment(value.fallback)
+        }
+      }
+    }
+
+    const privacyMode = AI_PRIVACY_MODES.includes(stored.privacyMode as AiPrivacyMode)
+      ? (stored.privacyMode as AiPrivacyMode)
+      : defaults.privacyMode
+    const configured = new Set(
+      (this.db!.prepare(`SELECT provider_id FROM ai_credentials`).all() as { provider_id: string }[]).map(
+        (credential) => credential.provider_id
+      )
+    )
+
+    return {
+      privacyMode,
+      allowedCloudDataTypes: Array.isArray(stored.allowedCloudDataTypes)
+        ? [...new Set(stored.allowedCloudDataTypes.filter((value): value is AiDataType =>
+            typeof value === 'string' && AI_DATA_TYPES.includes(value as AiDataType)
+          ))]
+        : [],
+      providers: Object.fromEntries(
+        AI_PROVIDER_IDS.map((providerId) => [
+          providerId,
+          { ...providers[providerId], apiKeyConfigured: configured.has(providerId) }
+        ])
+      ) as AiSettingsSnapshot['providers'],
+      routes
+    }
+  }
+
+  public updateAiProvider(input: { providerId: AiProviderId; baseUrl: string; enabled: boolean }): AiSettingsSnapshot {
+    this.ensureInitialized()
+    if (!AI_PROVIDER_IDS.includes(input.providerId)) throw new Error('Unknown AI provider')
+    if (typeof input.baseUrl !== 'string' || typeof input.enabled !== 'boolean') {
+      throw new Error('Invalid AI provider configuration')
+    }
+
+    const settings = this.getAiSettings()
+    settings.providers[input.providerId] = {
+      ...settings.providers[input.providerId],
+      baseUrl: input.baseUrl,
+      enabled: input.enabled
+    }
+    this.saveAiSettings(settings)
+    return this.getAiSettings()
+  }
+
+  public updateAiRoute(task: AiTask, route: AiRoute): AiSettingsSnapshot {
+    this.ensureInitialized()
+    if (!AI_TASKS.includes(task)) throw new Error('Unknown AI task')
+    const settings = this.getAiSettings()
+    settings.routes[task] = {
+      primary: this.parseAiAssignment(route.primary),
+      fallback: this.parseAiAssignment(route.fallback)
+    }
+    this.saveAiSettings(settings)
+    return this.getAiSettings()
+  }
+
+  public setAiPrivacyMode(privacyMode: AiPrivacyMode): AiSettingsSnapshot {
+    this.ensureInitialized()
+    if (!AI_PRIVACY_MODES.includes(privacyMode)) throw new Error('Unknown AI privacy mode')
+    const settings = this.getAiSettings()
+    settings.privacyMode = privacyMode
+    this.saveAiSettings(settings)
+    return this.getAiSettings()
+  }
+
+  public setAiAllowedCloudDataTypes(dataTypes: readonly AiDataType[]): AiSettingsSnapshot {
+    this.ensureInitialized()
+    if (!Array.isArray(dataTypes) || dataTypes.some((value) => !AI_DATA_TYPES.includes(value))) {
+      throw new Error('Invalid AI cloud data permissions')
+    }
+    const settings = this.getAiSettings()
+    settings.allowedCloudDataTypes = [...new Set(dataTypes)]
+    this.saveAiSettings(settings)
+    return this.getAiSettings()
+  }
+
+  public getEncryptedAiCredential(providerId: AiProviderId): string | null {
+    this.ensureInitialized()
+    const row = this.db!.prepare(`SELECT encrypted_secret FROM ai_credentials WHERE provider_id = ?`).get(providerId) as
+      | { encrypted_secret: string }
+      | undefined
+    return row?.encrypted_secret ?? null
+  }
+
+  public setEncryptedAiCredential(providerId: AiProviderId, encryptedSecret: string): void {
+    this.ensureInitialized()
+    if (!AI_PROVIDER_IDS.includes(providerId)) throw new Error('Unknown AI provider')
+    if (typeof encryptedSecret !== 'string' || !encryptedSecret) throw new Error('Encrypted credential is required')
+    this.db!.prepare(`
+      INSERT INTO ai_credentials (provider_id, encrypted_secret, updated_at)
+      VALUES (?, ?, ?)
+      ON CONFLICT(provider_id) DO UPDATE SET
+        encrypted_secret = excluded.encrypted_secret,
+        updated_at = excluded.updated_at
+    `).run(providerId, encryptedSecret, Date.now())
+  }
+
+  public clearAiCredential(providerId: AiProviderId): void {
+    this.ensureInitialized()
+    this.db!.prepare(`DELETE FROM ai_credentials WHERE provider_id = ?`).run(providerId)
+  }
+
+  private saveAiSettings(settings: AiSettingsSnapshot): void {
+    const providers = Object.fromEntries(
+      AI_PROVIDER_IDS.map((providerId) => {
+        const provider = settings.providers[providerId]
+        return [providerId, { baseUrl: provider.baseUrl, enabled: provider.enabled }]
+      })
+    )
+    const routes = Object.fromEntries(
+      AI_TASKS.map((task) => [task, settings.routes[task]])
+    )
+    const value = JSON.stringify({
+      privacyMode: settings.privacyMode,
+      allowedCloudDataTypes: settings.allowedCloudDataTypes,
+      providers,
+      routes
+    })
+    this.db!.prepare(`
+      INSERT INTO app_settings (key, value)
+      VALUES ('ai.config', ?)
+      ON CONFLICT(key) DO UPDATE SET value = excluded.value
+    `).run(value)
+  }
+
+  private parseAiAssignment(value: unknown): AiModelAssignment | null {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+    const assignment = value as Record<string, unknown>
+    if (!AI_PROVIDER_IDS.includes(assignment.providerId as AiProviderId)) return null
+    if (typeof assignment.modelId !== 'string' || !assignment.modelId.trim()) return null
+
+    const capabilities = Array.isArray(assignment.capabilities)
+      ? assignment.capabilities.filter((capability): capability is AiCapability =>
+          AI_CAPABILITIES.includes(capability as AiCapability)
+        )
+      : undefined
+    return {
+      providerId: assignment.providerId as AiProviderId,
+      modelId: assignment.modelId.trim(),
+      ...(capabilities && capabilities.length > 0 ? { capabilities } : {})
+    }
   }
 
   // --- Local Profiles ---

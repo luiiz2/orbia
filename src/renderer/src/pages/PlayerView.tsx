@@ -16,11 +16,13 @@ import { VideoPlayer } from '../components/player/VideoPlayer'
 import { NotesPanel } from '../components/player/NotesPanel'
 import { BookmarksPanel } from '../components/player/BookmarksPanel'
 import { FlashcardsPanel } from '../components/player/FlashcardsPanel'
+import { TranscriptPanel } from '../components/player/TranscriptPanel'
 import { PdfViewerModal } from '../components/documents/PdfViewerModal'
 import { CodeViewerModal } from '../components/documents/CodeViewerModal'
 import { usePlayerStore } from '../stores/usePlayerStore'
 import { useNavigationStore } from '../stores/useNavigationStore'
 import { useCourseProgress } from '../hooks/useCourseProgress'
+import { applyTranscriptProgress, useTranscriptStore } from '../stores/useTranscriptStore'
 import {
   Button,
   Progress,
@@ -70,6 +72,7 @@ export function PlayerView(): React.JSX.Element {
   const {
     activeCourse,
     activeLesson,
+    currentTime,
     modulesWithLessons,
     notes,
     bookmarks,
@@ -80,11 +83,25 @@ export function PlayerView(): React.JSX.Element {
     theaterMode,
     isFullscreen,
     brokenLessonIds,
-    deleteLesson
+    deleteLesson,
+    seek
   } = usePlayerStore()
 
+  const {
+    transcript,
+    subtitleCandidate,
+    isLoading: isTranscriptLoading,
+    errorMessage: transcriptError,
+    progress: transcriptProgress,
+    load: loadTranscript,
+    transcribe,
+    retranscribe,
+    reuseSubtitle,
+    clear: clearTranscript
+  } = useTranscriptStore()
+
   const { setView } = useNavigationStore()
-  const [activeTab, setActiveTab] = useState<'curriculum' | 'queue' | 'notes' | 'bookmarks' | 'flashcards' | 'resources'>('curriculum')
+  const [activeTab, setActiveTab] = useState<'curriculum' | 'queue' | 'notes' | 'transcript' | 'bookmarks' | 'flashcards' | 'resources'>('curriculum')
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true)
   const [selectedResource, setSelectedResource] = useState<VisibleResource | null>(null)
   const [isPdfModalOpen, setIsPdfModalOpen] = useState<boolean>(false)
@@ -109,6 +126,19 @@ export function PlayerView(): React.JSX.Element {
   useEffect(() => {
     fetchHealth()
   }, [fetchHealth])
+
+  useEffect(() => {
+    if (activeLesson?.id) {
+      void loadTranscript(activeLesson.id)
+    } else {
+      clearTranscript()
+    }
+  }, [activeLesson?.id, clearTranscript, loadTranscript])
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.api?.transcription) return
+    return window.api.transcription.onProgress(applyTranscriptProgress)
+  }, [])
 
   const handleConfirmDelete = async (): Promise<void> => {
     if (!lessonToDelete) return
@@ -215,6 +245,25 @@ export function PlayerView(): React.JSX.Element {
                 )}
               >
                 {t('player.curriculum')}
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === 'transcript'}
+                onClick={() => setActiveTab('transcript')}
+                className={cn(
+                  'flex-1 py-1.5 px-2 text-center font-semibold rounded-lg transition-all cursor-pointer relative active:scale-95 duration-150 whitespace-nowrap',
+                  activeTab === 'transcript'
+                    ? 'bg-card text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                {t('player.transcript', 'Transcript')}
+                {transcript && (
+                  <span className="ml-1 rounded-full bg-primary/20 px-1 py-0.2 text-[10px] font-bold text-primary">
+                    {transcript.segments.length}
+                  </span>
+                )}
               </button>
               <button
                 type="button"
@@ -461,6 +510,21 @@ export function PlayerView(): React.JSX.Element {
 
             {activeTab === 'notes' && (
               <NotesPanel />
+            )}
+
+            {activeTab === 'transcript' && (
+              <TranscriptPanel
+                transcript={transcript}
+                subtitleCandidate={subtitleCandidate}
+                currentTime={currentTime}
+                isLoading={isTranscriptLoading}
+                errorMessage={transcriptError}
+                progressPercent={transcriptProgress?.progressPercent}
+                onSeek={seek}
+                onTranscribe={transcribe}
+                onReuseSubtitle={reuseSubtitle}
+                onRetranscribe={retranscribe}
+              />
             )}
 
             {activeTab === 'bookmarks' && (

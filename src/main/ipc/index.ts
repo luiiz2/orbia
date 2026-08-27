@@ -7,6 +7,10 @@ import { registerStudioIpc } from './studio.ipc'
 import { registerDiscoveryIpc } from './discovery.ipc'
 import { registerOptimizerIpc } from './optimizer.ipc'
 import { registerSourcesIpc } from './sources.ipc'
+import { registerAiIpc } from './ai.ipc'
+import { registerTranscriptionIpc } from './transcription.ipc'
+import { registerSemanticIndexIpc } from './semantic-index.ipc'
+import { registerChatIpc } from './chat.ipc'
 
 export function registerAllIpc(): void {
   registerVaultIpc()
@@ -18,5 +22,9 @@ export function registerAllIpc(): void {
   registerDiscoveryIpc()
   registerOptimizerIpc()
   registerSourcesIpc()
+  registerAiIpc()
+  registerTranscriptionIpc()
+  registerSemanticIndexIpc()
+  registerChatIpc()
 }
 

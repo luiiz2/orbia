@@ -26,6 +26,7 @@ import { courseMergeService } from '../services/organization/course-merge.servic
 import { organizationPlanService } from '../services/organization/organization-plan.service'
 import { convertSrtToVtt } from '../utils/subtitle-utils'
 import { isSubtitleFile } from '../utils/file-utils'
+import { transcriptionService } from '../services/transcription/transcription.service'
 
 type ImportSourceCapabilityKind = 'zip' | 'folder'
 
@@ -727,6 +728,7 @@ export function registerCoursesIpc(): void {
             courseTitle: course.title,
             extractedFiles: course.lessonCount
           })
+          transcriptionService.enqueueAutomaticallyIfEnabled(course.id)
         }
 
         return {

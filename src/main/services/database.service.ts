@@ -975,6 +975,321 @@ export class DatabaseService {
       })()
     }
 
+    const v09MigrationId = '008_v09_transcription'
+    const hasApplied009 = this.db.prepare(`SELECT 1 FROM _migrations WHERE id = ?`).get(v09MigrationId)
+
+    if (!hasApplied009) {
+      this.db.transaction(() => {
+        const alters = [
+          `ALTER TABLE courses ADD COLUMN auto_transcribe INTEGER NOT NULL DEFAULT 0;`,
+          `ALTER TABLE optimization_queue ADD COLUMN job_type TEXT NOT NULL DEFAULT 'optimization';`,
+          `ALTER TABLE optimization_queue ADD COLUMN transcription_language TEXT;`,
+          `ALTER TABLE optimization_queue ADD COLUMN transcription_auto_detect INTEGER NOT NULL DEFAULT 0;`,
+          `ALTER TABLE optimization_queue ADD COLUMN transcription_reuse_subtitle INTEGER NOT NULL DEFAULT 1;`,
+          `ALTER TABLE optimization_queue ADD COLUMN transcription_retranscribe INTEGER NOT NULL DEFAULT 0;`,
+          `ALTER TABLE optimization_queue ADD COLUMN transcription_cloud_consent INTEGER NOT NULL DEFAULT 0;`,
+          `ALTER TABLE optimization_queue ADD COLUMN source_revision TEXT;`
+        ]
+        for (const sql of alters) {
+          try {
+            this.db!.exec(sql)
+          } catch {
+            // Existing vaults may already contain the column.
+          }
+        }
+
+        this.db!.exec(`
+          CREATE TABLE IF NOT EXISTS transcripts (
+            id              TEXT PRIMARY KEY,
+            lesson_id       TEXT NOT NULL REFERENCES lessons(id) ON DELETE CASCADE,
+            version         INTEGER NOT NULL,
+            language        TEXT NOT NULL,
+            provider        TEXT NOT NULL,
+            model           TEXT,
+            created_at      INTEGER NOT NULL,
+            source_revision TEXT NOT NULL,
+            settings_json   TEXT NOT NULL DEFAULT '{}',
+            status          TEXT NOT NULL CHECK(status IN ('queued', 'extracting', 'transcribing', 'completed', 'failed', 'cancelled', 'partial')),
+            is_current      INTEGER NOT NULL DEFAULT 0 CHECK(is_current IN (0, 1)),
+            error_message   TEXT,
+            UNIQUE(lesson_id, version)
+          );
+
+          CREATE TABLE IF NOT EXISTS transcript_segments (
+            id            TEXT PRIMARY KEY,
+            transcript_id TEXT NOT NULL REFERENCES transcripts(id) ON DELETE CASCADE,
+            sequence      INTEGER NOT NULL,
+            start_time    REAL NOT NULL CHECK(start_time >= 0),
+            end_time      REAL NOT NULL CHECK(end_time > start_time),
+            text          TEXT NOT NULL,
+            UNIQUE(transcript_id, sequence)
+          );
+
+          CREATE TABLE IF NOT EXISTS transcription_settings (
+            id                         INTEGER PRIMARY KEY CHECK(id = 1),
+            auto_transcribe_new_lessons INTEGER NOT NULL DEFAULT 0 CHECK(auto_transcribe_new_lessons IN (0, 1))
+          );
+          INSERT OR IGNORE INTO transcription_settings (id, auto_transcribe_new_lessons) VALUES (1, 0);
+
+          CREATE INDEX IF NOT EXISTS idx_transcripts_lesson ON transcripts(lesson_id, created_at DESC);
+          CREATE INDEX IF NOT EXISTS idx_transcripts_current ON transcripts(lesson_id, is_current);
+          CREATE INDEX IF NOT EXISTS idx_transcript_segments_transcript ON transcript_segments(transcript_id, sequence);
+          CREATE INDEX IF NOT EXISTS idx_transcription_queue_type_status ON optimization_queue(job_type, status, created_at);
+          CREATE INDEX IF NOT EXISTS idx_transcription_queue_lesson ON optimization_queue(job_type, lesson_id, status);
+        `)
+
+        this.db!.prepare(`INSERT INTO _migrations (id, applied_at) VALUES (?, ?)`).run(v09MigrationId, Date.now())
+      })()
+    }
+
+    const v10MigrationId = '009_v09_semantic_index'
+    const hasApplied010 = this.db.prepare(`SELECT 1 FROM _migrations WHERE id = ?`).get(v10MigrationId)
+
+    if (!hasApplied010) {
+      this.db.transaction(() => {
+        const lessonIdColumn = this.db!.prepare(`PRAGMA table_info(optimization_queue)`).all() as Array<{ name: string; notnull: number }>
+        const needsNullableLessonId = lessonIdColumn.some((column) => column.name === 'lesson_id' && column.notnull === 1)
+
+        if (needsNullableLessonId) {
+          this.db!.exec(`
+            DROP INDEX IF EXISTS idx_opt_queue_status;
+            DROP INDEX IF EXISTS idx_opt_queue_created;
+            DROP INDEX IF EXISTS idx_opt_queue_lesson;
+            DROP INDEX IF EXISTS idx_transcription_queue_type_status;
+            DROP INDEX IF EXISTS idx_transcription_queue_lesson;
+
+            CREATE TABLE optimization_queue_v10 (
+              id                TEXT PRIMARY KEY,
+              job_type          TEXT NOT NULL DEFAULT 'optimization',
+              lesson_id         TEXT REFERENCES lessons(id) ON DELETE CASCADE,
+              course_id         TEXT REFERENCES courses(id) ON DELETE CASCADE,
+              source_path       TEXT NOT NULL,
+              temp_output_path  TEXT,
+              final_output_path TEXT,
+              backup_path       TEXT,
+              profile           TEXT NOT NULL,
+              target_codec      TEXT NOT NULL,
+              target_resolution TEXT,
+              estimated_savings INTEGER NOT NULL DEFAULT 0,
+              actual_savings    INTEGER,
+              status            TEXT NOT NULL DEFAULT 'queued',
+              progress_percent  REAL NOT NULL DEFAULT 0,
+              current_fps       REAL,
+              current_speed     TEXT,
+              eta_seconds       INTEGER,
+              retry_count       INTEGER NOT NULL DEFAULT 0,
+              error_message     TEXT,
+              transcription_language TEXT,
+              transcription_auto_detect INTEGER NOT NULL DEFAULT 0,
+              transcription_reuse_subtitle INTEGER NOT NULL DEFAULT 1,
+              transcription_retranscribe INTEGER NOT NULL DEFAULT 0,
+              transcription_cloud_consent INTEGER NOT NULL DEFAULT 0,
+              source_revision   TEXT,
+              semantic_scope    TEXT,
+              semantic_rebuild  INTEGER,
+              semantic_include_notes INTEGER,
+              semantic_cloud_consent INTEGER,
+              semantic_generation_id TEXT,
+              is_shared_file    INTEGER NOT NULL DEFAULT 0,
+              shared_confirmation_given INTEGER NOT NULL DEFAULT 0,
+              created_at        INTEGER NOT NULL,
+              updated_at        INTEGER NOT NULL
+            );
+
+            INSERT INTO optimization_queue_v10 (
+              id, job_type, lesson_id, course_id, source_path, temp_output_path,
+              final_output_path, backup_path, profile, target_codec, target_resolution,
+              estimated_savings, actual_savings, status, progress_percent, current_fps,
+              current_speed, eta_seconds, retry_count, error_message,
+              transcription_language, transcription_auto_detect, transcription_reuse_subtitle,
+              transcription_retranscribe, transcription_cloud_consent, source_revision,
+              is_shared_file, shared_confirmation_given, created_at, updated_at
+            )
+            SELECT
+              id, job_type, lesson_id, course_id, source_path, temp_output_path,
+              final_output_path, backup_path, profile, target_codec, target_resolution,
+              estimated_savings, actual_savings, status, progress_percent, current_fps,
+              current_speed, eta_seconds, retry_count, error_message,
+              transcription_language, transcription_auto_detect, transcription_reuse_subtitle,
+              transcription_retranscribe, transcription_cloud_consent, source_revision,
+              is_shared_file, shared_confirmation_given, created_at, updated_at
+            FROM optimization_queue;
+
+            DROP TABLE optimization_queue;
+            ALTER TABLE optimization_queue_v10 RENAME TO optimization_queue;
+          `)
+        } else {
+          const semanticColumns = [
+            `ALTER TABLE optimization_queue ADD COLUMN semantic_scope TEXT;`,
+            `ALTER TABLE optimization_queue ADD COLUMN semantic_rebuild INTEGER;`,
+            `ALTER TABLE optimization_queue ADD COLUMN semantic_include_notes INTEGER;`,
+            `ALTER TABLE optimization_queue ADD COLUMN semantic_cloud_consent INTEGER;`,
+            `ALTER TABLE optimization_queue ADD COLUMN semantic_generation_id TEXT;`
+          ]
+          for (const sql of semanticColumns) {
+            try {
+              this.db!.exec(sql)
+            } catch {
+              // Existing development databases may already contain the column.
+            }
+          }
+        }
+
+        this.db!.exec(`
+          CREATE TABLE IF NOT EXISTS semantic_index_generations (
+            id                  TEXT PRIMARY KEY,
+            status              TEXT NOT NULL CHECK(status IN ('building', 'partial', 'completed', 'failed', 'cancelled')),
+            provider_id         TEXT,
+            model_id            TEXT,
+            dimensions          INTEGER CHECK(dimensions IS NULL OR dimensions > 0),
+            chunking_version    TEXT NOT NULL,
+            created_at          INTEGER NOT NULL,
+            completed_at        INTEGER,
+            total_sources       INTEGER NOT NULL DEFAULT 0,
+            discovered_sources  INTEGER NOT NULL DEFAULT 0,
+            extracted_chunks    INTEGER NOT NULL DEFAULT 0,
+            embedded_chunks     INTEGER NOT NULL DEFAULT 0,
+            indexed_chunks      INTEGER NOT NULL DEFAULT 0,
+            failed_sources      INTEGER NOT NULL DEFAULT 0,
+            storage_text_bytes  INTEGER NOT NULL DEFAULT 0,
+            storage_vector_bytes INTEGER NOT NULL DEFAULT 0,
+            error_message       TEXT,
+            is_current           INTEGER NOT NULL DEFAULT 0 CHECK(is_current IN (0, 1))
+          );
+
+          CREATE TABLE IF NOT EXISTS semantic_index_chunks (
+            id                TEXT PRIMARY KEY,
+            generation_id     TEXT NOT NULL REFERENCES semantic_index_generations(id) ON DELETE CASCADE,
+            source_kind       TEXT NOT NULL CHECK(source_kind IN ('transcript', 'subtitle', 'pdf', 'markdown', 'text', 'code', 'note', 'metadata')),
+            source_id         TEXT NOT NULL,
+            course_id         TEXT NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+            module_id         TEXT REFERENCES modules(id) ON DELETE CASCADE,
+            lesson_id         TEXT REFERENCES lessons(id) ON DELETE CASCADE,
+            resource_id       TEXT REFERENCES content_resources(id) ON DELETE CASCADE,
+            transcript_id     TEXT REFERENCES transcripts(id) ON DELETE CASCADE,
+            note_id           TEXT REFERENCES lesson_notes(id) ON DELETE CASCADE,
+            source_revision   TEXT NOT NULL,
+            content_revision  TEXT NOT NULL,
+            data_type         TEXT NOT NULL,
+            text              TEXT NOT NULL,
+            locator_json      TEXT NOT NULL DEFAULT '{}',
+            start_time        REAL,
+            end_time          REAL,
+            created_at        INTEGER NOT NULL,
+            UNIQUE(generation_id, source_kind, source_id, id)
+          );
+
+          CREATE TABLE IF NOT EXISTS semantic_index_embeddings (
+            chunk_id          TEXT PRIMARY KEY REFERENCES semantic_index_chunks(id) ON DELETE CASCADE,
+            provider_id       TEXT NOT NULL,
+            model_id          TEXT NOT NULL,
+            dimensions        INTEGER NOT NULL CHECK(dimensions > 0),
+            vector             BLOB NOT NULL
+          );
+
+          CREATE TABLE IF NOT EXISTS semantic_index_settings (
+            id                 INTEGER PRIMARY KEY CHECK(id = 1),
+            include_notes      INTEGER NOT NULL DEFAULT 0 CHECK(include_notes IN (0, 1))
+          );
+          INSERT OR IGNORE INTO semantic_index_settings (id, include_notes) VALUES (1, 0);
+
+          CREATE INDEX IF NOT EXISTS idx_opt_queue_status ON optimization_queue(status);
+          CREATE INDEX IF NOT EXISTS idx_opt_queue_created ON optimization_queue(created_at ASC);
+          CREATE INDEX IF NOT EXISTS idx_opt_queue_lesson ON optimization_queue(lesson_id);
+          CREATE INDEX IF NOT EXISTS idx_transcription_queue_type_status ON optimization_queue(job_type, status, created_at);
+          CREATE INDEX IF NOT EXISTS idx_transcription_queue_lesson ON optimization_queue(job_type, lesson_id, status);
+          CREATE INDEX IF NOT EXISTS idx_semantic_generation_current ON semantic_index_generations(is_current, created_at DESC);
+          CREATE INDEX IF NOT EXISTS idx_semantic_generation_status ON semantic_index_generations(status, created_at DESC);
+          CREATE INDEX IF NOT EXISTS idx_semantic_chunks_source ON semantic_index_chunks(generation_id, source_kind, source_id);
+          CREATE INDEX IF NOT EXISTS idx_semantic_chunks_lesson ON semantic_index_chunks(generation_id, lesson_id);
+          CREATE INDEX IF NOT EXISTS idx_semantic_chunks_resource ON semantic_index_chunks(generation_id, resource_id);
+        `)
+
+        this.db!.prepare(`INSERT INTO _migrations (id, applied_at) VALUES (?, ?)`).run(v10MigrationId, Date.now())
+      })()
+    }
+
+    const v11MigrationId = '010_v09_grounded_chat'
+    const hasApplied011 = this.db.prepare(`SELECT 1 FROM _migrations WHERE id = ?`).get(v11MigrationId)
+
+    if (!hasApplied011) {
+      this.db.transaction(() => {
+        this.db!.exec(`
+          CREATE VIRTUAL TABLE IF NOT EXISTS semantic_index_fts USING fts5(
+            text,
+            content='semantic_index_chunks',
+            content_rowid='rowid',
+            tokenize='unicode61 remove_diacritics 2'
+          );
+
+          CREATE TRIGGER IF NOT EXISTS semantic_index_chunks_fts_ai
+          AFTER INSERT ON semantic_index_chunks BEGIN
+            INSERT INTO semantic_index_fts(rowid, text) VALUES (new.rowid, new.text);
+          END;
+
+          CREATE TRIGGER IF NOT EXISTS semantic_index_chunks_fts_ad
+          AFTER DELETE ON semantic_index_chunks BEGIN
+            INSERT INTO semantic_index_fts(semantic_index_fts, rowid, text)
+            VALUES ('delete', old.rowid, old.text);
+          END;
+
+          CREATE TRIGGER IF NOT EXISTS semantic_index_chunks_fts_au
+          AFTER UPDATE OF text ON semantic_index_chunks BEGIN
+            INSERT INTO semantic_index_fts(semantic_index_fts, rowid, text)
+            VALUES ('delete', old.rowid, old.text);
+            INSERT INTO semantic_index_fts(rowid, text) VALUES (new.rowid, new.text);
+          END;
+
+          INSERT INTO semantic_index_fts(semantic_index_fts) VALUES ('rebuild');
+
+          CREATE TABLE IF NOT EXISTS chat_conversations (
+            id          TEXT PRIMARY KEY,
+            title       TEXT NOT NULL CHECK(length(trim(title)) > 0),
+            created_at  INTEGER NOT NULL,
+            updated_at  INTEGER NOT NULL
+          );
+
+          CREATE TABLE IF NOT EXISTS chat_messages (
+            id              TEXT PRIMARY KEY,
+            conversation_id TEXT NOT NULL REFERENCES chat_conversations(id) ON DELETE CASCADE,
+            role            TEXT NOT NULL CHECK(role IN ('user', 'assistant')),
+            content         TEXT NOT NULL,
+            scope_json      TEXT,
+            status          TEXT CHECK(status IS NULL OR status IN ('answered', 'insufficient_evidence', 'failed', 'cancelled')),
+            provider_id     TEXT,
+            model_id        TEXT,
+            created_at      INTEGER NOT NULL
+          );
+
+          CREATE TABLE IF NOT EXISTS chat_message_sources (
+            id              TEXT PRIMARY KEY,
+            message_id      TEXT NOT NULL REFERENCES chat_messages(id) ON DELETE CASCADE,
+            ordinal         INTEGER NOT NULL CHECK(ordinal >= 0),
+            chunk_id        TEXT NOT NULL,
+            source_kind     TEXT NOT NULL CHECK(source_kind IN ('transcript', 'subtitle', 'pdf', 'markdown', 'text', 'code', 'note', 'metadata')),
+            source_id       TEXT NOT NULL,
+            course_id       TEXT NOT NULL,
+            module_id       TEXT,
+            lesson_id       TEXT,
+            resource_id     TEXT,
+            transcript_id   TEXT,
+            note_id         TEXT,
+            source_revision TEXT NOT NULL,
+            locator_json    TEXT NOT NULL DEFAULT '{}',
+            display_label   TEXT NOT NULL,
+            created_at      INTEGER NOT NULL,
+            UNIQUE(message_id, ordinal)
+          );
+
+          CREATE INDEX IF NOT EXISTS idx_chat_conversations_updated ON chat_conversations(updated_at DESC);
+          CREATE INDEX IF NOT EXISTS idx_chat_messages_conversation ON chat_messages(conversation_id, created_at);
+          CREATE INDEX IF NOT EXISTS idx_chat_message_sources_message ON chat_message_sources(message_id, ordinal);
+        `)
+
+        this.db!.prepare(`INSERT INTO _migrations (id, applied_at) VALUES (?, ?)`).run(v11MigrationId, Date.now())
+      })()
+    }
+
     const userVersion = this.db.pragma('user_version', { simple: true }) as number
 
     if (userVersion < 1) {

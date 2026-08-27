@@ -2,6 +2,8 @@
  * Media Optimization Engine Domain Types for Orbia v0.7
  */
 
+import type { SemanticIndexScope } from './semantic-index'
+
 export type OptimizationProfile = 'balanced' | 'max_quality' | 'space_saving' | 'custom'
 
 export type OptimizationJobStatus =
@@ -18,6 +20,10 @@ export type OptimizationJobStatus =
   | 'failed'
   | 'requires_review'
   | 'cancelled'
+  | 'extracting'
+  | 'transcribing'
+  | 'partial'
+  | 'indexing'
 
 export type OptimizationResourceMode = 'automatic' | 'economy' | 'balanced' | 'max_performance'
 
@@ -117,6 +123,7 @@ export interface VaultOptimizationAnalysis {
 
 export interface OptimizationQueueItem {
   id: string
+  jobType?: 'optimization' | 'transcription' | 'semantic_index'
   lessonId: string
   courseId?: string
   sourcePath: string
@@ -135,6 +142,17 @@ export interface OptimizationQueueItem {
   etaSeconds?: number
   retryCount: number
   errorMessage?: string
+  transcriptionLanguage?: string
+  transcriptionAutoDetect?: boolean
+  transcriptionReuseExistingSubtitle?: boolean
+  transcriptionRetranscribe?: boolean
+  transcriptionCloudConsent?: boolean
+  sourceRevision?: string
+  semanticScope?: SemanticIndexScope
+  semanticRebuild?: boolean
+  semanticIncludeNotes?: boolean
+  semanticCloudConsent?: boolean
+  semanticGenerationId?: string
   isSharedFile?: boolean
   sharedConfirmationGiven?: boolean
   createdAt: number
