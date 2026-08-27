@@ -16,12 +16,20 @@ import { optimizationJournalService } from './optimization-journal.service'
 import { resourceManagerService } from './resource-manager.service'
 import { LocalFileSourceInput } from './media-source-input'
 import { logger } from '../logger.service'
+import { transcriptionService } from '../transcription/transcription.service'
+import { semanticIndexService } from '../semantic-index/semantic-index.service'
 
 export class OptimizationWorkerService {
   private isRunning = false
   private activeJobId: string | null = null
   private currentAbortController: AbortController | null = null
   private progressListeners: ((item: OptimizationQueueItem) => void)[] = []
+
+  public constructor() {
+    optimizationQueueService.subscribeCancellation((jobId) => {
+      if (this.activeJobId === jobId) this.currentAbortController?.abort()
+    })
+  }
 
   public getActiveJobId(): string | null {
     return this.activeJobId
@@ -85,7 +93,7 @@ export class OptimizationWorkerService {
           continue
         }
 
-        const job = optimizationQueueService.getNextJob()
+        const job = optimizationQueueService.getNextBackgroundJob()
         if (!job) {
           await this.sleep(1500)
           continue
@@ -111,6 +119,35 @@ export class OptimizationWorkerService {
     this.currentAbortController = new AbortController()
 
     try {
+      if (job.jobType === 'transcription') {
+        await transcriptionService.processJob(job, this.currentAbortController.signal, (event) => {
+          this.notifyProgress({
+            ...job,
+            jobType: 'transcription',
+            status: event.status,
+            progressPercent: event.progressPercent,
+            errorMessage: event.errorMessage
+          })
+        })
+        return
+      }
+
+      if (job.jobType === 'semantic_index') {
+        await semanticIndexService.processJob(job, this.currentAbortController.signal, {
+          onProgress: (event) => {
+            this.notifyProgress({
+              ...job,
+              jobType: 'semantic_index',
+              status: event.status,
+              progressPercent: event.progressPercent,
+              ...(event.errorMessage ? { errorMessage: event.errorMessage } : {})
+            })
+          },
+          shouldYield: () => !resourceManagerService.canProcessJobs(settings)
+        })
+        return
+      }
+
       // 1. Check Source File Existence
       if (!fs.existsSync(job.sourcePath)) {
         optimizationQueueService.updateJob(job.id, {
