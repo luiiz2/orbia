@@ -20,6 +20,9 @@ err_test.txt
 stderr.txt
 stdout.txt
 
+# Local scratch / unrelated projects
+vazados/
+
 # Databases & User Vaults
 *.db
 *.db-journal
