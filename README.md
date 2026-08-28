@@ -1,10 +1,12 @@
-# 🪐 Orbia
+# 🪐 Orbia — Personal Course & Study Platform
 
-> **Your personal, open-source learning universe.**  
+> **Your personal, open-source study universe.**  
 > Transform disorganized folders of video lessons, PDFs, and course materials into a polished, distraction-free desktop study platform.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Status: Active Development](https://img.shields.io/badge/Status-v0.1--dev-orange.svg)]()
+[![Release: v1.0.0](https://img.shields.io/badge/Release-v1.0.0-emerald.svg)]()
+[![Privacy: Local--First](https://img.shields.io/badge/Privacy-100%25%20Local%20%26%20Offline-orange.svg)]()
+[![Telemetry: Zero](https://img.shields.io/badge/Telemetry-Zero-green.svg)]()
 
 ---
 
@@ -12,131 +14,156 @@
 
 Most self-learners accumulate gigabytes of course materials: video lessons, lecture slides, exercises, PDFs, and archives scattered across folders with messy names like `001.mp4`, `aula1.mp4`, or `Modulo 02/03_sub.mp4`.
 
-**Orbia** bridges the gap between raw local files and modern course platforms (like Gran Cursos, Coursera, or Udemy). It gives you a unified, offline-first desktop app that automatically understands your course structure, tracks your exact study progress, and keeps you focused on learning.
+**Orbia** bridges the gap between raw local files and modern learning platforms (like Gran Cursos, Coursera, or Udemy). It gives you a unified, offline-first desktop app that automatically understands your course structure, tracks your exact study progress, and keeps you focused on learning with zero telemetry and 100% local privacy.
 
 ---
 
-## ✨ Key Concepts & Features
+## ✨ Core Pillars & Features (v1.0.0)
 
-### 🏛️ Hybrid Study Vault
-Inspired by tools like Obsidian, Orbia organizes your study world around the concept of a **Vault**:
-- **Portable & Self-Contained**: The entire library database (`.orbia/library.db`) lives inside your vault folder. Copy or back up the vault folder, and you preserve your entire library, watch history, and progress.
+### 🏛️ 1. Hybrid Study Vault Architecture
+- **Portable & Self-Contained**: The entire library database (`.orbia/library.db`) lives inside your vault folder. Copy or back up the vault folder, and you preserve your entire library, watch history, and notes.
+- **Dual SQLite Topology**: Global preferences and vault registry live in `%APPDATA%/orbia/config.db`, while course contents and study metadata live in the vault database with WAL mode and foreign key integrity.
 - **Hybrid Flexibility**: Store courses directly inside the vault (`Courses/`) or link to existing directories anywhere on your disk by reference without duplicating files.
-- **Inbox Workflow**: Drop new course folders into `Inbox/` and let Orbia detect and propose their organization.
 
-### 🔍 Smart Detection & Organization (Zero-AI Required)
-- **Automatic Hierarchy Detection**: Automatically parses directory nesting into Course ➔ Modules ➔ Lessons ➔ Sidecar Resources.
-- **Natural Sorting**: `Lesson 2` reliably precedes `Lesson 10` (no more alphabetical sorting errors).
-- **Title Cleaner Pipeline**: Strips release metadata (`[2024]`, `720p`), platform prefixes, numbering tags, and ugly underscores into clean, readable titles.
-- **Preview & User Confirmation**: Orbia analyzes and suggests structure, but **you** always review and approve before anything is added or reorganized.
+### 🎬 2. Cinematic Video Player & Learning Engine
+- **HTTP 206 Streaming Protocol**: Custom `media://` streaming engine with instant scrubbing and seeking across 4K, 1080p, MP4, MKV, and WebM files.
+- **Exact Progress Memory**: Automatically saves playback position down to the second (throttled every 3s + on pause/seek/unload).
+- **Subtitles & Attached Resources**: Auto-detects and converts `.srt` sidecars into WebVTT on the fly; native viewer for PDF slides and handouts.
+- **Timestamped Notes & Bookmarks**: Create notes tied to video moments with markdown export; press `B` anytime to save an instant bookmark.
 
-### 🎬 Distraction-Free Study Experience
-- **Cinematic Video Player**: Custom HTML5 media engine with smooth scrubbing via native byte-range streaming (`media://` protocol).
-- **Exact Progress Memory**: Automatically saves playback position down to the second (throttled every 3 seconds + upon pausing/seeking).
-- **Granular Progress**: Real-time progress bars for each lesson, module, and overall course.
-- **"Continue Studying" Rail**: Resume your active courses directly from the home dashboard in one click.
-- **Watch History & Statistics**: Chronological timeline of past study sessions.
+### 🎨 3. Visual Library Studio & Organization
+- **Smart Structure Detection**: Automatically parses directory nesting into Course ➔ Modules ➔ Lessons ➔ Sidecar Resources.
+- **Natural Sorting & Title Cleaner**: `Lesson 2` reliably precedes `Lesson 10`; strips release noise, hashes, numbering tags, and underscores into readable titles.
+- **Custom Metadata & Sections**: Create custom fields, themes, collections, sections, and multipart lesson merging with non-destructive preview.
+- **Storage Optimizer**: Identifies duplicate files and creates secure canonical links to reclaim disk space.
 
-### 🛡️ Fundamental Principles
-1. **Your files belong to you**: 100% local, offline-first, no mandatory account, zero telemetry.
-2. **Never alter files silently**: Before any physical file renaming or moving, Orbia analyzes, proposes, previews, and waits for explicit user approval with full undo capability.
-3. **AI is strictly optional**: Orbia is completely functional without AI. Optional AI enhancements (local LLM/transcription/flashcards) are reserved for future post-v1.0 iterations.
-4. **Bilingual by Design**: Full internationalization from Day 1 (English and Portuguese pt-BR supported).
+### 🧭 4. Deterministic Discovery & Study Routine
+- **Smart Recommendations**: Suggests next courses based on recency, study streaks, and completion rates without needing AI or cloud servers.
+- **Study Analytics & Goals**: Daily study goals, streaks, and chronological watch history logs.
 
----
+### 🤖 5. Optional Offline-First AI Subsystem (Zero Mandatory Cloud)
+- **Local Whisper & Cloud Transcription**: Transcribe video audio locally using Whisper.cpp or via cloud providers.
+- **Semantic Indexing & Hybrid Search**: SQLite FTS5 lexical matching combined with vector cosine similarity for sub-50ms query responses.
+- **Grounded Chat with Strict Navigation Validation**: AI answers grounded exclusively in verified course transcripts with validated timestamp links.
+- **Structured Summaries & Automatic Chapters**: On-demand summaries for Lessons, Modules, and Courses; monotonic video chapters with full preservation of user manual edits.
+- **AI Storage Manager & Local Usage Tracking**: Granular visibility to clear AI caches independently without touching original media; 100% on-device usage metrics.
 
-## 🏗️ Architecture & Tech Stack
-
-```
-Orbia Architecture
-├── Electron (Main Process - Node.js)
-│   ├── Vault Manager & App Configuration (%APPDATA%/orbia/config.db)
-│   ├── Course Scanner & Heuristic Structure Parser
-│   ├── SQLite Embedded Database (better-sqlite3) inside Vault (.orbia/library.db)
-│   ├── Custom Media Streaming Protocol (media:// with HTTP 206 Partial Content)
-│   └── Type-Safe IPC Bridge
-├── Preload Layer (contextBridge)
-└── React Frontend (Renderer - Vite + TypeScript)
-    ├── Tailwind CSS v4 + Shadcn/UI (Dark theme default, Light mode supported)
-    ├── Lucide Icons
-    ├── Zustand 5.x State Stores
-    └── i18next + react-i18next
-```
+### ⌨️ 6. Keyboard-First & Impeccable Craft UI
+- **Accessible Navigation**: Press `?` or `F1` anywhere to view the interactive **Keyboard Shortcuts Cheatsheet**.
+- **Resilient Multi-Layered Error Boundaries**: Zero whitescreens — recover failed panels or return home with 1 click.
+- **Tactile Dark & Light Themes**: Powered by Tailwind CSS v4, Radix UI primitives, and Lucide icons.
 
 ---
 
-## 🗺️ Roadmap & Versioning Strategy
+## ⌨️ Keyboard Shortcuts Reference
 
-Orbia follows semantic versioning moving gradually toward a stable v1.0:
+| Shortcut | Action | Scope |
+|---|---|---|
+| `?` or `F1` | Open Keyboard Shortcuts Cheatsheet | Global |
+| `Ctrl + K` / `Cmd + K` | Open Global Library Search | Global |
+| `Ctrl + I` / `Cmd + I` | Open Course Import Wizard | Global |
+| `Ctrl + ,` / `Cmd + ,` | Open Settings | Global |
+| `Alt + 1 .. 6` | Switch Tabs (Library, Discover, Studio, Review, History, Settings) | Global |
+| `Esc` | Close Active Modal / Search Dialog | Global |
+| `Space` / `K` | Play / Pause Video | Player |
+| `←` / `→` | Seek ±5 Seconds | Player |
+| `J` / `L` | Seek ±10 Seconds | Player |
+| `↑` / `↓` | Volume Up / Down (±10%) | Player |
+| `M` | Toggle Mute | Player |
+| `F` | Toggle Fullscreen | Player |
+| `C` | Toggle Subtitles (CC) | Player |
+| `P` | Toggle Picture-in-Picture | Player |
+| `>` / `<` | Increase / Decrease Playback Speed | Player |
+| `N` | Jump to Next Lesson | Player |
+| `B` | Bookmark Current Timestamp | Player |
+| `Shift + N` | Create / Focus Timestamped Note | Player |
 
-### 🎯 v0.1 — Minimum Viable Product (Current Target)
-- [ ] Create & open Vaults (Hybrid model: internal storage + external references)
-- [ ] Course folder import with editable preview confirmation
-- [ ] Heuristic module and lesson detection with natural sorting and title cleaning
-- [ ] Course library grid with cover previews & progress indicators
-- [ ] "Continue Studying" dashboard section
-- [ ] Integrated custom video player with full keyboard controls & speed selector
-- [ ] Exact timestamp resume & throttled auto-save
-- [ ] Granular progress tracking (lesson completion at ≥90%, module & course progress)
-- [ ] Chronological watch history
-- [ ] Dark theme (primary) with bilingual support (EN / pt-BR)
+---
 
-### 🚀 v0.2 – v0.9 (Iterative Releases)
-- [ ] Curriculum drawer & notes panel inside video player
-- [ ] Subtitle (.srt / .vtt) sidecar auto-detection and conversion
-- [ ] Attached lesson materials (PDF reader, slides, source archives)
-- [ ] Global search & course filtering (In Progress, Completed, Favorites)
-- [ ] Timestamped bookmarks and study notes
-- [ ] Light mode theme support
-- [ ] Physical file reorganizer with diff preview and undo system
-- [ ] Google Drive integration (stream remote courses without full local duplication)
+## 🏗️ Architecture
 
-### 🌌 v1.0 & Beyond
-- [ ] Stable public release & multi-platform installers (Windows, macOS, Linux)
-- [ ] Optional local AI integrations (Whisper speech-to-text, video transcript search, smart summaries, flashcards)
-- [ ] Study goals, streaks, and analytics dashboard
-- [ ] Community plugin/extension system
+```mermaid
+graph TD
+    subgraph UI_Renderer ["Renderer (React 19 + Tailwind v4 + Zustand)"]
+        HomeView["Home & Continue Studying"]
+        CourseView["Course Details & Curriculum"]
+        PlayerView["Video Player, Subtitles & Notes"]
+        StudioView["Library Studio & Organization"]
+        DiscoverView["Deterministic Discovery & Sources"]
+        ChatModal["Grounded Chat & Summaries Modal"]
+        SettingsView["Settings, Theme & AI Storage Manager"]
+    end
+
+    subgraph Preload_Bridge ["Isolated Bridge (contextBridge)"]
+        PreloadAPI["window.api (Courses, Player, Vault, AI, Studio)"]
+    end
+
+    subgraph Main_Process ["Main Process (Node.js + Electron 39)"]
+        ProtocolStream["media:// (HTTP 206 Range Streamer)"]
+        VaultEngine["Vault Lifecycle & File Journals"]
+        ImportEngine["Scanner, Heuristics & Zip Unpacker"]
+        AiEngine["AiCoreService (Routing, Fallback & Privacy)"]
+        RetrievalEngine["Hybrid Retrieval (FTS5 + Vector Cosine)"]
+        SummaryService["Summaries, Chapters & AI Notes"]
+    end
+
+    subgraph Data_Layer ["Dual SQLite Model (WAL Mode)"]
+        ConfigDB["%APPDATA%/orbia/config.db (Registry & Global Settings)"]
+        VaultDB["{vaultPath}/.orbia/library.db (Courses, Lessons, FTS5, Vectors)"]
+    end
+
+    UI_Renderer --> Preload_Bridge
+    Preload_Bridge --> Main_Process
+    Main_Process --> ProtocolStream
+    Main_Process --> Data_Layer
+```
 
 ---
 
 ## 🚀 Getting Started (Development)
 
 ### Prerequisites
-- [Node.js](https://nodejs.org/) (v20+ recommended)
-- [npm](https://www.npmjs.com/) or [pnpm](https://pnpm.io/)
+- [Node.js](https://nodejs.org/) (v20+ or v22+ recommended)
+- [npm](https://www.npmjs.com/)
 - C/C++ build tools (for `better-sqlite3` native compilation on your OS)
 
 ### Installation & Setup
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/orbia.git
+git clone https://github.com/orbia-app/orbia.git
 cd orbia
 
 # Install dependencies
 npm install
 
+# Run the full automated test suite (563+ tests)
+npm test
+
 # Start development environment (Electron + Vite HMR)
 npm run dev
 ```
 
-### Build & Package
+### Production Build & Packaging
 
 ```bash
 # Type check and build bundles
 npm run build
 
-# Package executable for your current OS
-npm run build:win    # Windows installer (NSIS)
-npm run build:mac    # macOS (.dmg)
-npm run build:linux  # Linux (AppImage / deb)
+# Package standalone installer for your OS
+npm run build:win    # Windows installer (.exe NSIS)
+npm run build:mac    # macOS disk image (.dmg)
+npm run build:linux  # Linux package (AppImage / deb)
 ```
 
 ---
 
-## 🤝 Contributing
+## 🛡️ Privacy & Security Commitments
 
-Contributions are warmly welcomed! Please read [`AGENTS.md`](./AGENTS.md) and our upcoming contribution guidelines before submitting Pull Requests.
+1. **User Data Sovereignty**: All courses, progress logs, transcripts, notes, and study history reside 100% locally on your machine.
+2. **Zero Telemetry**: No tracking pixels, no telemetry pings, and no analytics collection.
+3. **Never Silent File Mutations**: Orbia will never move, rename, or delete files on your storage without an explicit preview and confirmation dialog.
+4. **Isolated AI Boundaries**: Privacy mode `LOCAL_ONLY` strictly blocks any outbound network requests to cloud AI providers.
 
 ---
 

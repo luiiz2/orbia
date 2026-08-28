@@ -1,10 +1,10 @@
 {
   "name": "orbia",
-  "version": "0.9.0",
-  "description": "An Electron application with React and TypeScript",
+  "version": "1.0.0",
+  "description": "Orbia — Open-source, offline-first study platform for personal course libraries",
   "main": "./out/main/index.js",
-  "author": "example.com",
-  "homepage": "https://electron-vite.org",
+  "author": "Orbia Contributors",
+  "homepage": "https://github.com/orbia-app/orbia",
   "scripts": {
     "format": "prettier --write .",
     "lint": "eslint src",

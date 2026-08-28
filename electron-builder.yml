@@ -13,6 +13,8 @@ files:
 asarUnpack:
   - resources/**
   - '**/*.node'
+  - '**/node_modules/ffmpeg-static/**'
+  - '**/node_modules/mupdf/**'
 win:
   executableName: orbia
   icon: build/icon.ico
