@@ -17,9 +17,12 @@ export interface SubtitleMenuProps {
   className?: string
 }
 
-export function SubtitleMenu({ className }: SubtitleMenuProps): React.JSX.Element {
+export function SubtitleMenu({
+  className
+}: SubtitleMenuProps): React.JSX.Element {
   const { t } = useTranslation()
-  const { subtitleTracks, activeSubtitleTrack, setSubtitleTrack } = usePlayerStore()
+  const { subtitleTracks, activeSubtitleTrack, setSubtitleTrack } =
+    usePlayerStore()
 
   const hasSubtitles = subtitleTracks.length > 0
   const isSubtitlesActive = activeSubtitleTrack !== null
@@ -67,7 +70,9 @@ export function SubtitleMenu({ className }: SubtitleMenuProps): React.JSX.Elemen
           )}
         >
           <span>{t('player.subtitlesOff')}</span>
-          {activeSubtitleTrack === null && <Check className="h-3.5 w-3.5 text-primary" />}
+          {activeSubtitleTrack === null && (
+            <Check className="h-3.5 w-3.5 text-primary" />
+          )}
         </DropdownMenuItem>
 
         {/* Track Options */}
@@ -84,13 +89,17 @@ export function SubtitleMenu({ className }: SubtitleMenuProps): React.JSX.Elemen
                 )}
               >
                 <span className="truncate">{track.label}</span>
-                {isSelected && <Check className="h-3.5 w-3.5 text-primary shrink-0 ml-2" />}
+                {isSelected && (
+                  <Check className="h-3.5 w-3.5 text-primary shrink-0 ml-2" />
+                )}
               </DropdownMenuItem>
             )
           })
         ) : (
           <div className="px-2 py-1.5 text-[11px] text-zinc-500 italic">
-            {t('player.noSubtitlesAvailable', { defaultValue: 'Nenhuma legenda encontrada' })}
+            {t('player.noSubtitlesAvailable', {
+              defaultValue: 'Nenhuma legenda encontrada'
+            })}
           </div>
         )}
       </DropdownMenuContent>

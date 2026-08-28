@@ -52,7 +52,7 @@ export function FlashcardsPanel(): React.JSX.Element {
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border/70 bg-card/40">
         <div className="flex items-center gap-2">
-          <Sparkles className="h-4 w-4 text-purple-400" />
+          <Sparkles className="h-4 w-4 text-accent" />
           <span className="font-semibold text-sm text-foreground">
             {t('player.flashcards', 'Flashcards')} ({flashcards.length})
           </span>
@@ -61,7 +61,7 @@ export function FlashcardsPanel(): React.JSX.Element {
           <Button
             size="sm"
             variant="outline"
-            className="h-8 gap-1.5 text-xs border-purple-500/30 hover:border-purple-500/60 text-purple-400 hover:text-purple-300 bg-purple-500/10 hover:bg-purple-500/20"
+            className="h-8 gap-1.5 text-xs border-accent/30 hover:border-accent/60 text-accent hover:text-accent bg-accent/10 hover:bg-accent/20"
             onClick={() => setIsCreating(true)}
           >
             <Plus className="h-3.5 w-3.5" />
@@ -72,9 +72,12 @@ export function FlashcardsPanel(): React.JSX.Element {
 
       {/* Quick Add Form */}
       {isCreating && (
-        <form onSubmit={handleSave} className="p-3.5 border-b border-border/70 bg-card/90 flex flex-col gap-2.5 animate-in fade-in slide-in-from-top-2 duration-200">
+        <form
+          onSubmit={handleSave}
+          className="p-3.5 border-b border-border/70 bg-card/90 flex flex-col gap-2.5 animate-in fade-in slide-in-from-top-2 duration-200"
+        >
           <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <label className="flex items-center gap-1.5 cursor-pointer text-purple-400 font-medium select-none">
+            <label className="flex items-center gap-1.5 cursor-pointer text-accent font-medium select-none">
               <input
                 type="checkbox"
                 checked={includeTimestamp}
@@ -82,7 +85,10 @@ export function FlashcardsPanel(): React.JSX.Element {
                 className="rounded border-border"
               />
               <Clock className="h-3 w-3" />
-              <span>{t('player.linkTimestamp', 'Vincular a')} {formatTime(currentTime)}</span>
+              <span>
+                {t('player.linkTimestamp', 'Vincular a')}{' '}
+                {formatTime(currentTime)}
+              </span>
             </label>
           </div>
 
@@ -92,10 +98,13 @@ export function FlashcardsPanel(): React.JSX.Element {
             </label>
             <input
               type="text"
-              placeholder={t('player.questionPlaceholder', 'Ex: O que é memoization?')}
+              placeholder={t(
+                'player.questionPlaceholder',
+                'Ex: O que é memoization?'
+              )}
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
-              className="w-full text-xs bg-background/80 border border-border/80 rounded-md px-2.5 py-1.5 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-purple-500"
+              className="w-full text-xs bg-background/80 border border-border/80 rounded-md px-2.5 py-1.5 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-accent"
               autoFocus
             />
           </div>
@@ -106,10 +115,13 @@ export function FlashcardsPanel(): React.JSX.Element {
             </label>
             <textarea
               rows={2}
-              placeholder={t('player.answerPlaceholder', 'Ex: Técnica de otimização que armazena resultados de chamadas caras...')}
+              placeholder={t(
+                'player.answerPlaceholder',
+                'Ex: Técnica de otimização que armazena resultados de chamadas caras...'
+              )}
               value={answer}
               onChange={(e) => setAnswer(e.target.value)}
-              className="w-full text-xs bg-background/80 border border-border/80 rounded-md px-2.5 py-1.5 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-purple-500 resize-none"
+              className="w-full text-xs bg-background/80 border border-border/80 rounded-md px-2.5 py-1.5 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-accent resize-none"
             />
           </div>
 
@@ -132,7 +144,7 @@ export function FlashcardsPanel(): React.JSX.Element {
               type="submit"
               size="sm"
               disabled={!question.trim() || !answer.trim()}
-              className="h-7 text-xs px-2.5 bg-purple-600 hover:bg-purple-700 text-white font-medium disabled:opacity-50"
+              className="h-7 text-xs px-2.5 bg-accent hover:bg-accent text-accent-foreground font-medium disabled:opacity-50"
             >
               <Check className="h-3.5 w-3.5 mr-1" />
               {t('common.save', 'Salvar')}
@@ -154,7 +166,10 @@ export function FlashcardsPanel(): React.JSX.Element {
               {t('player.noFlashcards', 'Nenhum flashcard criado nesta aula.')}
             </p>
             <p className="text-[11px] text-muted-foreground/70 mt-1">
-              {t('player.flashcardHint', 'Crie flashcards rápidos sobre os conceitos explicados para revisar depois.')}
+              {t(
+                'player.flashcardHint',
+                'Crie flashcards rápidos sobre os conceitos explicados para revisar depois.'
+              )}
             </p>
           </div>
         ) : (
@@ -187,7 +202,7 @@ export function FlashcardsPanel(): React.JSX.Element {
                 <button
                   type="button"
                   onClick={() => seek(card.timestamp!)}
-                  className="flex items-center gap-1 text-[11px] text-purple-400 hover:text-purple-300 w-fit font-mono font-medium hover:underline pt-0.5"
+                  className="flex items-center gap-1 text-[11px] text-accent hover:text-accent w-fit font-mono font-medium hover:underline pt-0.5"
                 >
                   <Clock className="h-3 w-3" />
                   <span>{formatTime(card.timestamp)}</span>

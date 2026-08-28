@@ -34,7 +34,10 @@ export function VolumeControl({
 
   return (
     <div
-      className={cn('flex items-center gap-1.5 transition-all duration-200', className)}
+      className={cn(
+        'flex items-center gap-1.5 transition-all duration-200',
+        className
+      )}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -51,9 +54,14 @@ export function VolumeControl({
             {getVolumeIcon()}
           </Button>
         </TooltipTrigger>
-        <TooltipContent side="top" className="flex items-center gap-1.5 bg-black/90 text-white border-white/20">
+        <TooltipContent
+          side="top"
+          className="flex items-center gap-1.5 bg-black/90 text-white border-white/20"
+        >
           <span>{isMuted ? 'Unmute' : 'Mute'}</span>
-          <kbd className="px-1.5 py-0.5 rounded bg-white/20 text-[10px] font-mono">M</kbd>
+          <kbd className="px-1.5 py-0.5 rounded bg-white/20 text-[10px] font-mono">
+            M
+          </kbd>
         </TooltipContent>
       </Tooltip>
 
@@ -61,7 +69,9 @@ export function VolumeControl({
       <div
         className={cn(
           'transition-all duration-200 ease-out overflow-hidden flex items-center',
-          isHovered ? 'w-20 opacity-100' : 'w-0 sm:w-16 opacity-70 sm:opacity-90 hover:opacity-100'
+          isHovered
+            ? 'w-20 opacity-100'
+            : 'w-0 sm:w-16 opacity-70 sm:opacity-90 hover:opacity-100'
         )}
       >
         <Slider

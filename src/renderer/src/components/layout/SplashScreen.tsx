@@ -58,13 +58,13 @@ export function SplashScreen({
 
   return (
     <div
-      className={`fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#080b11] text-foreground select-none transition-opacity duration-400 ease-out ${
+      className={`fixed inset-0 z-50 flex flex-col items-center justify-center bg-background text-foreground select-none transition-opacity duration-400 ease-out ${
         fadingOut ? 'opacity-0 pointer-events-none' : 'opacity-100'
       }`}
     >
-      {/* Background ambient cosmic glow */}
+      {/* Background ambient glow */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-primary/15 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-orange-500/10 rounded-full blur-2xl pointer-events-none" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-primary/10 rounded-full blur-2xl pointer-events-none" />
 
       {/* Main content container */}
       <div className="relative flex flex-col items-center gap-6 max-w-sm px-6 text-center animate-in fade-in zoom-in-95 duration-500">
@@ -92,9 +92,12 @@ export function SplashScreen({
         <div className="w-56 space-y-2 mt-2">
           <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden p-0.5 ring-1 ring-white/10">
             <div
-              className="h-full bg-gradient-to-r from-orange-500 via-primary to-amber-400 rounded-full transition-all duration-500 ease-out"
+              className="h-full bg-primary rounded-full transition-all duration-500 ease-out"
               style={{
-                width: isReady && currentStep >= 2 ? '100%' : `${Math.min(15 + currentStep * 28, 85)}%`
+                width:
+                  isReady && currentStep >= 2
+                    ? '100%'
+                    : `${Math.min(15 + currentStep * 28, 85)}%`
               }}
             />
           </div>

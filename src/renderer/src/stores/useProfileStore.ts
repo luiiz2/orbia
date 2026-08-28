@@ -1,5 +1,11 @@
 import { create } from 'zustand'
-import type { LocalProfile, ThemePreset, ResolvedTheme, ThemeScope, ThemeConfig } from '@shared'
+import type {
+  LocalProfile,
+  ThemePreset,
+  ResolvedTheme,
+  ThemeScope,
+  ThemeConfig
+} from '@shared'
 import { useSettingsStore } from './useSettingsStore'
 
 interface ProfileStoreState {
@@ -13,12 +19,27 @@ interface ProfileStoreState {
   fetchThemePresets: () => Promise<void>
   fetchResolvedTheme: (courseId?: string, sectionId?: string) => Promise<void>
   setActiveProfile: (profile: LocalProfile) => void
-  createProfile: (name: string, avatarPath?: string) => Promise<LocalProfile | null>
-  updateProfile: (id: string, updates: Partial<LocalProfile>) => Promise<boolean>
+  createProfile: (
+    name: string,
+    avatarPath?: string
+  ) => Promise<LocalProfile | null>
+  updateProfile: (
+    id: string,
+    updates: Partial<LocalProfile>
+  ) => Promise<boolean>
   deleteProfile: (id: string) => Promise<boolean>
 
-  saveAppearanceOverride: (scopeType: ThemeScope, scopeId: string, overrides: Partial<ThemeConfig>, presetId?: string) => Promise<boolean>
-  resetAppearanceOverride: (scopeType: ThemeScope, scopeId: string, category?: string) => Promise<boolean>
+  saveAppearanceOverride: (
+    scopeType: ThemeScope,
+    scopeId: string,
+    overrides: Partial<ThemeConfig>,
+    presetId?: string
+  ) => Promise<boolean>
+  resetAppearanceOverride: (
+    scopeType: ThemeScope,
+    scopeId: string,
+    category?: string
+  ) => Promise<boolean>
   applyResolvedThemeToDom: (theme: ResolvedTheme) => void
 }
 
@@ -119,9 +140,19 @@ export const useProfileStore = create<ProfileStoreState>((set, get) => ({
     }
   },
 
-  saveAppearanceOverride: async (scopeType: ThemeScope, scopeId: string, overrides: Partial<ThemeConfig>, presetId?: string) => {
+  saveAppearanceOverride: async (
+    scopeType: ThemeScope,
+    scopeId: string,
+    overrides: Partial<ThemeConfig>,
+    presetId?: string
+  ) => {
     try {
-      const ok = await window.api.studio.saveAppearanceOverride(scopeType, scopeId, overrides, presetId)
+      const ok = await window.api.studio.saveAppearanceOverride(
+        scopeType,
+        scopeId,
+        overrides,
+        presetId
+      )
       if (ok) await get().fetchResolvedTheme()
       return ok
     } catch (err) {
@@ -130,9 +161,17 @@ export const useProfileStore = create<ProfileStoreState>((set, get) => ({
     }
   },
 
-  resetAppearanceOverride: async (scopeType: ThemeScope, scopeId: string, category?: string) => {
+  resetAppearanceOverride: async (
+    scopeType: ThemeScope,
+    scopeId: string,
+    category?: string
+  ) => {
     try {
-      const ok = await window.api.studio.resetAppearanceOverride(scopeType, scopeId, category)
+      const ok = await window.api.studio.resetAppearanceOverride(
+        scopeType,
+        scopeId,
+        category
+      )
       if (ok) await get().fetchResolvedTheme()
       return ok
     } catch (err) {
@@ -187,16 +226,25 @@ export const useProfileStore = create<ProfileStoreState>((set, get) => ({
 
     const tokens = theme.colorTokens
     if (tokens) {
-      if (tokens.background) root.style.setProperty('--background', tokens.background)
-      if (tokens.foreground) root.style.setProperty('--foreground', tokens.foreground)
+      if (tokens.background)
+        root.style.setProperty('--background', tokens.background)
+      if (tokens.foreground)
+        root.style.setProperty('--foreground', tokens.foreground)
       if (tokens.primary) root.style.setProperty('--primary', tokens.primary)
-      if (tokens.primaryForeground) root.style.setProperty('--primary-foreground', tokens.primaryForeground)
-      if (tokens.secondary) root.style.setProperty('--secondary', tokens.secondary)
-      if (tokens.secondaryForeground) root.style.setProperty('--secondary-foreground', tokens.secondaryForeground)
+      if (tokens.primaryForeground)
+        root.style.setProperty('--primary-foreground', tokens.primaryForeground)
+      if (tokens.secondary)
+        root.style.setProperty('--secondary', tokens.secondary)
+      if (tokens.secondaryForeground)
+        root.style.setProperty(
+          '--secondary-foreground',
+          tokens.secondaryForeground
+        )
       if (tokens.accent) root.style.setProperty('--accent', tokens.accent)
       if (tokens.card) root.style.setProperty('--card', tokens.card)
       if (tokens.border) root.style.setProperty('--border', tokens.border)
-      if (tokens.cardBorder) root.style.setProperty('--card-border', tokens.cardBorder)
+      if (tokens.cardBorder)
+        root.style.setProperty('--card-border', tokens.cardBorder)
     }
 
     if (theme.cardStyle?.borderRadius) {

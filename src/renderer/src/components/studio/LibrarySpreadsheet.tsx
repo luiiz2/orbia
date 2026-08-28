@@ -1,11 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react'
-import {
-  Search,
-  Eye,
-  EyeOff,
-  CheckCircle2,
-  History
-} from 'lucide-react'
+import { Search, Eye, EyeOff, CheckCircle2, History } from 'lucide-react'
 import { useStudioStore } from '../../stores/useStudioStore'
 import { useSelectionStore } from '../../stores/useSelectionStore'
 import { Button } from '../ui/button'
@@ -24,7 +18,8 @@ export function LibrarySpreadsheet(): React.JSX.Element {
     toggleIncludeHidden
   } = useStudioStore()
 
-  const { selectedMap, toggleSelect, selectRange, clearSelection } = useSelectionStore()
+  const { selectedMap, toggleSelect, selectRange, clearSelection } =
+    useSelectionStore()
 
   const [searchQuery, setSearchQuery] = useState('')
   const [filterType, setFilterType] = useState<StudioEntityType | 'all'>('all')
@@ -59,7 +54,10 @@ export function LibrarySpreadsheet(): React.JSX.Element {
     }
   }
 
-  const handleOrderBlur = (app: LibraryAppearance, newOrderStr: string): void => {
+  const handleOrderBlur = (
+    app: LibraryAppearance,
+    newOrderStr: string
+  ): void => {
     const newOrder = parseInt(newOrderStr, 10)
     if (!isNaN(newOrder) && newOrder !== app.displayOrder) {
       addDraftChange({
@@ -78,9 +76,12 @@ export function LibrarySpreadsheet(): React.JSX.Element {
       {/* Top Header & Toolbar */}
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-foreground">Library Studio — Editor de Biblioteca</h2>
+          <h2 className="text-xl font-bold text-foreground">
+            Library Studio — Editor de Biblioteca
+          </h2>
           <p className="text-xs text-muted-foreground">
-            Edição em massa, numeração, metadados e organização lógica da biblioteca sem alterar arquivos em disco.
+            Edição em massa, numeração, metadados e organização lógica da
+            biblioteca sem alterar arquivos em disco.
           </p>
         </div>
 
@@ -91,11 +92,17 @@ export function LibrarySpreadsheet(): React.JSX.Element {
             size="sm"
             onClick={toggleIncludeHidden}
             className={`h-8 text-xs rounded-lg flex items-center gap-1.5 cursor-pointer ${
-              includeHidden ? 'border-purple-500/50 bg-purple-500/10 text-purple-400' : ''
+              includeHidden ? 'border-accent/50 bg-accent/10 text-accent' : ''
             }`}
           >
-            {includeHidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
-            <span>{includeHidden ? 'Exibindo Ocultos' : 'Mostrar Ocultos'}</span>
+            {includeHidden ? (
+              <Eye className="h-3.5 w-3.5" />
+            ) : (
+              <EyeOff className="h-3.5 w-3.5" />
+            )}
+            <span>
+              {includeHidden ? 'Exibindo Ocultos' : 'Mostrar Ocultos'}
+            </span>
           </Button>
 
           {/* Histórico / Rollback */}
@@ -105,7 +112,7 @@ export function LibrarySpreadsheet(): React.JSX.Element {
             onClick={() => setHistoryModalOpen(true)}
             className="h-8 text-xs rounded-lg flex items-center gap-1.5 cursor-pointer"
           >
-            <History className="h-3.5 w-3.5 text-blue-400" />
+            <History className="h-3.5 w-3.5 text-accent" />
             <span>Histórico</span>
           </Button>
 
@@ -144,7 +151,13 @@ export function LibrarySpreadsheet(): React.JSX.Element {
               onClick={() => setFilterType(t)}
               className="h-7 px-2.5 text-xs rounded-lg capitalize cursor-pointer"
             >
-              {t === 'all' ? 'Todos' : t === 'course' ? 'Cursos' : t === 'module' ? 'Módulos' : 'Aulas'}
+              {t === 'all'
+                ? 'Todos'
+                : t === 'course'
+                  ? 'Cursos'
+                  : t === 'module'
+                    ? 'Módulos'
+                    : 'Aulas'}
             </Button>
           ))}
         </div>
@@ -193,13 +206,19 @@ export function LibrarySpreadsheet(): React.JSX.Element {
           <tbody className="divide-y divide-border/20 font-mono">
             {filteredAppearances.map((app) => {
               const isSelected = selectedMap.has(app.id)
-              const hasDraft = draftChanges.some((d) => d.appearanceId === app.id)
+              const hasDraft = draftChanges.some(
+                (d) => d.appearanceId === app.id
+              )
 
               return (
                 <tr
                   key={app.id}
                   className={`hover:bg-muted/20 transition-colors ${
-                    isSelected ? 'bg-primary/10' : hasDraft ? 'bg-amber-500/10' : ''
+                    isSelected
+                      ? 'bg-primary/10'
+                      : hasDraft
+                        ? 'bg-primary/10'
+                        : ''
                   }`}
                 >
                   <td className="p-2 text-center">
@@ -219,13 +238,15 @@ export function LibrarySpreadsheet(): React.JSX.Element {
                   </td>
 
                   <td className="p-2">
-                    <span className={`px-1.5 py-0.5 rounded text-[10px] uppercase font-bold ${
-                      app.entityType === 'course'
-                        ? 'bg-orange-500/15 text-orange-400'
-                        : app.entityType === 'module'
-                        ? 'bg-amber-500/15 text-amber-400'
-                        : 'bg-blue-500/15 text-blue-400'
-                    }`}>
+                    <span
+                      className={`px-1.5 py-0.5 rounded text-[10px] uppercase font-bold ${
+                        app.entityType === 'course'
+                          ? 'bg-primary/15 text-primary'
+                          : app.entityType === 'module'
+                            ? 'bg-primary/15 text-primary'
+                            : 'bg-accent/15 text-accent'
+                      }`}
+                    >
                       {app.entityType}
                     </span>
                   </td>
@@ -255,7 +276,7 @@ export function LibrarySpreadsheet(): React.JSX.Element {
 
                   <td className="p-2">
                     {app.isHidden ? (
-                      <span className="px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-400 text-[10px]">
+                      <span className="px-1.5 py-0.5 rounded bg-accent/15 text-accent text-[10px]">
                         Oculto
                       </span>
                     ) : app.isReference ? (
@@ -263,7 +284,9 @@ export function LibrarySpreadsheet(): React.JSX.Element {
                         Atalho
                       </span>
                     ) : (
-                      <span className="text-muted-foreground text-[10px]">Ativo</span>
+                      <span className="text-muted-foreground text-[10px]">
+                        Ativo
+                      </span>
                     )}
                   </td>
                 </tr>

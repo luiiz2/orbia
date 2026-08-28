@@ -1,5 +1,13 @@
 import React from 'react'
-import { ListPlus, Trash2, X, Play, ArrowUp, ArrowDown, Sparkles } from 'lucide-react'
+import {
+  ListPlus,
+  Trash2,
+  X,
+  Play,
+  ArrowUp,
+  ArrowDown,
+  Sparkles
+} from 'lucide-react'
 import { usePlayerStore } from '../../stores/usePlayerStore'
 import { formatTime } from '../../lib/formatters'
 import { Button } from '../ui/button'
@@ -20,12 +28,16 @@ export function PlaybackQueueDrawer(): React.JSX.Element {
       {/* Header */}
       <div className="flex items-center justify-between border-b border-border/80 pb-3">
         <div className="flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-orange-500/15 text-primary border border-orange-500/20 shadow-xs">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/15 text-primary border border-primary/20 shadow-xs">
             <ListPlus className="h-4 w-4" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-foreground">Fila de Reprodução</h3>
-            <p className="text-[11px] text-muted-foreground">A Seguir ({playbackQueue.length})</p>
+            <h3 className="text-sm font-bold text-foreground">
+              Fila de Reprodução
+            </h3>
+            <p className="text-[11px] text-muted-foreground">
+              A Seguir ({playbackQueue.length})
+            </p>
           </div>
         </div>
 
@@ -42,7 +54,9 @@ export function PlaybackQueueDrawer(): React.JSX.Element {
                 <span>Limpar</span>
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="left">Limpar fila de reprodução</TooltipContent>
+            <TooltipContent side="left">
+              Limpar fila de reprodução
+            </TooltipContent>
           </Tooltip>
         )}
       </div>
@@ -56,7 +70,9 @@ export function PlaybackQueueDrawer(): React.JSX.Element {
           <div className="flex items-center justify-between p-2.5 rounded-xl bg-primary/10 border border-primary/25">
             <div className="flex items-center gap-2 min-w-0 pr-2">
               <Play className="h-3.5 w-3.5 text-primary fill-primary shrink-0" />
-              <p className="text-xs font-semibold text-white truncate">{activeLesson.title}</p>
+              <p className="text-xs font-semibold text-white truncate">
+                {activeLesson.title}
+              </p>
             </div>
             {activeLesson.duration > 0 && (
               <span className="text-[10px] font-mono text-primary font-medium shrink-0">
@@ -78,7 +94,8 @@ export function PlaybackQueueDrawer(): React.JSX.Element {
             <Sparkles className="h-8 w-8 text-muted-foreground/40 stroke-1" />
             <p className="text-xs">Sua fila de reprodução está vazia.</p>
             <p className="text-[11px] text-muted-foreground/70 max-w-[200px]">
-              Adicione aulas à fila pelos cards ou pelo currículo para assistir em sequência.
+              Adicione aulas à fila pelos cards ou pelo currículo para assistir
+              em sequência.
             </p>
           </div>
         ) : (

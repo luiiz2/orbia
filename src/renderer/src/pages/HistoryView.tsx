@@ -1,12 +1,22 @@
 import React, { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { History, Play, Clock, Calendar, BookOpen, FileArchive, CheckCircle2, Trash2, Flame } from 'lucide-react'
+import {
+  History,
+  Play,
+  Clock,
+  Calendar,
+  BookOpen,
+  FileArchive,
+  CheckCircle2,
+  Trash2,
+  Flame
+} from 'lucide-react'
 import { useNavigationStore } from '../stores/useNavigationStore'
 import { usePlayerStore } from '../stores/usePlayerStore'
 import { useLibraryStore } from '../stores/useLibraryStore'
 import { useSettingsStore } from '../stores/useSettingsStore'
 import { formatTime, formatBytes } from '../lib/formatters'
-import { Button } from '../components/ui'
+import { Button, EmptyState } from '../components/ui'
 import { StudyAnalyticsPanel } from '../components/analytics/StudyAnalyticsPanel'
 import type { WatchHistoryEntry, StudyAnalytics } from '@shared'
 
@@ -14,10 +24,13 @@ export function HistoryView(): React.JSX.Element {
   const { t } = useTranslation()
   const { navigateToPlayer } = useNavigationStore()
   const { loadHierarchy } = usePlayerStore()
-  const { importHistory, fetchImportHistory, clearImportHistory } = useLibraryStore()
+  const { importHistory, fetchImportHistory, clearImportHistory } =
+    useLibraryStore()
   const { settings } = useSettingsStore()
 
-  const [activeTab, setActiveTab] = useState<'analytics' | 'watch' | 'imports'>('analytics')
+  const [activeTab, setActiveTab] = useState<'analytics' | 'watch' | 'imports'>(
+    'analytics'
+  )
   const [historyEntries, setHistoryEntries] = useState<WatchHistoryEntry[]>([])
   const [analytics, setAnalytics] = useState<StudyAnalytics | null>(null)
   const [isLoading, setIsLoading] = useState<boolean>(true)
@@ -25,7 +38,8 @@ export function HistoryView(): React.JSX.Element {
   const reloadAnalytics = async (goalMinutes?: number): Promise<void> => {
     try {
       const targetGoal = goalMinutes || settings.dailyStudyGoalMinutes || 30
-      const analyticsData = await window.api.player.getStudyAnalytics(targetGoal)
+      const analyticsData =
+        await window.api.player.getStudyAnalytics(targetGoal)
       setAnalytics(analyticsData || null)
     } catch (err) {
       console.error('Failed to reload analytics:', err)
@@ -37,7 +51,9 @@ export function HistoryView(): React.JSX.Element {
       try {
         const [entries, analyticsData] = await Promise.all([
           window.api.player.getWatchHistory(100),
-          window.api.player.getStudyAnalytics(settings.dailyStudyGoalMinutes || 30),
+          window.api.player.getStudyAnalytics(
+            settings.dailyStudyGoalMinutes || 30
+          ),
           fetchImportHistory()
         ])
         setHistoryEntries(entries || [])
@@ -108,9 +124,14 @@ export function HistoryView(): React.JSX.Element {
             </h1>
             <p className="text-xs text-muted-foreground">
               {activeTab === 'analytics'
-                ? t('analytics.subtitle', 'Acompanhe seu ritmo de estudo e evolução diária')
+                ? t(
+                    'analytics.subtitle',
+                    'Acompanhe seu ritmo de estudo e evolução diária'
+                  )
                 : activeTab === 'watch'
-                  ? t('history.lessonsRecorded', { count: historyEntries.length })
+                  ? t('history.lessonsRecorded', {
+                      count: historyEntries.length
+                    })
                   : t('history.filesImported', { count: importHistory.length })}
             </p>
           </div>
@@ -127,7 +148,7 @@ export function HistoryView(): React.JSX.Element {
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
-            <Flame className="h-3.5 w-3.5 text-orange-500 fill-orange-500" />
+            <Flame className="h-3.5 w-3.5 text-primary fill-primary" />
             <span>{t('analytics.tabTitle', 'Estatísticas')}</span>
           </button>
           <button
@@ -151,7 +172,7 @@ export function HistoryView(): React.JSX.Element {
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
-            <FileArchive className="h-3.5 w-3.5 text-purple-400" />
+            <FileArchive className="h-3.5 w-3.5 text-accent" />
             <span>{t('history.importHistory')}</span>
           </button>
         </div>
@@ -160,11 +181,18 @@ export function HistoryView(): React.JSX.Element {
       {isLoading ? (
         <div className="space-y-3">
           {[1, 2, 3].map((n) => (
-            <div key={n} className="h-20 rounded-2xl border border-border/40 bg-card/40 animate-pulse" />
+            <div
+              key={n}
+              className="h-20 rounded-2xl border border-border/40 bg-card/40 animate-pulse"
+            />
           ))}
         </div>
       ) : activeTab === 'analytics' ? (
-        <StudyAnalyticsPanel analytics={analytics} isLoading={isLoading} onGoalChange={reloadAnalytics} />
+        <StudyAnalyticsPanel
+          analytics={analytics}
+          isLoading={isLoading}
+          onGoalChange={reloadAnalytics}
+        />
       ) : activeTab === 'imports' ? (
         /* Import History Tab */
         <div className="space-y-4">
@@ -188,10 +216,12 @@ export function HistoryView(): React.JSX.Element {
           {importHistory.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border p-12 text-center bg-card/30 space-y-3">
               <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-secondary/80 text-muted-foreground shadow-inner">
-                <FileArchive className="h-8 w-8 text-purple-400 opacity-60" />
+                <FileArchive className="h-8 w-8 text-accent opacity-60" />
               </div>
               <div className="space-y-1 max-w-md">
-                <h3 className="text-base font-bold text-foreground">{t('history.noImportsTitle')}</h3>
+                <h3 className="text-base font-bold text-foreground">
+                  {t('history.noImportsTitle')}
+                </h3>
                 <p className="text-xs text-muted-foreground leading-relaxed">
                   {t('history.noImportsDesc')}
                 </p>
@@ -205,7 +235,7 @@ export function HistoryView(): React.JSX.Element {
                   className="flex items-center justify-between p-3.5 sm:p-4 hover:bg-secondary/40 transition-colors"
                 >
                   <div className="flex items-center gap-3.5 overflow-hidden">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20 shadow-sm">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-accent/10 text-accent border border-accent/20 shadow-sm">
                       <FileArchive className="h-4 w-4" />
                     </div>
                     <div className="flex flex-col overflow-hidden">
@@ -219,9 +249,16 @@ export function HistoryView(): React.JSX.Element {
                             <span>{item.courseTitle}</span>
                           </span>
                         )}
-                        {item.fileSize > 0 && <span>{formatBytes(item.fileSize)}</span>}
+                        {item.fileSize > 0 && (
+                          <span>{formatBytes(item.fileSize)}</span>
+                        )}
                         {item.extractedFiles > 0 && (
-                          <span>• {t('history.filesExtracted', { count: item.extractedFiles })}</span>
+                          <span>
+                            •{' '}
+                            {t('history.filesExtracted', {
+                              count: item.extractedFiles
+                            })}
+                          </span>
                         )}
                       </span>
                     </div>
@@ -248,14 +285,16 @@ export function HistoryView(): React.JSX.Element {
         </div>
       ) : historyEntries.length === 0 ? (
         /* Watch History Empty */
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border p-12 text-center bg-card/30 space-y-3">
-          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-secondary/80 text-muted-foreground shadow-inner">
-            <History className="h-8 w-8 text-primary opacity-60" />
-          </div>
-          <div className="space-y-1 max-w-md">
-            <h3 className="text-base font-bold text-foreground">{t('history.title')}</h3>
-            <p className="text-xs text-muted-foreground leading-relaxed">{t('history.empty')}</p>
-          </div>
+        <div className="rounded-3xl border border-dashed border-border/80 bg-secondary/20 p-8 text-center">
+          <EmptyState
+            icon={History}
+            title={t('emptyStates.noHistory', 'Nenhum histórico recente')}
+            description={t(
+              'emptyStates.noHistoryDesc',
+              'As aulas e cursos que você estudar aparecerão aqui em ordem cronológica.'
+            )}
+            className="p-0"
+          />
         </div>
       ) : (
         /* Watch History Grouped by Date */
@@ -271,12 +310,21 @@ export function HistoryView(): React.JSX.Element {
                 {entries.map((entry) => (
                   <div
                     key={entry.id}
+                    role="button"
+                    tabIndex={0}
                     onClick={() => handlePlayEntry(entry)}
-                    className="flex items-center justify-between p-3.5 sm:p-4 hover:bg-secondary/60 cursor-pointer transition-colors group"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        handlePlayEntry(entry)
+                      }
+                    }}
+                    aria-label={`Continuar assistindo ${entry.lessonTitle} do curso ${entry.courseTitle}`}
+                    className="flex items-center justify-between p-3.5 sm:p-4 hover:bg-secondary/60 cursor-pointer transition-colors group focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
                   >
                     <div className="flex items-center gap-3.5 overflow-hidden">
                       {/* Play Action Badge */}
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-secondary text-muted-foreground group-hover:bg-primary group-hover:text-primary-foreground group-hover:shadow-md group-hover:shadow-orange-500/20 transition-all">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-secondary text-muted-foreground group-hover:bg-primary group-hover:text-primary-foreground group-hover:shadow-md group-hover:shadow-primary/20 transition-all">
                         <Play className="h-4 w-4 fill-current ml-0.5" />
                       </div>
 
@@ -294,8 +342,12 @@ export function HistoryView(): React.JSX.Element {
                     <div className="flex items-center gap-3 text-xs text-muted-foreground shrink-0 font-mono">
                       <span className="flex items-center gap-1">
                         <Clock className="h-3 w-3 text-muted-foreground/70" />
-                        <span className="font-semibold text-foreground">{formatTime(entry.currentTime)}</span>
-                        {entry.duration > 0 && <span>/ {formatTime(entry.duration)}</span>}
+                        <span className="font-semibold text-foreground">
+                          {formatTime(entry.currentTime)}
+                        </span>
+                        {entry.duration > 0 && (
+                          <span>/ {formatTime(entry.duration)}</span>
+                        )}
                       </span>
                     </div>
                   </div>
@@ -308,4 +360,3 @@ export function HistoryView(): React.JSX.Element {
     </div>
   )
 }
-

@@ -51,7 +51,10 @@ export function MediaRail({
     if (!el) return
     const scrollAmount = el.clientWidth * 0.75
     el.scrollTo({
-      left: direction === 'left' ? el.scrollLeft - scrollAmount : el.scrollLeft + scrollAmount,
+      left:
+        direction === 'left'
+          ? el.scrollLeft - scrollAmount
+          : el.scrollLeft + scrollAmount,
       behavior: 'smooth'
     })
   }
@@ -71,7 +74,7 @@ export function MediaRail({
       <div className="flex items-center justify-between px-1">
         <div className="flex items-center gap-2.5">
           {icon && (
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-orange-500/15 text-primary border border-orange-500/20 shadow-xs">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/15 text-primary border border-primary/20 shadow-xs">
               {icon}
             </div>
           )}
@@ -87,7 +90,9 @@ export function MediaRail({
               )}
             </div>
             {subtitle && (
-              <p className="text-[12px] text-muted-foreground line-clamp-1">{subtitle}</p>
+              <p className="text-[12px] text-muted-foreground line-clamp-1">
+                {subtitle}
+              </p>
             )}
           </div>
         </div>
@@ -115,7 +120,9 @@ export function MediaRail({
                   disabled={!canScrollLeft}
                   onClick={() => scroll('left')}
                   className={`h-8 w-8 rounded-xl border-white/10 bg-card/80 hover:bg-secondary hover:text-foreground cursor-pointer shadow-sm transition-opacity ${
-                    !canScrollLeft ? 'opacity-30 cursor-not-allowed' : 'opacity-100'
+                    !canScrollLeft
+                      ? 'opacity-30 cursor-not-allowed'
+                      : 'opacity-100'
                   }`}
                   aria-label="Rolar para a esquerda"
                 >
@@ -133,7 +140,9 @@ export function MediaRail({
                   disabled={!canScrollRight}
                   onClick={() => scroll('right')}
                   className={`h-8 w-8 rounded-xl border-white/10 bg-card/80 hover:bg-secondary hover:text-foreground cursor-pointer shadow-sm transition-opacity ${
-                    !canScrollRight ? 'opacity-30 cursor-not-allowed' : 'opacity-100'
+                    !canScrollRight
+                      ? 'opacity-30 cursor-not-allowed'
+                      : 'opacity-100'
                   }`}
                   aria-label="Rolar para a direita"
                 >

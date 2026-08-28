@@ -331,7 +331,8 @@ function cancelledMessage(
     id: `cancelled:${requestId}`,
     conversationId: conversationId ?? '',
     role: 'assistant',
-    content: 'The grounded response was cancelled before an answer was generated.',
+    content:
+      'The grounded response was cancelled before an answer was generated.',
     status: 'cancelled',
     sources: [],
     createdAt: Date.now()

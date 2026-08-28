@@ -8,7 +8,10 @@ import {
   FolderOpen,
   Plus,
   X,
-  Sparkles
+  Sparkles,
+  HelpCircle,
+  Palette,
+  HardDriveDownload
 } from 'lucide-react'
 import { useLibraryStore } from '../../stores/useLibraryStore'
 import { useLibrarySearchStore } from '../../stores/useLibrarySearchStore'
@@ -35,7 +38,8 @@ export function TopBar(): React.JSX.Element {
   const { searchQuery, setSearchQuery } = useLibraryStore()
   const { open: openLibrarySearch } = useLibrarySearchStore()
   const { currentVault } = useVaultStore()
-  const { currentView, setView, setImportModalOpen, setVaultModalOpen } = useNavigationStore()
+  const { currentView, setView, setImportModalOpen, setVaultModalOpen } =
+    useNavigationStore()
   const { activeProfile } = useProfileStore()
   const { setOptimizerModalOpen, queue } = useOptimizerStore()
   const { theme, setTheme } = useTheme()
@@ -43,38 +47,50 @@ export function TopBar(): React.JSX.Element {
   const navItems = [
     {
       id: 'home' as const,
-      label: t('nav.library'),
-      isActive: currentView === 'home' || currentView === 'course' || currentView === 'player'
+      label: t('nav.library', 'Biblioteca'),
+      isActive:
+        currentView === 'home' ||
+        currentView === 'course' ||
+        currentView === 'player'
     },
     {
       id: 'discover' as const,
-      label: 'Descobrir',
+      label: t('nav.discover', 'Descobrir'),
       isActive: currentView === 'discover'
     },
     {
       id: 'studio' as const,
-      label: 'Studio',
+      label: t('nav.studio', 'Studio'),
       isActive: currentView === 'studio'
     },
     {
+      id: 'review' as const,
+      label: t('nav.review', 'Revisão'),
+      isActive: currentView === 'review'
+    },
+    {
       id: 'history' as const,
-      label: t('nav.history'),
+      label: t('nav.history', 'Histórico'),
       isActive: currentView === 'history'
     },
     {
       id: 'settings' as const,
-      label: t('nav.settings'),
+      label: t('nav.settings', 'Configurações'),
       isActive: currentView === 'settings'
     }
   ]
 
   return (
     <header className="sticky top-0 z-30 flex h-14 w-full items-center justify-between gap-4 border-b border-border/60 bg-background/90 px-4 backdrop-blur-xl transition-colors select-none">
-      {/* Left: Logo + Streaming-style Nav Links */}
+      {/* Left: Logo + Nav Links */}
       <div className="flex items-center gap-4 shrink-0">
         <div className="flex items-center gap-2 shrink-0">
-          <img src={appLogo} alt="Orbia" className="h-7 w-7 object-contain drop-shadow" />
-          <span className="text-base font-extrabold tracking-tight text-orbia-gradient hidden sm:inline">
+          <img
+            src={appLogo}
+            alt="Orbia"
+            className="h-7 w-7 object-contain drop-shadow"
+          />
+          <span className="text-base font-extrabold tracking-tight text-orbia-mark hidden sm:inline">
             {t('app.name')}
           </span>
         </div>
@@ -94,7 +110,7 @@ export function TopBar(): React.JSX.Element {
             >
               {item.label}
               {item.isActive && (
-                <span className="absolute inset-x-3 -bottom-px h-0.5 rounded-full bg-gradient-to-r from-orange-500 to-amber-400" />
+                <span className="absolute inset-x-3 -bottom-px h-0.5 rounded-full bg-primary" />
               )}
             </button>
           ))}
@@ -154,23 +170,32 @@ export function TopBar(): React.JSX.Element {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => useGroundedChatStore.getState().open({ scope: { type: 'vault' } })}
+              onClick={() =>
+                useGroundedChatStore
+                  .getState()
+                  .open({ scope: { type: 'vault' } })
+              }
               className="h-8 gap-1.5 px-2.5 text-xs font-semibold rounded-lg border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 transition-all shrink-0 cursor-pointer shadow-xs"
               aria-label={t('chat.askOrbia', 'Perguntar à Orbia')}
             >
               <Sparkles className="h-3.5 w-3.5 text-primary" />
-              <span className="hidden sm:inline">{t('chat.askOrbia', 'Perguntar à Orbia')}</span>
+              <span className="hidden sm:inline">
+                {t('chat.askOrbia', 'Perguntar à Orbia')}
+              </span>
             </Button>
           </TooltipTrigger>
           <TooltipContent side="bottom">
-            {t('chat.askOrbiaTooltip', 'Fazer perguntas sobre toda a sua biblioteca de cursos')}
+            {t(
+              'chat.askOrbiaTooltip',
+              'Fazer perguntas sobre toda a sua biblioteca de cursos'
+            )}
           </TooltipContent>
         </Tooltip>
 
         <Button
           size="sm"
           onClick={() => setImportModalOpen(true)}
-          className="h-8 gap-1.5 px-3 text-xs font-semibold rounded-lg bg-gradient-to-r from-orange-500 via-orange-600 to-amber-500 text-primary-foreground hover:opacity-95 active:scale-[0.98] transition-all shrink-0"
+          className="h-8 gap-1.5 px-3 text-xs font-semibold rounded-lg bg-primary text-primary-foreground hover:opacity-95 active:scale-[0.98] transition-all shrink-0"
         >
           <Plus className="h-3.5 w-3.5 stroke-[2.5]" />
           <span className="hidden sm:inline">{t('nav.importCourse')}</span>
@@ -190,33 +215,58 @@ export function TopBar(): React.JSX.Element {
         </Button>
 
         {/* Studio Theme Editor Button */}
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => useNavigationStore.getState().setThemeModalOpen(true)}
-          className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5 rounded-lg shrink-0"
-          title="Personalizar Aparência & Tema"
-        >
-          <span className="text-xs">🎨</span>
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() =>
+                useNavigationStore.getState().setThemeModalOpen(true)
+              }
+              className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5 rounded-lg shrink-0"
+              aria-label={t(
+                'settings.themeCustomizer',
+                'Personalizar Aparência & Tema'
+              )}
+            >
+              <Palette className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">
+            {t('settings.themeCustomizer', 'Personalizar Aparência & Tema')}
+          </TooltipContent>
+        </Tooltip>
 
         {/* Media Storage Optimizer Button (v0.7) */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setOptimizerModalOpen(true)}
+              className="relative h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5 rounded-lg shrink-0"
+              aria-label={t(
+                'optimizer.title',
+                'Otimizador de Armazenamento de Vídeo'
+              )}
+            >
+              <HardDriveDownload className="h-4 w-4" />
+              {queue.some((q) => q.status === 'encoding') && (
+                <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-primary animate-ping" />
+              )}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">
+            {t('optimizer.title', 'Otimizador de Armazenamento de Vídeo')}
+          </TooltipContent>
+        </Tooltip>
+
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => setOptimizerModalOpen(true)}
-          className="relative h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5 rounded-lg shrink-0"
-          title="Otimizador de Armazenamento de Vídeo"
-        >
-          <span className="text-xs">🗜️</span>
-          {queue.some((q) => q.status === 'encoding') && (
-            <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-primary animate-ping" />
-          )}
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => useNavigationStore.getState().setProfileModalOpen(true)}
+          onClick={() =>
+            useNavigationStore.getState().setProfileModalOpen(true)
+          }
           className="h-8 w-8 p-0 rounded-full hover:ring-2 hover:ring-primary/40 transition-all shrink-0 cursor-pointer overflow-hidden"
           title={`Perfil: ${activeProfile?.name || 'Principal'}`}
         >
@@ -227,11 +277,36 @@ export function TopBar(): React.JSX.Element {
               className="h-7 w-7 rounded-full object-cover border border-border/80"
             />
           ) : (
-            <div className="h-7 w-7 rounded-full bg-gradient-to-tr from-orange-500 to-amber-400 text-white font-bold text-xs flex items-center justify-center shadow-xs">
+            <div className="h-7 w-7 rounded-full bg-primary text-primary-foreground font-bold text-xs flex items-center justify-center shadow-xs">
               {activeProfile ? activeProfile.name.charAt(0).toUpperCase() : 'P'}
             </div>
           )}
         </Button>
+
+        {/* Keyboard Shortcuts Help Button */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() =>
+                useNavigationStore.getState().setShortcutsModalOpen(true)
+              }
+              className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5 rounded-lg shrink-0"
+              aria-label={t('shortcuts.title', 'Atalhos de Teclado')}
+            >
+              <HelpCircle className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">
+            <p className="text-xs">
+              {t('shortcuts.title', 'Atalhos de Teclado')}{' '}
+              <kbd className="ml-1 rounded bg-secondary px-1 py-0.5 font-mono text-[10px] text-muted-foreground">
+                ?
+              </kbd>
+            </p>
+          </TooltipContent>
+        </Tooltip>
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -242,27 +317,30 @@ export function TopBar(): React.JSX.Element {
               aria-label={t('settings.theme')}
             >
               {theme === 'light' ? (
-                <Sun className="h-4 w-4 text-amber-500" />
+                <Sun className="h-4 w-4 text-primary" />
               ) : theme === 'dark' ? (
-                <Moon className="h-4 w-4 text-indigo-400" />
+                <Moon className="h-4 w-4 text-accent" />
               ) : (
                 <Laptop className="h-4 w-4" />
               )}
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-36 rounded-xl border-border bg-card/95 backdrop-blur-md shadow-xl">
+          <DropdownMenuContent
+            align="end"
+            className="w-36 rounded-xl border-border bg-card/95 backdrop-blur-md shadow-xl"
+          >
             <DropdownMenuItem
               onClick={() => setTheme('light')}
               className="flex items-center gap-2 text-xs cursor-pointer py-1.5 rounded-lg"
             >
-              <Sun className="h-3.5 w-3.5 text-amber-500" />
+              <Sun className="h-3.5 w-3.5 text-primary" />
               <span>{t('settings.themeLight')}</span>
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => setTheme('dark')}
               className="flex items-center gap-2 text-xs cursor-pointer py-1.5 rounded-lg"
             >
-              <Moon className="h-3.5 w-3.5 text-indigo-400" />
+              <Moon className="h-3.5 w-3.5 text-accent" />
               <span>{t('settings.themeDark')}</span>
             </DropdownMenuItem>
             <DropdownMenuItem

@@ -43,11 +43,16 @@ export interface ReviewState {
   startReviewSession: () => void
   endReviewSession: () => void
   nextCard: () => void
-  addToStudyQueue: (entityType: StudyQueueEntityType, entityId: string) => Promise<StudyQueueItem>
+  addToStudyQueue: (
+    entityType: StudyQueueEntityType,
+    entityId: string
+  ) => Promise<StudyQueueItem>
   removeFromStudyQueue: (id: string) => Promise<boolean>
   reorderStudyQueue: (id: string, direction: 'up' | 'down') => Promise<boolean>
   deleteBookmark: (id: string) => Promise<boolean>
-  setActiveFilter: (filter: 'all' | 'due' | 'flashcards' | 'bookmarks' | 'queue') => void
+  setActiveFilter: (
+    filter: 'all' | 'due' | 'flashcards' | 'bookmarks' | 'queue'
+  ) => void
   setSearchQuery: (query: string) => void
 }
 
@@ -110,14 +115,21 @@ export const useReviewStore = create<ReviewState>((set, get) => ({
 
   createFlashcard: async (card) => {
     const created = await window.api.flashcards.create(card)
-    await Promise.all([get().fetchDueFlashcards(), get().fetchAllFlashcards(), get().fetchDashboardStats()])
+    await Promise.all([
+      get().fetchDueFlashcards(),
+      get().fetchAllFlashcards(),
+      get().fetchDashboardStats()
+    ])
     return created
   },
 
   updateFlashcard: async (id, updates) => {
     const ok = await window.api.flashcards.update(id, updates)
     if (ok) {
-      await Promise.all([get().fetchDueFlashcards(), get().fetchAllFlashcards()])
+      await Promise.all([
+        get().fetchDueFlashcards(),
+        get().fetchAllFlashcards()
+      ])
     }
     return ok
   },
@@ -145,7 +157,10 @@ export const useReviewStore = create<ReviewState>((set, get) => ({
           isReviewSessionActive: !isFinished
         }
       })
-      await Promise.all([get().fetchDueFlashcards(), get().fetchDashboardStats()])
+      await Promise.all([
+        get().fetchDueFlashcards(),
+        get().fetchDashboardStats()
+      ])
     }
   },
 

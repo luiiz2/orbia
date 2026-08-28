@@ -7,11 +7,11 @@ import { formatTime } from '../../lib/formatters'
 import type { VideoBookmark } from '@shared'
 
 const COLOR_PRESETS = [
-  { label: 'Laranja', value: '#f59e0b' },
-  { label: 'Azul', value: '#3b82f6' },
-  { label: 'Verde', value: '#10b981' },
-  { label: 'Roxo', value: '#8b5cf6' },
-  { label: 'Vermelho', value: '#ef4444' }
+  { label: 'Cobre', value: '#d08a52' },
+  { label: 'Sálvia', value: '#5b7668' },
+  { label: 'Verde', value: '#4f8a68' },
+  { label: 'Areia', value: '#c9a66b' },
+  { label: 'Vermelho', value: '#b9554d' }
 ]
 
 export function BookmarksPanel(): React.JSX.Element {
@@ -28,14 +28,16 @@ export function BookmarksPanel(): React.JSX.Element {
 
   const [isCreating, setIsCreating] = useState(false)
   const [newTitle, setNewTitle] = useState('')
-  const [selectedColor, setSelectedColor] = useState('#f59e0b')
+  const [selectedColor, setSelectedColor] = useState('#d08a52')
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!activeLesson) return
 
-    const title = newTitle.trim() || t('player.bookmarkDefaultTitle', { time: formatTime(currentTime) })
+    const title =
+      newTitle.trim() ||
+      t('player.bookmarkDefaultTitle', { time: formatTime(currentTime) })
     await addBookmark(title, selectedColor, currentTime)
     setNewTitle('')
     setIsCreating(false)
@@ -55,7 +57,7 @@ export function BookmarksPanel(): React.JSX.Element {
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border/70 bg-card/40">
         <div className="flex items-center gap-2">
-          <Bookmark className="h-4 w-4 text-amber-500" />
+          <Bookmark className="h-4 w-4 text-primary" />
           <span className="font-semibold text-sm text-foreground">
             {t('player.bookmarks', 'Marcadores')} ({bookmarks.length})
           </span>
@@ -64,7 +66,7 @@ export function BookmarksPanel(): React.JSX.Element {
           <Button
             size="sm"
             variant="outline"
-            className="h-8 gap-1.5 text-xs border-amber-500/30 hover:border-amber-500/60 text-amber-500 hover:text-amber-400 bg-amber-500/10 hover:bg-amber-500/20"
+            className="h-8 gap-1.5 text-xs border-primary/30 hover:border-primary/60 text-primary hover:text-primary bg-primary/10 hover:bg-primary/20"
             onClick={() => setIsCreating(true)}
           >
             <Plus className="h-3.5 w-3.5" />
@@ -75,9 +77,12 @@ export function BookmarksPanel(): React.JSX.Element {
 
       {/* Quick Add Form */}
       {isCreating && (
-        <form onSubmit={handleSave} className="p-3.5 border-b border-border/70 bg-card/90 flex flex-col gap-2.5 animate-in fade-in slide-in-from-top-2 duration-200">
+        <form
+          onSubmit={handleSave}
+          className="p-3.5 border-b border-border/70 bg-card/90 flex flex-col gap-2.5 animate-in fade-in slide-in-from-top-2 duration-200"
+        >
           <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span className="flex items-center gap-1 font-medium text-amber-500">
+            <span className="flex items-center gap-1 font-medium text-primary">
               <Clock className="h-3.5 w-3.5" />
               {t('player.bookmarkAt', { time: formatTime(currentTime) })}
             </span>
@@ -90,7 +95,8 @@ export function BookmarksPanel(): React.JSX.Element {
                   className="w-4 h-4 rounded-full transition-transform hover:scale-110"
                   style={{
                     backgroundColor: c.value,
-                    outline: selectedColor === c.value ? '2px solid white' : 'none',
+                    outline:
+                      selectedColor === c.value ? '2px solid white' : 'none',
                     outlineOffset: '1px'
                   }}
                   title={c.label}
@@ -101,10 +107,13 @@ export function BookmarksPanel(): React.JSX.Element {
 
           <input
             type="text"
-            placeholder={t('player.bookmarkPlaceholder', 'Ex: Revisar este conceito para a prova...')}
+            placeholder={t(
+              'player.bookmarkPlaceholder',
+              'Ex: Revisar este conceito para a prova...'
+            )}
             value={newTitle}
             onChange={(e) => setNewTitle(e.target.value)}
-            className="w-full text-xs bg-background/80 border border-border/80 rounded-md px-2.5 py-1.5 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-amber-500"
+            className="w-full text-xs bg-background/80 border border-border/80 rounded-md px-2.5 py-1.5 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
             autoFocus
           />
 
@@ -125,7 +134,7 @@ export function BookmarksPanel(): React.JSX.Element {
             <Button
               type="submit"
               size="sm"
-              className="h-7 text-xs px-2.5 bg-amber-500 hover:bg-amber-600 text-black font-medium"
+              className="h-7 text-xs px-2.5 bg-primary hover:bg-primary/90 text-primary-foreground font-medium"
             >
               <Check className="h-3.5 w-3.5 mr-1" />
               {t('common.save', 'Salvar')}
@@ -147,7 +156,10 @@ export function BookmarksPanel(): React.JSX.Element {
               {t('player.noBookmarks', 'Nenhum trecho salvo nesta aula.')}
             </p>
             <p className="text-[11px] text-muted-foreground/70 mt-1">
-              {t('player.bookmarkHint', 'Use o botão acima para marcar momentos importantes para revisar depois.')}
+              {t(
+                'player.bookmarkHint',
+                'Use o botão acima para marcar momentos importantes para revisar depois.'
+              )}
             </p>
           </div>
         ) : (
@@ -159,12 +171,12 @@ export function BookmarksPanel(): React.JSX.Element {
             >
               <div
                 className="w-2.5 h-2.5 rounded-full mt-1 shrink-0"
-                style={{ backgroundColor: bm.color || '#f59e0b' }}
+                style={{ backgroundColor: bm.color || '#d08a52' }}
               />
 
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5">
-                  <span className="text-[11px] font-mono font-semibold text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded">
+                  <span className="text-[11px] font-mono font-semibold text-primary bg-primary/10 px-1.5 py-0.5 rounded">
                     {formatTime(bm.timestamp)}
                   </span>
                 </div>

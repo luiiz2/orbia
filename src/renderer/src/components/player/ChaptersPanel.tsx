@@ -41,15 +41,18 @@ export function ChaptersPanel(): React.JSX.Element {
   const [editTitle, setEditTitle] = useState('')
   const [editTimestamp, setEditTimestamp] = useState<number>(0)
 
-  const activeChapterId = chapters.reduce<string | null>((currentActive, ch, idx) => {
-    if (currentTime >= ch.timestampSeconds) {
-      const next = chapters[idx + 1]
-      if (!next || currentTime < next.timestampSeconds) {
-        return ch.id
+  const activeChapterId = chapters.reduce<string | null>(
+    (currentActive, ch, idx) => {
+      if (currentTime >= ch.timestampSeconds) {
+        const next = chapters[idx + 1]
+        if (!next || currentTime < next.timestampSeconds) {
+          return ch.id
+        }
       }
-    }
-    return currentActive
-  }, null)
+      return currentActive
+    },
+    null
+  )
 
   const handleStartAdd = () => {
     setNewTitle('')
@@ -125,7 +128,9 @@ export function ChaptersPanel(): React.JSX.Element {
           className="p-3 border-b border-border/70 bg-card/90 flex flex-col gap-2 animate-in fade-in slide-in-from-top-2 duration-150"
         >
           <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span className="font-medium text-foreground">{t('player.newChapter', 'Novo Capítulo')}</span>
+            <span className="font-medium text-foreground">
+              {t('player.newChapter', 'Novo Capítulo')}
+            </span>
             <div className="flex items-center gap-1">
               <Clock className="h-3.5 w-3.5 text-primary" />
               <input
@@ -136,13 +141,18 @@ export function ChaptersPanel(): React.JSX.Element {
                 onChange={(e) => setNewTimestamp(Number(e.target.value))}
                 className="w-16 px-1.5 py-0.5 rounded bg-muted text-foreground text-xs border border-border"
               />
-              <span className="text-muted-foreground">({formatTime(newTimestamp)})</span>
+              <span className="text-muted-foreground">
+                ({formatTime(newTimestamp)})
+              </span>
             </div>
           </div>
 
           <input
             type="text"
-            placeholder={t('player.chapterTitlePlaceholder', 'Título do capítulo...')}
+            placeholder={t(
+              'player.chapterTitlePlaceholder',
+              'Título do capítulo...'
+            )}
             value={newTitle}
             onChange={(e) => setNewTitle(e.target.value)}
             autoFocus
@@ -178,7 +188,9 @@ export function ChaptersPanel(): React.JSX.Element {
         {isLoadingChapters ? (
           <div className="py-12 flex items-center justify-center gap-2 text-xs text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin text-primary" />
-            <span>{t('player.loadingChapters', 'Carregando capítulos...')}</span>
+            <span>
+              {t('player.loadingChapters', 'Carregando capítulos...')}
+            </span>
           </div>
         ) : chapters.length === 0 ? (
           <div className="py-16 px-4 text-center space-y-2">
@@ -204,7 +216,10 @@ export function ChaptersPanel(): React.JSX.Element {
 
             if (isEditing) {
               return (
-                <div key={ch.id} className="p-2.5 bg-card/80 space-y-2 rounded-md">
+                <div
+                  key={ch.id}
+                  className="p-2.5 bg-card/80 space-y-2 rounded-md"
+                >
                   <div className="flex items-center gap-2">
                     <input
                       type="text"
@@ -260,7 +275,9 @@ export function ChaptersPanel(): React.JSX.Element {
                 >
                   <div
                     className={`flex items-center justify-center w-5 h-5 rounded shrink-0 ${
-                      isActive ? 'bg-primary text-primary-foreground' : 'bg-muted/60 text-muted-foreground group-hover:bg-muted'
+                      isActive
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-muted/60 text-muted-foreground group-hover:bg-muted'
                     }`}
                   >
                     {isActive ? (

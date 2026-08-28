@@ -18,7 +18,11 @@ import { useNavigationStore } from '../stores/useNavigationStore'
 import { usePlayerStore } from '../stores/usePlayerStore'
 import { useReviewStore } from '../stores/useReviewStore'
 import { Button, Skeleton } from '../components/ui'
-import { ContinueWatchingRail, MergeCoursesModal, QuickCourseOrganizerModal } from '../components/library'
+import {
+  ContinueWatchingRail,
+  MergeCoursesModal,
+  QuickCourseOrganizerModal
+} from '../components/library'
 import { StreamingHero, MediaRail, MediaCard } from '../components/streaming'
 import { matchesAnyField } from '../lib/search-utils'
 import appLogo from '../assets/icon.png'
@@ -77,8 +81,16 @@ export function HomeView(): React.JSX.Element {
     // 1. In-progress courses sorted by last played
     const inProgress = courses
       .map((course) => ({ course, summary: progressSummaries[course.id] }))
-      .filter((item) => item.summary && item.summary.percentage > 0 && item.summary.percentage < 100)
-      .sort((a, b) => (b.summary?.lastPlayedAt || 0) - (a.summary?.lastPlayedAt || 0))
+      .filter(
+        (item) =>
+          item.summary &&
+          item.summary.percentage > 0 &&
+          item.summary.percentage < 100
+      )
+      .sort(
+        (a, b) =>
+          (b.summary?.lastPlayedAt || 0) - (a.summary?.lastPlayedAt || 0)
+      )
 
     if (inProgress.length > 0) {
       return inProgress[0]
@@ -87,11 +99,17 @@ export function HomeView(): React.JSX.Element {
     // 2. Favorite courses
     const favorites = courses.filter((c) => c.isFavorite)
     if (favorites.length > 0) {
-      return { course: favorites[0], summary: progressSummaries[favorites[0].id] || null }
+      return {
+        course: favorites[0],
+        summary: progressSummaries[favorites[0].id] || null
+      }
     }
 
     // 3. First course
-    return { course: courses[0], summary: progressSummaries[courses[0].id] || null }
+    return {
+      course: courses[0],
+      summary: progressSummaries[courses[0].id] || null
+    }
   }, [courses, progressSummaries, searchQuery])
 
   const handleHeroResume = async (): Promise<void> => {
@@ -142,14 +160,19 @@ export function HomeView(): React.JSX.Element {
 
   // 3. Recently Added Courses
   const recentCourses = useMemo(() => {
-    return [...courses].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, 10)
+    return [...courses]
+      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
+      .slice(0, 10)
   }, [courses])
 
   // Filter courses according to searchQuery AND filterStatus
   const filteredCourses = useMemo(() => {
     return courses.filter((course) => {
       if (searchQuery.trim()) {
-        const matches = matchesAnyField([course.title, course.description], searchQuery)
+        const matches = matchesAnyField(
+          [course.title, course.description],
+          searchQuery
+        )
         if (!matches) return false
       }
 
@@ -197,8 +220,12 @@ export function HomeView(): React.JSX.Element {
   if (!currentVault) {
     return (
       <div className="flex min-h-[calc(100vh-3.5rem)] flex-col items-center justify-center p-6 text-center animate-in fade-in duration-300">
-        <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-3xl p-3 bg-gradient-to-br from-orange-500/20 via-purple-600/15 to-blue-600/10 border border-border shadow-xl shadow-orange-500/10 mb-6">
-          <img src={appLogo} alt="Orbia" className="h-full w-full object-contain drop-shadow" />
+        <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-3xl p-3 bg-primary/10 border border-primary/30 shadow-xl shadow-primary/10 mb-6">
+          <img
+            src={appLogo}
+            alt="Orbia"
+            className="h-full w-full object-contain drop-shadow"
+          />
         </div>
         <h2 className="text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl mb-2">
           {t('vault.title')}
@@ -210,7 +237,7 @@ export function HomeView(): React.JSX.Element {
           <Button
             onClick={() => setVaultModalOpen(true)}
             size="lg"
-            className="gap-2 shadow-lg shadow-orange-500/20 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-500 text-primary-foreground font-semibold rounded-xl hover:opacity-95 active:scale-[0.98] transition-all min-h-[40px] cursor-pointer"
+            className="gap-2 shadow-lg shadow-primary/20 bg-primary text-primary-foreground font-semibold rounded-xl hover:opacity-95 active:scale-[0.98] transition-all min-h-[40px] cursor-pointer"
           >
             <BookOpen className="h-4 w-4" />
             <span>{t('vault.createNew')}</span>
@@ -256,27 +283,30 @@ export function HomeView(): React.JSX.Element {
           summary={heroCourse.summary}
           onPlay={handleHeroResume}
           onViewDetails={() => navigateToCourse(heroCourse.course.id)}
-          onToggleFavorite={() => toggleFavorite(heroCourse.course.id).catch(console.warn)}
+          onToggleFavorite={() =>
+            toggleFavorite(heroCourse.course.id).catch(console.warn)
+          }
         />
       )}
 
       {/* 🎞️ 2. Continue Watching Rail (when not searching) */}
-      {!searchQuery && (
-        <ContinueWatchingRail isLoading={isLoading} />
-      )}
+      {!searchQuery && <ContinueWatchingRail isLoading={isLoading} />}
 
       {/* ⭐ 3. Rail: Minha Lista / Favoritos (when not searching and has favorites) */}
       {!searchQuery && myListCourses.length > 0 && !isLoading && (
         <MediaRail
           title="Minha Lista"
           subtitle="Cursos que você marcou como favoritos"
-          icon={<Star className="h-4 w-4 text-amber-400 fill-amber-400" />}
+          icon={<Star className="h-4 w-4 text-primary fill-primary" />}
           count={myListCourses.length}
         >
           {myListCourses.map((course) => {
             const summary = progressSummaries[course.id]
             return (
-              <div key={course.id} className="w-[260px] sm:w-[290px] shrink-0 snap-start">
+              <div
+                key={course.id}
+                className="w-[260px] sm:w-[290px] shrink-0 snap-start"
+              >
                 <MediaCard
                   id={course.id}
                   title={course.title}
@@ -289,7 +319,9 @@ export function HomeView(): React.JSX.Element {
                   badge={course.sourceType === 'local-ref' ? 'Ref' : undefined}
                   onPlay={() => handleQuickPlayCourse(course.id)}
                   onClick={() => navigateToCourse(course.id)}
-                  onToggleFavorite={() => toggleFavorite(course.id).catch(console.warn)}
+                  onToggleFavorite={() =>
+                    toggleFavorite(course.id).catch(console.warn)
+                  }
                   onMoreInfo={() => navigateToCourse(course.id)}
                   onOrganize={() => setOrganizeCourseId(course.id)}
                 />
@@ -304,13 +336,16 @@ export function HomeView(): React.JSX.Element {
         <MediaRail
           title="Cursos Rápidos"
           subtitle="Conteúdos compactos com menos de 3 horas de duração"
-          icon={<Zap className="h-4 w-4 text-amber-400" />}
+          icon={<Zap className="h-4 w-4 text-primary" />}
           count={quickCourses.length}
         >
           {quickCourses.map((course) => {
             const summary = progressSummaries[course.id]
             return (
-              <div key={course.id} className="w-[260px] sm:w-[290px] shrink-0 snap-start">
+              <div
+                key={course.id}
+                className="w-[260px] sm:w-[290px] shrink-0 snap-start"
+              >
                 <MediaCard
                   id={course.id}
                   title={course.title}
@@ -322,7 +357,9 @@ export function HomeView(): React.JSX.Element {
                   isFavorite={course.isFavorite}
                   onPlay={() => handleQuickPlayCourse(course.id)}
                   onClick={() => navigateToCourse(course.id)}
-                  onToggleFavorite={() => toggleFavorite(course.id).catch(console.warn)}
+                  onToggleFavorite={() =>
+                    toggleFavorite(course.id).catch(console.warn)
+                  }
                   onMoreInfo={() => navigateToCourse(course.id)}
                   onOrganize={() => setOrganizeCourseId(course.id)}
                 />
@@ -337,13 +374,16 @@ export function HomeView(): React.JSX.Element {
         <MediaRail
           title="Adicionados Recentemente"
           subtitle="Últimos cursos catalogados no seu Vault"
-          icon={<Sparkles className="h-4 w-4 text-blue-400" />}
+          icon={<Sparkles className="h-4 w-4 text-accent" />}
           count={recentCourses.length}
         >
           {recentCourses.map((course) => {
             const summary = progressSummaries[course.id]
             return (
-              <div key={course.id} className="w-[260px] sm:w-[290px] shrink-0 snap-start">
+              <div
+                key={course.id}
+                className="w-[260px] sm:w-[290px] shrink-0 snap-start"
+              >
                 <MediaCard
                   id={course.id}
                   title={course.title}
@@ -355,7 +395,9 @@ export function HomeView(): React.JSX.Element {
                   isFavorite={course.isFavorite}
                   onPlay={() => handleQuickPlayCourse(course.id)}
                   onClick={() => navigateToCourse(course.id)}
-                  onToggleFavorite={() => toggleFavorite(course.id).catch(console.warn)}
+                  onToggleFavorite={() =>
+                    toggleFavorite(course.id).catch(console.warn)
+                  }
                   onMoreInfo={() => navigateToCourse(course.id)}
                   onOrganize={() => setOrganizeCourseId(course.id)}
                 />
@@ -366,41 +408,49 @@ export function HomeView(): React.JSX.Element {
       )}
 
       {/* Revisar Hoje Banner (v0.3 - Subtle & Compact) */}
-      {!searchQuery && (dueFlashcards.length > 0 || recentBookmarks.length > 0) && (
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl border border-purple-500/25 bg-gradient-to-r from-purple-950/30 via-card/80 to-card shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-purple-500/20 text-purple-400 border border-purple-500/30 shrink-0">
-              <Sparkles className="h-4.5 w-4.5" />
+      {!searchQuery &&
+        (dueFlashcards.length > 0 || recentBookmarks.length > 0) && (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl border border-accent/25 bg-accent/10 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent/20 text-accent border border-accent/30 shrink-0">
+                <Sparkles className="h-4.5 w-4.5" />
+              </div>
+              <div>
+                <h3 className="text-xs font-bold text-foreground flex items-center gap-2">
+                  <span>{t('review.todaySectionTitle', 'Revisar Hoje')}</span>
+                  {dueFlashcards.length > 0 && (
+                    <span className="text-[10px] font-mono px-2 py-0.2 rounded-full bg-accent/20 text-accent font-bold">
+                      {dueFlashcards.length}{' '}
+                      {dueFlashcards.length === 1
+                        ? 'card pendente'
+                        : 'cards pendentes'}
+                    </span>
+                  )}
+                  {recentBookmarks.length > 0 && (
+                    <span className="text-[10px] font-mono px-2 py-0.2 rounded-full bg-primary/20 text-primary font-bold">
+                      {recentBookmarks.length}{' '}
+                      {recentBookmarks.length === 1 ? 'marcador' : 'marcadores'}
+                    </span>
+                  )}
+                </h3>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  {t(
+                    'review.todaySectionSubtitle',
+                    'Revise seus flashcards espaçados ou continue a partir de um trecho salvo.'
+                  )}
+                </p>
+              </div>
             </div>
-            <div>
-              <h3 className="text-xs font-bold text-foreground flex items-center gap-2">
-                <span>{t('review.todaySectionTitle', 'Revisar Hoje')}</span>
-                {dueFlashcards.length > 0 && (
-                  <span className="text-[10px] font-mono px-2 py-0.2 rounded-full bg-purple-500/20 text-purple-400 font-bold">
-                    {dueFlashcards.length} {dueFlashcards.length === 1 ? 'card pendente' : 'cards pendentes'}
-                  </span>
-                )}
-                {recentBookmarks.length > 0 && (
-                  <span className="text-[10px] font-mono px-2 py-0.2 rounded-full bg-amber-500/20 text-amber-400 font-bold">
-                    {recentBookmarks.length} {recentBookmarks.length === 1 ? 'marcador' : 'marcadores'}
-                  </span>
-                )}
-              </h3>
-              <p className="text-[11px] text-muted-foreground mt-0.5">
-                {t('review.todaySectionSubtitle', 'Revise seus flashcards espaçados ou continue a partir de um trecho salvo.')}
-              </p>
-            </div>
-          </div>
 
-          <Button
-            size="sm"
-            onClick={navigateToReview}
-            className="gap-1.5 bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold rounded-xl self-end sm:self-center shrink-0 cursor-pointer"
-          >
-            <span>{t('review.openReviewCenter', 'Começar Revisão')}</span>
-          </Button>
-        </div>
-      )}
+            <Button
+              size="sm"
+              onClick={navigateToReview}
+              className="gap-1.5 bg-accent hover:bg-accent text-accent-foreground text-xs font-semibold rounded-xl self-end sm:self-center shrink-0 cursor-pointer"
+            >
+              <span>{t('review.openReviewCenter', 'Começar Revisão')}</span>
+            </Button>
+          </div>
+        )}
 
       {/* Search Query Feedback Banner */}
       {searchQuery && (
@@ -410,7 +460,10 @@ export function HomeView(): React.JSX.Element {
               <Search className="h-3.5 w-3.5" />
             </div>
             <span>
-              {t('home.searchResults', { count: filteredCourses.length, query: searchQuery })}
+              {t('home.searchResults', {
+                count: filteredCourses.length,
+                query: searchQuery
+              })}
             </span>
           </div>
           <Button
@@ -447,10 +500,10 @@ export function HomeView(): React.JSX.Element {
               variant="outline"
               size="sm"
               onClick={() => setIsMergeModalOpen(true)}
-              className="gap-1.5 text-xs rounded-xl border-amber-500/30 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 hover:text-amber-200 cursor-pointer min-h-[36px] font-semibold shadow-sm transition-all"
+              className="gap-1.5 text-xs rounded-xl border-primary/30 bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary cursor-pointer min-h-[36px] font-semibold shadow-sm transition-all"
               title="Organizar biblioteca e unir cursos automaticamente"
             >
-              <Sparkles className="h-4 w-4 text-amber-400" />
+              <Sparkles className="h-4 w-4 text-primary" />
               <span>{t('home.organizeAndMerge', 'Organizar & Unir')}</span>
             </Button>
 
@@ -467,7 +520,11 @@ export function HomeView(): React.JSX.Element {
         </div>
 
         {/* Filter Pills */}
-        <div className="flex flex-wrap items-center gap-2 pt-1" role="tablist" aria-label="Course status filters">
+        <div
+          className="flex flex-wrap items-center gap-2 pt-1"
+          role="tablist"
+          aria-label="Course status filters"
+        >
           {filterTabs.map((tab) => {
             const Icon = tab.icon
             const isActive = filterStatus === tab.id
@@ -493,7 +550,9 @@ export function HomeView(): React.JSX.Element {
                 <span>{tab.label}</span>
                 <span
                   className={`text-[10px] font-mono rounded-full px-1.5 py-0.2 ${
-                    isActive ? 'bg-primary/25 text-primary font-bold' : 'bg-secondary text-muted-foreground'
+                    isActive
+                      ? 'bg-primary/25 text-primary font-bold'
+                      : 'bg-secondary text-muted-foreground'
                   }`}
                 >
                   {tab.count}
@@ -518,12 +577,17 @@ export function HomeView(): React.JSX.Element {
           <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/80 p-12 text-center">
             <BookOpen className="h-10 w-10 text-muted-foreground/50 mb-3" />
             <h3 className="text-base font-bold text-foreground">
-              {searchQuery ? 'Nenhum curso encontrado' : t('home.emptyTitle', 'Nenhum curso catalogado')}
+              {searchQuery
+                ? 'Nenhum curso encontrado'
+                : t('home.emptyTitle', 'Nenhum curso catalogado')}
             </h3>
             <p className="mt-1 max-w-sm text-xs text-muted-foreground leading-relaxed">
               {searchQuery
                 ? `Nenhum curso corresponde à busca "${searchQuery}". Tente outros termos.`
-                : t('home.emptySubtitle', 'Comece importando pastas ou arquivos .zip de cursos para o seu Vault.')}
+                : t(
+                    'home.emptySubtitle',
+                    'Comece importando pastas ou arquivos .zip de cursos para o seu Vault.'
+                  )}
             </p>
             {!searchQuery && (
               <Button
@@ -553,7 +617,9 @@ export function HomeView(): React.JSX.Element {
                   badge={course.sourceType === 'local-ref' ? 'Ref' : undefined}
                   onPlay={() => handleQuickPlayCourse(course.id)}
                   onClick={() => navigateToCourse(course.id)}
-                  onToggleFavorite={() => toggleFavorite(course.id).catch(console.warn)}
+                  onToggleFavorite={() =>
+                    toggleFavorite(course.id).catch(console.warn)
+                  }
                   onMoreInfo={() => navigateToCourse(course.id)}
                   onOrganize={() => setOrganizeCourseId(course.id)}
                 />

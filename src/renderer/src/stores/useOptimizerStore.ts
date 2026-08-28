@@ -28,7 +28,9 @@ interface OptimizerState {
 
   setOptimizerModalOpen: (open: boolean) => void
   setVisualComparatorOpen: (open: boolean) => void
-  setActiveTab: (tab: 'overview' | 'analyze' | 'queue' | 'history' | 'settings') => void
+  setActiveTab: (
+    tab: 'overview' | 'analyze' | 'queue' | 'history' | 'settings'
+  ) => void
 
   fetchMetrics: () => Promise<void>
   fetchQueue: () => Promise<void>
@@ -36,7 +38,9 @@ interface OptimizerState {
   fetchHardware: () => Promise<void>
   fetchSettings: () => Promise<void>
   updateSettings: (updates: Partial<OptimizationSettings>) => Promise<boolean>
-  analyzeVault: (profile?: OptimizationProfile) => Promise<VaultOptimizationAnalysis | null>
+  analyzeVault: (
+    profile?: OptimizationProfile
+  ) => Promise<VaultOptimizationAnalysis | null>
   queueVaultOptimization: (options?: {
     profile?: OptimizationProfile
     excludedLessonIds?: string[]
@@ -54,9 +58,15 @@ interface OptimizerState {
   clearCompletedQueue: () => Promise<void>
   pauseAll: () => Promise<void>
   resumeAll: () => Promise<void>
-  generateVisualComparison: (lessonId: string, profile?: OptimizationProfile) => Promise<void>
+  generateVisualComparison: (
+    lessonId: string,
+    profile?: OptimizationProfile
+  ) => Promise<void>
   restoreOriginal: (recordId: string) => Promise<boolean>
-  reoptimizeLesson: (lessonId: string, profile?: OptimizationProfile) => Promise<boolean>
+  reoptimizeLesson: (
+    lessonId: string,
+    profile?: OptimizationProfile
+  ) => Promise<boolean>
   setExclusion: (
     scopeType: OptimizationExclusionRule['scopeType'],
     scopeId: string,
@@ -122,7 +132,8 @@ export const useOptimizerStore = create<OptimizerState>((set, get) => ({
 
   fetchHardware: async () => {
     try {
-      const hardwareCapabilities = await window.api.optimizer.getHardwareCapabilities()
+      const hardwareCapabilities =
+        await window.api.optimizer.getHardwareCapabilities()
       set({ hardwareCapabilities })
     } catch (err) {
       console.warn('Failed to fetch hardware capabilities:', err)
@@ -180,7 +191,11 @@ export const useOptimizerStore = create<OptimizerState>((set, get) => ({
 
   queueLessonOptimization: async (lessonId, profile, allowShared) => {
     try {
-      const res = await window.api.optimizer.queueLessonOptimization(lessonId, profile, allowShared)
+      const res = await window.api.optimizer.queueLessonOptimization(
+        lessonId,
+        profile,
+        allowShared
+      )
       await get().fetchQueue()
       await get().fetchMetrics()
       return res.success
@@ -228,7 +243,10 @@ export const useOptimizerStore = create<OptimizerState>((set, get) => ({
   generateVisualComparison: async (lessonId, profile) => {
     set({ isComparing: true, isVisualComparatorOpen: true })
     try {
-      const res = await window.api.optimizer.generateVisualComparison(lessonId, profile)
+      const res = await window.api.optimizer.generateVisualComparison(
+        lessonId,
+        profile
+      )
       set({ visualComparison: res })
     } catch (err) {
       console.warn('Failed to generate visual comparison:', err)

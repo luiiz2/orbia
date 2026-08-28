@@ -15,7 +15,16 @@ import {
 } from 'lucide-react'
 import type { AutoOrganizeResult, MergePreview } from '@shared'
 import { useLibraryStore } from '../../stores/useLibraryStore'
-import { Badge, Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../ui'
+import {
+  Badge,
+  Button,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from '../ui'
 import { cn } from '../../lib/utils'
 
 export interface MergeCoursesModalProps {
@@ -28,7 +37,10 @@ interface DuplicateGroup {
   courses: ReturnType<typeof useLibraryStore.getState>['courses']
 }
 
-export function MergeCoursesModal({ open, onOpenChange }: MergeCoursesModalProps): React.JSX.Element {
+export function MergeCoursesModal({
+  open,
+  onOpenChange
+}: MergeCoursesModalProps): React.JSX.Element {
   const { t } = useTranslation()
   const { courses, autoOrganizeLibrary } = useLibraryStore()
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
@@ -50,7 +62,9 @@ export function MergeCoursesModal({ open, onOpenChange }: MergeCoursesModalProps
       const res = await autoOrganizeLibrary()
       setAutoResult(res)
     } catch (err) {
-      setPreviewError(err instanceof Error ? err.message : 'Falha ao organizar biblioteca.')
+      setPreviewError(
+        err instanceof Error ? err.message : 'Falha ao organizar biblioteca.'
+      )
     } finally {
       setIsAutoOrganizing(false)
     }
@@ -90,7 +104,9 @@ export function MergeCoursesModal({ open, onOpenChange }: MergeCoursesModalProps
     try {
       const result = await window.api.courses.mergeCourses([...selectedIds])
       if (!result.success) {
-        setPreviewError(result.error || t('merge.mergeError', 'Falha ao mesclar cursos.'))
+        setPreviewError(
+          result.error || t('merge.mergeError', 'Falha ao mesclar cursos.')
+        )
         return
       }
       await useLibraryStore.getState().fetchCourses()
@@ -99,7 +115,11 @@ export function MergeCoursesModal({ open, onOpenChange }: MergeCoursesModalProps
         useLibraryStore.getState().fetchCourseById(result.canonicalCourseId)
       }
     } catch (err) {
-      setPreviewError(err instanceof Error ? err.message : t('merge.mergeError', 'Falha ao mesclar cursos.'))
+      setPreviewError(
+        err instanceof Error
+          ? err.message
+          : t('merge.mergeError', 'Falha ao mesclar cursos.')
+      )
     } finally {
       setIsMerging(false)
     }
@@ -137,7 +157,7 @@ export function MergeCoursesModal({ open, onOpenChange }: MergeCoursesModalProps
       <DialogContent className="flex max-h-[90vh] flex-col rounded-2xl border-border/80 bg-card p-6 shadow-2xl sm:max-w-xl">
         <DialogHeader className="space-y-2">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-amber-500/30 bg-gradient-to-br from-amber-500/20 via-orange-500/20 to-purple-600/20 text-amber-400 shadow-sm">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-primary/30 bg-primary/10 text-primary shadow-sm">
               <Sparkles className="h-5 w-5" />
             </div>
             <div>
@@ -145,7 +165,10 @@ export function MergeCoursesModal({ open, onOpenChange }: MergeCoursesModalProps
                 {t('merge.autoOrganizeTitle', 'Organizar e Unir Biblioteca')}
               </DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground">
-                {t('merge.autoOrganizeDesc', 'Separa cursos misturados por engano, unifica módulos duplicados e junta partes do mesmo curso automaticamente.')}
+                {t(
+                  'merge.autoOrganizeDesc',
+                  'Separa cursos misturados por engano, unifica módulos duplicados e junta partes do mesmo curso automaticamente.'
+                )}
               </DialogDescription>
             </div>
           </div>
@@ -153,21 +176,33 @@ export function MergeCoursesModal({ open, onOpenChange }: MergeCoursesModalProps
 
         <div className="my-4 min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
           {previewError && (
-            <div role="alert" className="flex items-start gap-2 rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive">
+            <div
+              role="alert"
+              className="flex items-start gap-2 rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive"
+            >
               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
               <span>{previewError}</span>
             </div>
           )}
 
           {/* ⚡ One-Click Automatic Organization Card */}
-          <div className="rounded-2xl border border-amber-500/30 bg-gradient-to-br from-amber-500/10 via-orange-500/5 to-background p-4.5 space-y-3.5 shadow-sm">
+          <div className="rounded-2xl border border-primary/30 bg-card p-4.5 space-y-3.5 shadow-sm">
             <div className="space-y-1.5">
               <div className="flex items-center gap-2">
-                <Wand2 className="h-4 w-4 text-amber-400" />
-                <h3 className="text-xs font-bold text-foreground">Organização Inteligente Automática</h3>
+                <Wand2 className="h-4 w-4 text-primary" />
+                <h3 className="text-xs font-bold text-foreground">
+                  Organização Inteligente Automática
+                </h3>
               </div>
               <p className="text-[11px] text-muted-foreground leading-relaxed">
-                O Orbia analisa toda a biblioteca, separa cursos com pastas de origem distintas (ex: <span className="font-semibold text-zinc-300">curso.dec</span> e <span className="font-semibold text-zinc-300">voss academy</span>), funde módulos com mesmo nome e reordena todas as aulas sem você precisar selecionar nada manualmente.
+                O Orbia analisa toda a biblioteca, separa cursos com pastas de
+                origem distintas (ex:{' '}
+                <span className="font-semibold text-zinc-300">curso.dec</span> e{' '}
+                <span className="font-semibold text-zinc-300">
+                  voss academy
+                </span>
+                ), funde módulos com mesmo nome e reordena todas as aulas sem
+                você precisar selecionar nada manualmente.
               </p>
             </div>
 
@@ -176,17 +211,24 @@ export function MergeCoursesModal({ open, onOpenChange }: MergeCoursesModalProps
               variant="default"
               disabled={isAutoOrganizing}
               onClick={handleAutoOrganize}
-              className="w-full h-10 text-xs font-bold rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 text-black hover:opacity-95 shadow-md shadow-orange-500/15 cursor-pointer flex items-center justify-center gap-2"
+              className="w-full h-10 text-xs font-bold rounded-xl bg-primary text-primary-foreground hover:opacity-95 shadow-md shadow-primary/15 cursor-pointer flex items-center justify-center gap-2"
             >
               {isAutoOrganizing ? (
                 <>
-                  <Loader2 className="h-4 w-4 animate-spin text-black" />
-                  <span>{t('merge.autoOrganizing', 'Organizando biblioteca...')}</span>
+                  <Loader2 className="h-4 w-4 animate-spin text-primary-foreground" />
+                  <span>
+                    {t('merge.autoOrganizing', 'Organizando biblioteca...')}
+                  </span>
                 </>
               ) : (
                 <>
-                  <Sparkles className="h-4 w-4 text-black" />
-                  <span>{t('merge.autoOrganizeBtn', '⚡ Organizar e Unir Tudo Automaticamente')}</span>
+                  <Sparkles className="h-4 w-4 text-primary-foreground" />
+                  <span>
+                    {t(
+                      'merge.autoOrganizeBtn',
+                      '⚡ Organizar e Unir Tudo Automaticamente'
+                    )}
+                  </span>
                 </>
               )}
             </Button>
@@ -196,35 +238,55 @@ export function MergeCoursesModal({ open, onOpenChange }: MergeCoursesModalProps
               <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 space-y-2 animate-in fade-in duration-200">
                 <div className="flex items-center gap-2 text-emerald-400 text-xs font-bold">
                   <CheckCircle2 className="h-4 w-4 shrink-0" />
-                  <span>{t('merge.autoOrganizeSuccess', 'Biblioteca organizada com sucesso!')}</span>
+                  <span>
+                    {t(
+                      'merge.autoOrganizeSuccess',
+                      'Biblioteca organizada com sucesso!'
+                    )}
+                  </span>
                 </div>
                 <div className="flex flex-wrap gap-1.5 text-[10px]">
                   {autoResult.separatedCoursesCount > 0 && (
-                    <Badge variant="outline" className="border-emerald-500/40 text-emerald-300 bg-emerald-500/15">
+                    <Badge
+                      variant="outline"
+                      className="border-emerald-500/40 text-emerald-300 bg-emerald-500/15"
+                    >
                       {autoResult.separatedCoursesCount} curso(s) separados
                     </Badge>
                   )}
                   {autoResult.deduplicatedModulesCount > 0 && (
-                    <Badge variant="outline" className="border-emerald-500/40 text-emerald-300 bg-emerald-500/15">
-                      {autoResult.deduplicatedModulesCount} módulo(s) duplicados unificados
+                    <Badge
+                      variant="outline"
+                      className="border-emerald-500/40 text-emerald-300 bg-emerald-500/15"
+                    >
+                      {autoResult.deduplicatedModulesCount} módulo(s) duplicados
+                      unificados
                     </Badge>
                   )}
                   {autoResult.mergedGroupsCount > 0 && (
-                    <Badge variant="outline" className="border-emerald-500/40 text-emerald-300 bg-emerald-500/15">
+                    <Badge
+                      variant="outline"
+                      className="border-emerald-500/40 text-emerald-300 bg-emerald-500/15"
+                    >
                       {autoResult.mergedGroupsCount} parte(s) unificadas
                     </Badge>
                   )}
-                  {autoResult.separatedCoursesCount === 0 && autoResult.deduplicatedModulesCount === 0 && autoResult.mergedGroupsCount === 0 && (
-                    <span className="text-[11px] text-zinc-300">
-                      Tudo já estava organizado e separado corretamente!
-                    </span>
-                  )}
+                  {autoResult.separatedCoursesCount === 0 &&
+                    autoResult.deduplicatedModulesCount === 0 &&
+                    autoResult.mergedGroupsCount === 0 && (
+                      <span className="text-[11px] text-zinc-300">
+                        Tudo já estava organizado e separado corretamente!
+                      </span>
+                    )}
                 </div>
 
                 {autoResult.details.length > 0 && (
                   <div className="mt-2 space-y-1 max-h-32 overflow-y-auto pr-1">
                     {autoResult.details.map((d, i) => (
-                      <div key={i} className="text-[10px] text-zinc-300 flex items-start gap-1.5">
+                      <div
+                        key={i}
+                        className="text-[10px] text-zinc-300 flex items-start gap-1.5"
+                      >
                         <span className="text-emerald-400 font-bold">•</span>
                         <span>{d.message}</span>
                       </div>
@@ -243,23 +305,38 @@ export function MergeCoursesModal({ open, onOpenChange }: MergeCoursesModalProps
               className="text-[11px] text-muted-foreground hover:text-foreground font-semibold flex items-center gap-1.5 cursor-pointer transition-colors"
             >
               <GitMerge className="h-3.5 w-3.5 text-primary" />
-              <span>{showAdvancedManual ? 'Ocultar opções manuais avançadas' : 'Opções avançadas: Mesclagem manual de cursos'}</span>
+              <span>
+                {showAdvancedManual
+                  ? 'Ocultar opções manuais avançadas'
+                  : 'Opções avançadas: Mesclagem manual de cursos'}
+              </span>
             </button>
           </div>
 
           {showAdvancedManual && (
             <div className="space-y-4 pt-2 border-t border-border/50 animate-in fade-in duration-150">
               {duplicateGroups.length > 0 && (
-                <section aria-labelledby="merge-suggestions-title" className="space-y-2">
+                <section
+                  aria-labelledby="merge-suggestions-title"
+                  className="space-y-2"
+                >
                   <div className="flex items-center justify-between gap-2">
-                    <h3 id="merge-suggestions-title" className="text-xs font-bold text-foreground">
-                      {t('merge.suggestedGroups', { count: duplicateGroups.length })}
+                    <h3
+                      id="merge-suggestions-title"
+                      className="text-xs font-bold text-foreground"
+                    >
+                      {t('merge.suggestedGroups', {
+                        count: duplicateGroups.length
+                      })}
                     </h3>
                   </div>
                   <div className="space-y-1.5">
                     {duplicateGroups.map((group) => {
                       const courseIds = group.courses.map((course) => course.id)
-                      const totalLessons = group.courses.reduce((total, course) => total + course.lessonCount, 0)
+                      const totalLessons = group.courses.reduce(
+                        (total, course) => total + course.lessonCount,
+                        0
+                      )
                       return (
                         <button
                           key={group.title}
@@ -270,13 +347,21 @@ export function MergeCoursesModal({ open, onOpenChange }: MergeCoursesModalProps
                           <span className="flex min-w-0 items-center gap-2">
                             <Layers className="h-3.5 w-3.5 shrink-0 text-primary" />
                             <span className="min-w-0">
-                              <span className="block truncate text-xs font-bold text-foreground">{group.title}</span>
+                              <span className="block truncate text-xs font-bold text-foreground">
+                                {group.title}
+                              </span>
                               <span className="block text-[10px] text-muted-foreground">
-                                {t('merge.groupTotals', { courses: group.courses.length, lessons: totalLessons })}
+                                {t('merge.groupTotals', {
+                                  courses: group.courses.length,
+                                  lessons: totalLessons
+                                })}
                               </span>
                             </span>
                           </span>
-                          <Sparkles className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden="true" />
+                          <Sparkles
+                            className="h-3.5 w-3.5 shrink-0 text-primary"
+                            aria-hidden="true"
+                          />
                         </button>
                       )
                     })}
@@ -284,10 +369,16 @@ export function MergeCoursesModal({ open, onOpenChange }: MergeCoursesModalProps
                 </section>
               )}
 
-              <section aria-labelledby="merge-selection-title" className="space-y-2">
+              <section
+                aria-labelledby="merge-selection-title"
+                className="space-y-2"
+              >
                 <div className="flex items-center gap-2">
                   <GitMerge className="h-4 w-4 shrink-0 text-primary" />
-                  <h3 id="merge-selection-title" className="text-xs font-bold text-foreground">
+                  <h3
+                    id="merge-selection-title"
+                    className="text-xs font-bold text-foreground"
+                  >
                     {t('merge.reviewSelectionTitle')}
                   </h3>
                 </div>
@@ -301,7 +392,9 @@ export function MergeCoursesModal({ open, onOpenChange }: MergeCoursesModalProps
                         type="button"
                         onClick={() => toggleCourse(course.id)}
                         aria-pressed={selected}
-                        aria-label={t('merge.selectCourse', { title: course.title })}
+                        aria-label={t('merge.selectCourse', {
+                          title: course.title
+                        })}
                         className={cn(
                           'flex w-full items-center justify-between gap-2 rounded-lg border p-2 text-left transition-all',
                           selected
@@ -315,10 +408,15 @@ export function MergeCoursesModal({ open, onOpenChange }: MergeCoursesModalProps
                           ) : (
                             <Square className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                           )}
-                          <span className="truncate text-xs font-semibold text-foreground">{course.title}</span>
+                          <span className="truncate text-xs font-semibold text-foreground">
+                            {course.title}
+                          </span>
                         </span>
                         <span className="shrink-0 text-[10px] text-muted-foreground">
-                          {t('merge.courseCounts', { modules: course.moduleCount, lessons: course.lessonCount })}
+                          {t('merge.courseCounts', {
+                            modules: course.moduleCount,
+                            lessons: course.lessonCount
+                          })}
                         </span>
                       </button>
                     )
@@ -333,7 +431,11 @@ export function MergeCoursesModal({ open, onOpenChange }: MergeCoursesModalProps
                   disabled={isLoadingPreview || selectedCount < 2}
                   className="w-full text-xs h-8"
                 >
-                  {isLoadingPreview ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                  {isLoadingPreview ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-3 w-3" />
+                  )}
                   {t('merge.reviewSelected', { count: selectedCount })}
                 </Button>
               </section>
@@ -348,9 +450,13 @@ export function MergeCoursesModal({ open, onOpenChange }: MergeCoursesModalProps
                     size="sm"
                     disabled={isMerging || selectedCount < 2}
                     onClick={() => void handleApplyMerge()}
-                    className="w-full gap-2 bg-gradient-to-r from-orange-500 to-purple-600 text-white font-bold cursor-pointer hover:opacity-90"
+                    className="w-full gap-2 bg-primary text-primary-foreground font-bold cursor-pointer hover:opacity-90"
                   >
-                    {isMerging ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <GitMerge className="h-3.5 w-3.5" />}
+                    {isMerging ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <GitMerge className="h-3.5 w-3.5" />
+                    )}
                     {t('merge.applyMerge', 'Mesclar Cursos Selecionados')}
                   </Button>
                 </div>
@@ -360,7 +466,12 @@ export function MergeCoursesModal({ open, onOpenChange }: MergeCoursesModalProps
         </div>
 
         <DialogFooter className="flex items-center justify-between gap-2 border-t border-border/50 pt-3">
-          <Button type="button" variant="ghost" size="sm" onClick={() => handleOpenChange(false)}>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => handleOpenChange(false)}
+          >
             {t('common.close', 'Fechar')}
           </Button>
         </DialogFooter>
@@ -369,20 +480,36 @@ export function MergeCoursesModal({ open, onOpenChange }: MergeCoursesModalProps
   )
 }
 
-function MergePreviewPanel({ preview }: { preview: MergePreview }): React.JSX.Element {
+function MergePreviewPanel({
+  preview
+}: {
+  preview: MergePreview
+}): React.JSX.Element {
   const { t } = useTranslation()
-  const mergeModules = preview.modules.filter((module) => module.action === 'merge')
-  const createModules = preview.modules.filter((module) => module.action === 'create')
+  const mergeModules = preview.modules.filter(
+    (module) => module.action === 'merge'
+  )
+  const createModules = preview.modules.filter(
+    (module) => module.action === 'create'
+  )
 
   return (
-    <section aria-labelledby="merge-preview-title" className="space-y-3 rounded-2xl border border-primary/30 bg-primary/5 p-3.5">
+    <section
+      aria-labelledby="merge-preview-title"
+      className="space-y-3 rounded-2xl border border-primary/30 bg-primary/5 p-3.5"
+    >
       <div className="flex items-start gap-2.5">
         <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
         <div className="min-w-0">
-          <h3 id="merge-preview-title" className="text-xs font-bold text-foreground">
+          <h3
+            id="merge-preview-title"
+            className="text-xs font-bold text-foreground"
+          >
             {t('merge.previewTitle')}
           </h3>
-          <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">{t('merge.previewSafetyNotice')}</p>
+          <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">
+            {t('merge.previewSafetyNotice')}
+          </p>
         </div>
       </div>
 
@@ -390,14 +517,28 @@ function MergePreviewPanel({ preview }: { preview: MergePreview }): React.JSX.El
         <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
           {t('merge.canonicalCourse')}
         </p>
-        <p className="mt-1 truncate text-sm font-bold text-foreground">{preview.canonicalCourseTitle}</p>
+        <p className="mt-1 truncate text-sm font-bold text-foreground">
+          {preview.canonicalCourseTitle}
+        </p>
       </div>
 
       <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
-        <PreviewMetric label={t('merge.selectedCourses')} value={preview.selectedCourseIds.length} />
-        <PreviewMetric label={t('merge.totalLessons')} value={preview.totalLessons} />
-        <PreviewMetric label={t('merge.totalMaterials')} value={preview.totalMaterials} />
-        <PreviewMetric label={t('merge.duplicateCandidates')} value={preview.duplicateCandidates.length} />
+        <PreviewMetric
+          label={t('merge.selectedCourses')}
+          value={preview.selectedCourseIds.length}
+        />
+        <PreviewMetric
+          label={t('merge.totalLessons')}
+          value={preview.totalLessons}
+        />
+        <PreviewMetric
+          label={t('merge.totalMaterials')}
+          value={preview.totalMaterials}
+        />
+        <PreviewMetric
+          label={t('merge.duplicateCandidates')}
+          value={preview.duplicateCandidates.length}
+        />
       </div>
 
       <div className="space-y-2">
@@ -413,35 +554,49 @@ function MergePreviewPanel({ preview }: { preview: MergePreview }): React.JSX.El
         {preview.modules.length > 0 ? (
           <div className="max-h-36 space-y-1.5 overflow-y-auto pr-1">
             {preview.modules.map((module) => (
-              <div key={`${module.sourceCourseId}-${module.sourceModuleId}`} className="flex items-center justify-between gap-2 rounded-lg border border-border/50 bg-card/60 p-2 text-xs">
+              <div
+                key={`${module.sourceCourseId}-${module.sourceModuleId}`}
+                className="flex items-center justify-between gap-2 rounded-lg border border-border/50 bg-card/60 p-2 text-xs"
+              >
                 <span className="flex min-w-0 items-center gap-2">
                   {module.action === 'create' ? (
                     <Plus className="h-3.5 w-3.5 shrink-0 text-emerald-400" />
                   ) : (
                     <GitMerge className="h-3.5 w-3.5 shrink-0 text-primary" />
                   )}
-                  <span className="truncate font-medium text-foreground">{module.title}</span>
+                  <span className="truncate font-medium text-foreground">
+                    {module.title}
+                  </span>
                 </span>
                 <span className="shrink-0 text-[10px] text-muted-foreground">
-                  {t('merge.moduleCounts', { lessons: module.lessonCount, materials: module.materialCount })}
+                  {t('merge.moduleCounts', {
+                    lessons: module.lessonCount,
+                    materials: module.materialCount
+                  })}
                 </span>
               </div>
             ))}
           </div>
         ) : (
-          <p className="text-[11px] text-muted-foreground">{t('merge.noModuleChanges')}</p>
+          <p className="text-[11px] text-muted-foreground">
+            {t('merge.noModuleChanges')}
+          </p>
         )}
       </div>
 
-      <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3">
-        <p className="text-xs font-bold text-amber-300">{t('merge.duplicateCandidatesTitle')}</p>
-        <p className="mt-0.5 text-[11px] leading-snug text-amber-200/80">
+      <div className="rounded-xl border border-primary/30 bg-primary/10 p-3">
+        <p className="text-xs font-bold text-primary">
+          {t('merge.duplicateCandidatesTitle')}
+        </p>
+        <p className="mt-0.5 text-[11px] leading-snug text-primary/80">
           {t('merge.duplicateCandidatesNotice')}
         </p>
         {preview.duplicateCandidates.length > 0 && (
-          <ul className="mt-2 space-y-1 text-[11px] text-amber-100/90">
+          <ul className="mt-2 space-y-1 text-[11px] text-primary/90">
             {preview.duplicateCandidates.map((candidate, index) => (
-              <li key={`${candidate.sourceLessonId}-${candidate.targetLessonId}`}>
+              <li
+                key={`${candidate.sourceLessonId}-${candidate.targetLessonId}`}
+              >
                 {t('merge.duplicateCandidateReason', {
                   index: index + 1,
                   reason: t(`merge.duplicateReasons.${candidate.reason}`)
@@ -455,7 +610,13 @@ function MergePreviewPanel({ preview }: { preview: MergePreview }): React.JSX.El
   )
 }
 
-function PreviewMetric({ label, value }: { label: string; value: number }): React.JSX.Element {
+function PreviewMetric({
+  label,
+  value
+}: {
+  label: string
+  value: number
+}): React.JSX.Element {
   return (
     <div className="rounded-xl border border-border/60 bg-card/70 p-2 text-center">
       <p className="text-sm font-bold text-foreground">{value}</p>
@@ -464,7 +625,9 @@ function PreviewMetric({ label, value }: { label: string; value: number }): Reac
   )
 }
 
-function findDuplicateGroups(courses: ReturnType<typeof useLibraryStore.getState>['courses']): DuplicateGroup[] {
+function findDuplicateGroups(
+  courses: ReturnType<typeof useLibraryStore.getState>['courses']
+): DuplicateGroup[] {
   const groups = new Map<string, DuplicateGroup>()
 
   for (const course of courses) {

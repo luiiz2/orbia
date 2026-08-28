@@ -56,7 +56,10 @@ export const useSelectionStore = create<SelectionStoreState>((set, get) => ({
       return {
         selectedMap: nextMap,
         isSelectionMode: nextMap.size > 0,
-        lastSelectedId: entities.length > 0 ? entities[entities.length - 1].appearanceId : state.lastSelectedId
+        lastSelectedId:
+          entities.length > 0
+            ? entities[entities.length - 1].appearanceId
+            : state.lastSelectedId
       }
     })
   },

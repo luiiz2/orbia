@@ -1,6 +1,12 @@
 import React, { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { AlertTriangle, Trash2, Loader2, HardDrive, ShieldAlert } from 'lucide-react'
+import {
+  AlertTriangle,
+  Trash2,
+  Loader2,
+  HardDrive,
+  ShieldAlert
+} from 'lucide-react'
 import type { Vault } from '@shared'
 import { useVaultStore } from '../../stores/useVaultStore'
 import { useLibraryStore } from '../../stores/useLibraryStore'
@@ -86,7 +92,10 @@ export function DeleteVaultModal({
                   : t('vault.unlinkTitle', 'Desvincular Vault do Orbia')}
               </DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground">
-                {t('vault.deleteSubtitle', 'Escolha se deseja apenas desvincular ou apagar permanentemente.')}
+                {t(
+                  'vault.deleteSubtitle',
+                  'Escolha se deseja apenas desvincular ou apagar permanentemente.'
+                )}
               </DialogDescription>
             </div>
           </div>
@@ -103,14 +112,18 @@ export function DeleteVaultModal({
           <div className="p-3.5 rounded-xl border border-border/80 bg-secondary/30 space-y-1">
             <div className="flex items-center gap-2">
               <HardDrive className="h-4 w-4 text-primary shrink-0" />
-              <span className="text-xs font-bold text-foreground truncate">{vault.name}</span>
+              <span className="text-xs font-bold text-foreground truncate">
+                {vault.name}
+              </span>
               {isCurrentActive && (
                 <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-primary/20 text-primary border border-primary/30 ml-auto">
                   Ativo
                 </span>
               )}
             </div>
-            <p className="text-[11px] font-mono text-muted-foreground truncate pl-6">{vault.path}</p>
+            <p className="text-[11px] font-mono text-muted-foreground truncate pl-6">
+              {vault.path}
+            </p>
           </div>
 
           {/* Delete Files Checkbox */}
@@ -124,7 +137,10 @@ export function DeleteVaultModal({
               />
               <div className="space-y-0.5">
                 <span className="font-bold text-destructive">
-                  {t('vault.deleteFilesCheckbox', 'Excluir permanentemente todos os arquivos do disco')}
+                  {t(
+                    'vault.deleteFilesCheckbox',
+                    'Excluir permanentemente todos os arquivos do disco'
+                  )}
                 </span>
                 <p className="text-[11px] text-muted-foreground leading-relaxed">
                   {deleteFiles
@@ -142,7 +158,7 @@ export function DeleteVaultModal({
           </div>
 
           {deleteFiles && (
-            <div className="flex items-center gap-2 p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs">
+            <div className="flex items-center gap-2 p-2.5 rounded-lg bg-primary/10 border border-primary/30 text-primary text-xs">
               <ShieldAlert className="h-4 w-4 shrink-0" />
               <span>Esta ação é irreversível e não poderá ser desfeita.</span>
             </div>

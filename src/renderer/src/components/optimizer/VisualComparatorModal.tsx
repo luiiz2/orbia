@@ -41,7 +41,10 @@ export function VisualComparatorModal(): React.JSX.Element | null {
   const plan = visualComparison?.plan
 
   return (
-    <Dialog open={isVisualComparatorOpen} onOpenChange={setVisualComparatorOpen}>
+    <Dialog
+      open={isVisualComparatorOpen}
+      onOpenChange={setVisualComparatorOpen}
+    >
       <DialogContent className="max-w-4xl p-0 overflow-hidden bg-card border-border/80 shadow-2xl rounded-3xl">
         <DialogHeader className="p-5 pb-3 border-b border-border/50 bg-muted/20">
           <div className="flex items-center justify-between">
@@ -82,7 +85,9 @@ export function VisualComparatorModal(): React.JSX.Element | null {
           </div>
           <DialogDescription className="text-xs text-muted-foreground mt-1">
             {plan?.lessonTitle || 'Amostras de 4 segundos'} • Perfil:{' '}
-            <span className="font-semibold text-foreground uppercase">{visualComparison?.profile}</span>
+            <span className="font-semibold text-foreground uppercase">
+              {visualComparison?.profile}
+            </span>
           </DialogDescription>
         </DialogHeader>
 
@@ -123,14 +128,18 @@ export function VisualComparatorModal(): React.JSX.Element | null {
                 {/* Original Clip */}
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between text-xs font-bold px-1">
-                    <span className="text-muted-foreground">Original ({plan?.sourceCodec.toUpperCase()})</span>
+                    <span className="text-muted-foreground">
+                      Original ({plan?.sourceCodec.toUpperCase()})
+                    </span>
                     <Badge variant="outline" className="text-[10px] h-4.5">
                       {plan?.sourceResolution}
                     </Badge>
                   </div>
                   <div
                     className={`relative rounded-2xl overflow-hidden border border-border/80 bg-black aspect-video flex items-center justify-center ${
-                      isZoomed ? 'scale-125 origin-center transition-transform' : ''
+                      isZoomed
+                        ? 'scale-125 origin-center transition-transform'
+                        : ''
                     }`}
                   >
                     <video
@@ -151,17 +160,25 @@ export function VisualComparatorModal(): React.JSX.Element | null {
                       Otimizado ({plan?.targetCodec.toUpperCase()})
                     </span>
                     <div className="flex items-center gap-1.5">
-                      <Badge variant="default" className="text-[10px] h-4.5 bg-primary/20 text-primary border-primary/30">
+                      <Badge
+                        variant="default"
+                        className="text-[10px] h-4.5 bg-primary/20 text-primary border-primary/30"
+                      >
                         {plan?.targetResolution}
                       </Badge>
-                      <Badge variant="outline" className="text-[10px] h-4.5 text-emerald-400 border-emerald-500/30">
+                      <Badge
+                        variant="outline"
+                        className="text-[10px] h-4.5 text-emerald-400 border-emerald-500/30"
+                      >
                         ~{plan?.estimatedSavingsPercent}% menor
                       </Badge>
                     </div>
                   </div>
                   <div
                     className={`relative rounded-2xl overflow-hidden border-2 border-primary/60 bg-black aspect-video flex items-center justify-center ${
-                      isZoomed ? 'scale-125 origin-center transition-transform' : ''
+                      isZoomed
+                        ? 'scale-125 origin-center transition-transform'
+                        : ''
                     }`}
                   >
                     <video
@@ -198,15 +215,20 @@ export function VisualComparatorModal(): React.JSX.Element | null {
                     </Button>
                   </div>
                   <span className="text-xs text-muted-foreground">
-                    Clique nos botões para alternar instantaneamente e comparar nitidez.
+                    Clique nos botões para alternar instantaneamente e comparar
+                    nitidez.
                   </span>
                 </div>
 
                 <div
                   className={`relative rounded-2xl overflow-hidden border-2 ${
-                    activeToggle === 'opt' ? 'border-primary/80' : 'border-border'
+                    activeToggle === 'opt'
+                      ? 'border-primary/80'
+                      : 'border-border'
                   } bg-black aspect-video flex items-center justify-center max-w-2xl mx-auto ${
-                    isZoomed ? 'scale-125 origin-center transition-transform' : ''
+                    isZoomed
+                      ? 'scale-125 origin-center transition-transform'
+                      : ''
                   }`}
                 >
                   <video
@@ -229,11 +251,16 @@ export function VisualComparatorModal(): React.JSX.Element | null {
             <div className="p-3.5 rounded-2xl bg-muted/20 border border-border/50 flex flex-wrap items-center justify-between gap-3 text-xs">
               <div className="flex items-center gap-2">
                 <Sparkles className="h-4 w-4 text-primary" />
-                <span className="text-foreground font-medium">{plan?.reason}</span>
+                <span className="text-foreground font-medium">
+                  {plan?.reason}
+                </span>
               </div>
               <div className="flex items-center gap-4 text-muted-foreground">
                 <span>
-                  Tamanho Original: <strong className="text-foreground">{formatBytes(plan?.sourceSize || 0)}</strong>
+                  Tamanho Original:{' '}
+                  <strong className="text-foreground">
+                    {formatBytes(plan?.sourceSize || 0)}
+                  </strong>
                 </span>
                 <ArrowRight className="h-3 w-3" />
                 <span>
@@ -249,9 +276,15 @@ export function VisualComparatorModal(): React.JSX.Element | null {
 
         <DialogFooter className="p-4 border-t border-border/50 bg-muted/20 flex items-center justify-between">
           <p className="text-[11px] text-muted-foreground">
-            Amostras gravadas em codec ultra-rápido para pré-visualização instantânea sem alterar seus arquivos.
+            Amostras gravadas em codec ultra-rápido para pré-visualização
+            instantânea sem alterar seus arquivos.
           </p>
-          <Button variant="outline" size="sm" onClick={() => setVisualComparatorOpen(false)} className="rounded-xl text-xs">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setVisualComparatorOpen(false)}
+            className="rounded-xl text-xs"
+          >
             Fechar
           </Button>
         </DialogFooter>

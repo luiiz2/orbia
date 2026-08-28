@@ -124,9 +124,14 @@ export function PlayerControls({
                 <SkipBack className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="top" className="flex items-center gap-1.5 bg-black/90 text-white border-white/20">
+            <TooltipContent
+              side="top"
+              className="flex items-center gap-1.5 bg-black/90 text-white border-white/20"
+            >
               <span>{t('player.prevLesson')}</span>
-              <kbd className="px-1.5 py-0.5 rounded bg-white/20 text-[10px] font-mono">Shift+P</kbd>
+              <kbd className="px-1.5 py-0.5 rounded bg-white/20 text-[10px] font-mono">
+                Shift+P
+              </kbd>
             </TooltipContent>
           </Tooltip>
 
@@ -143,9 +148,14 @@ export function PlayerControls({
                 <Rewind className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="top" className="flex items-center gap-1.5 bg-black/90 text-white border-white/20">
+            <TooltipContent
+              side="top"
+              className="flex items-center gap-1.5 bg-black/90 text-white border-white/20"
+            >
               <span>{t('player.rewind5')}</span>
-              <kbd className="px-1.5 py-0.5 rounded bg-white/20 text-[10px] font-mono">←</kbd>
+              <kbd className="px-1.5 py-0.5 rounded bg-white/20 text-[10px] font-mono">
+                ←
+              </kbd>
             </TooltipContent>
           </Tooltip>
 
@@ -166,9 +176,14 @@ export function PlayerControls({
                 )}
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="top" className="flex items-center gap-1.5 bg-black/90 text-white border-white/20">
+            <TooltipContent
+              side="top"
+              className="flex items-center gap-1.5 bg-black/90 text-white border-white/20"
+            >
               <span>{isPlaying ? 'Pause' : 'Play'}</span>
-              <kbd className="px-1.5 py-0.5 rounded bg-white/20 text-[10px] font-mono">Space</kbd>
+              <kbd className="px-1.5 py-0.5 rounded bg-white/20 text-[10px] font-mono">
+                Space
+              </kbd>
             </TooltipContent>
           </Tooltip>
 
@@ -185,9 +200,14 @@ export function PlayerControls({
                 <FastForward className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="top" className="flex items-center gap-1.5 bg-black/90 text-white border-white/20">
+            <TooltipContent
+              side="top"
+              className="flex items-center gap-1.5 bg-black/90 text-white border-white/20"
+            >
               <span>{t('player.forward5')}</span>
-              <kbd className="px-1.5 py-0.5 rounded bg-white/20 text-[10px] font-mono">→</kbd>
+              <kbd className="px-1.5 py-0.5 rounded bg-white/20 text-[10px] font-mono">
+                →
+              </kbd>
             </TooltipContent>
           </Tooltip>
 
@@ -205,9 +225,14 @@ export function PlayerControls({
                 <SkipForward className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="top" className="flex items-center gap-1.5 bg-black/90 text-white border-white/20">
+            <TooltipContent
+              side="top"
+              className="flex items-center gap-1.5 bg-black/90 text-white border-white/20"
+            >
               <span>{t('player.nextLesson')}</span>
-              <kbd className="px-1.5 py-0.5 rounded bg-white/20 text-[10px] font-mono">Shift+N</kbd>
+              <kbd className="px-1.5 py-0.5 rounded bg-white/20 text-[10px] font-mono">
+                Shift+N
+              </kbd>
             </TooltipContent>
           </Tooltip>
 
@@ -221,7 +246,9 @@ export function PlayerControls({
 
           {/* Timestamp Display */}
           <div className="ml-2 flex items-center gap-1 font-mono text-xs text-white/80 select-none">
-            <span className="font-bold text-white">{formatTime(currentTime)}</span>
+            <span className="font-bold text-white">
+              {formatTime(currentTime)}
+            </span>
             <span className="opacity-60">/</span>
             <span className="opacity-80">{formatTime(duration)}</span>
           </div>
@@ -242,7 +269,11 @@ export function PlayerControls({
                     ? 'bg-emerald-500/25 text-emerald-300 hover:bg-emerald-500/35 border border-emerald-500/40'
                     : 'text-white/80 hover:bg-white/15 hover:text-white'
                 )}
-                aria-label={isCompleted ? t('player.completed') : t('player.markCompleted')}
+                aria-label={
+                  isCompleted
+                    ? t('player.completed')
+                    : t('player.markCompleted')
+                }
               >
                 {isCompleted ? (
                   <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
@@ -250,11 +281,16 @@ export function PlayerControls({
                   <Circle className="h-3.5 w-3.5 opacity-60" />
                 )}
                 <span className="hidden md:inline font-semibold">
-                  {isCompleted ? t('player.completed') : t('player.markCompleted')}
+                  {isCompleted
+                    ? t('player.completed')
+                    : t('player.markCompleted')}
                 </span>
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="top" className="bg-black/90 text-white border-white/20">
+            <TooltipContent
+              side="top"
+              className="bg-black/90 text-white border-white/20"
+            >
               {isCompleted ? t('player.completed') : t('player.markCompleted')}
             </TooltipContent>
           </Tooltip>
@@ -279,9 +315,14 @@ export function PlayerControls({
                   <PictureInPicture2 className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="top" className="flex items-center gap-1.5 bg-black/90 text-white border-white/20">
+              <TooltipContent
+                side="top"
+                className="flex items-center gap-1.5 bg-black/90 text-white border-white/20"
+              >
                 <span>{t('player.pip')}</span>
-                <kbd className="px-1.5 py-0.5 rounded bg-white/20 text-[10px] font-mono">P</kbd>
+                <kbd className="px-1.5 py-0.5 rounded bg-white/20 text-[10px] font-mono">
+                  P
+                </kbd>
               </TooltipContent>
             </Tooltip>
           )}
@@ -306,7 +347,10 @@ export function PlayerControls({
                   <Tv className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="top" className="bg-black/90 text-white border-white/20">
+              <TooltipContent
+                side="top"
+                className="bg-black/90 text-white border-white/20"
+              >
                 Theater Mode
               </TooltipContent>
             </Tooltip>
@@ -329,9 +373,14 @@ export function PlayerControls({
                 )}
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="top" className="flex items-center gap-1.5 bg-black/90 text-white border-white/20">
+            <TooltipContent
+              side="top"
+              className="flex items-center gap-1.5 bg-black/90 text-white border-white/20"
+            >
               <span>{isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}</span>
-              <kbd className="px-1.5 py-0.5 rounded bg-white/20 text-[10px] font-mono">F</kbd>
+              <kbd className="px-1.5 py-0.5 rounded bg-white/20 text-[10px] font-mono">
+                F
+              </kbd>
             </TooltipContent>
           </Tooltip>
         </div>

@@ -1,6 +1,13 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Play, ChevronLeft, FastForward, X, AlertCircle, Trash2 } from 'lucide-react'
+import {
+  Play,
+  ChevronLeft,
+  FastForward,
+  X,
+  AlertCircle,
+  Trash2
+} from 'lucide-react'
 import { usePlayer } from '../../hooks/usePlayer'
 import { usePlayerStore } from '../../stores/usePlayerStore'
 import { useNavigationStore } from '../../stores/useNavigationStore'
@@ -15,7 +22,10 @@ export interface VideoPlayerProps {
   onBack?: () => void
 }
 
-export function VideoPlayer({ className, onBack }: VideoPlayerProps): React.JSX.Element {
+export function VideoPlayer({
+  className,
+  onBack
+}: VideoPlayerProps): React.JSX.Element {
   const { t } = useTranslation()
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const containerRef = useRef<HTMLDivElement | null>(null)
@@ -101,7 +111,9 @@ export function VideoPlayer({ className, onBack }: VideoPlayerProps): React.JSX.
     if (!video || !video.textTracks) return
     for (let i = 0; i < video.textTracks.length; i++) {
       const track = video.textTracks[i]
-      const matching = subtitleTracks.find((s) => s.id === track.id || s.label === track.label)
+      const matching = subtitleTracks.find(
+        (s) => s.id === track.id || s.label === track.label
+      )
       if (matching && activeSubtitleTrack === matching.id) {
         track.mode = 'showing'
       } else {
@@ -136,7 +148,9 @@ export function VideoPlayer({ className, onBack }: VideoPlayerProps): React.JSX.
     }
   }
 
-  const isCompleted = activeLesson ? Boolean(progressMap[activeLesson.id]?.completed) : false
+  const isCompleted = activeLesson
+    ? Boolean(progressMap[activeLesson.id]?.completed)
+    : false
 
   // Non-video lessons (PDF, image, link, document, archive) render in DocumentLessonView
   const isPlayableMedia =
@@ -188,14 +202,16 @@ export function VideoPlayer({ className, onBack }: VideoPlayerProps): React.JSX.
         </video>
       ) : (
         <div className="flex h-full w-full items-center justify-center bg-zinc-950 text-zinc-400">
-          <p className="text-sm font-medium">{t('player.noLessonSelected', 'Nenhuma aula selecionada')}</p>
+          <p className="text-sm font-medium">
+            {t('player.noLessonSelected', 'Nenhuma aula selecionada')}
+          </p>
         </div>
       )}
 
       {/* Buffering Spinner */}
       {isBuffering && !isVideoError && videoSrc && (
         <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
-          <div className="h-12 w-12 rounded-full border-4 border-white/20 border-t-orange-500 animate-spin" />
+          <div className="h-12 w-12 rounded-full border-4 border-white/20 border-t-primary animate-spin" />
         </div>
       )}
 
@@ -210,7 +226,11 @@ export function VideoPlayer({ className, onBack }: VideoPlayerProps): React.JSX.
               {t('player.errorTitle', 'Erro de Reprodução')}
             </h3>
             <p className="text-xs text-zinc-400 leading-relaxed font-mono px-4 py-2 rounded-xl bg-white/5 border border-white/10 break-all">
-              {errorMessage || t('player.errorDesc', 'Não foi possível decodificar este vídeo ou o arquivo contém trechos corrompidos.')}
+              {errorMessage ||
+                t(
+                  'player.errorDesc',
+                  'Não foi possível decodificar este vídeo ou o arquivo contém trechos corrompidos.'
+                )}
             </p>
           </div>
           <div className="flex flex-col items-center gap-2.5 pt-1 w-full max-w-md">
@@ -243,7 +263,7 @@ export function VideoPlayer({ className, onBack }: VideoPlayerProps): React.JSX.
                     videoRef.current.play().catch(console.warn)
                   }
                 }}
-                className="text-xs rounded-xl border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 cursor-pointer"
+                className="text-xs rounded-xl border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 cursor-pointer"
               >
                 {t('player.skipGlitch', 'Pular 1s (Avançar)')}
               </Button>
@@ -256,7 +276,7 @@ export function VideoPlayer({ className, onBack }: VideoPlayerProps): React.JSX.
                     setIsVideoError(false)
                     nextLesson()
                   }}
-                  className="text-xs rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 text-primary-foreground font-bold cursor-pointer"
+                  className="text-xs rounded-xl bg-primary text-primary-foreground font-bold cursor-pointer"
                 >
                   {t('player.skipNext', 'Pular para Próxima Aula')}
                 </Button>
@@ -302,7 +322,10 @@ export function VideoPlayer({ className, onBack }: VideoPlayerProps): React.JSX.
                 <ChevronLeft className="h-5 w-5" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="bottom" className="flex items-center gap-1.5 bg-black/90 text-white border-white/20">
+            <TooltipContent
+              side="bottom"
+              className="flex items-center gap-1.5 bg-black/90 text-white border-white/20"
+            >
               <span>Voltar para o curso</span>
             </TooltipContent>
           </Tooltip>
@@ -310,7 +333,8 @@ export function VideoPlayer({ className, onBack }: VideoPlayerProps): React.JSX.
           <div className="flex flex-col overflow-hidden">
             {activeCourse && (
               <span className="text-[11px] font-medium text-zinc-400 truncate">
-                {activeCourse.title} {activeModule ? `• ${activeModule.title}` : ''}
+                {activeCourse.title}{' '}
+                {activeModule ? `• ${activeModule.title}` : ''}
               </span>
             )}
             <h2 className="text-sm font-semibold text-white truncate">

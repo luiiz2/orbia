@@ -74,7 +74,10 @@ export function buildImportTitleEdits(
 ): NonNullable<CommitImportSessionInput['titleEdits']> {
   return {
     courseTitle: preview.suggestedTitle,
-    modules: preview.modules.map((module) => ({ id: module.id, title: module.title })),
+    modules: preview.modules.map((module) => ({
+      id: module.id,
+      title: module.title
+    })),
     lessons: preview.modules.flatMap((module) =>
       module.lessons.map((lesson) => ({ id: lesson.id, title: lesson.title }))
     )
@@ -88,12 +91,16 @@ export function buildSourcePreparationRequest(
   return { token: source.token }
 }
 
-export function proposalToSessionPreview(proposal: ProposedCourseStructure): ImportSessionPreview {
+export function proposalToSessionPreview(
+  proposal: ProposedCourseStructure
+): ImportSessionPreview {
   return {
     suggestedTitle: proposal.suggestedTitle,
     totalLessons: proposal.totalLessons,
     totalFilesScanned: proposal.totalFilesScanned,
-    ...(typeof proposal.totalDuration === 'number' ? { totalDuration: proposal.totalDuration } : {}),
+    ...(typeof proposal.totalDuration === 'number'
+      ? { totalDuration: proposal.totalDuration }
+      : {}),
     modules: proposal.modules.map((mod) => ({
       id: mod.id,
       title: mod.title,
@@ -133,7 +140,10 @@ export function proposalToSessionPreview(proposal: ProposedCourseStructure): Imp
   }
 }
 
-export function ImportWizard({ open, onOpenChange }: ImportWizardProps): React.JSX.Element {
+export function ImportWizard({
+  open,
+  onOpenChange
+}: ImportWizardProps): React.JSX.Element {
   const { t } = useTranslation()
   const { fetchCourses } = useLibraryStore()
   const { navigateToCourse } = useNavigationStore()
@@ -159,13 +169,16 @@ export function ImportWizard({ open, onOpenChange }: ImportWizardProps): React.J
     setBatchItems(next)
   }, [])
 
-  const updateBatchItems = useCallback((updater: (current: BatchItem[]) => BatchItem[]): void => {
-    setBatchItems((current) => {
-      const next = updater(current)
-      batchItemsRef.current = next
-      return next
-    })
-  }, [])
+  const updateBatchItems = useCallback(
+    (updater: (current: BatchItem[]) => BatchItem[]): void => {
+      setBatchItems((current) => {
+        const next = updater(current)
+        batchItemsRef.current = next
+        return next
+      })
+    },
+    []
+  )
 
   const resetWizard = useCallback((): void => {
     replaceBatchItems([])
@@ -174,14 +187,26 @@ export function ImportWizard({ open, onOpenChange }: ImportWizardProps): React.J
     setGlobalError(null)
   }, [replaceBatchItems])
 
-  const cancelPendingSessions = useCallback(async (items: BatchItem[]): Promise<void> => {
-    await Promise.all(
-      items.flatMap((item) => {
-        if (!item.sessionId || item.status === 'committing' || item.status === 'committed') return []
-        return [window.api.courses.cancelImportSession(item.sessionId).catch(() => undefined)]
-      })
-    )
-  }, [])
+  const cancelPendingSessions = useCallback(
+    async (items: BatchItem[]): Promise<void> => {
+      await Promise.all(
+        items.flatMap((item) => {
+          if (
+            !item.sessionId ||
+            item.status === 'committing' ||
+            item.status === 'committed'
+          )
+            return []
+          return [
+            window.api.courses
+              .cancelImportSession(item.sessionId)
+              .catch(() => undefined)
+          ]
+        })
+      )
+    },
+    []
+  )
 
   const discardPreparations = useCallback(async (): Promise<void> => {
     preparationRunRef.current += 1
@@ -225,7 +250,9 @@ export function ImportWizard({ open, onOpenChange }: ImportWizardProps): React.J
     }
   }, [cancelPendingSessions])
 
-  const startBatchProcessing = async (sources: ImportSourceCapability[]): Promise<void> => {
+  const startBatchProcessing = async (
+    sources: ImportSourceCapability[]
+  ): Promise<void> => {
     if (sources.length === 0) return
 
     preparationRunRef.current += 1
@@ -259,7 +286,9 @@ export function ImportWizard({ open, onOpenChange }: ImportWizardProps): React.J
 
         if (runId !== preparationRunRef.current) {
           if (preparation.success) {
-            await window.api.courses.cancelImportSession(preparation.sessionId).catch(() => undefined)
+            await window.api.courses
+              .cancelImportSession(preparation.sessionId)
+              .catch(() => undefined)
           }
           return
         }
@@ -273,7 +302,8 @@ export function ImportWizard({ open, onOpenChange }: ImportWizardProps): React.J
 
         item.sessionId = preparation.sessionId
         item.sourceKind = preparation.sourceKind
-        item.isExternal = preparation.sourceKind === 'zip' ? false : item.isExternal
+        item.isExternal =
+          preparation.sourceKind === 'zip' ? false : item.isExternal
         item.validation = preparation.validation
 
         if (!preparation.validation.verificationOk || !preparation.preview) {
@@ -297,7 +327,9 @@ export function ImportWizard({ open, onOpenChange }: ImportWizardProps): React.J
 
     if (runId !== preparationRunRef.current) return
 
-    const firstReadyIndex = queue.findIndex((item) => item.status === 'ready' && item.preview)
+    const firstReadyIndex = queue.findIndex(
+      (item) => item.status === 'ready' && item.preview
+    )
     setActiveItemIndex(firstReadyIndex >= 0 ? firstReadyIndex : 0)
     if (firstReadyIndex >= 0) {
       setStep('preview')
@@ -326,9 +358,21 @@ export function ImportWizard({ open, onOpenChange }: ImportWizardProps): React.J
 
     setStep('processing')
     try {
-      const scanResult = await window.api.courses.scanMultiCourseFolder(selected.path)
-      if (!scanResult.success || !scanResult.proposals || scanResult.proposals.length === 0) {
-        setGlobalError(scanResult.error || t('import.noCoursesFoundInRoot', 'Nenhum curso identificado nesta pasta.'))
+      const scanResult = await window.api.courses.scanMultiCourseFolder(
+        selected.path
+      )
+      if (
+        !scanResult.success ||
+        !scanResult.proposals ||
+        scanResult.proposals.length === 0
+      ) {
+        setGlobalError(
+          scanResult.error ||
+            t(
+              'import.noCoursesFoundInRoot',
+              'Nenhum curso identificado nesta pasta.'
+            )
+        )
         setStep('select')
         return
       }
@@ -379,7 +423,9 @@ export function ImportWizard({ open, onOpenChange }: ImportWizardProps): React.J
     const activeItem = batchItemsRef.current[activeItemIndex]
     if (!activeItem) return
     updateBatchItems((items) =>
-      items.map((item) => (item.id === activeItem.id ? { ...item, preview } : item))
+      items.map((item) =>
+        item.id === activeItem.id ? { ...item, preview } : item
+      )
     )
   }
 
@@ -387,13 +433,17 @@ export function ImportWizard({ open, onOpenChange }: ImportWizardProps): React.J
     const activeItem = batchItemsRef.current[activeItemIndex]
     if (!activeItem || activeItem.sourceKind === 'zip') return
     updateBatchItems((items) =>
-      items.map((item) => (item.id === activeItem.id ? { ...item, isExternal } : item))
+      items.map((item) =>
+        item.id === activeItem.id ? { ...item, isExternal } : item
+      )
     )
   }
 
   const toggleItemSelection = (itemId: string): void => {
     updateBatchItems((items) =>
-      items.map((item) => (item.id === itemId ? { ...item, selected: !item.selected } : item))
+      items.map((item) =>
+        item.id === itemId ? { ...item, selected: !item.selected } : item
+      )
     )
   }
 
@@ -424,7 +474,9 @@ export function ImportWizard({ open, onOpenChange }: ImportWizardProps): React.J
 
         updateBatchItems((items) =>
           items.map((current) =>
-            current.id === item.id ? { ...current, status: 'committing', error: null } : current
+            current.id === item.id
+              ? { ...current, status: 'committing', error: null }
+              : current
           )
         )
 
@@ -438,7 +490,11 @@ export function ImportWizard({ open, onOpenChange }: ImportWizardProps): React.J
           updateBatchItems((items) =>
             items.map((current) =>
               current.id === item.id
-                ? { ...current, status: 'ready', error: t('import.importFailed') }
+                ? {
+                    ...current,
+                    status: 'ready',
+                    error: t('import.importFailed')
+                  }
                 : current
             )
           )
@@ -450,20 +506,31 @@ export function ImportWizard({ open, onOpenChange }: ImportWizardProps): React.J
         updateBatchItems((items) =>
           items.map((current) =>
             current.id === item.id
-              ? { ...current, status: 'committed', sessionId: undefined, error: null }
+              ? {
+                  ...current,
+                  status: 'committed',
+                  sessionId: undefined,
+                  error: null
+                }
               : current
           )
         )
       }
 
       // 2. Process batch direct items (from multi-course folder)
-      const directItems = selectedItems.filter((item) => !item.sessionId && item.rawProposal && item.preview)
+      const directItems = selectedItems.filter(
+        (item) => !item.sessionId && item.rawProposal && item.preview
+      )
       if (directItems.length > 0) {
         const batchPayload = directItems.map((item) => {
           const prop = item.rawProposal!
           const edits = buildImportTitleEdits(item.preview!)
-          const modTitleMap = new Map((edits.modules ?? []).map((m) => [m.id, m.title]))
-          const lesTitleMap = new Map((edits.lessons ?? []).map((l) => [l.id, l.title]))
+          const modTitleMap = new Map(
+            (edits.modules ?? []).map((m) => [m.id, m.title])
+          )
+          const lesTitleMap = new Map(
+            (edits.lessons ?? []).map((l) => [l.id, l.title])
+          )
 
           return {
             proposal: {
@@ -510,7 +577,9 @@ export function ImportWizard({ open, onOpenChange }: ImportWizardProps): React.J
     closingRef.current = false
   }
 
-  const handleDeleteZipPreferenceChange = async (checked: boolean): Promise<void> => {
+  const handleDeleteZipPreferenceChange = async (
+    checked: boolean
+  ): Promise<void> => {
     savingZipPreferenceRef.current = true
     setIsSavingZipPreference(true)
     try {
@@ -523,7 +592,8 @@ export function ImportWizard({ open, onOpenChange }: ImportWizardProps): React.J
 
   const activeItem = batchItems[activeItemIndex]
   const readySelectedCount = batchItems.filter(
-    (item) => item.status === 'ready' && item.selected && item.preview && item.sessionId
+    (item) =>
+      item.status === 'ready' && item.selected && item.preview && item.sessionId
   ).length
   const attentionItems = batchItems.filter(
     (item) => item.status === 'validation-failed' || item.status === 'error'
@@ -549,7 +619,9 @@ export function ImportWizard({ open, onOpenChange }: ImportWizardProps): React.J
         <DialogHeader>
           <div className="flex items-center gap-2 text-primary">
             <FolderArchive className="h-5 w-5" />
-            <DialogTitle className="text-lg font-bold">{t('import.title')}</DialogTitle>
+            <DialogTitle className="text-lg font-bold">
+              {t('import.title')}
+            </DialogTitle>
           </div>
           <DialogDescription className="text-xs text-muted-foreground">
             {step === 'preview'
@@ -574,22 +646,42 @@ export function ImportWizard({ open, onOpenChange }: ImportWizardProps): React.J
             <div className="space-y-4">
               <div className="rounded-2xl border-2 border-dashed border-border/80 bg-secondary/20 p-8 text-center">
                 <FolderSearch className="mx-auto mb-3 h-9 w-9 text-primary" />
-                <h3 className="text-sm font-bold text-foreground">{t('import.multiSourceHeading')}</h3>
+                <h3 className="text-sm font-bold text-foreground">
+                  {t('import.multiSourceHeading')}
+                </h3>
                 <p className="mx-auto mt-1 max-w-md text-xs leading-relaxed text-muted-foreground">
                   {t('import.multiSourceDescription')}
                 </p>
                 <div className="mt-4 flex flex-wrap justify-center gap-2">
-                  <Button type="button" variant="outline" size="sm" onClick={() => void handleSelectZip()}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => void handleSelectZip()}
+                  >
                     <FileArchive className="h-3.5 w-3.5" />
                     {t('import.selectZipMultiple')}
                   </Button>
-                  <Button type="button" variant="outline" size="sm" onClick={() => void handleSelectFolder()}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => void handleSelectFolder()}
+                  >
                     <FolderOpen className="h-3.5 w-3.5" />
                     {t('import.selectFolderMultiple')}
                   </Button>
-                  <Button type="button" variant="outline" size="sm" onClick={() => void handleSelectMultiCourseRoot()}>
-                    <FolderSearch className="h-3.5 w-3.5 text-orange-400" />
-                    {t('import.selectMultiCourseRoot', 'Pasta com Vários Cursos')}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => void handleSelectMultiCourseRoot()}
+                  >
+                    <FolderSearch className="h-3.5 w-3.5 text-primary" />
+                    {t(
+                      'import.selectMultiCourseRoot',
+                      'Pasta com Vários Cursos'
+                    )}
                   </Button>
                 </div>
               </div>
@@ -598,12 +690,16 @@ export function ImportWizard({ open, onOpenChange }: ImportWizardProps): React.J
                 <input
                   type="checkbox"
                   checked={deleteSourceZip}
-                  onChange={(event) => void handleDeleteZipPreferenceChange(event.target.checked)}
+                  onChange={(event) =>
+                    void handleDeleteZipPreferenceChange(event.target.checked)
+                  }
                   disabled={isSavingZipPreference}
                   className="mt-0.5 h-4 w-4 accent-primary"
                 />
                 <span>
-                  <span className="block font-medium text-foreground">{t('import.deleteZipAfterImport')}</span>
+                  <span className="block font-medium text-foreground">
+                    {t('import.deleteZipAfterImport')}
+                  </span>
                   <span className="mt-0.5 block text-[11px] leading-snug text-muted-foreground">
                     {t('import.zipTransferNotice')}
                   </span>
@@ -612,9 +708,7 @@ export function ImportWizard({ open, onOpenChange }: ImportWizardProps): React.J
             </div>
           )}
 
-          {step === 'processing' && (
-            <ProcessingQueue items={batchItems} />
-          )}
+          {step === 'processing' && <ProcessingQueue items={batchItems} />}
 
           {step === 'validation' && (
             <ValidationAttention
@@ -643,13 +737,17 @@ export function ImportWizard({ open, onOpenChange }: ImportWizardProps): React.J
                       }`}
                     >
                       <FileArchive className="h-4 w-4 shrink-0 text-primary" />
-                      <span className="min-w-0 flex-1 truncate font-medium">{item.preview.suggestedTitle}</span>
+                      <span className="min-w-0 flex-1 truncate font-medium">
+                        {item.preview.suggestedTitle}
+                      </span>
                       <input
                         type="checkbox"
                         checked={item.selected}
                         onClick={(event) => event.stopPropagation()}
                         onChange={() => toggleItemSelection(item.id)}
-                        aria-label={t('import.selectCourse', { name: item.preview.suggestedTitle })}
+                        aria-label={t('import.selectCourse', {
+                          name: item.preview.suggestedTitle
+                        })}
                         className="h-3.5 w-3.5 accent-primary"
                       />
                     </button>
@@ -661,9 +759,16 @@ export function ImportWizard({ open, onOpenChange }: ImportWizardProps): React.J
                 <ImportPreview
                   preview={activeItem.preview}
                   onUpdatePreview={updateActivePreview}
-                  isExternal={activeItem.sourceKind === 'zip' ? false : activeItem.isExternal}
+                  isExternal={
+                    activeItem.sourceKind === 'zip'
+                      ? false
+                      : activeItem.isExternal
+                  }
                   onToggleExternal={toggleActiveExternal}
-                  sourceKind={activeItem.sourceKind ?? (activeItem.isZip ? 'zip' : 'folder')}
+                  sourceKind={
+                    activeItem.sourceKind ??
+                    (activeItem.isZip ? 'zip' : 'folder')
+                  }
                 />
               )}
 
@@ -703,10 +808,16 @@ export function ImportWizard({ open, onOpenChange }: ImportWizardProps): React.J
               variant="default"
               size="sm"
               onClick={() => void handleConfirmImport()}
-              disabled={isBusy || isSavingZipPreference || readySelectedCount === 0}
-              className="rounded-xl bg-gradient-to-r from-orange-500 via-orange-600 to-amber-500 font-semibold shadow-lg shadow-orange-500/20"
+              disabled={
+                isBusy || isSavingZipPreference || readySelectedCount === 0
+              }
+              className="rounded-xl bg-primary font-semibold shadow-lg shadow-primary/20"
             >
-              {isBusy ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Sparkles className="mr-1.5 h-3.5 w-3.5" />}
+              {isBusy ? (
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+              )}
               {t('import.importSelected', { count: readySelectedCount })}
             </Button>
           )}
@@ -727,7 +838,10 @@ function ProcessingQueue({ items }: { items: BatchItem[] }): React.JSX.Element {
       </div>
       <div className="space-y-2">
         {items.map((item) => (
-          <div key={item.id} className="rounded-xl border border-border/70 bg-card p-3">
+          <div
+            key={item.id}
+            className="rounded-xl border border-border/70 bg-card p-3"
+          >
             <div className="flex items-center justify-between gap-3 text-xs">
               <div className="flex min-w-0 items-center gap-2">
                 {item.isZip ? (
@@ -735,7 +849,9 @@ function ProcessingQueue({ items }: { items: BatchItem[] }): React.JSX.Element {
                 ) : (
                   <FolderOpen className="h-4 w-4 shrink-0 text-primary" />
                 )}
-                <span className="truncate font-medium text-foreground">{item.name}</span>
+                <span className="truncate font-medium text-foreground">
+                  {item.name}
+                </span>
               </div>
               <Badge variant="secondary" className="shrink-0 text-[10px]">
                 {t(statusKey(item.status))}
@@ -775,26 +891,34 @@ function ValidationAttention({
   const { t } = useTranslation()
 
   return (
-    <div className="space-y-3 rounded-2xl border border-amber-500/40 bg-amber-500/10 p-3.5">
+    <div className="space-y-3 rounded-2xl border border-primary/40 bg-primary/10 p-3.5">
       <div className="flex items-start gap-2.5">
-        <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
+        <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
         <div>
-          <p className="text-xs font-bold text-amber-300">{t('import.validationTitle')}</p>
-          <p className="mt-0.5 text-[11px] leading-snug text-amber-200/80">
+          <p className="text-xs font-bold text-primary">
+            {t('import.validationTitle')}
+          </p>
+          <p className="mt-0.5 text-[11px] leading-snug text-primary/80">
             {t('import.validationDescription')}
           </p>
         </div>
       </div>
 
       {items.map((item) => (
-        <div key={item.id} className="rounded-xl border border-amber-500/30 bg-card/50 p-3">
+        <div
+          key={item.id}
+          className="rounded-xl border border-primary/30 bg-card/50 p-3"
+        >
           <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
-            <XCircle className="h-4 w-4 shrink-0 text-amber-400" />
+            <XCircle className="h-4 w-4 shrink-0 text-primary" />
             <span className="truncate">{item.name}</span>
           </div>
-          {item.validation?.failedEntries && item.validation.failedEntries.length > 0 ? (
+          {item.validation?.failedEntries &&
+          item.validation.failedEntries.length > 0 ? (
             <>
-              <p className="mt-2 text-[11px] font-medium text-muted-foreground">{t('import.failedFiles')}</p>
+              <p className="mt-2 text-[11px] font-medium text-muted-foreground">
+                {t('import.failedFiles')}
+              </p>
               <ul className="mt-1 max-h-24 space-y-0.5 overflow-y-auto text-[11px] text-muted-foreground">
                 {item.validation.failedEntries.slice(0, 12).map((entry) => (
                   <li key={entry} className="truncate">
@@ -804,7 +928,9 @@ function ValidationAttention({
               </ul>
             </>
           ) : (
-            <p className="mt-2 text-[11px] text-muted-foreground">{item.error || t('import.validationNoDetails')}</p>
+            <p className="mt-2 text-[11px] text-muted-foreground">
+              {item.error || t('import.validationNoDetails')}
+            </p>
           )}
           {item.validation?.warnings && item.validation.warnings.length > 0 && (
             <ul className="mt-2 space-y-0.5 text-[11px] text-muted-foreground">
@@ -827,7 +953,13 @@ function ValidationAttention({
         </div>
       ))}
 
-      <Button type="button" variant="ghost" size="sm" onClick={onDiscard} disabled={disabled}>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        onClick={onDiscard}
+        disabled={disabled}
+      >
         <Trash2 className="h-3.5 w-3.5" />
         {t('import.discardPreparation')}
       </Button>

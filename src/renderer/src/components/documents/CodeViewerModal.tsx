@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Code2, Copy, Check, ExternalLink, Loader2, FileCode } from 'lucide-react'
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle
-} from '../ui/dialog'
+  Code2,
+  Copy,
+  Check,
+  ExternalLink,
+  Loader2,
+  FileCode
+} from 'lucide-react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog'
 import { Button } from '../ui/button'
 import { Badge } from '../ui/badge'
 import { formatFileSize } from '../../lib/formatters'
@@ -62,7 +64,9 @@ export function CodeViewerModal({
         }
       } catch (err: unknown) {
         if (isMounted) {
-          setError(err instanceof Error ? err.message : 'Error loading file content')
+          setError(
+            err instanceof Error ? err.message : 'Error loading file content'
+          )
           setIsLoading(false)
         }
       }
@@ -106,20 +110,28 @@ export function CodeViewerModal({
         {/* Header Bar */}
         <DialogHeader className="px-5 py-3.5 border-b border-border/80 bg-card flex flex-row items-center justify-between space-y-0 shrink-0">
           <div className="flex items-center gap-3 overflow-hidden mr-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-purple-500/15 text-purple-400 border border-purple-500/20">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-accent/15 text-accent border border-accent/20">
               <Code2 className="h-5 w-5" />
             </div>
             <div className="flex flex-col overflow-hidden min-w-0">
-              <DialogTitle className="text-sm sm:text-base font-bold text-foreground truncate" title={resource.name}>
+              <DialogTitle
+                className="text-sm sm:text-base font-bold text-foreground truncate"
+                title={resource.name}
+              >
                 {resource.name}
               </DialogTitle>
               <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-0.5">
                 {ext && (
-                  <Badge variant="outline" className="text-[10px] py-0 px-1.5 font-mono font-bold text-purple-400 border-purple-500/30">
+                  <Badge
+                    variant="outline"
+                    className="text-[10px] py-0 px-1.5 font-mono font-bold text-accent border-accent/30"
+                  >
                     {ext}
                   </Badge>
                 )}
-                {resource.fileSize ? <span>{formatFileSize(resource.fileSize)}</span> : null}
+                {resource.fileSize ? (
+                  <span>{formatFileSize(resource.fileSize)}</span>
+                ) : null}
                 {!isLoading && !error && (
                   <span className="font-mono text-[11px] text-muted-foreground">
                     {lines.length} {lines.length === 1 ? 'linha' : 'linhas'}
@@ -141,12 +153,16 @@ export function CodeViewerModal({
               {isCopied ? (
                 <>
                   <Check className="h-3.5 w-3.5 text-emerald-400" />
-                  <span className="hidden sm:inline text-emerald-400 font-semibold">{t('documents.copied', 'Copiado!')}</span>
+                  <span className="hidden sm:inline text-emerald-400 font-semibold">
+                    {t('documents.copied', 'Copiado!')}
+                  </span>
                 </>
               ) : (
                 <>
                   <Copy className="h-3.5 w-3.5 text-muted-foreground" />
-                  <span className="hidden sm:inline">{t('documents.copyCode', 'Copiar Código')}</span>
+                  <span className="hidden sm:inline">
+                    {t('documents.copyCode', 'Copiar Código')}
+                  </span>
                 </>
               )}
             </Button>
@@ -158,16 +174,18 @@ export function CodeViewerModal({
               title={t('documents.openInEditor', 'Abrir no editor padrão')}
             >
               <ExternalLink className="h-3.5 w-3.5 text-primary" />
-              <span className="hidden sm:inline">{t('documents.openInEditor', 'Abrir no Editor')}</span>
+              <span className="hidden sm:inline">
+                {t('documents.openInEditor', 'Abrir no Editor')}
+              </span>
             </Button>
           </div>
         </DialogHeader>
 
         {/* Code Content Canvas */}
-        <div className="flex-1 w-full h-full overflow-hidden bg-[#0d1117] relative flex flex-col font-mono text-xs">
+        <div className="flex-1 w-full h-full overflow-hidden bg-[#101312] relative flex flex-col font-mono text-xs">
           {isLoading ? (
             <div className="flex flex-col items-center justify-center flex-1 text-muted-foreground gap-3">
-              <Loader2 className="h-7 w-7 animate-spin text-purple-400" />
+              <Loader2 className="h-7 w-7 animate-spin text-accent" />
               <span className="text-xs">Carregando código...</span>
             </div>
           ) : error ? (
@@ -186,20 +204,20 @@ export function CodeViewerModal({
                     const lineNumber = idx + 1
                     const isInitialLine = lineNumber === initialLine
                     return (
-                    <tr
-                      key={idx}
-                      ref={(element) => {
-                        lineRefs.current[lineNumber] = element
-                      }}
-                      className={`hover:bg-white/[0.04] transition-colors leading-relaxed ${isInitialLine ? 'bg-purple-500/15' : ''}`}
-                    >
-                      <td className="pr-4 py-0.5 text-right select-none text-zinc-600 font-mono text-[11px] w-12 shrink-0 border-r border-zinc-800">
-                        {lineNumber}
-                      </td>
-                      <td className="pl-4 py-0.5 text-zinc-200 font-mono text-xs whitespace-pre break-all">
-                        {line || ' '}
-                      </td>
-                    </tr>
+                      <tr
+                        key={idx}
+                        ref={(element) => {
+                          lineRefs.current[lineNumber] = element
+                        }}
+                        className={`hover:bg-white/[0.04] transition-colors leading-relaxed ${isInitialLine ? 'bg-accent/15' : ''}`}
+                      >
+                        <td className="pr-4 py-0.5 text-right select-none text-zinc-600 font-mono text-[11px] w-12 shrink-0 border-r border-zinc-800">
+                          {lineNumber}
+                        </td>
+                        <td className="pl-4 py-0.5 text-zinc-200 font-mono text-xs whitespace-pre break-all">
+                          {line || ' '}
+                        </td>
+                      </tr>
                     )
                   })}
                 </tbody>

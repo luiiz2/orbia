@@ -1,6 +1,14 @@
 import { create } from 'zustand'
 
-export type ViewType = 'home' | 'discover' | 'course' | 'player' | 'history' | 'review' | 'settings' | 'studio'
+export type ViewType =
+  | 'home'
+  | 'discover'
+  | 'course'
+  | 'player'
+  | 'history'
+  | 'review'
+  | 'settings'
+  | 'studio'
 
 export interface SourceNavigationIntent {
   courseId: string
@@ -19,6 +27,7 @@ export interface NavigationState {
   isVaultModalOpen: boolean
   isThemeModalOpen: boolean
   isProfileModalOpen: boolean
+  isShortcutsModalOpen: boolean
 
   // Actions
   setView: (view: ViewType, courseId?: string) => void
@@ -38,6 +47,7 @@ export interface NavigationState {
   setVaultModalOpen: (open: boolean) => void
   setThemeModalOpen: (open: boolean) => void
   setProfileModalOpen: (open: boolean) => void
+  setShortcutsModalOpen: (open: boolean) => void
 }
 
 export const useNavigationStore = create<NavigationState>((set, get) => ({
@@ -49,6 +59,7 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
   isVaultModalOpen: false,
   isThemeModalOpen: false,
   isProfileModalOpen: false,
+  isShortcutsModalOpen: false,
 
   setView: (view, courseId) =>
     set({
@@ -92,7 +103,8 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
   navigateToPlayer: (courseId?: string) =>
     set((state) => ({
       currentView: 'player',
-      selectedCourseId: courseId !== undefined ? courseId : state.selectedCourseId
+      selectedCourseId:
+        courseId !== undefined ? courseId : state.selectedCourseId
     })),
 
   navigateToHistory: () =>
@@ -143,6 +155,10 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
   setProfileModalOpen: (isProfileModalOpen) =>
     set({
       isProfileModalOpen
+    }),
+
+  setShortcutsModalOpen: (isShortcutsModalOpen) =>
+    set({
+      isShortcutsModalOpen
     })
 }))
-

@@ -10,11 +10,15 @@ interface DiscoverHeroProps {
   onOpenDetails: (courseId: string) => void
 }
 
-export function DiscoverHero({ item, onPlay, onOpenDetails }: DiscoverHeroProps): React.JSX.Element {
+export function DiscoverHero({
+  item,
+  onPlay,
+  onOpenDetails
+}: DiscoverHeroProps): React.JSX.Element {
   const topReason = item.reasons[0]
 
   return (
-    <div className="relative rounded-3xl overflow-hidden border border-border/70 bg-gradient-to-r from-card via-card/90 to-card/40 shadow-2xl p-6 md:p-8 mb-8">
+    <div className="relative rounded-3xl overflow-hidden border border-border/70 bg-card shadow-2xl p-6 md:p-8 mb-8">
       {/* Subtle Background Glow */}
       <div className="absolute -right-20 -top-20 w-96 h-96 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
 
@@ -39,10 +43,10 @@ export function DiscoverHero({ item, onPlay, onOpenDetails }: DiscoverHeroProps)
                 {topReason.type === 'because_watched'
                   ? `Porque você assistiu ${topReason.params.targetTitle}`
                   : topReason.type === 'journey_next'
-                  ? `Próxima etapa da jornada ${topReason.params.sourceTitle}`
-                  : topReason.type === 'almost_finished'
-                  ? `Quase lá: ${topReason.params.percent}% concluído`
-                  : 'Destaque para você'}
+                    ? `Próxima etapa da jornada ${topReason.params.sourceTitle}`
+                    : topReason.type === 'almost_finished'
+                      ? `Quase lá: ${topReason.params.percent}% concluído`
+                      : 'Destaque para você'}
               </span>
             </div>
           )}

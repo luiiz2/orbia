@@ -21,7 +21,9 @@ import {
   Target,
   ListPlus,
   Calendar,
-  Sparkles
+  Sparkles,
+  MoreVertical,
+  Check
 } from 'lucide-react'
 import { useLibraryStore } from '../stores/useLibraryStore'
 import { usePlayerStore } from '../stores/usePlayerStore'
@@ -35,11 +37,7 @@ import { CodeViewerModal } from '../components/documents/CodeViewerModal'
 import { ReorganizeCourseModal } from '../components/library/ReorganizeCourseModal'
 import { SimilarCoursesRail } from '../components/discovery'
 import type { CourseGoal } from '@shared'
-import {
-  ChevronUp,
-  ChevronDown,
-  Edit3
-} from 'lucide-react'
+import { ChevronUp, ChevronDown, Edit3 } from 'lucide-react'
 
 interface EditableTitleProps {
   initialTitle: string
@@ -47,7 +45,11 @@ interface EditableTitleProps {
   className?: string
 }
 
-function EditableTitle({ initialTitle, onSave, className }: EditableTitleProps) {
+function EditableTitle({
+  initialTitle,
+  onSave,
+  className
+}: EditableTitleProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [value, setValue] = useState(initialTitle)
 
@@ -57,15 +59,16 @@ function EditableTitle({ initialTitle, onSave, className }: EditableTitleProps) 
 
   if (!isEditing) {
     return (
-      <div className={cn("group flex items-center gap-2", className)}>
-        <span 
-          onDoubleClick={() => setIsEditing(true)}
-          className="cursor-text"
-        >
+      <div className={cn('group flex items-center gap-2', className)}>
+        <span onDoubleClick={() => setIsEditing(true)} className="cursor-text">
           {initialTitle}
         </span>
         <button
-          onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsEditing(true) }}
+          onClick={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            setIsEditing(true)
+          }}
           className="opacity-0 group-hover:opacity-100 p-1 text-muted-foreground hover:text-primary transition-opacity cursor-pointer"
         >
           <Edit3 className="h-3 w-3" />
@@ -77,7 +80,10 @@ function EditableTitle({ initialTitle, onSave, className }: EditableTitleProps) 
   return (
     <input
       autoFocus
-      className={cn("bg-secondary text-foreground border border-primary/50 rounded px-2 py-0.5 outline-none focus:ring-1 focus:ring-primary/40", className)}
+      className={cn(
+        'bg-secondary text-foreground border border-primary/50 rounded px-2 py-0.5 outline-none focus:ring-1 focus:ring-primary/40',
+        className
+      )}
       value={value}
       onChange={(e) => setValue(e.target.value)}
       onKeyDown={(e) => {
@@ -120,7 +126,13 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  CourseCover
+  CourseCover,
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  EmptyState
 } from '../components/ui'
 import { formatDurationHuman, formatTime } from '../lib/formatters'
 import { mediaUrl, cn } from '../lib/utils'
@@ -139,23 +151,51 @@ function getResourceTypeLabel(resource: VisibleResource): string {
 
 function hasEmbeddedPreview(resource: VisibleResource): boolean {
   const extension = resource.fileExtension.replace(/^\./, '').toLowerCase()
-  return resource.type === 'pdf' || extension === 'pdf' || resource.name.toLowerCase().endsWith('.pdf')
+  return (
+    resource.type === 'pdf' ||
+    extension === 'pdf' ||
+    resource.name.toLowerCase().endsWith('.pdf')
+  )
 }
 
 const CODE_EXTENSIONS = new Set([
-  'py', 'js', 'ts', 'jsx', 'tsx', 'json', 'sql', 'html', 'css',
-  'csv', 'txt', 'md', 'xml', 'yaml', 'yml', 'c', 'cpp', 'rs', 'go', 'java', 'sh'
+  'py',
+  'js',
+  'ts',
+  'jsx',
+  'tsx',
+  'json',
+  'sql',
+  'html',
+  'css',
+  'csv',
+  'txt',
+  'md',
+  'xml',
+  'yaml',
+  'yml',
+  'c',
+  'cpp',
+  'rs',
+  'go',
+  'java',
+  'sh'
 ])
 
 function isCodeResource(resource: VisibleResource): boolean {
   const ext = resource.fileExtension.replace(/^\./, '').toLowerCase()
   const nameExt = resource.name.split('.').pop()?.toLowerCase() || ''
-  return resource.type === 'code' || CODE_EXTENSIONS.has(ext) || CODE_EXTENSIONS.has(nameExt)
+  return (
+    resource.type === 'code' ||
+    CODE_EXTENSIONS.has(ext) ||
+    CODE_EXTENSIONS.has(nameExt)
+  )
 }
 
 export function CourseView(): React.JSX.Element {
   const { t } = useTranslation()
-  const { selectedCourseId, navigateToHome, navigateToPlayer } = useNavigationStore()
+  const { selectedCourseId, navigateToHome, navigateToPlayer } =
+    useNavigationStore()
   const {
     activeCourseHierarchy,
     fetchCourseById,
@@ -185,12 +225,15 @@ export function CourseView(): React.JSX.Element {
   const [isDeletingLesson, setIsDeletingLesson] = useState<boolean>(false)
   const [deleteLessonFile, setDeleteLessonFile] = useState<boolean>(false)
   const [isFixingProblems, setIsFixingProblems] = useState<boolean>(false)
-  const [selectedResource, setSelectedResource] = useState<VisibleResource | null>(null)
+  const [selectedResource, setSelectedResource] =
+    useState<VisibleResource | null>(null)
   const [isPdfModalOpen, setIsPdfModalOpen] = useState<boolean>(false)
   const [isCodeModalOpen, setIsCodeModalOpen] = useState<boolean>(false)
-  const [isReorganizeModalOpen, setIsReorganizeModalOpen] = useState<boolean>(false)
+  const [isReorganizeModalOpen, setIsReorganizeModalOpen] =
+    useState<boolean>(false)
   const [autoTranscribe, setAutoTranscribe] = useState<boolean>(false)
-  const [isUpdatingAutoTranscribe, setIsUpdatingAutoTranscribe] = useState<boolean>(false)
+  const [isUpdatingAutoTranscribe, setIsUpdatingAutoTranscribe] =
+    useState<boolean>(false)
 
   // Course Goal & Study Queue state (v0.3)
   const { addToStudyQueue } = useReviewStore()
@@ -198,8 +241,10 @@ export function CourseView(): React.JSX.Element {
   const [isGoalModalOpen, setIsGoalModalOpen] = useState<boolean>(false)
   const [targetDateInput, setTargetDateInput] = useState<string>('')
   const [weeklyLessonsInput, setWeeklyLessonsInput] = useState<number>(10)
-  const [queueAddedNotification, setQueueAddedNotification] = useState<boolean>(false)
-  const [isQueueingTranscription, setIsQueueingTranscription] = useState<boolean>(false)
+  const [queueAddedNotification, setQueueAddedNotification] =
+    useState<boolean>(false)
+  const [isQueueingTranscription, setIsQueueingTranscription] =
+    useState<boolean>(false)
   const [queueingModuleId, setQueueingModuleId] = useState<string | null>(null)
 
   const fetchGoal = React.useCallback(async (courseId: string) => {
@@ -207,7 +252,9 @@ export function CourseView(): React.JSX.Element {
       const goal = await window.api.goals.get(courseId)
       setCourseGoal(goal)
       if (goal?.targetDate) {
-        setTargetDateInput(new Date(goal.targetDate).toISOString().split('T')[0])
+        setTargetDateInput(
+          new Date(goal.targetDate).toISOString().split('T')[0]
+        )
       }
       if (goal?.weeklyLessons) {
         setWeeklyLessonsInput(goal.weeklyLessons)
@@ -220,7 +267,9 @@ export function CourseView(): React.JSX.Element {
   const handleSaveGoal = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedCourseId) return
-    const targetTimestamp = targetDateInput ? new Date(targetDateInput).getTime() : undefined
+    const targetTimestamp = targetDateInput
+      ? new Date(targetDateInput).getTime()
+      : undefined
     await window.api.goals.set({
       courseId: selectedCourseId,
       targetDate: targetTimestamp,
@@ -251,7 +300,10 @@ export function CourseView(): React.JSX.Element {
     setAutoTranscribe(nextValue)
     setIsUpdatingAutoTranscribe(true)
     try {
-      const saved = await window.api.transcription.setCourseAutoTranscribe(selectedCourseId, nextValue)
+      const saved = await window.api.transcription.setCourseAutoTranscribe(
+        selectedCourseId,
+        nextValue
+      )
       if (!saved) setAutoTranscribe(!nextValue)
     } catch (error: unknown) {
       setAutoTranscribe(!nextValue)
@@ -265,7 +317,10 @@ export function CourseView(): React.JSX.Element {
     if (!selectedCourseId || isQueueingTranscription) return
     setIsQueueingTranscription(true)
     try {
-      await window.api.transcription.enqueueCourse(selectedCourseId, { autoDetect: true, reuseExistingSubtitle: true })
+      await window.api.transcription.enqueueCourse(selectedCourseId, {
+        autoDetect: true,
+        reuseExistingSubtitle: true
+      })
     } catch (error: unknown) {
       console.warn('Failed to queue course transcription:', error)
     } finally {
@@ -277,7 +332,10 @@ export function CourseView(): React.JSX.Element {
     if (queueingModuleId) return
     setQueueingModuleId(moduleId)
     try {
-      await window.api.transcription.enqueueModule(moduleId, { autoDetect: true, reuseExistingSubtitle: true })
+      await window.api.transcription.enqueueModule(moduleId, {
+        autoDetect: true,
+        reuseExistingSubtitle: true
+      })
     } catch (error: unknown) {
       console.warn('Failed to queue module transcription:', error)
     } finally {
@@ -301,11 +359,14 @@ export function CourseView(): React.JSX.Element {
     }
 
     setAutoTranscribe(false)
-    window.api.transcription.getCourseAutoTranscribe(selectedCourseId)
+    window.api.transcription
+      .getCourseAutoTranscribe(selectedCourseId)
       .then((enabled) => {
         if (active) setAutoTranscribe(enabled)
       })
-      .catch((error: unknown) => console.warn('Failed to load course transcription settings:', error))
+      .catch((error: unknown) =>
+        console.warn('Failed to load course transcription settings:', error)
+      )
 
     return () => {
       active = false
@@ -318,22 +379,36 @@ export function CourseView(): React.JSX.Element {
       fetchCourseProgress(selectedCourseId).catch(console.warn)
       fetchCourseHealth(selectedCourseId).catch(console.warn)
 
-      window.api.courses.extractThumbnails({ courseId: selectedCourseId }).then((res) => {
-        if (res.success && ((res.updatedLessons || 0) > 0 || (res.updatedCourses || 0) > 0)) {
-          fetchCourseById(selectedCourseId).catch(console.warn)
-        }
-      }).catch(console.warn)
+      window.api.courses
+        .extractThumbnails({ courseId: selectedCourseId })
+        .then((res) => {
+          if (
+            res.success &&
+            ((res.updatedLessons || 0) > 0 || (res.updatedCourses || 0) > 0)
+          ) {
+            fetchCourseById(selectedCourseId).catch(console.warn)
+          }
+        })
+        .catch(console.warn)
     }
-  }, [selectedCourseId, fetchCourseById, fetchCourseProgress, fetchCourseHealth])
+  }, [
+    selectedCourseId,
+    fetchCourseById,
+    fetchCourseProgress,
+    fetchCourseHealth
+  ])
 
   const progressData = useCourseProgress({
     courseId: selectedCourseId || undefined,
     modules: activeCourseHierarchy?.modules
   })
 
-  if (isLoading || !activeCourseHierarchy) {
+  if (isLoading) {
     return (
-      <div className="container mx-auto max-w-5xl px-4 py-6 sm:px-6 space-y-6 animate-in fade-in duration-200" aria-label="Loading course details">
+      <div
+        className="container mx-auto max-w-5xl px-4 py-6 sm:px-6 space-y-6 animate-in fade-in duration-200"
+        aria-label="Loading course details"
+      >
         {/* Top Nav Skeleton */}
         <div className="flex items-center justify-between">
           <Skeleton className="h-8 w-24 rounded-xl" />
@@ -368,7 +443,10 @@ export function CourseView(): React.JSX.Element {
           <Skeleton className="h-6 w-32 rounded-md" />
           <div className="space-y-3">
             {[1, 2, 3].map((n) => (
-              <div key={n} className="rounded-2xl border border-border/60 bg-card/60 p-4 space-y-3">
+              <div
+                key={n}
+                className="rounded-2xl border border-border/60 bg-card/60 p-4 space-y-3"
+              >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <Skeleton className="h-6 w-6 rounded-lg" />
@@ -384,19 +462,43 @@ export function CourseView(): React.JSX.Element {
     )
   }
 
+  if (!activeCourseHierarchy) {
+    return (
+      <div className="container mx-auto max-w-5xl px-4 py-16 sm:px-6">
+        <EmptyState
+          icon={AlertTriangle}
+          title={t('course.notFound', 'Curso não encontrado')}
+          description={t(
+            'course.notFoundDesc',
+            'Este curso não está disponível na biblioteca ou foi movido.'
+          )}
+          actionLabel={t('nav.library', 'Voltar para a Biblioteca')}
+          onAction={navigateToHome}
+        />
+      </div>
+    )
+  }
+
   const { course, modules } = activeCourseHierarchy
 
   const allLessons: Lesson[] = modules.flatMap((m) => m.lessons || [])
   const firstIncompleteLesson =
-    allLessons.find((l) => !progressData.isLessonCompleted(l.id)) || allLessons[0]
+    allLessons.find((l) => !progressData.isLessonCompleted(l.id)) ||
+    allLessons[0]
 
-  const remainingLessons = Math.max(0, progressData.totalLessons - progressData.completedLessons)
+  const remainingLessons = Math.max(
+    0,
+    progressData.totalLessons - progressData.completedLessons
+  )
   let daysLeft: number | null = null
   let recommendedPace: number | null = null
   if (courseGoal?.targetDate) {
     const diffMs = courseGoal.targetDate - Date.now()
     daysLeft = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)))
-    recommendedPace = remainingLessons > 0 ? Math.ceil((remainingLessons / daysLeft) * 10) / 10 : 0
+    recommendedPace =
+      remainingLessons > 0
+        ? Math.ceil((remainingLessons / daysLeft) * 10) / 10
+        : 0
   }
 
   const handleStartOrResume = async (): Promise<void> => {
@@ -496,14 +598,18 @@ export function CourseView(): React.JSX.Element {
                 onClick={() => toggleFavorite(course.id).catch(console.warn)}
                 className={`gap-1.5 text-xs rounded-xl cursor-pointer transition-all min-h-[36px] ${
                   course.isFavorite
-                    ? 'bg-amber-500/25 text-amber-400 hover:bg-amber-500/35 border border-amber-500/45 shadow-xs'
-                    : 'text-muted-foreground hover:text-amber-400 hover:bg-secondary/70'
+                    ? 'bg-primary/25 text-primary hover:bg-primary/35 border border-primary/45 shadow-xs'
+                    : 'text-muted-foreground hover:text-primary hover:bg-secondary/70'
                 }`}
-                aria-label={course.isFavorite ? t('course.favorited', 'Favoritado') : t('course.favorite', 'Favoritar')}
+                aria-label={
+                  course.isFavorite
+                    ? t('course.favorited', 'Favoritado')
+                    : t('course.favorite', 'Favoritar')
+                }
               >
                 <Star
                   className={`h-3.5 w-3.5 transition-transform active:scale-125 duration-150 ${
-                    course.isFavorite ? 'fill-amber-400 text-amber-400' : ''
+                    course.isFavorite ? 'fill-primary text-primary' : ''
                   }`}
                 />
                 <span>
@@ -514,43 +620,38 @@ export function CourseView(): React.JSX.Element {
               </Button>
             </TooltipTrigger>
             <TooltipContent side="bottom">
-              {course.isFavorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
+              {course.isFavorite
+                ? 'Remover dos favoritos'
+                : 'Adicionar aos favoritos'}
             </TooltipContent>
           </Tooltip>
 
-          {/* Change Cover Action Button */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleChangeCourseCover}
-                className="gap-1.5 text-xs text-muted-foreground hover:text-primary hover:bg-secondary/70 rounded-xl cursor-pointer min-h-[36px]"
-                aria-label="Trocar Imagem de Capa"
-              >
-                <ImageIcon className="h-3.5 w-3.5" />
-                <span>Trocar Capa</span>
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">Alterar imagem de capa do curso</TooltipContent>
-          </Tooltip>
-
-          {/* Reorganize Files Action Button */}
+          {/* Ask About Course AI Button */}
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setIsReorganizeModalOpen(true)}
+                onClick={() =>
+                  useGroundedChatStore.getState().open({
+                    scope: { type: 'course', courseId: course.id }
+                  })
+                }
                 className="gap-1.5 text-xs text-foreground hover:border-primary/40 hover:text-primary rounded-xl cursor-pointer min-h-[36px] border-border/80"
-                aria-label="Organizar Arquivos no Disco"
+                aria-label={t(
+                  'chat.askAboutCourse',
+                  'Perguntar sobre este curso'
+                )}
               >
-                <FolderSync className="h-3.5 w-3.5 text-primary" />
-                <span>Organizar Arquivos</span>
+                <Sparkles className="h-3.5 w-3.5 text-primary" />
+                <span>{t('chat.ask', 'Perguntar')}</span>
               </Button>
             </TooltipTrigger>
             <TooltipContent side="bottom">
-              Padronizar pastas e arquivos físicos no disco de forma segura
+              {t(
+                'chat.askAboutCourseTooltip',
+                'Conversar com a IA usando o conteúdo indexado deste curso'
+              )}
             </TooltipContent>
           </Tooltip>
 
@@ -570,60 +671,108 @@ export function CourseView(): React.JSX.Element {
                 aria-label={t('summaries.summarizeCourse', 'Resumo do Curso')}
               >
                 <FileText className="h-3.5 w-3.5 text-primary" />
-                <span>{t('summaries.summarizeCourse', 'Resumo do Curso')}</span>
+                <span>{t('summaries.summarize', 'Resumo')}</span>
               </Button>
             </TooltipTrigger>
             <TooltipContent side="bottom">
-              {t('summaries.summarizeCourseTooltip', 'Gerar ou visualizar síntese estruturada deste curso')}
+              {t(
+                'summaries.summarizeCourseTooltip',
+                'Gerar ou visualizar síntese estruturada deste curso'
+              )}
             </TooltipContent>
           </Tooltip>
 
-          {/* Ask About Course AI Button */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  useGroundedChatStore.getState().open({
-                    scope: { type: 'course', courseId: course.id }
-                  })
-                }
-                className="gap-1.5 text-xs text-foreground hover:border-primary/40 hover:text-primary rounded-xl cursor-pointer min-h-[36px] border-border/80"
-                aria-label={t('chat.askAboutCourse', 'Perguntar sobre este curso')}
-              >
-                <Sparkles className="h-3.5 w-3.5 text-primary" />
-                <span>{t('chat.askAboutCourse', 'Perguntar sobre o Curso')}</span>
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">
-              {t('chat.askAboutCourseTooltip', 'Conversar com a IA usando o conteúdo indexado deste curso')}
-            </TooltipContent>
-          </Tooltip>
-
-          {/* Delete Course Action Button */}
-          <Tooltip>
-            <TooltipTrigger asChild>
+          {/* Distilled "More Options" Menu */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
-                size="sm"
+                size="icon"
+                className="h-9 w-9 rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary/70 cursor-pointer"
+                aria-label="Mais opções do curso"
+              >
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="end"
+              className="w-56 rounded-xl p-1.5 shadow-xl"
+            >
+              <DropdownMenuItem
+                onClick={() => setIsGoalModalOpen(true)}
+                className="gap-2 text-xs font-medium cursor-pointer rounded-lg py-2"
+              >
+                <Target className="h-4 w-4 text-accent" />
+                <span>
+                  {courseGoal
+                    ? 'Editar Meta de Estudo'
+                    : 'Definir Meta de Estudo'}
+                </span>
+              </DropdownMenuItem>
+
+              <DropdownMenuItem
+                onClick={() => setIsReorganizeModalOpen(true)}
+                className="gap-2 text-xs font-medium cursor-pointer rounded-lg py-2"
+              >
+                <FolderSync className="h-4 w-4 text-primary" />
+                <span>Organizar Arquivos no Disco</span>
+              </DropdownMenuItem>
+
+              <DropdownMenuItem
+                onClick={() => void handleTranscribeCourse()}
+                disabled={isQueueingTranscription}
+                className="gap-2 text-xs font-medium cursor-pointer rounded-lg py-2"
+              >
+                {isQueueingTranscription ? (
+                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                ) : (
+                  <FileText className="h-4 w-4 text-primary" />
+                )}
+                <span>
+                  {t('course.transcribeCourse', 'Transcrever Todo o Curso')}
+                </span>
+              </DropdownMenuItem>
+
+              <DropdownMenuItem
+                onClick={() => void handleAutoTranscribeToggle()}
+                disabled={isUpdatingAutoTranscribe}
+                className="gap-2 text-xs font-medium cursor-pointer rounded-lg py-2 justify-between"
+              >
+                <div className="flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-primary" />
+                  <span>
+                    {t('course.autoTranscribe', 'Auto-transcrever novas aulas')}
+                  </span>
+                </div>
+                {autoTranscribe && (
+                  <Check className="h-3.5 w-3.5 text-primary" />
+                )}
+              </DropdownMenuItem>
+
+              <DropdownMenuItem
+                onClick={handleChangeCourseCover}
+                className="gap-2 text-xs font-medium cursor-pointer rounded-lg py-2"
+              >
+                <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                <span>Alterar Imagem de Capa</span>
+              </DropdownMenuItem>
+
+              <DropdownMenuSeparator className="my-1" />
+
+              <DropdownMenuItem
                 onClick={() => setIsDeleteDialogOpen(true)}
-                className="gap-1.5 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive rounded-xl cursor-pointer min-h-[36px]"
-                aria-label={t('course.deleteCourse')}
+                className="gap-2 text-xs font-medium cursor-pointer rounded-lg py-2 text-destructive focus:bg-destructive/10 focus:text-destructive"
               >
                 <Trash2 className="h-4 w-4" />
-                <span>{t('course.deleteCourse')}</span>
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom" className="text-destructive font-semibold">
-              Remover curso da biblioteca
-            </TooltipContent>
-          </Tooltip>
+                <span>{t('course.deleteCourse', 'Remover Curso')}</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
       {/* Course Hero Banner */}
-      <div className="rounded-3xl border border-border/80 bg-gradient-to-br from-card via-card/95 to-primary/5 p-6 shadow-xl shadow-orange-500/5">
+      <div className="rounded-3xl border border-border/80 bg-card p-6 shadow-xl shadow-primary/5">
         <div className="flex flex-col md:flex-row gap-6 items-start">
           {/* Thumbnail / Cover */}
           <Tooltip>
@@ -668,14 +817,16 @@ export function CourseView(): React.JSX.Element {
                       variant="secondary"
                       className="text-[10px] bg-black/75 backdrop-blur-md border-white/10 text-slate-300 flex items-center gap-1 py-0.5 px-2 font-mono"
                     >
-                      <HardDrive className="w-2.5 h-2.5 text-purple-400" />
+                      <HardDrive className="w-2.5 h-2.5 text-accent" />
                       Vault
                     </Badge>
                   )}
                 </div>
               </div>
             </TooltipTrigger>
-            <TooltipContent side="top">Clique para alterar a capa do curso</TooltipContent>
+            <TooltipContent side="top">
+              Clique para alterar a capa do curso
+            </TooltipContent>
           </Tooltip>
 
           {/* Details & CTA */}
@@ -683,7 +834,10 @@ export function CourseView(): React.JSX.Element {
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 {progressData.isCompleted ? (
-                  <Badge variant="success" className="gap-1 shadow-sm font-semibold">
+                  <Badge
+                    variant="success"
+                    className="gap-1 shadow-sm font-semibold"
+                  >
                     <CheckCircle2 className="h-3 w-3" />
                     <span>{t('course.completed')}</span>
                   </Badge>
@@ -698,9 +852,9 @@ export function CourseView(): React.JSX.Element {
                 {course.isFavorite && (
                   <Badge
                     variant="secondary"
-                    className="gap-1 bg-amber-500/15 text-amber-400 border-amber-500/30"
+                    className="gap-1 bg-primary/15 text-primary border-primary/30"
                   >
-                    <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+                    <Star className="h-3 w-3 fill-primary text-primary" />
                     <span>{t('course.favorited', 'Favorito')}</span>
                   </Badge>
                 )}
@@ -709,30 +863,36 @@ export function CourseView(): React.JSX.Element {
               <div className="flex items-start justify-between gap-3">
                 <EditableTitle
                   initialTitle={course.customTitle ?? course.title}
-                  onSave={(newTitle) => updateCourseMetadata(course.id, newTitle)}
+                  onSave={(newTitle) =>
+                    updateCourseMetadata(course.id, newTitle)
+                  }
                   className="text-2xl font-extrabold tracking-tight text-foreground sm:text-3xl leading-tight"
                 />
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <button
                       type="button"
-                      onClick={() => toggleFavorite(course.id).catch(console.warn)}
-                      className={`shrink-0 p-2.5 rounded-xl border transition-all duration-200 cursor-pointer min-h-[36px] min-w-[36px] flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 ${
+                      onClick={() =>
+                        toggleFavorite(course.id).catch(console.warn)
+                      }
+                      className={`shrink-0 p-2.5 rounded-xl border transition-all duration-200 cursor-pointer min-h-[36px] min-w-[36px] flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
                         course.isFavorite
-                          ? 'bg-amber-500/25 border-amber-500/40 text-amber-400 shadow-md shadow-amber-500/15 hover:bg-amber-500/35'
-                          : 'bg-secondary/50 border-border/80 text-muted-foreground hover:text-amber-400 hover:border-amber-500/30 hover:bg-secondary'
+                          ? 'bg-primary/25 border-primary/40 text-primary shadow-md shadow-primary/15 hover:bg-primary/35'
+                          : 'bg-secondary/50 border-border/80 text-muted-foreground hover:text-primary hover:border-primary/30 hover:bg-secondary'
                       }`}
                       aria-label="Toggle Favorite"
                     >
                       <Star
                         className={`h-5 w-5 transition-transform active:scale-125 duration-150 ${
-                          course.isFavorite ? 'fill-amber-400 text-amber-400' : ''
+                          course.isFavorite ? 'fill-primary text-primary' : ''
                         }`}
                       />
                     </button>
                   </TooltipTrigger>
                   <TooltipContent side="left">
-                    {course.isFavorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
+                    {course.isFavorite
+                      ? 'Remover dos favoritos'
+                      : 'Adicionar aos favoritos'}
                   </TooltipContent>
                 </Tooltip>
               </div>
@@ -749,8 +909,8 @@ export function CourseView(): React.JSX.Element {
               <span className="flex items-center gap-1.5">
                 <Layers className="h-4 w-4 text-primary/80" />
                 <span>
-                  {course.moduleCount} {t('course.modules')} • {course.lessonCount}{' '}
-                  {t('course.lessons')}
+                  {course.moduleCount} {t('course.modules')} •{' '}
+                  {course.lessonCount} {t('course.lessons')}
                 </span>
               </span>
               {progressData.totalDuration > 0 && (
@@ -766,14 +926,17 @@ export function CourseView(): React.JSX.Element {
               <div className="space-y-1">
                 <div className="flex justify-between text-xs font-medium text-muted-foreground">
                   <span>
-                    {progressData.completedLessons} / {progressData.totalLessons} {t('course.lessons')} completed
+                    {progressData.completedLessons} /{' '}
+                    {progressData.totalLessons} {t('course.lessons')} completed
                   </span>
-                  <span className="font-bold text-primary">{progressData.coursePercentage}%</span>
+                  <span className="font-bold text-primary">
+                    {progressData.coursePercentage}%
+                  </span>
                 </div>
                 <Progress
                   value={progressData.coursePercentage}
                   className="h-2"
-                  indicatorClassName="bg-gradient-to-r from-orange-500 via-amber-500 to-purple-600"
+                  indicatorClassName="bg-primary"
                 />
               </div>
 
@@ -782,11 +945,13 @@ export function CourseView(): React.JSX.Element {
                 <Button
                   size="lg"
                   onClick={handleStartOrResume}
-                  className="gap-2 font-semibold shadow-lg shadow-orange-500/20 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-500 text-primary-foreground rounded-xl cursor-pointer hover:opacity-95 active:scale-[0.98] transition-all min-h-[42px]"
+                  className="gap-2 font-semibold shadow-lg shadow-primary/20 bg-primary text-primary-foreground rounded-xl cursor-pointer hover:opacity-95 active:scale-[0.98] transition-all min-h-[42px] px-6"
                 >
                   <Play className="h-4 w-4 fill-current" />
                   <span>
-                    {progressData.coursePercentage > 0 ? t('course.resume') : t('course.start')}
+                    {progressData.coursePercentage > 0
+                      ? t('course.resume')
+                      : t('course.start')}
                   </span>
                 </Button>
 
@@ -795,66 +960,44 @@ export function CourseView(): React.JSX.Element {
                   variant="outline"
                   size="lg"
                   onClick={handleAddToQueue}
-                  className="gap-2 text-xs font-semibold rounded-xl border-border/80 hover:border-blue-500/60 hover:text-blue-400 min-h-[42px]"
+                  className="gap-2 text-xs font-semibold rounded-xl border-border/80 hover:border-accent/60 hover:text-accent min-h-[42px]"
                 >
-                  <ListPlus className="h-4 w-4 text-blue-400" />
-                  <span>{queueAddedNotification ? 'Adicionado à Fila!' : '+ Estudar Depois'}</span>
-                </Button>
-
-                {/* Course Goal Button (v0.3) */}
-                <Button
-                  variant="outline"
-                  size="lg"
-                  onClick={() => setIsGoalModalOpen(true)}
-                  className={`gap-2 text-xs font-semibold rounded-xl border-border/80 hover:border-purple-500/60 min-h-[42px] ${
-                    courseGoal ? 'text-purple-400 border-purple-500/40 bg-purple-500/10' : 'hover:text-purple-400'
-                  }`}
-                >
-                  <Target className="h-4 w-4 text-purple-400" />
+                  <ListPlus className="h-4 w-4 text-accent" />
                   <span>
-                    {courseGoal?.targetDate
-                      ? `Meta: ${new Date(courseGoal.targetDate).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}`
-                      : 'Definir Meta'}
+                    {queueAddedNotification
+                      ? 'Adicionado à Fila!'
+                      : '+ Estudar Depois'}
                   </span>
                 </Button>
 
-                <Button
-                  variant="outline"
-                  size="lg"
-                  onClick={() => void handleTranscribeCourse()}
-                  disabled={isQueueingTranscription}
-                  className="gap-2 text-xs font-semibold rounded-xl border-border/80 hover:border-primary/60 hover:text-primary min-h-[42px]"
-                >
-                  {isQueueingTranscription ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4 text-primary" />}
-                  <span>{t('course.transcribeCourse', 'Transcribe course')}</span>
-                </Button>
-
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={autoTranscribe}
-                  aria-label={t('course.autoTranscribe', 'Automatically transcribe new lessons')}
-                  disabled={isUpdatingAutoTranscribe}
-                  onClick={() => void handleAutoTranscribeToggle()}
-                  className="flex min-h-[42px] items-center gap-2 rounded-xl border border-border/80 px-3 text-left text-xs font-semibold text-muted-foreground transition-colors hover:border-primary/50 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <FileText className="h-4 w-4 text-primary" />
-                  <span className="max-w-32">{t('course.autoTranscribe', 'Auto-transcribe new lessons')}</span>
-                  <span className={`relative inline-flex h-5 w-9 shrink-0 rounded-full transition-colors ${autoTranscribe ? 'bg-primary' : 'bg-secondary'}`}>
-                    <span className={`inline-block h-4 w-4 translate-y-0.5 rounded-full bg-white shadow transition-transform ${autoTranscribe ? 'translate-x-4' : 'translate-x-0.5'}`} />
-                  </span>
-                </button>
+                {/* Course Goal Quick Access Chip */}
+                {courseGoal?.targetDate ? (
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    onClick={() => setIsGoalModalOpen(true)}
+                    className="gap-2 text-xs font-semibold rounded-xl border-accent/30 bg-accent/10 text-accent hover:bg-accent/20 min-h-[42px]"
+                  >
+                    <Target className="h-4 w-4 text-accent" />
+                    <span>
+                      {`Meta: ${new Date(courseGoal.targetDate).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}`}
+                    </span>
+                  </Button>
+                ) : null}
               </div>
 
               {/* Course Goal Pace Hint (if active) */}
               {courseGoal?.targetDate && (
                 <div className="flex items-center gap-2 text-xs text-muted-foreground pt-1">
-                  <span className="font-mono text-purple-400 font-semibold">
+                  <span className="font-mono text-accent font-semibold">
                     {remainingLessons} aulas restantes
                   </span>
                   <span>•</span>
                   <span>
-                    Ritmo recomendado: {daysLeft && daysLeft > 0 ? `${recommendedPace} aulas/dia (${daysLeft} dias restantes)` : 'concluído'}
+                    Ritmo recomendado:{' '}
+                    {daysLeft && daysLeft > 0
+                      ? `${recommendedPace} aulas/dia (${daysLeft} dias restantes)`
+                      : 'concluído'}
                   </span>
                 </div>
               )}
@@ -864,58 +1007,70 @@ export function CourseView(): React.JSX.Element {
       </div>
 
       {/* Course Health / Problem Lessons Warning Banner */}
-      {courseHealth && !courseHealth.healthy && courseHealth.problemLessons.length > 0 && (() => {
-        const hasNonMedia = courseHealth.problemLessons.some((p) => p.problemType === 'non_media_type')
-        const hasMissingOrCorrupted = courseHealth.problemLessons.some((p) => p.problemType === 'missing_file' || p.problemType === 'zero_bytes')
+      {courseHealth &&
+        !courseHealth.healthy &&
+        courseHealth.problemLessons.length > 0 &&
+        (() => {
+          const hasNonMedia = courseHealth.problemLessons.some(
+            (p) => p.problemType === 'non_media_type'
+          )
+          const hasMissingOrCorrupted = courseHealth.problemLessons.some(
+            (p) =>
+              p.problemType === 'missing_file' || p.problemType === 'zero_bytes'
+          )
 
-        let buttonText = 'Corrigir e Limpar Aulas'
-        if (hasNonMedia && !hasMissingOrCorrupted) {
-          buttonText = 'Mover Anexos para Materiais'
-        } else if (!hasNonMedia && hasMissingOrCorrupted) {
-          buttonText = 'Remover Aulas Inacessíveis'
-        }
+          let buttonText = 'Corrigir e Limpar Aulas'
+          if (hasNonMedia && !hasMissingOrCorrupted) {
+            buttonText = 'Mover Anexos para Materiais'
+          } else if (!hasNonMedia && hasMissingOrCorrupted) {
+            buttonText = 'Remover Aulas Inacessíveis'
+          }
 
-        return (
-          <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4.5 backdrop-blur-md space-y-3 animate-in fade-in duration-200 shadow-md">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="flex items-start gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30 mt-0.5">
-                  <AlertTriangle className="h-5 w-5" />
-                </div>
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-sm font-bold text-amber-200">
-                      {courseHealth.problemLessons.length} aula(s) com problema identificadas
-                    </h3>
-                    <Badge variant="destructive" className="text-[10px] px-2 py-0.5">
-                      Ação recomendada
-                    </Badge>
+          return (
+            <div className="rounded-2xl border border-primary/40 bg-primary/10 p-4.5 backdrop-blur-md space-y-3 animate-in fade-in duration-200 shadow-md">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/20 text-primary border border-primary/30 mt-0.5">
+                    <AlertTriangle className="h-5 w-5" />
                   </div>
-                  <p className="text-xs text-zinc-300 leading-relaxed">
-                    {hasNonMedia && hasMissingOrCorrupted
-                      ? 'Foram detectados anexos/documentos e arquivos ausentes ou vazios. O Orbia moverá anexos para Materiais e removerá links inválidos.'
-                      : hasNonMedia
-                        ? 'Foram detectados documentos e materiais registrados indevidamente como aulas de vídeo. Eles serão movidos para a aba de Materiais.'
-                        : 'Foram detectados arquivos ausentes no disco ou de 0 bytes que não podem ser reproduzidos.'}
-                  </p>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-sm font-bold text-primary">
+                        {courseHealth.problemLessons.length} aula(s) com
+                        problema identificadas
+                      </h3>
+                      <Badge
+                        variant="destructive"
+                        className="text-[10px] px-2 py-0.5"
+                      >
+                        Ação recomendada
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-zinc-300 leading-relaxed">
+                      {hasNonMedia && hasMissingOrCorrupted
+                        ? 'Foram detectados anexos/documentos e arquivos ausentes ou vazios. O Orbia moverá anexos para Materiais e removerá links inválidos.'
+                        : hasNonMedia
+                          ? 'Foram detectados documentos e materiais registrados indevidamente como aulas de vídeo. Eles serão movidos para a aba de Materiais.'
+                          : 'Foram detectados arquivos ausentes no disco ou de 0 bytes que não podem ser reproduzidos.'}
+                    </p>
+                  </div>
                 </div>
-              </div>
 
-              <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={handleFixProblems}
-                  disabled={isFixingProblems}
-                  className="h-8.5 px-3.5 text-xs font-bold rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-primary-foreground hover:opacity-90 shadow-sm cursor-pointer"
-                >
-                  {isFixingProblems ? 'Corrigindo...' : buttonText}
-                </Button>
+                <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={handleFixProblems}
+                    disabled={isFixingProblems}
+                    className="h-8.5 px-3.5 text-xs font-bold rounded-xl bg-primary text-primary-foreground hover:opacity-90 shadow-sm cursor-pointer"
+                  >
+                    {isFixingProblems ? 'Corrigindo...' : buttonText}
+                  </Button>
+                </div>
               </div>
             </div>
-          </div>
-        )
-      })()}
+          )
+        })()}
 
       {/* Curriculum Accordion */}
       <div className="space-y-3">
@@ -948,15 +1103,23 @@ export function CourseView(): React.JSX.Element {
                   <div className="flex flex-1 items-center justify-between pr-4 gap-3">
                     <div className="flex items-center gap-3 text-left overflow-hidden">
                       <div className="flex flex-col gap-0.5">
-                        <button 
-                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); reorderModule(module.id, 'up') }}
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            reorderModule(module.id, 'up')
+                          }}
                           disabled={modIdx === 0}
                           className="text-muted-foreground hover:text-primary disabled:opacity-30 disabled:hover:text-muted-foreground"
                         >
                           <ChevronUp className="h-3 w-3" />
                         </button>
-                        <button 
-                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); reorderModule(module.id, 'down') }}
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            reorderModule(module.id, 'down')
+                          }}
                           disabled={modIdx === modules.length - 1}
                           className="text-muted-foreground hover:text-primary disabled:opacity-30 disabled:hover:text-muted-foreground"
                         >
@@ -968,7 +1131,9 @@ export function CourseView(): React.JSX.Element {
                       </span>
                       <EditableTitle
                         initialTitle={module.customTitle ?? module.title}
-                        onSave={(newTitle) => updateModuleMetadata(module.id, newTitle)}
+                        onSave={(newTitle) =>
+                          updateModuleMetadata(module.id, newTitle)
+                        }
                         className="font-bold text-foreground text-sm truncate"
                       />
                     </div>
@@ -977,10 +1142,17 @@ export function CourseView(): React.JSX.Element {
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <button
-                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleModuleCompletion(module.id, course.id) }}
+                            onClick={(e) => {
+                              e.preventDefault()
+                              e.stopPropagation()
+                              toggleModuleCompletion(module.id, course.id)
+                            }}
                             className="p-1 rounded hover:bg-secondary/70 text-muted-foreground hover:text-emerald-500 transition-colors"
                           >
-                            {modInfo?.completedLessons === (modInfo?.totalLessons || module.lessons.length) && modInfo?.totalLessons > 0 ? (
+                            {modInfo?.completedLessons ===
+                              (modInfo?.totalLessons ||
+                                module.lessons.length) &&
+                            modInfo?.totalLessons > 0 ? (
                               <CheckCircle2 className="h-4 w-4 text-emerald-500" />
                             ) : (
                               <Circle className="h-4 w-4" />
@@ -988,22 +1160,33 @@ export function CourseView(): React.JSX.Element {
                           </button>
                         </TooltipTrigger>
                         <TooltipContent side="top">
-                          {modInfo?.completedLessons === (modInfo?.totalLessons || module.lessons.length) && modInfo?.totalLessons > 0
+                          {modInfo?.completedLessons ===
+                            (modInfo?.totalLessons || module.lessons.length) &&
+                          modInfo?.totalLessons > 0
                             ? t('course.unmarkModuleComplete')
                             : t('course.markModuleComplete')}
                         </TooltipContent>
                       </Tooltip>
                       {modPercentage > 0 && (
-                        <span className="font-bold text-primary">{modPercentage}%</span>
+                        <span className="font-bold text-primary">
+                          {modPercentage}%
+                        </span>
                       )}
                       <span>
-                        {modInfo?.completedLessons || 0} / {modInfo?.totalLessons || module.lessons.length}{' '}
+                        {modInfo?.completedLessons || 0} /{' '}
+                        {modInfo?.totalLessons || module.lessons.length}{' '}
                         {t('course.lessons')}
                       </span>
                       <button
                         type="button"
-                        aria-label={t('course.transcribeModule', 'Transcribe module')}
-                        title={t('course.transcribeModule', 'Transcribe module')}
+                        aria-label={t(
+                          'course.transcribeModule',
+                          'Transcribe module'
+                        )}
+                        title={t(
+                          'course.transcribeModule',
+                          'Transcribe module'
+                        )}
                         onClick={(event) => {
                           event.preventDefault()
                           event.stopPropagation()
@@ -1012,12 +1195,22 @@ export function CourseView(): React.JSX.Element {
                         disabled={queueingModuleId !== null}
                         className="rounded p-1 text-muted-foreground transition-colors hover:bg-secondary/70 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
                       >
-                        {queueingModuleId === module.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileText className="h-3.5 w-3.5" />}
+                        {queueingModuleId === module.id ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <FileText className="h-3.5 w-3.5" />
+                        )}
                       </button>
                       <button
                         type="button"
-                        aria-label={t('summaries.summarizeModule', 'Resumir módulo')}
-                        title={t('summaries.summarizeModule', 'Resumo do Módulo')}
+                        aria-label={t(
+                          'summaries.summarizeModule',
+                          'Resumir módulo'
+                        )}
+                        title={t(
+                          'summaries.summarizeModule',
+                          'Resumo do Módulo'
+                        )}
                         onClick={(event) => {
                           event.preventDefault()
                           event.stopPropagation()
@@ -1033,8 +1226,14 @@ export function CourseView(): React.JSX.Element {
                       </button>
                       <button
                         type="button"
-                        aria-label={t('chat.askAboutModule', 'Perguntar sobre este módulo')}
-                        title={t('chat.askAboutModule', 'Perguntar sobre este módulo')}
+                        aria-label={t(
+                          'chat.askAboutModule',
+                          'Perguntar sobre este módulo'
+                        )}
+                        title={t(
+                          'chat.askAboutModule',
+                          'Perguntar sobre este módulo'
+                        )}
                         onClick={(event) => {
                           event.preventDefault()
                           event.stopPropagation()
@@ -1058,18 +1257,33 @@ export function CourseView(): React.JSX.Element {
                 <AccordionContent className="pt-1 pb-3">
                   <div className="divide-y divide-border/40">
                     {module.lessons.map((lesson, idx) => {
-                      const isComplete = progressData.isLessonCompleted(lesson.id)
-                      const lessonProgress = progressData.getLessonProgress(lesson.id)
+                      const isComplete = progressData.isLessonCompleted(
+                        lesson.id
+                      )
+                      const lessonProgress = progressData.getLessonProgress(
+                        lesson.id
+                      )
                       const lessonResources = getLessonVisibleResources(lesson)
-                      const problemInfo = courseHealth?.problemLessons.find((p) => p.id === lesson.id)
+                      const problemInfo = courseHealth?.problemLessons.find(
+                        (p) => p.id === lesson.id
+                      )
 
                       return (
                         <div
                           key={lesson.id}
+                          role="button"
+                          tabIndex={0}
                           onClick={() => handlePlayLesson(lesson)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault()
+                              handlePlayLesson(lesson)
+                            }
+                          }}
                           className={cn(
-                            'flex items-center justify-between py-2.5 px-3 rounded-xl hover:bg-secondary/70 cursor-pointer transition-colors duration-150 group',
-                            problemInfo && 'bg-destructive/5 hover:bg-destructive/10 border border-destructive/25'
+                            'flex items-center justify-between py-2.5 px-3 rounded-xl hover:bg-secondary/70 cursor-pointer transition-colors duration-150 group focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary',
+                            problemInfo &&
+                              'bg-destructive/5 hover:bg-destructive/10 border border-destructive/25'
                           )}
                         >
                           <div className="flex items-center gap-3 overflow-hidden flex-1 min-w-0 mr-2">
@@ -1121,20 +1335,30 @@ export function CourseView(): React.JSX.Element {
                                   </div>
                                 </div>
                               </TooltipTrigger>
-                              <TooltipContent side="top">Alterar capa da aula</TooltipContent>
+                              <TooltipContent side="top">
+                                Alterar capa da aula
+                              </TooltipContent>
                             </Tooltip>
 
                             {/* Lesson Reorder */}
                             <div className="flex flex-col gap-0.5 shrink-0">
-                              <button 
-                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); reorderLesson(lesson.id, 'up') }}
+                              <button
+                                onClick={(e) => {
+                                  e.preventDefault()
+                                  e.stopPropagation()
+                                  reorderLesson(lesson.id, 'up')
+                                }}
                                 disabled={idx === 0}
                                 className="text-muted-foreground hover:text-primary disabled:opacity-30 disabled:hover:text-muted-foreground transition-opacity"
                               >
                                 <ChevronUp className="h-3 w-3" />
                               </button>
-                              <button 
-                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); reorderLesson(lesson.id, 'down') }}
+                              <button
+                                onClick={(e) => {
+                                  e.preventDefault()
+                                  e.stopPropagation()
+                                  reorderLesson(lesson.id, 'down')
+                                }}
                                 disabled={idx === module.lessons.length - 1}
                                 className="text-muted-foreground hover:text-primary disabled:opacity-30 disabled:hover:text-muted-foreground transition-opacity"
                               >
@@ -1146,13 +1370,17 @@ export function CourseView(): React.JSX.Element {
                             <span className="text-xs font-mono text-muted-foreground w-6 shrink-0 text-center">
                               {String(idx + 1).padStart(2, '0')}
                             </span>
-                            
+
                             <EditableTitle
                               initialTitle={lesson.customTitle ?? lesson.title}
-                              onSave={(newTitle) => updateLessonMetadata(lesson.id, newTitle)}
+                              onSave={(newTitle) =>
+                                updateLessonMetadata(lesson.id, newTitle)
+                              }
                               className={cn(
                                 'text-xs sm:text-sm font-medium truncate group-hover:text-primary transition-colors',
-                                problemInfo ? 'text-destructive font-semibold' : 'text-foreground'
+                                problemInfo
+                                  ? 'text-destructive font-semibold'
+                                  : 'text-foreground'
                               )}
                             />
 
@@ -1160,19 +1388,35 @@ export function CourseView(): React.JSX.Element {
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <button
-                                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleLessonFavorite(lesson.id) }}
-                                  className="shrink-0 p-1 rounded hover:bg-amber-500/10 focus-visible:outline-none"
+                                  onClick={(e) => {
+                                    e.preventDefault()
+                                    e.stopPropagation()
+                                    toggleLessonFavorite(lesson.id)
+                                  }}
+                                  className="shrink-0 p-1 rounded hover:bg-primary/10 focus-visible:outline-none"
                                 >
-                                  <Star className={cn("h-3.5 w-3.5 transition-colors", lesson.isFavorite ? "fill-amber-400 text-amber-400" : "text-muted-foreground hover:text-amber-400")} />
+                                  <Star
+                                    className={cn(
+                                      'h-3.5 w-3.5 transition-colors',
+                                      lesson.isFavorite
+                                        ? 'fill-primary text-primary'
+                                        : 'text-muted-foreground hover:text-primary'
+                                    )}
+                                  />
                                 </button>
                               </TooltipTrigger>
                               <TooltipContent side="top">
-                                {lesson.isFavorite ? t('course.lessonUnfavorite') : t('course.lessonFavorite')}
+                                {lesson.isFavorite
+                                  ? t('course.lessonUnfavorite')
+                                  : t('course.lessonFavorite')}
                               </TooltipContent>
                             </Tooltip>
 
                             {problemInfo && (
-                              <Badge variant="destructive" className="text-[10px] px-1.5 py-0 shrink-0">
+                              <Badge
+                                variant="destructive"
+                                className="text-[10px] px-1.5 py-0 shrink-0"
+                              >
                                 {problemInfo.problemType === 'missing_file'
                                   ? 'Arquivo ausente'
                                   : problemInfo.problemType === 'zero_bytes'
@@ -1185,7 +1429,9 @@ export function CourseView(): React.JSX.Element {
                             {lessonResources.length > 0 && (
                               <div
                                 className="flex items-center gap-1.5 ml-2 shrink-0"
-                                aria-label={t('course.lessonMaterials', { count: lessonResources.length })}
+                                aria-label={t('course.lessonMaterials', {
+                                  count: lessonResources.length
+                                })}
                               >
                                 <span className="rounded-md bg-secondary px-1.5 py-0.5 text-[10px] font-mono font-bold text-muted-foreground">
                                   {lessonResources.length}
@@ -1207,15 +1453,21 @@ export function CourseView(): React.JSX.Element {
                                             } else if (isCode) {
                                               setIsCodeModalOpen(true)
                                             } else {
-                                              void window.api.system.openPath(res.filePath)
+                                              void window.api.system.openPath(
+                                                res.filePath
+                                              )
                                             }
                                           }}
                                           className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-secondary/90 hover:bg-primary/20 text-muted-foreground hover:text-primary border border-border/70 text-[10px] font-medium transition-colors cursor-pointer"
-                                          aria-label={t('course.viewResource', { name: res.name })}
+                                          aria-label={t('course.viewResource', {
+                                            name: res.name
+                                          })}
                                         >
                                           <FileText className="w-3 h-3 text-primary" />
                                           <span className="flex min-w-0 flex-col text-left leading-tight">
-                                            <span className="max-w-[80px] truncate">{res.name}</span>
+                                            <span className="max-w-[80px] truncate">
+                                              {res.name}
+                                            </span>
                                             <span className="font-mono text-[9px] text-muted-foreground/80">
                                               {getResourceTypeLabel(res)}
                                             </span>
@@ -1224,7 +1476,9 @@ export function CourseView(): React.JSX.Element {
                                       </TooltipTrigger>
                                       <TooltipContent side="top">
                                         {isPdf
-                                          ? t('course.viewResource', { name: res.name })
+                                          ? t('course.viewResource', {
+                                              name: res.name
+                                            })
                                           : isCode
                                             ? `Visualizar código: ${res.name}`
                                             : `Abrir no computador: ${res.name}`}
@@ -1254,7 +1508,9 @@ export function CourseView(): React.JSX.Element {
                                     addToQueue(lesson)
                                   }}
                                   className={`h-7 w-7 rounded-lg transition-all cursor-pointer ${
-                                    playbackQueue?.some((l) => l.id === lesson.id)
+                                    playbackQueue?.some(
+                                      (l) => l.id === lesson.id
+                                    )
                                       ? 'text-primary opacity-100'
                                       : 'text-muted-foreground/60 hover:text-primary hover:bg-primary/10 opacity-0 group-hover:opacity-100'
                                   }`}
@@ -1264,7 +1520,9 @@ export function CourseView(): React.JSX.Element {
                                 </Button>
                               </TooltipTrigger>
                               <TooltipContent side="top">
-                                {playbackQueue?.some((l) => l.id === lesson.id) ? 'Na Fila de Reprodução' : 'Tocar a Seguir'}
+                                {playbackQueue?.some((l) => l.id === lesson.id)
+                                  ? 'Na Fila de Reprodução'
+                                  : 'Tocar a Seguir'}
                               </TooltipContent>
                             </Tooltip>
 
@@ -1283,7 +1541,9 @@ export function CourseView(): React.JSX.Element {
                                   <Trash2 className="h-3.5 w-3.5" />
                                 </Button>
                               </TooltipTrigger>
-                              <TooltipContent side="top">Remover aula do curso</TooltipContent>
+                              <TooltipContent side="top">
+                                Remover aula do curso
+                              </TooltipContent>
                             </Tooltip>
 
                             <Play className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 text-primary transition-opacity duration-200" />
@@ -1296,11 +1556,20 @@ export function CourseView(): React.JSX.Element {
                   {moduleResources.length > 0 && (
                     <section
                       className="mt-3 rounded-xl border border-border/70 bg-secondary/30 p-3"
-                      aria-label={t('course.moduleMaterials', { count: moduleResources.length })}
+                      aria-label={t('course.moduleMaterials', {
+                        count: moduleResources.length
+                      })}
                     >
                       <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-foreground">
-                        <FileText className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
-                        <span>{t('course.moduleMaterials', { count: moduleResources.length })}</span>
+                        <FileText
+                          className="h-3.5 w-3.5 text-primary"
+                          aria-hidden="true"
+                        />
+                        <span>
+                          {t('course.moduleMaterials', {
+                            count: moduleResources.length
+                          })}
+                        </span>
                       </div>
                       <ul className="space-y-1.5">
                         {moduleResources.map((resource) => {
@@ -1320,13 +1589,20 @@ export function CourseView(): React.JSX.Element {
                                       } else if (isCode) {
                                         setIsCodeModalOpen(true)
                                       } else {
-                                        void window.api.system.openPath(resource.filePath)
+                                        void window.api.system.openPath(
+                                          resource.filePath
+                                        )
                                       }
                                     }}
                                     className="flex w-full items-center gap-2 rounded-lg border border-border/60 bg-card/60 px-2.5 py-2 text-left text-xs transition-colors hover:border-primary/40 hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary cursor-pointer"
-                                    aria-label={t('course.viewResource', { name: resource.name })}
+                                    aria-label={t('course.viewResource', {
+                                      name: resource.name
+                                    })}
                                   >
-                                    <FileText className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden="true" />
+                                    <FileText
+                                      className="h-3.5 w-3.5 shrink-0 text-primary"
+                                      aria-hidden="true"
+                                    />
                                     <span className="min-w-0 flex-1 truncate font-medium text-foreground">
                                       {resource.name}
                                     </span>
@@ -1337,7 +1613,9 @@ export function CourseView(): React.JSX.Element {
                                 </TooltipTrigger>
                                 <TooltipContent side="top">
                                   {isPdf
-                                    ? t('course.viewResource', { name: resource.name })
+                                    ? t('course.viewResource', {
+                                        name: resource.name
+                                      })
                                     : isCode
                                       ? `Visualizar código: ${resource.name}`
                                       : `Abrir no computador: ${resource.name}`}
@@ -1409,7 +1687,11 @@ export function CourseView(): React.JSX.Element {
               <DialogTitle>Remover Aula</DialogTitle>
             </div>
             <DialogDescription className="pt-2 text-xs leading-relaxed text-zinc-300">
-              Deseja remover a aula <strong className="text-white font-semibold">"{lessonToDelete?.title}"</strong> da biblioteca deste curso?
+              Deseja remover a aula{' '}
+              <strong className="text-white font-semibold">
+                "{lessonToDelete?.title}"
+              </strong>{' '}
+              da biblioteca deste curso?
             </DialogDescription>
           </DialogHeader>
 
@@ -1421,7 +1703,10 @@ export function CourseView(): React.JSX.Element {
               onChange={(e) => setDeleteLessonFile(e.target.checked)}
               className="rounded border-zinc-700 bg-zinc-900 text-primary cursor-pointer h-4 w-4"
             />
-            <label htmlFor="deleteLessonFileCheckbox" className="cursor-pointer select-none">
+            <label
+              htmlFor="deleteLessonFileCheckbox"
+              className="cursor-pointer select-none"
+            >
               Excluir também o arquivo do computador
             </label>
           </div>
@@ -1488,7 +1773,7 @@ export function CourseView(): React.JSX.Element {
         <DialogContent className="max-w-md bg-card/95 backdrop-blur-xl border border-border/80 p-6 rounded-3xl shadow-2xl">
           <DialogHeader>
             <div className="flex items-center gap-2.5 mb-1">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-purple-500/15 text-purple-400 border border-purple-500/30">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent/15 text-accent border border-accent/30">
                 <Target className="h-4 w-4" />
               </div>
               <div>
@@ -1505,17 +1790,18 @@ export function CourseView(): React.JSX.Element {
           <form onSubmit={handleSaveGoal} className="space-y-4 my-2">
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                <Calendar className="h-3.5 w-3.5 text-purple-400" />
+                <Calendar className="h-3.5 w-3.5 text-accent" />
                 <span>Data-alvo de Conclusão</span>
               </label>
               <input
                 type="date"
                 value={targetDateInput}
                 onChange={(e) => setTargetDateInput(e.target.value)}
-                className="w-full text-xs bg-background/80 border border-border/80 rounded-xl px-3 py-2 text-foreground focus:outline-none focus:ring-1 focus:ring-purple-500"
+                className="w-full text-xs bg-background/80 border border-border/80 rounded-xl px-3 py-2 text-foreground focus:outline-none focus:ring-1 focus:ring-accent"
               />
               <p className="text-[11px] text-muted-foreground">
-                O Orbia calculará o ritmo diário recomendado em aulas/dia até esta data.
+                O Orbia calculará o ritmo diário recomendado em aulas/dia até
+                esta data.
               </p>
             </div>
 
@@ -1528,8 +1814,10 @@ export function CourseView(): React.JSX.Element {
                 min={1}
                 max={100}
                 value={weeklyLessonsInput}
-                onChange={(e) => setWeeklyLessonsInput(parseInt(e.target.value) || 1)}
-                className="w-full text-xs bg-background/80 border border-border/80 rounded-xl px-3 py-2 text-foreground focus:outline-none focus:ring-1 focus:ring-purple-500"
+                onChange={(e) =>
+                  setWeeklyLessonsInput(parseInt(e.target.value) || 1)
+                }
+                className="w-full text-xs bg-background/80 border border-border/80 rounded-xl px-3 py-2 text-foreground focus:outline-none focus:ring-1 focus:ring-accent"
               />
             </div>
 
@@ -1557,7 +1845,7 @@ export function CourseView(): React.JSX.Element {
               <Button
                 type="submit"
                 size="sm"
-                className="bg-purple-600 hover:bg-purple-500 text-white font-semibold"
+                className="bg-accent hover:bg-accent text-accent-foreground font-semibold"
               >
                 Salvar Meta
               </Button>

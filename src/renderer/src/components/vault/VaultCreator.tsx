@@ -19,9 +19,14 @@ interface VaultCreatorProps {
   onSuccess?: () => void
 }
 
-export function VaultCreator({ open, onOpenChange, onSuccess }: VaultCreatorProps): React.JSX.Element {
+export function VaultCreator({
+  open,
+  onOpenChange,
+  onSuccess
+}: VaultCreatorProps): React.JSX.Element {
   const { t } = useTranslation()
-  const { createVault, selectDirectory, isLoading, error, clearError } = useVaultStore()
+  const { createVault, selectDirectory, isLoading, error, clearError } =
+    useVaultStore()
 
   const [vaultName, setVaultName] = useState('')
   const [vaultPath, setVaultPath] = useState('')
@@ -67,9 +72,13 @@ export function VaultCreator({ open, onOpenChange, onSuccess }: VaultCreatorProp
         <DialogHeader>
           <div className="flex items-center gap-2 text-primary">
             <FolderPlus className="w-5 h-5" />
-            <DialogTitle className="text-lg font-bold">{t('vault.createNew')}</DialogTitle>
+            <DialogTitle className="text-lg font-bold">
+              {t('vault.createNew')}
+            </DialogTitle>
           </div>
-          <DialogDescription className="text-xs text-muted-foreground">{t('vault.subtitle')}</DialogDescription>
+          <DialogDescription className="text-xs text-muted-foreground">
+            {t('vault.subtitle')}
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
@@ -81,7 +90,8 @@ export function VaultCreator({ open, onOpenChange, onSuccess }: VaultCreatorProp
 
           <div className="space-y-1.5">
             <label className="text-xs font-bold text-foreground">
-              {t('vault.vaultLocation')} <span className="text-destructive">*</span>
+              {t('vault.vaultLocation')}{' '}
+              <span className="text-destructive">*</span>
             </label>
             <div className="flex gap-2">
               <Input
@@ -134,7 +144,7 @@ export function VaultCreator({ open, onOpenChange, onSuccess }: VaultCreatorProp
             size="sm"
             onClick={handleCreate}
             disabled={!vaultPath.trim() || isLoading}
-            className="font-semibold shadow-lg shadow-orange-500/20 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-500 text-primary-foreground rounded-xl text-xs"
+            className="font-semibold shadow-lg shadow-primary/20 bg-primary text-primary-foreground rounded-xl text-xs"
           >
             {isLoading && <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />}
             {t('vault.create')}
@@ -144,4 +154,3 @@ export function VaultCreator({ open, onOpenChange, onSuccess }: VaultCreatorProp
     </Dialog>
   )
 }
-

@@ -1,4 +1,10 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react'
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useCallback
+} from 'react'
 import { useSettingsStore } from '../../stores/useSettingsStore'
 
 type Theme = 'dark' | 'light' | 'system'
@@ -17,7 +23,8 @@ export function applyThemeToDOM(theme: Theme): 'dark' | 'light' {
   const root = document.documentElement
   const isLight =
     theme === 'system'
-      ? typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: light)').matches
+      ? typeof window !== 'undefined' &&
+        window.matchMedia('(prefers-color-scheme: light)').matches
       : theme === 'light'
 
   const resolved = isLight ? 'light' : 'dark'
@@ -68,7 +75,11 @@ export function applyThemeToDOM(theme: Theme): 'dark' | 'light' {
   return resolved
 }
 
-export function ThemeProvider({ children }: { children: React.ReactNode }): React.JSX.Element {
+export function ThemeProvider({
+  children
+}: {
+  children: React.ReactNode
+}): React.JSX.Element {
   const { settings, setTheme: storeSetTheme, init } = useSettingsStore()
   const currentTheme: Theme = (settings?.theme as Theme) || 'dark'
 
@@ -86,7 +97,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }): Reac
   )
 
   useEffect(() => {
-    init().catch((err) => console.warn('Failed to init settings store in ThemeProvider:', err))
+    init().catch((err) =>
+      console.warn('Failed to init settings store in ThemeProvider:', err)
+    )
   }, [init])
 
   useEffect(() => {
@@ -107,7 +120,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }): Reac
   }, [currentTheme])
 
   return (
-    <ThemeContext.Provider value={{ theme: currentTheme, setTheme: handleSetTheme, resolvedTheme }}>
+    <ThemeContext.Provider
+      value={{ theme: currentTheme, setTheme: handleSetTheme, resolvedTheme }}
+    >
       {children}
     </ThemeContext.Provider>
   )

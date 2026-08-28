@@ -1,20 +1,27 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-  Sparkles,
-  Check,
-  X,
-  FileText,
-  Info,
-  Loader2
-} from 'lucide-react'
+import { Sparkles, Check, X, FileText, Info, Loader2 } from 'lucide-react'
 import { useAiNotesStore } from '../../stores/useAiNotesStore'
 import { Button } from '../ui/button'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription
+} from '../ui/dialog'
 
 export function AiNotePreviewModal(): React.JSX.Element {
   const { t } = useTranslation()
-  const { isOpen, suggestion, isLoading, error, targetNoteId, applySuggestion, closeModal } = useAiNotesStore()
+  const {
+    isOpen,
+    suggestion,
+    isLoading,
+    error,
+    targetNoteId,
+    applySuggestion,
+    closeModal
+  } = useAiNotesStore()
 
   if (!isOpen) return <></>
 
@@ -24,15 +31,19 @@ export function AiNotePreviewModal(): React.JSX.Element {
         {/* Header */}
         <DialogHeader className="p-4 border-b border-border/60 bg-muted/20 flex flex-row items-center justify-between space-y-0">
           <div className="flex items-center gap-2.5">
-            <div className="p-1.5 rounded-md bg-amber-500/10 text-amber-500">
+            <div className="p-1.5 rounded-md bg-primary/10 text-primary">
               <Sparkles className="h-4 w-4" />
             </div>
             <div>
               <DialogTitle className="text-base font-bold">
-                {suggestion?.titleSuggestion || t('aiNotes.suggestionTitle', 'Sugestão de Anotação com IA')}
+                {suggestion?.titleSuggestion ||
+                  t('aiNotes.suggestionTitle', 'Sugestão de Anotação com IA')}
               </DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground">
-                {t('aiNotes.reviewNotice', 'Revise o conteúdo sugerido antes de salvar.')}
+                {t(
+                  'aiNotes.reviewNotice',
+                  'Revise o conteúdo sugerido antes de salvar.'
+                )}
               </DialogDescription>
             </div>
           </div>
@@ -51,8 +62,10 @@ export function AiNotePreviewModal(): React.JSX.Element {
         <div className="p-5 overflow-y-auto space-y-4 flex-1 text-xs">
           {isLoading && (
             <div className="py-12 flex flex-col items-center justify-center gap-2 text-muted-foreground">
-              <Loader2 className="h-6 w-6 animate-spin text-amber-500" />
-              <p className="text-xs font-medium">{t('aiNotes.generating', 'Processando sugestão com IA...')}</p>
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              <p className="text-xs font-medium">
+                {t('aiNotes.generating', 'Processando sugestão com IA...')}
+              </p>
             </div>
           )}
 
@@ -68,7 +81,9 @@ export function AiNotePreviewModal(): React.JSX.Element {
               {suggestion.explanation && (
                 <div className="flex items-start gap-2 p-2.5 rounded-md bg-muted/30 border border-border/40 text-muted-foreground">
                   <Info className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
-                  <span className="leading-relaxed">{suggestion.explanation}</span>
+                  <span className="leading-relaxed">
+                    {suggestion.explanation}
+                  </span>
                 </div>
               )}
 
@@ -88,10 +103,10 @@ export function AiNotePreviewModal(): React.JSX.Element {
               {/* Suggested Content */}
               <div className="space-y-1.5">
                 <label className="text-[11px] font-semibold text-foreground uppercase tracking-wider flex items-center gap-1">
-                  <Sparkles className="h-3 w-3 text-amber-500" />
+                  <Sparkles className="h-3 w-3 text-primary" />
                   {t('aiNotes.suggested', 'Conteúdo Sugerido')}
                 </label>
-                <div className="p-3 rounded-md bg-amber-500/5 border border-amber-500/20 text-foreground max-h-60 overflow-y-auto whitespace-pre-wrap leading-relaxed">
+                <div className="p-3 rounded-md bg-primary/5 border border-primary/20 text-foreground max-h-60 overflow-y-auto whitespace-pre-wrap leading-relaxed">
                   {suggestion.suggestedContent}
                 </div>
               </div>
@@ -116,10 +131,12 @@ export function AiNotePreviewModal(): React.JSX.Element {
             size="sm"
             disabled={isLoading || !suggestion}
             onClick={applySuggestion}
-            className="h-8 text-xs px-3.5 gap-1.5 bg-amber-500 hover:bg-amber-600 text-black font-medium"
+            className="h-8 text-xs px-3.5 gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground font-medium"
           >
             <Check className="h-3.5 w-3.5" />
-            {targetNoteId ? t('aiNotes.updateNote', 'Atualizar Anotação') : t('aiNotes.saveNote', 'Salvar como Anotação')}
+            {targetNoteId
+              ? t('aiNotes.updateNote', 'Atualizar Anotação')
+              : t('aiNotes.saveNote', 'Salvar como Anotação')}
           </Button>
         </div>
       </DialogContent>

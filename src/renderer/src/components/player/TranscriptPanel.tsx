@@ -1,7 +1,22 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react'
-import { Check, FileText, Loader2, RefreshCw, Search, Volume2, Sparkles, MessageSquare, StickyNote, X } from 'lucide-react'
+import {
+  Check,
+  FileText,
+  Loader2,
+  RefreshCw,
+  Search,
+  Volume2,
+  Sparkles,
+  MessageSquare,
+  StickyNote,
+  X
+} from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import type { Transcript, TranscriptSegment, TranscriptionOptions } from '@shared'
+import type {
+  Transcript,
+  TranscriptSegment,
+  TranscriptionOptions
+} from '@shared'
 import { formatTime } from '../../lib/formatters'
 import { cn } from '../../lib/utils'
 import { useGroundedChatStore } from '../../stores/useGroundedChatStore'
@@ -37,12 +52,18 @@ export interface HighlightedTranscriptPart {
   match: boolean
 }
 
-export function highlightTranscriptText(text: string, query: string): HighlightedTranscriptPart[] {
+export function highlightTranscriptText(
+  text: string,
+  query: string
+): HighlightedTranscriptPart[] {
   const normalizedQuery = query.trim()
   if (!normalizedQuery) return [{ text, match: false }]
   const escaped = normalizedQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   const parts = text.split(new RegExp(`(${escaped})`, 'ig'))
-  return parts.filter(Boolean).map((part) => ({ text: part, match: part.toLocaleLowerCase() === normalizedQuery.toLocaleLowerCase() }))
+  return parts.filter(Boolean).map((part) => ({
+    text: part,
+    match: part.toLocaleLowerCase() === normalizedQuery.toLocaleLowerCase()
+  }))
 }
 
 export function TranscriptPanel({
@@ -71,20 +92,30 @@ export function TranscriptPanel({
 
   useEffect(() => {
     setQuery('')
-    setLanguage(transcript?.language && transcript.language !== 'und' ? transcript.language : '')
+    setLanguage(
+      transcript?.language && transcript.language !== 'und'
+        ? transcript.language
+        : ''
+    )
     setSelectedText(null)
   }, [transcript?.id, transcript?.language])
 
   const activeSequence = useMemo(() => {
     if (!transcript) return null
-    return transcript.segments.find((segment) => currentTime >= segment.start && currentTime < segment.end)?.sequence ?? null
+    return (
+      transcript.segments.find(
+        (segment) => currentTime >= segment.start && currentTime < segment.end
+      )?.sequence ?? null
+    )
   }, [currentTime, transcript])
 
   const visibleSegments = useMemo(() => {
     if (!transcript) return []
     const normalized = query.trim().toLocaleLowerCase()
     return normalized
-      ? transcript.segments.filter((segment) => segment.text.toLocaleLowerCase().includes(normalized))
+      ? transcript.segments.filter((segment) =>
+          segment.text.toLocaleLowerCase().includes(normalized)
+        )
       : transcript.segments
   }, [query, transcript])
 
@@ -116,7 +147,9 @@ export function TranscriptPanel({
     let nearestEnd: number | undefined
 
     if (transcript && transcript.segments.length > 0) {
-      const matchSegment = transcript.segments.find((s) => s.text.includes(text) || text.includes(s.text))
+      const matchSegment = transcript.segments.find(
+        (s) => s.text.includes(text) || text.includes(s.text)
+      )
       if (matchSegment) {
         nearestStart = matchSegment.start
         nearestEnd = matchSegment.end
@@ -136,7 +169,10 @@ export function TranscriptPanel({
     if (targetLessonId) {
       useGroundedChatStore.getState().open({
         scope: { type: 'lesson', lessonId: targetLessonId },
-        moment: selectedText.start !== undefined ? { lessonId: targetLessonId, timestampSeconds: selectedText.start } : undefined,
+        moment:
+          selectedText.start !== undefined
+            ? { lessonId: targetLessonId, timestampSeconds: selectedText.start }
+            : undefined,
         selection: {
           lessonId: targetLessonId,
           text: selectedText.text,
@@ -144,7 +180,9 @@ export function TranscriptPanel({
           endTime: selectedText.end
         }
       })
-      void useGroundedChatStore.getState().ask(`Explain: "${selectedText.text}"`)
+      void useGroundedChatStore
+        .getState()
+        .ask(`Explain: "${selectedText.text}"`)
     }
   }
 
@@ -154,7 +192,10 @@ export function TranscriptPanel({
     if (targetLessonId) {
       useGroundedChatStore.getState().open({
         scope: { type: 'lesson', lessonId: targetLessonId },
-        moment: selectedText.start !== undefined ? { lessonId: targetLessonId, timestampSeconds: selectedText.start } : undefined,
+        moment:
+          selectedText.start !== undefined
+            ? { lessonId: targetLessonId, timestampSeconds: selectedText.start }
+            : undefined,
         selection: {
           lessonId: targetLessonId,
           text: selectedText.text,
@@ -190,12 +231,22 @@ export function TranscriptPanel({
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3" role="tabpanel" aria-label={t('player.transcript', 'Transcript')}>
+    <div
+      className="flex h-full min-h-0 flex-col gap-3"
+      role="tabpanel"
+      aria-label={t('player.transcript', 'Transcript')}
+    >
       <div className="flex items-center justify-between gap-2 px-1">
         <div className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
           <FileText className="h-3.5 w-3.5 shrink-0 text-primary" />
-          <span className="truncate">{t('player.transcript', 'Transcript')}</span>
-          {transcript && <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-bold text-primary">{transcript.language}</span>}
+          <span className="truncate">
+            {t('player.transcript', 'Transcript')}
+          </span>
+          {transcript && (
+            <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-bold text-primary">
+              {transcript.language}
+            </span>
+          )}
         </div>
         {transcript && (
           <button
@@ -211,7 +262,10 @@ export function TranscriptPanel({
       </div>
 
       <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border/70 bg-secondary/30 p-2">
-        <label htmlFor="transcript-language" className="text-[11px] font-medium text-muted-foreground">
+        <label
+          htmlFor="transcript-language"
+          className="text-[11px] font-medium text-muted-foreground"
+        >
           {t('player.transcriptLanguage', 'Language')}
         </label>
         <select
@@ -228,7 +282,9 @@ export function TranscriptPanel({
         {!transcript && subtitleCandidate && (
           <button
             type="button"
-            onClick={() => void onReuseSubtitle(language || subtitleCandidate.language)}
+            onClick={() =>
+              void onReuseSubtitle(language || subtitleCandidate.language)
+            }
             disabled={isLoading}
             className="inline-flex min-h-[30px] items-center gap-1 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2 text-[11px] font-medium text-emerald-500 hover:bg-emerald-500/20 disabled:opacity-50"
           >
@@ -243,7 +299,11 @@ export function TranscriptPanel({
             disabled={isLoading}
             className="inline-flex min-h-[30px] items-center gap-1 rounded-lg bg-primary px-2.5 text-[11px] font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
           >
-            {isLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Volume2 className="h-3 w-3" />}
+            {isLoading ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <Volume2 className="h-3 w-3" />
+            )}
             {t('player.transcribe', 'Transcribe')}
           </button>
         )}
@@ -256,12 +316,24 @@ export function TranscriptPanel({
             <span>{Math.round(progressPercent ?? 0)}%</span>
           </div>
           <div className="h-1 overflow-hidden rounded-full bg-secondary">
-            <div className="h-full bg-primary transition-all" style={{ width: `${Math.max(0, Math.min(100, progressPercent ?? 0))}%` }} />
+            <div
+              className="h-full bg-primary transition-all"
+              style={{
+                width: `${Math.max(0, Math.min(100, progressPercent ?? 0))}%`
+              }}
+            />
           </div>
         </div>
       )}
 
-      {errorMessage && <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 px-2.5 py-2 text-xs text-destructive">{errorMessage}</p>}
+      {errorMessage && (
+        <p
+          role="alert"
+          className="rounded-lg border border-destructive/30 bg-destructive/10 px-2.5 py-2 text-xs text-destructive"
+        >
+          {errorMessage}
+        </p>
+      )}
 
       {transcript && (
         <label className="relative block shrink-0">
@@ -279,7 +351,10 @@ export function TranscriptPanel({
 
       {selectedText && (
         <div className="flex items-center justify-between gap-1.5 rounded-xl border border-primary/40 bg-primary/10 p-2 text-xs shadow-sm animate-in fade-in duration-150">
-          <span className="truncate max-w-[140px] font-medium text-foreground text-[11px]" title={selectedText.text}>
+          <span
+            className="truncate max-w-[140px] font-medium text-foreground text-[11px]"
+            title={selectedText.text}
+          >
             "{selectedText.text}"
           </span>
           <div className="flex items-center gap-1 shrink-0">
@@ -304,10 +379,10 @@ export function TranscriptPanel({
             <button
               type="button"
               onClick={handleCreateAiNoteFromSelection}
-              className="inline-flex items-center gap-1 rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[11px] font-medium text-amber-500 hover:bg-amber-500/20 transition-colors"
+              className="inline-flex items-center gap-1 rounded-md border border-primary/40 bg-primary/10 px-2 py-1 text-[11px] font-medium text-primary hover:bg-primary/20 transition-colors"
               title="Gerar anotação inteligente com IA"
             >
-              <Sparkles className="h-3 w-3 text-amber-500" />
+              <Sparkles className="h-3 w-3 text-primary" />
               <span>{t('aiNotes.aiNote', 'Anotação IA')}</span>
             </button>
             <button
@@ -341,11 +416,20 @@ export function TranscriptPanel({
         {!transcript && !isLoading && !errorMessage && (
           <div className="flex h-full flex-col items-center justify-center gap-2 px-4 text-center text-xs text-muted-foreground">
             <FileText className="h-7 w-7 opacity-40" />
-            <p>{subtitleCandidate ? t('player.subtitleAvailable', 'A time-aligned subtitle is available.') : t('player.noTranscript', 'No transcript available yet.')}</p>
+            <p>
+              {subtitleCandidate
+                ? t(
+                    'player.subtitleAvailable',
+                    'A time-aligned subtitle is available.'
+                  )
+                : t('player.noTranscript', 'No transcript available yet.')}
+            </p>
           </div>
         )}
         {transcript && visibleSegments.length === 0 && (
-          <p className="px-2 py-4 text-center text-xs text-muted-foreground">{t('player.noTranscriptMatches', 'No transcript matches')}</p>
+          <p className="px-2 py-4 text-center text-xs text-muted-foreground">
+            {t('player.noTranscriptMatches', 'No transcript matches')}
+          </p>
         )}
         {visibleSegments.map((segment) => {
           const active = segment.sequence === activeSequence
@@ -355,7 +439,9 @@ export function TranscriptPanel({
               aria-current={active ? 'true' : undefined}
               className={cn(
                 'group flex w-full items-start gap-2 rounded-xl px-2.5 py-2 text-left text-xs leading-relaxed transition-colors',
-                active ? 'bg-primary/15 text-foreground ring-1 ring-primary/30' : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
+                active
+                  ? 'bg-primary/15 text-foreground ring-1 ring-primary/30'
+                  : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
               )}
             >
               <button
@@ -367,8 +453,18 @@ export function TranscriptPanel({
                 {formatTime(segment.start)}
               </button>
               <span className="flex-1 select-text">
-                {highlightTranscriptText(segment.text, query).map((part, index) =>
-                  part.match ? <mark key={index} className="rounded bg-amber-300/40 text-inherit">{part.text}</mark> : <React.Fragment key={index}>{part.text}</React.Fragment>
+                {highlightTranscriptText(segment.text, query).map(
+                  (part, index) =>
+                    part.match ? (
+                      <mark
+                        key={index}
+                        className="rounded bg-primary/40 text-inherit"
+                      >
+                        {part.text}
+                      </mark>
+                    ) : (
+                      <React.Fragment key={index}>{part.text}</React.Fragment>
+                    )
                 )}
               </span>
             </div>

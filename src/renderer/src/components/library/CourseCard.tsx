@@ -8,7 +8,13 @@ import {
   SlidersHorizontal
 } from 'lucide-react'
 import type { Course } from '@shared'
-import { Badge, Tooltip, TooltipTrigger, TooltipContent, CourseCover } from '../ui'
+import {
+  Badge,
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+  CourseCover
+} from '../ui'
 import { useLibraryStore, useNavigationStore } from '../../stores'
 import { formatDurationHuman } from '../../lib/formatters'
 
@@ -17,7 +23,10 @@ interface CourseCardProps {
   onOrganize?: () => void
 }
 
-export function CourseCard({ course, onOrganize }: CourseCardProps): React.JSX.Element {
+export function CourseCard({
+  course,
+  onOrganize
+}: CourseCardProps): React.JSX.Element {
   const { t } = useTranslation()
   const { progressSummaries, toggleFavorite } = useLibraryStore()
   const { navigateToCourse } = useNavigationStore()
@@ -39,7 +48,7 @@ export function CourseCard({ course, onOrganize }: CourseCardProps): React.JSX.E
       tabIndex={0}
       onClick={() => navigateToCourse(course.id)}
       onKeyDown={handleKeyDown}
-      className="group relative cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background rounded-lg"
+      className="group relative cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background rounded-lg contain-content"
     >
       {/* Cover — streaming card */}
       <div className="relative aspect-video w-full overflow-hidden rounded-xl">
@@ -64,10 +73,10 @@ export function CourseCard({ course, onOrganize }: CourseCardProps): React.JSX.E
                   e.stopPropagation()
                   toggleFavorite(course.id).catch(console.warn)
                 }}
-                className={`flex h-7.5 w-7.5 items-center justify-center rounded-md backdrop-blur-md transition-all duration-200 cursor-pointer shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 ${
+                className={`flex h-7.5 w-7.5 items-center justify-center rounded-md backdrop-blur-md transition-all duration-200 cursor-pointer shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
                   course.isFavorite
-                    ? 'bg-amber-500/25 text-amber-400 border border-amber-500/50 opacity-100 shadow-amber-500/20'
-                    : 'bg-black/60 text-white/70 hover:text-amber-400 hover:bg-black/85 border border-white/15 opacity-0 group-hover:opacity-100'
+                    ? 'bg-primary/25 text-primary border border-primary/50 opacity-100 shadow-primary/20'
+                    : 'bg-black/60 text-white/70 hover:text-primary hover:bg-black/85 border border-white/15 opacity-0 group-hover:opacity-100'
                 }`}
                 aria-label={
                   course.isFavorite
@@ -77,7 +86,7 @@ export function CourseCard({ course, onOrganize }: CourseCardProps): React.JSX.E
               >
                 <Star
                   className={`h-4 w-4 transition-transform active:scale-125 duration-150 ${
-                    course.isFavorite ? 'fill-amber-400 text-amber-400' : ''
+                    course.isFavorite ? 'fill-primary text-primary' : ''
                   }`}
                 />
               </button>
@@ -98,7 +107,7 @@ export function CourseCard({ course, onOrganize }: CourseCardProps): React.JSX.E
                     e.stopPropagation()
                     onOrganize()
                   }}
-                  className="flex h-7.5 w-7.5 items-center justify-center rounded-md bg-black/60 text-white/80 hover:text-white hover:bg-orange-600 border border-white/15 backdrop-blur-md transition-all duration-200 cursor-pointer shadow-xs opacity-0 group-hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  className="flex h-7.5 w-7.5 items-center justify-center rounded-md bg-black/60 text-primary-foreground/80 hover:text-primary-foreground hover:bg-primary border border-white/15 backdrop-blur-md transition-all duration-200 cursor-pointer shadow-xs opacity-0 group-hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                   aria-label="Organizar curso"
                 >
                   <SlidersHorizontal className="h-3.5 w-3.5" />
@@ -147,7 +156,7 @@ export function CourseCard({ course, onOrganize }: CourseCardProps): React.JSX.E
           <div className="absolute bottom-0 inset-x-0 h-[3px] bg-black/60 z-10">
             <div
               className={`h-full transition-all duration-300 ${
-                isCompleted ? 'bg-emerald-400' : 'bg-gradient-to-r from-orange-500 to-amber-400'
+                isCompleted ? 'bg-emerald-400' : 'bg-primary'
               }`}
               style={{ width: `${percentage}%` }}
             />
@@ -162,7 +171,8 @@ export function CourseCard({ course, onOrganize }: CourseCardProps): React.JSX.E
         </h3>
         <p className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
           <span>
-            {course.moduleCount} {t('course.modules')} • {course.lessonCount} {t('course.lessons')}
+            {course.moduleCount} {t('course.modules')} • {course.lessonCount}{' '}
+            {t('course.lessons')}
           </span>
           {course.totalDuration > 0 && (
             <span className="flex items-center gap-1 font-mono">

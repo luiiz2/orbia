@@ -13,7 +13,12 @@ import {
 import { useNavigationStore } from '../../stores/useNavigationStore'
 import { useVaultStore } from '../../stores/useVaultStore'
 import { Button } from '../ui/button'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
+} from '../ui/tooltip'
 import { cn } from '../../lib/utils'
 import appLogo from '../../assets/icon.png'
 
@@ -61,9 +66,9 @@ export function Sidebar(): React.JSX.Element {
         )}
       >
         {/* Brand Header */}
-        <div className="flex h-16 items-center justify-between px-3.5 border-b border-border/70 bg-gradient-to-r from-card via-card/90 to-secondary/20">
+        <div className="flex h-16 items-center justify-between px-3.5 border-b border-border/70 bg-card">
           <div className="flex items-center gap-3 overflow-hidden">
-            <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl p-0.5 bg-gradient-to-br from-orange-500/20 via-purple-600/15 to-blue-600/10 border border-border shadow-md shadow-orange-500/10 hover:scale-105 transition-transform duration-200">
+            <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl p-0.5 bg-primary/10 border border-primary/30 shadow-md shadow-primary/10 hover:scale-105 transition-transform duration-200">
               <img
                 src={appLogo}
                 alt="Orbia"
@@ -72,7 +77,7 @@ export function Sidebar(): React.JSX.Element {
             </div>
             {!isSidebarCollapsed && (
               <div className="flex flex-col overflow-hidden">
-                <span className="text-base font-extrabold tracking-tight text-orbia-gradient truncate">
+                <span className="text-base font-extrabold tracking-tight text-orbia-mark truncate">
                   {t('app.name')}
                 </span>
                 <span className="text-[10px] text-muted-foreground truncate font-medium tracking-wide">
@@ -107,7 +112,7 @@ export function Sidebar(): React.JSX.Element {
                   variant="default"
                   size="icon"
                   onClick={() => setImportModalOpen(true)}
-                  className="w-10 h-10 mx-auto rounded-xl bg-gradient-to-r from-orange-500 via-orange-600 to-amber-500 text-primary-foreground font-semibold shadow-md shadow-orange-500/25 hover:shadow-orange-500/40 hover:scale-105 active:scale-95 transition-all"
+                  className="w-10 h-10 mx-auto rounded-xl bg-primary text-primary-foreground font-semibold shadow-md shadow-primary/25 hover:shadow-primary/40 hover:scale-105 active:scale-95 transition-all"
                 >
                   <Plus className="h-5 w-5" />
                 </Button>
@@ -121,7 +126,7 @@ export function Sidebar(): React.JSX.Element {
               variant="default"
               size="sm"
               onClick={() => setImportModalOpen(true)}
-              className="w-full justify-center gap-2 font-semibold shadow-md shadow-orange-500/20 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-500 text-primary-foreground hover:opacity-95 hover:shadow-orange-500/30 active:scale-[0.98] transition-all h-9.5 rounded-xl cursor-pointer"
+              className="w-full justify-center gap-2 font-semibold shadow-md shadow-primary/20 bg-primary text-primary-foreground hover:opacity-95 hover:shadow-primary/30 active:scale-[0.98] transition-all h-9.5 rounded-xl cursor-pointer"
             >
               <Plus className="h-4 w-4 stroke-[2.5]" />
               <span>{t('nav.importCourse')}</span>
@@ -135,7 +140,8 @@ export function Sidebar(): React.JSX.Element {
             const Icon = item.icon
             const isActive =
               currentView === item.id ||
-              (item.id === 'home' && (currentView === 'course' || currentView === 'player'))
+              (item.id === 'home' &&
+                (currentView === 'course' || currentView === 'player'))
 
             const buttonContent = (
               <button
@@ -143,16 +149,20 @@ export function Sidebar(): React.JSX.Element {
                 onClick={() => setView(item.id)}
                 className={cn(
                   'flex w-full items-center rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer relative overflow-hidden',
-                  isSidebarCollapsed ? 'h-10 justify-center px-0' : 'h-10 justify-start gap-3 px-3',
+                  isSidebarCollapsed
+                    ? 'h-10 justify-center px-0'
+                    : 'h-10 justify-start gap-3 px-3',
                   isActive
-                    ? 'bg-gradient-to-r from-orange-500/15 via-purple-600/10 to-transparent text-primary font-semibold border-l-2 border-primary shadow-sm'
+                    ? 'bg-primary/10 text-primary font-semibold ring-1 ring-primary/25 shadow-sm'
                     : 'text-muted-foreground hover:bg-secondary/70 hover:text-foreground'
                 )}
               >
                 <Icon
                   className={cn(
                     'h-4 w-4 shrink-0 transition-transform duration-200',
-                    isActive ? 'text-primary scale-110' : 'text-muted-foreground'
+                    isActive
+                      ? 'text-primary scale-110'
+                      : 'text-muted-foreground'
                   )}
                 />
                 {!isSidebarCollapsed && (
@@ -192,8 +202,12 @@ export function Sidebar(): React.JSX.Element {
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="right">
-                  <p className="font-semibold">{currentVault?.name || t('nav.changeVault')}</p>
-                  <p className="text-[10px] text-muted-foreground font-mono">{currentVault?.path}</p>
+                  <p className="font-semibold">
+                    {currentVault?.name || t('nav.changeVault')}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground font-mono">
+                    {currentVault?.path}
+                  </p>
                 </TooltipContent>
               </Tooltip>
 
@@ -213,7 +227,9 @@ export function Sidebar(): React.JSX.Element {
               <div className="flex items-center justify-between mb-1.5">
                 <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground overflow-hidden">
                   <Database className="h-3.5 w-3.5 text-primary shrink-0" />
-                  <span className="truncate max-w-[120px]">{currentVault?.name || 'Vault'}</span>
+                  <span className="truncate max-w-[120px]">
+                    {currentVault?.name || 'Vault'}
+                  </span>
                 </div>
                 <button
                   type="button"
@@ -236,4 +252,3 @@ export function Sidebar(): React.JSX.Element {
     </TooltipProvider>
   )
 }
-

@@ -68,19 +68,22 @@ export function ProfileOnboardingModal({
 
   return (
     <Dialog open={open} onOpenChange={() => {}}>
-      <DialogContent
-        className="max-w-md p-6 bg-card border-border/80 shadow-2xl rounded-3xl text-center flex flex-col items-center [&>button]:hidden"
-      >
+      <DialogContent className="max-w-md p-6 bg-card border-border/80 shadow-2xl rounded-3xl text-center flex flex-col items-center [&>button]:hidden">
         {/* App Logo & Header */}
         <div className="flex flex-col items-center gap-2 mb-2">
           <div className="h-14 w-14 rounded-2xl overflow-hidden shadow-lg border border-border/50 bg-black/20 p-2">
-            <img src={appLogo} alt="Orbia" className="h-full w-full object-contain" />
+            <img
+              src={appLogo}
+              alt="Orbia"
+              className="h-full w-full object-contain"
+            />
           </div>
           <DialogTitle className="text-xl font-extrabold text-foreground">
             Bem-vindo ao Orbia!
           </DialogTitle>
           <DialogDescription className="text-xs text-muted-foreground max-w-xs">
-            Sua plataforma offline para organizar e estudar todos os seus cursos com máxima privacidade.
+            Sua plataforma offline para organizar e estudar todos os seus cursos
+            com máxima privacidade.
           </DialogDescription>
         </div>
 
@@ -92,11 +95,17 @@ export function ProfileOnboardingModal({
             title="Escolher Foto"
           >
             {avatarPath ? (
-              <img src={mediaUrl(avatarPath)} alt="Foto do Usuário" className="h-full w-full object-cover" />
+              <img
+                src={mediaUrl(avatarPath)}
+                alt="Foto do Usuário"
+                className="h-full w-full object-cover"
+              />
             ) : (
-              <div className="h-full w-full bg-gradient-to-tr from-orange-500 to-amber-400 flex flex-col items-center justify-center text-white">
+              <div className="h-full w-full bg-primary flex flex-col items-center justify-center text-primary-foreground">
                 {userName.trim() ? (
-                  <span className="text-3xl font-extrabold">{userName.trim().charAt(0).toUpperCase()}</span>
+                  <span className="text-3xl font-extrabold">
+                    {userName.trim().charAt(0).toUpperCase()}
+                  </span>
                 ) : (
                   <User className="h-10 w-10 text-white/90" />
                 )}
@@ -105,7 +114,7 @@ export function ProfileOnboardingModal({
 
             {/* Hover overlay */}
             <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-white text-[10px] font-semibold transition-opacity gap-1 backdrop-blur-xs">
-              <Camera className="h-5 w-5 text-orange-400" />
+              <Camera className="h-5 w-5 text-primary" />
               <span>Trocar Foto</span>
             </div>
           </div>
@@ -118,14 +127,18 @@ export function ProfileOnboardingModal({
             className="text-xs text-muted-foreground hover:text-foreground h-7"
           >
             <Camera className="h-3.5 w-3.5 mr-1 text-primary" />
-            <span>{avatarPath ? 'Alterar Foto' : 'Adicionar Foto (Opcional)'}</span>
+            <span>
+              {avatarPath ? 'Alterar Foto' : 'Adicionar Foto (Opcional)'}
+            </span>
           </Button>
         </div>
 
         {/* Name Input Form */}
         <div className="w-full space-y-3">
           <div className="text-left space-y-1">
-            <label className="text-xs font-bold text-foreground">Como você gostaria de ser chamado?</label>
+            <label className="text-xs font-bold text-foreground">
+              Como você gostaria de ser chamado?
+            </label>
             <Input
               autoFocus
               value={userName}
@@ -139,7 +152,7 @@ export function ProfileOnboardingModal({
           <Button
             onClick={handleComplete}
             disabled={isSaving}
-            className="w-full h-11 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold shadow-lg shadow-orange-500/20 text-sm gap-2"
+            className="w-full h-11 rounded-xl bg-primary text-primary-foreground font-bold shadow-lg shadow-primary/20 text-sm gap-2"
           >
             <span>Começar a Estudar</span>
             <ArrowRight className="h-4 w-4" />

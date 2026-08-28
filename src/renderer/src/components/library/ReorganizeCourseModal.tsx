@@ -58,7 +58,9 @@ export function ReorganizeCourseModal({
       if (res.success && res.plan) {
         setPlan(res.plan)
       } else {
-        setErrorMessage(res.error || 'Não foi possível gerar o plano de organização.')
+        setErrorMessage(
+          res.error || 'Não foi possível gerar o plano de organização.'
+        )
       }
     } catch (err: unknown) {
       setErrorMessage(err instanceof Error ? err.message : String(err))
@@ -101,7 +103,7 @@ export function ReorganizeCourseModal({
     } finally {
       setIsApplying(false)
     }
-  };
+  }
 
   const handleUndo = async (): Promise<void> => {
     if (!appliedGroupId) return
@@ -112,7 +114,9 @@ export function ReorganizeCourseModal({
       const res = await window.api.courses.undoReorganizePlan(appliedGroupId)
       if (res.success) {
         setAppliedGroupId(null)
-        setSuccessMessage('A reorganização foi desfeita. Todos os arquivos retornaram aos nomes originais.')
+        setSuccessMessage(
+          'A reorganização foi desfeita. Todos os arquivos retornaram aos nomes originais.'
+        )
         void fetchPlan()
         if (onSuccess) onSuccess()
       } else {
@@ -131,7 +135,7 @@ export function ReorganizeCourseModal({
         {/* Header Bar */}
         <DialogHeader className="px-5 py-4 border-b border-border/80 bg-card flex flex-row items-center justify-between space-y-0 shrink-0">
           <div className="flex items-center gap-3 overflow-hidden mr-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-orange-500/15 text-primary border border-primary/20">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary border border-primary/20">
               <FolderSync className="h-5 w-5" />
             </div>
             <div className="flex flex-col overflow-hidden min-w-0">
@@ -139,7 +143,10 @@ export function ReorganizeCourseModal({
                 Organizar Arquivos no Disco
               </DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground truncate">
-                Padronizar pastas e arquivos físicos do curso <span className="font-semibold text-foreground">"{courseTitle}"</span>
+                Padronizar pastas e arquivos físicos do curso{' '}
+                <span className="font-semibold text-foreground">
+                  "{courseTitle}"
+                </span>
               </DialogDescription>
             </div>
           </div>
@@ -150,7 +157,9 @@ export function ReorganizeCourseModal({
           {isLoading ? (
             <div className="flex flex-col items-center justify-center py-16 text-muted-foreground gap-3">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <p className="text-xs">Analisando nomes e estruturas de arquivos...</p>
+              <p className="text-xs">
+                Analisando nomes e estruturas de arquivos...
+              </p>
             </div>
           ) : errorMessage ? (
             <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-xs text-destructive flex items-start gap-3">
@@ -173,9 +182,13 @@ export function ReorganizeCourseModal({
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500/15 text-emerald-400 mx-auto">
                 <CheckCircle2 className="h-6 w-6" />
               </div>
-              <h4 className="font-bold text-sm text-foreground">Estrutura 100% Organizada!</h4>
+              <h4 className="font-bold text-sm text-foreground">
+                Estrutura 100% Organizada!
+              </h4>
               <p className="text-xs text-muted-foreground max-w-md mx-auto">
-                Todas as pastas e nomes de arquivos físicos deste curso já seguem a numeração e ordem perfeitas no seu computador. Nenhuma alteração é necessária.
+                Todas as pastas e nomes de arquivos físicos deste curso já
+                seguem a numeração e ordem perfeitas no seu computador. Nenhuma
+                alteração é necessária.
               </p>
             </div>
           ) : plan ? (
@@ -183,18 +196,29 @@ export function ReorganizeCourseModal({
               <div className="rounded-xl border border-primary/20 bg-primary/5 p-3.5 flex items-start gap-3 text-xs text-foreground">
                 <Sparkles className="h-4 w-4 text-primary shrink-0 mt-0.5" />
                 <div className="leading-relaxed">
-                  <span className="font-semibold text-primary">Prévia Segura: </span>
-                  O Orbia criará cópias organizadas e renomeará <span className="font-bold text-foreground">{plan.proposedMutations.length} arquivos</span> de acordo com a ordem oficial das aulas. Esta ação é registrada em diário e <span className="underline decoration-primary font-semibold">pode ser desfeita a qualquer momento</span>.
+                  <span className="font-semibold text-primary">
+                    Prévia Segura:{' '}
+                  </span>
+                  O Orbia criará cópias organizadas e renomeará{' '}
+                  <span className="font-bold text-foreground">
+                    {plan.proposedMutations.length} arquivos
+                  </span>{' '}
+                  de acordo com a ordem oficial das aulas. Esta ação é
+                  registrada em diário e{' '}
+                  <span className="underline decoration-primary font-semibold">
+                    pode ser desfeita a qualquer momento
+                  </span>
+                  .
                 </div>
               </div>
 
               {plan.hasConflicts && plan.conflictDetails && (
-                <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-300 space-y-1">
-                  <div className="flex items-center gap-2 font-bold text-amber-400">
+                <div className="rounded-xl border border-primary/30 bg-primary/10 p-3 text-xs text-primary space-y-1">
+                  <div className="flex items-center gap-2 font-bold text-primary">
                     <AlertTriangle className="h-4 w-4 shrink-0" />
                     <span>Conflitos Detectados</span>
                   </div>
-                  <ul className="list-disc list-inside space-y-0.5 text-[11px] text-amber-200">
+                  <ul className="list-disc list-inside space-y-0.5 text-[11px] text-primary">
                     {plan.conflictDetails.map((detail, idx) => (
                       <li key={idx}>{detail}</li>
                     ))}
@@ -205,21 +229,35 @@ export function ReorganizeCourseModal({
               {/* Operations Table */}
               <div className="rounded-xl border border-border/80 overflow-hidden">
                 <div className="bg-secondary/60 px-3 py-2 border-b border-border/70 text-[11px] font-semibold text-muted-foreground flex justify-between items-center">
-                  <span>Renomeações Propostas ({plan.proposedMutations.length})</span>
-                  <Badge variant="outline" className="text-[10px] py-0 border-emerald-500/40 text-emerald-400">
+                  <span>
+                    Renomeações Propostas ({plan.proposedMutations.length})
+                  </span>
+                  <Badge
+                    variant="outline"
+                    className="text-[10px] py-0 border-emerald-500/40 text-emerald-400"
+                  >
                     Reversível
                   </Badge>
                 </div>
                 <div className="divide-y divide-border/40 max-h-72 overflow-y-auto">
                   {plan.proposedMutations.map((mut, idx) => (
-                    <div key={idx} className="p-3 text-xs flex items-center justify-between gap-3 hover:bg-secondary/30 transition-colors">
+                    <div
+                      key={idx}
+                      className="p-3 text-xs flex items-center justify-between gap-3 hover:bg-secondary/30 transition-colors"
+                    >
                       <div className="flex items-center gap-2.5 overflow-hidden flex-1 min-w-0">
                         <FileVideo className="h-4 w-4 text-muted-foreground shrink-0" />
                         <div className="flex flex-col overflow-hidden min-w-0">
-                          <span className="text-muted-foreground truncate text-[11px]" title={mut.originalFileName}>
+                          <span
+                            className="text-muted-foreground truncate text-[11px]"
+                            title={mut.originalFileName}
+                          >
                             {mut.originalFileName}
                           </span>
-                          <span className="font-semibold text-primary truncate text-xs" title={mut.newFileName}>
+                          <span
+                            className="font-semibold text-primary truncate text-xs"
+                            title={mut.newFileName}
+                          >
                             {mut.newFileName}
                           </span>
                         </div>
@@ -253,7 +291,7 @@ export function ReorganizeCourseModal({
                 size="sm"
                 onClick={() => void handleUndo()}
                 disabled={isUndoing}
-                className="gap-1.5 rounded-xl text-xs border-amber-500/40 text-amber-400 hover:bg-amber-500/10 h-8.5 cursor-pointer"
+                className="gap-1.5 rounded-xl text-xs border-primary/40 text-primary hover:bg-primary/10 h-8.5 cursor-pointer"
               >
                 {isUndoing ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />

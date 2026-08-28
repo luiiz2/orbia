@@ -4,13 +4,19 @@ import { useTranslation } from 'react-i18next'
 import { Play, Sparkles } from 'lucide-react'
 import type { Course } from '@shared'
 import { Button, Card } from '../ui'
-import { useLibraryStore, useNavigationStore, usePlayerStore } from '../../stores'
+import {
+  useLibraryStore,
+  useNavigationStore,
+  usePlayerStore
+} from '../../stores'
 
 interface ContinueStudyingProps {
   courses: Course[]
 }
 
-export function ContinueStudying({ courses }: ContinueStudyingProps): React.JSX.Element | null {
+export function ContinueStudying({
+  courses
+}: ContinueStudyingProps): React.JSX.Element | null {
   const { t } = useTranslation()
   const { progressSummaries } = useLibraryStore()
   const { navigateToPlayer } = useNavigationStore()
@@ -32,7 +38,8 @@ export function ContinueStudying({ courses }: ContinueStudyingProps): React.JSX.
     const data = await window.api.courses.getById(courseId)
     if (data) {
       const summary = progressSummaries[courseId]
-      const targetLessonId = summary?.lastPlayedLessonId || data.modules[0]?.lessons[0]?.id
+      const targetLessonId =
+        summary?.lastPlayedLessonId || data.modules[0]?.lessons[0]?.id
       loadHierarchy(data.course, data.modules, targetLessonId)
       navigateToPlayer(courseId)
     }
@@ -49,9 +56,7 @@ export function ContinueStudying({ courses }: ContinueStudyingProps): React.JSX.
         {inProgressCourses.map((course) => {
           const summary = progressSummaries[course.id]
           const percentage = summary?.percentage || 0
-          const coverUrl = course.coverPath
-            ? mediaUrl(course.coverPath)
-            : null
+          const coverUrl = course.coverPath ? mediaUrl(course.coverPath) : null
 
           return (
             <Card
@@ -82,7 +87,9 @@ export function ContinueStudying({ courses }: ContinueStudyingProps): React.JSX.
                   {summary?.lastPlayedLessonTitle && (
                     <p className="text-[11px] text-muted-foreground truncate flex items-center gap-1">
                       <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
-                      <span className="truncate">{summary.lastPlayedLessonTitle}</span>
+                      <span className="truncate">
+                        {summary.lastPlayedLessonTitle}
+                      </span>
                     </p>
                   )}
                 </div>
@@ -92,15 +99,18 @@ export function ContinueStudying({ courses }: ContinueStudyingProps): React.JSX.
               <div className="space-y-2 pt-1 border-t border-border/40">
                 <div className="flex items-center justify-between text-[11px]">
                   <span className="text-muted-foreground">
-                    {summary?.completedLessons || 0}/{course.lessonCount} {t('course.lessons')}
+                    {summary?.completedLessons || 0}/{course.lessonCount}{' '}
+                    {t('course.lessons')}
                   </span>
-                  <span className="font-semibold text-primary">{percentage}%</span>
+                  <span className="font-semibold text-primary">
+                    {percentage}%
+                  </span>
                 </div>
 
                 {/* Progress bar */}
                 <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-gradient-to-r from-orange-500 via-amber-500 to-purple-600 rounded-full transition-all"
+                    className="h-full bg-primary rounded-full transition-all"
                     style={{ width: `${percentage}%` }}
                   />
                 </div>
@@ -108,7 +118,7 @@ export function ContinueStudying({ courses }: ContinueStudyingProps): React.JSX.
                 <Button
                   size="sm"
                   variant="default"
-                  className="w-full text-xs h-8 mt-1 font-semibold shadow-md shadow-orange-500/20 rounded-xl"
+                  className="w-full text-xs h-8 mt-1 font-semibold shadow-md shadow-primary/20 rounded-xl"
                   onClick={() => handleResume(course.id)}
                 >
                   <Play className="w-3.5 h-3.5 mr-1 fill-current" />
@@ -122,4 +132,3 @@ export function ContinueStudying({ courses }: ContinueStudyingProps): React.JSX.
     </div>
   )
 }
-

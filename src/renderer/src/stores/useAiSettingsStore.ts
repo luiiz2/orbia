@@ -26,7 +26,9 @@ export interface AiSettingsState {
   discoverModels: (providerId: AiProviderId) => Promise<void>
   checkHealth: (providerId: AiProviderId, modelId?: string) => Promise<void>
   fetchStorageStats: () => Promise<void>
-  clearStorageCategory: (category: import('@shared').AiStorageCategory) => Promise<boolean>
+  clearStorageCategory: (
+    category: import('@shared').AiStorageCategory
+  ) => Promise<boolean>
   fetchUsageStats: () => Promise<void>
   resetUsageStats: () => Promise<boolean>
   clearError: () => void
@@ -101,7 +103,10 @@ export const useAiSettingsStore = create<AiSettingsState>((set, get) => ({
     set({ isLoading: true, error: null })
     try {
       const models = await window.api.ai.discoverModels(providerId)
-      set((state) => ({ models: { ...state.models, [providerId]: models }, isLoading: false }))
+      set((state) => ({
+        models: { ...state.models, [providerId]: models },
+        isLoading: false
+      }))
     } catch (error) {
       set({ error: errorMessage(error), isLoading: false })
     }
@@ -111,7 +116,10 @@ export const useAiSettingsStore = create<AiSettingsState>((set, get) => ({
     set({ isLoading: true, error: null })
     try {
       const health = await window.api.ai.health(providerId, modelId)
-      set((state) => ({ health: { ...state.health, [providerId]: health }, isLoading: false }))
+      set((state) => ({
+        health: { ...state.health, [providerId]: health },
+        isLoading: false
+      }))
     } catch (error) {
       set({ error: errorMessage(error), isLoading: false })
     }

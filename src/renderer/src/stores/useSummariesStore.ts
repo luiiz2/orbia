@@ -28,11 +28,15 @@ export const useSummariesStore = create<SummariesState>((set, get) => ({
         set({ summary: existing, isLoading: false })
       } else {
         // Automatically generate if no existing summary exists yet
-        const result = await window.api.summaries.generate({ scope, forceRegenerate: false })
+        const result = await window.api.summaries.generate({
+          scope,
+          forceRegenerate: false
+        })
         set({ summary: result.summary, isLoading: false })
       }
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Falha ao carregar resumo.'
+      const message =
+        err instanceof Error ? err.message : 'Falha ao carregar resumo.'
       set({ error: message, isLoading: false })
     }
   },
@@ -43,15 +47,25 @@ export const useSummariesStore = create<SummariesState>((set, get) => ({
 
     set({ isLoading: true, error: null })
     try {
-      const result = await window.api.summaries.generate({ scope, forceRegenerate })
+      const result = await window.api.summaries.generate({
+        scope,
+        forceRegenerate
+      })
       set({ summary: result.summary, isLoading: false })
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Falha ao gerar resumo.'
+      const message =
+        err instanceof Error ? err.message : 'Falha ao gerar resumo.'
       set({ error: message, isLoading: false })
     }
   },
 
   closeSummary: () => {
-    set({ isOpen: false, scope: null, summary: null, error: null, isLoading: false })
+    set({
+      isOpen: false,
+      scope: null,
+      summary: null,
+      error: null,
+      isLoading: false
+    })
   }
 }))

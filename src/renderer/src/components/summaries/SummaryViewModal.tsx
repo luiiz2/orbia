@@ -14,13 +14,20 @@ import {
 import { useSummariesStore } from '../../stores/useSummariesStore'
 import { usePlayerStore } from '../../stores/usePlayerStore'
 import { Button } from '../ui/button'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription
+} from '../ui/dialog'
 import { Badge } from '../ui/badge'
 import { formatTime } from '../../lib/formatters'
 
 export function SummaryViewModal(): React.JSX.Element {
   const { t } = useTranslation()
-  const { isOpen, summary, isLoading, error, generateSummary, closeSummary } = useSummariesStore()
+  const { isOpen, summary, isLoading, error, generateSummary, closeSummary } =
+    useSummariesStore()
   const { seek } = usePlayerStore()
   const [viewMarkdown, setViewMarkdown] = useState(false)
 
@@ -29,11 +36,32 @@ export function SummaryViewModal(): React.JSX.Element {
   const getScopeBadge = (type?: string) => {
     switch (type) {
       case 'lesson':
-        return <Badge variant="secondary" className="text-xs bg-sky-500/10 text-sky-400 border-sky-500/20">{t('summaries.scopeLesson', 'Aula')}</Badge>
+        return (
+          <Badge
+            variant="secondary"
+            className="text-xs bg-sky-500/10 text-sky-400 border-sky-500/20"
+          >
+            {t('summaries.scopeLesson', 'Aula')}
+          </Badge>
+        )
       case 'module':
-        return <Badge variant="secondary" className="text-xs bg-indigo-500/10 text-indigo-400 border-indigo-500/20">{t('summaries.scopeModule', 'Módulo')}</Badge>
+        return (
+          <Badge
+            variant="secondary"
+            className="text-xs bg-accent/10 text-accent border-accent/20"
+          >
+            {t('summaries.scopeModule', 'Módulo')}
+          </Badge>
+        )
       case 'course':
-        return <Badge variant="secondary" className="text-xs bg-amber-500/10 text-amber-400 border-amber-500/20">{t('summaries.scopeCourse', 'Curso')}</Badge>
+        return (
+          <Badge
+            variant="secondary"
+            className="text-xs bg-primary/10 text-primary border-primary/20"
+          >
+            {t('summaries.scopeCourse', 'Curso')}
+          </Badge>
+        )
       default:
         return null
     }
@@ -61,7 +89,10 @@ export function SummaryViewModal(): React.JSX.Element {
                 {summary && getScopeBadge(summary.scopeType)}
               </div>
               <DialogDescription className="text-xs text-muted-foreground mt-0.5">
-                {t('summaries.subtitle', 'Síntese estruturada do conteúdo de estudo')}
+                {t(
+                  'summaries.subtitle',
+                  'Síntese estruturada do conteúdo de estudo'
+                )}
               </DialogDescription>
             </div>
           </div>
@@ -74,7 +105,9 @@ export function SummaryViewModal(): React.JSX.Element {
               onClick={() => generateSummary(true)}
               className="h-8 gap-1.5 text-xs"
             >
-              <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+              <RefreshCw
+                className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`}
+              />
               {t('summaries.regenerate', 'Regenerar')}
             </Button>
             <Button
@@ -92,15 +125,26 @@ export function SummaryViewModal(): React.JSX.Element {
         {summary && (
           <div className="px-5 py-2.5 bg-muted/40 border-b border-border/40 flex items-center justify-between text-xs text-muted-foreground">
             <div className="flex items-center gap-3">
-              <span>{t('summaries.model', 'Modelo')}: <strong className="text-foreground">{summary.modelId || summary.providerId}</strong></span>
+              <span>
+                {t('summaries.model', 'Modelo')}:{' '}
+                <strong className="text-foreground">
+                  {summary.modelId || summary.providerId}
+                </strong>
+              </span>
               <span>•</span>
-              <span>{new Date(summary.updatedAt || summary.createdAt).toLocaleDateString()}</span>
+              <span>
+                {new Date(
+                  summary.updatedAt || summary.createdAt
+                ).toLocaleDateString()}
+              </span>
             </div>
 
             {summary.isStale && (
-              <div className="flex items-center gap-1.5 text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded text-xs border border-amber-500/20">
+              <div className="flex items-center gap-1.5 text-primary bg-primary/10 px-2 py-0.5 rounded text-xs border border-primary/20">
                 <AlertTriangle className="h-3.5 w-3.5" />
-                <span>{t('summaries.staleNotice', 'Conteúdo fonte alterado')}</span>
+                <span>
+                  {t('summaries.staleNotice', 'Conteúdo fonte alterado')}
+                </span>
               </div>
             )}
           </div>
@@ -111,7 +155,9 @@ export function SummaryViewModal(): React.JSX.Element {
           {isLoading && !summary && (
             <div className="py-16 flex flex-col items-center justify-center gap-3 text-muted-foreground">
               <RefreshCw className="h-8 w-8 animate-spin text-primary" />
-              <p className="text-sm font-medium">{t('summaries.generating', 'Gerando resumo estruturado...')}</p>
+              <p className="text-sm font-medium">
+                {t('summaries.generating', 'Gerando resumo estruturado...')}
+              </p>
             </div>
           )}
 
@@ -165,7 +211,10 @@ export function SummaryViewModal(): React.JSX.Element {
                   </h3>
                   <ul className="space-y-1.5 pl-2">
                     {summary.topicsCovered.map((topic, idx) => (
-                      <li key={idx} className="flex items-center gap-2 text-xs text-foreground/80">
+                      <li
+                        key={idx}
+                        className="flex items-center gap-2 text-xs text-foreground/80"
+                      >
                         <span className="h-1.5 w-1.5 rounded-full bg-primary/60" />
                         <span>{topic}</span>
                       </li>
@@ -175,24 +224,28 @@ export function SummaryViewModal(): React.JSX.Element {
               )}
 
               {/* Important Details */}
-              {summary.importantDetails && summary.importantDetails.length > 0 && (
-                <div className="space-y-2">
-                  <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                    <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
-                    {t('summaries.importantDetails', 'Detalhes Importantes & Nuances')}
-                  </h3>
+              {summary.importantDetails &&
+                summary.importantDetails.length > 0 && (
                   <div className="space-y-2">
-                    {summary.importantDetails.map((detail, idx) => (
-                      <div
-                        key={idx}
-                        className="p-2.5 rounded-md bg-amber-500/5 border border-amber-500/20 text-xs text-foreground/90"
-                      >
-                        {detail}
-                      </div>
-                    ))}
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                      <AlertTriangle className="h-3.5 w-3.5 text-primary" />
+                      {t(
+                        'summaries.importantDetails',
+                        'Detalhes Importantes & Nuances'
+                      )}
+                    </h3>
+                    <div className="space-y-2">
+                      {summary.importantDetails.map((detail, idx) => (
+                        <div
+                          key={idx}
+                          className="p-2.5 rounded-md bg-primary/5 border border-primary/20 text-xs text-foreground/90"
+                        >
+                          {detail}
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
               {/* Relevant Timestamps */}
               {summary.timestamps && summary.timestamps.length > 0 && (
@@ -210,7 +263,9 @@ export function SummaryViewModal(): React.JSX.Element {
                       >
                         <Clock className="h-3 w-3" />
                         <span>{formatTime(ts.timestampSeconds)}</span>
-                        <span className="text-foreground/70 font-normal truncate max-w-[180px]">{ts.label}</span>
+                        <span className="text-foreground/70 font-normal truncate max-w-[180px]">
+                          {ts.label}
+                        </span>
                       </button>
                     ))}
                   </div>
@@ -225,7 +280,9 @@ export function SummaryViewModal(): React.JSX.Element {
                   onClick={() => setViewMarkdown(!viewMarkdown)}
                   className="text-xs text-muted-foreground hover:text-foreground h-7"
                 >
-                  {viewMarkdown ? t('summaries.hideRawMarkdown', 'Ocultar Markdown') : t('summaries.viewRawMarkdown', 'Ver Markdown Completo')}
+                  {viewMarkdown
+                    ? t('summaries.hideRawMarkdown', 'Ocultar Markdown')
+                    : t('summaries.viewRawMarkdown', 'Ver Markdown Completo')}
                 </Button>
 
                 {viewMarkdown && (

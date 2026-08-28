@@ -12,37 +12,37 @@ export interface CourseCoverProps {
   badge?: string
 }
 
-// Deterministic multi-stop tactile study palettes based on title
+// Deterministic tactile study palettes based on title
 const PALETTES = [
   {
-    bg: 'from-[#1c1208] via-[#140d0a] to-[#080b11]',
-    glow: 'bg-orange-500/20',
-    accent: 'from-orange-600 to-amber-500',
-    tagColor: 'text-amber-400 border-amber-500/30'
+    bg: 'bg-[#241a12]',
+    glow: 'bg-primary/20',
+    accent: 'bg-primary',
+    tagColor: 'text-primary border-primary/30'
   },
   {
-    bg: 'from-[#0b1329] via-[#090e1f] to-[#080b11]',
-    glow: 'bg-blue-600/20',
-    accent: 'from-blue-600 to-indigo-600',
-    tagColor: 'text-blue-400 border-blue-500/30'
+    bg: 'bg-[#17201d]',
+    glow: 'bg-accent/20',
+    accent: 'bg-accent',
+    tagColor: 'text-accent border-accent/30'
   },
   {
-    bg: 'from-[#061c16] via-[#081512] to-[#080b11]',
-    glow: 'bg-emerald-600/20',
-    accent: 'from-emerald-600 to-teal-600',
-    tagColor: 'text-emerald-400 border-emerald-500/30'
+    bg: 'bg-[#14201c]',
+    glow: 'bg-accent/20',
+    accent: 'bg-accent',
+    tagColor: 'text-accent border-accent/30'
   },
   {
-    bg: 'from-[#220c15] via-[#170912] to-[#080b11]',
-    glow: 'bg-rose-600/20',
-    accent: 'from-rose-600 to-amber-600',
-    tagColor: 'text-rose-400 border-rose-500/30'
+    bg: 'bg-[#21171a]',
+    glow: 'bg-destructive/20',
+    accent: 'bg-destructive',
+    tagColor: 'text-destructive border-destructive/30'
   },
   {
-    bg: 'from-[#1a1406] via-[#120f08] to-[#080b11]',
-    glow: 'bg-amber-600/20',
-    accent: 'from-amber-600 to-yellow-500',
-    tagColor: 'text-amber-300 border-amber-500/30'
+    bg: 'bg-[#211d12]',
+    glow: 'bg-primary/20',
+    accent: 'bg-primary',
+    tagColor: 'text-primary border-primary/30'
   }
 ]
 
@@ -73,7 +73,7 @@ export function CourseCover({
     <div
       className={`relative w-full overflow-hidden ${
         aspectRatio === 'video' ? 'aspect-video' : 'aspect-square'
-      } rounded-xl bg-[#080B11] flex items-center justify-center select-none ${className}`}
+      } rounded-xl bg-background flex items-center justify-center select-none ${className}`}
     >
       {url ? (
         <img
@@ -85,19 +85,20 @@ export function CourseCover({
         />
       ) : (
         <div
-          className={`relative h-full w-full flex flex-col justify-between p-3.5 sm:p-4.5 bg-gradient-to-br ${palette.bg} border border-white/10 overflow-hidden`}
+          className={`relative h-full w-full flex flex-col justify-between p-3.5 sm:p-4.5 ${palette.bg} border border-white/10 overflow-hidden`}
         >
           {/* Subtle atmospheric ambient glow */}
           <div
             className={`absolute -top-10 -right-10 w-32 h-32 rounded-full ${palette.glow} blur-2xl pointer-events-none`}
           />
-          <div className="absolute -bottom-10 -left-10 w-32 h-32 rounded-full bg-blue-500/10 blur-2xl pointer-events-none" />
+          <div className="absolute -bottom-10 -left-10 w-32 h-32 rounded-full bg-accent/10 blur-2xl pointer-events-none" />
 
           {/* Micro dot-grid texture overlay */}
           <div
             className="absolute inset-0 opacity-15 pointer-events-none"
             style={{
-              backgroundImage: 'radial-gradient(rgba(255,255,255,0.4) 1px, transparent 1px)',
+              backgroundImage:
+                'radial-gradient(rgba(255,255,255,0.4) 1px, transparent 1px)',
               backgroundSize: '16px 16px'
             }}
           />
@@ -129,9 +130,9 @@ export function CourseCover({
             )}
           </div>
 
-          {/* Decorative vibrant bottom accent border */}
+          {/* Quiet tactile bottom accent */}
           <div
-            className={`absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r ${palette.accent}`}
+            className={`absolute bottom-0 left-0 right-0 h-1 ${palette.accent}`}
           />
         </div>
       )}

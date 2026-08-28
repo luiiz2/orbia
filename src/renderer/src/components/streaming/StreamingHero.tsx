@@ -29,7 +29,7 @@ export function StreamingHero({
 
   return (
     <div
-      className={`relative w-full rounded-2xl overflow-hidden border border-white/[0.08] bg-[#07090E] shadow-2xl ${className}`}
+      className={`relative w-full rounded-2xl overflow-hidden border border-white/[0.08] bg-[#101312] shadow-2xl ${className}`}
     >
       {/* Background Media Art with Cinematic Gradient Fades */}
       <div className="absolute inset-0 z-0">
@@ -39,10 +39,10 @@ export function StreamingHero({
           className="w-full h-full object-cover scale-105 filter blur-xs opacity-40 brightness-75 transition-transform duration-1000 ease-out hover:scale-110"
         />
         {/* Multi-directional vignette to ensure text contrast */}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#07090E] via-[#07090E]/70 to-transparent" />
-        <div className="absolute inset-0 bg-gradient-to-r from-[#07090E] via-[#07090E]/80 to-transparent w-full md:w-3/4" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#101312] via-[#101312]/70 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#101312] via-[#101312]/80 to-transparent w-full md:w-3/4" />
         {/* Radial ambient spotlight */}
-        <div className="absolute top-0 left-1/4 w-96 h-96 rounded-full bg-orange-500/10 blur-3xl pointer-events-none" />
+        <div className="absolute top-0 left-1/4 w-96 h-96 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
       </div>
 
       {/* Content Layer */}
@@ -55,8 +55,8 @@ export function StreamingHero({
           </div>
 
           {course.isFavorite && (
-            <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/20 backdrop-blur-md border border-amber-500/30 text-amber-400 text-[10px] sm:text-xs font-bold font-mono">
-              <Star className="w-3 h-3 fill-amber-400" />
+            <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/20 backdrop-blur-md border border-primary/30 text-primary text-[10px] sm:text-xs font-bold font-mono">
+              <Star className="w-3 h-3 fill-primary" />
               <span>Favorito</span>
             </div>
           )}
@@ -71,18 +71,20 @@ export function StreamingHero({
         {isStarted && lastLessonTitle ? (
           <div className="space-y-1.5 max-w-xl">
             <div className="flex items-center gap-2 text-xs sm:text-sm text-slate-300 font-medium">
-              <span className="text-amber-400 font-semibold">Aula Atual:</span>
+              <span className="text-primary font-semibold">Aula Atual:</span>
               <span className="truncate text-white">{lastLessonTitle}</span>
             </div>
             {/* Embedded Mini Progress Bar */}
             <div className="flex items-center gap-3">
               <div className="h-1.5 w-48 sm:w-64 rounded-full bg-white/20 overflow-hidden">
                 <div
-                  className="h-full bg-gradient-to-r from-orange-500 to-amber-400 rounded-full"
+                  className="h-full bg-primary rounded-full"
                   style={{ width: `${percentage}%` }}
                 />
               </div>
-              <span className="text-xs font-mono font-bold text-amber-400">{percentage}%</span>
+              <span className="text-xs font-mono font-bold text-primary">
+                {percentage}%
+              </span>
             </div>
           </div>
         ) : course.description ? (
@@ -113,7 +115,9 @@ export function StreamingHero({
             className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold px-6 py-2.5 rounded-xl shadow-lg shadow-primary/25 gap-2 cursor-pointer transition-all hover:scale-102 active:scale-98"
           >
             <Play className="w-5 h-5 fill-current ml-0.5" />
-            <span>{isStarted ? 'Continuar Assistindo' : 'Começar a Assistir'}</span>
+            <span>
+              {isStarted ? 'Continuar Assistindo' : 'Começar a Assistir'}
+            </span>
           </Button>
 
           {onToggleFavorite && (
@@ -125,16 +129,20 @@ export function StreamingHero({
                   onClick={onToggleFavorite}
                   className={`h-11 w-11 rounded-xl backdrop-blur-md border border-white/15 cursor-pointer transition-all ${
                     course.isFavorite
-                      ? 'bg-amber-500/20 text-amber-400 border-amber-500/40'
-                      : 'bg-black/40 text-white hover:bg-black/60 hover:text-amber-400'
+                      ? 'bg-primary/20 text-primary border-primary/40'
+                      : 'bg-black/40 text-white hover:bg-black/60 hover:text-primary'
                   }`}
                   aria-label="Favoritar"
                 >
-                  <Star className={`w-5 h-5 ${course.isFavorite ? 'fill-amber-400' : ''}`} />
+                  <Star
+                    className={`w-5 h-5 ${course.isFavorite ? 'fill-primary' : ''}`}
+                  />
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="top">
-                {course.isFavorite ? 'Remover dos Favoritos' : 'Adicionar aos Favoritos'}
+                {course.isFavorite
+                  ? 'Remover dos Favoritos'
+                  : 'Adicionar aos Favoritos'}
               </TooltipContent>
             </Tooltip>
           )}

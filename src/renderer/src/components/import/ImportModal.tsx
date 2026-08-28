@@ -25,7 +25,8 @@ import type { ProposedCourseStructure } from '@shared'
 
 export function ImportModal(): React.JSX.Element {
   const { t } = useTranslation()
-  const { isImportModalOpen, setImportModalOpen, navigateToCourse } = useNavigationStore()
+  const { isImportModalOpen, setImportModalOpen, navigateToCourse } =
+    useNavigationStore()
   const { importCourse } = useLibraryStore()
 
   const [step, setStep] = useState<'select' | 'scanning' | 'preview'>('select')
@@ -99,7 +100,10 @@ export function ImportModal(): React.JSX.Element {
   }
 
   return (
-    <Dialog open={isImportModalOpen} onOpenChange={(open) => !open && handleClose()}>
+    <Dialog
+      open={isImportModalOpen}
+      onOpenChange={(open) => !open && handleClose()}
+    >
       <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
         <DialogHeader>
           <div className="flex items-center gap-2">
@@ -107,7 +111,9 @@ export function ImportModal(): React.JSX.Element {
             <DialogTitle>{t('import.title')}</DialogTitle>
           </div>
           <DialogDescription>
-            {step === 'preview' ? t('import.previewSubtitle') : 'Add local course files to your study library'}
+            {step === 'preview'
+              ? t('import.previewSubtitle')
+              : 'Add local course files to your study library'}
           </DialogDescription>
         </DialogHeader>
 
@@ -125,12 +131,19 @@ export function ImportModal(): React.JSX.Element {
               <FolderSearch className="h-8 w-8 text-primary" />
             </div>
             <div>
-              <p className="text-sm font-medium text-foreground">Select a course directory on disk</p>
+              <p className="text-sm font-medium text-foreground">
+                Select a course directory on disk
+              </p>
               <p className="text-xs text-muted-foreground max-w-sm mt-1">
-                Orbia will scan and organize video files and modules automatically.
+                Orbia will scan and organize video files and modules
+                automatically.
               </p>
             </div>
-            <Button onClick={handleSelectFolder} size="lg" className="gap-2 shadow">
+            <Button
+              onClick={handleSelectFolder}
+              size="lg"
+              className="gap-2 shadow"
+            >
               <Folder className="h-4 w-4" />
               <span>{t('import.selectFolder')}</span>
             </Button>
@@ -141,7 +154,9 @@ export function ImportModal(): React.JSX.Element {
         {step === 'scanning' && (
           <div className="flex flex-col items-center justify-center py-12 text-center space-y-3">
             <Loader2 className="h-8 w-8 text-primary animate-spin" />
-            <p className="text-sm font-medium text-foreground">{t('import.scanning')}</p>
+            <p className="text-sm font-medium text-foreground">
+              {t('import.scanning')}
+            </p>
             <p className="text-xs font-mono text-muted-foreground truncate max-w-md">
               {selectedPath}
             </p>
@@ -166,7 +181,9 @@ export function ImportModal(): React.JSX.Element {
 
             {/* Storage Mode Selection */}
             <div className="rounded-xl border border-border/80 bg-secondary/20 p-3 space-y-2">
-              <span className="text-xs font-semibold text-foreground">Storage Mode</span>
+              <span className="text-xs font-semibold text-foreground">
+                Storage Mode
+              </span>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                 <button
                   type="button"
@@ -177,7 +194,9 @@ export function ImportModal(): React.JSX.Element {
                       : 'border-border/60 bg-card text-muted-foreground hover:bg-secondary/40'
                   }`}
                 >
-                  <p className="font-semibold text-foreground">{t('import.referenceExternal')}</p>
+                  <p className="font-semibold text-foreground">
+                    {t('import.referenceExternal')}
+                  </p>
                   <p className="text-[11px] text-muted-foreground mt-0.5">
                     Leave original files in their current directory.
                   </p>
@@ -191,7 +210,9 @@ export function ImportModal(): React.JSX.Element {
                       : 'border-border/60 bg-card text-muted-foreground hover:bg-secondary/40'
                   }`}
                 >
-                  <p className="font-semibold text-foreground">{t('import.saveToVault')}</p>
+                  <p className="font-semibold text-foreground">
+                    {t('import.saveToVault')}
+                  </p>
                   <p className="text-[11px] text-muted-foreground mt-0.5">
                     Copy or manage course inside your active Study Folder.
                   </p>
@@ -203,13 +224,17 @@ export function ImportModal(): React.JSX.Element {
             <div className="space-y-2">
               <div className="flex items-center justify-between text-xs font-semibold text-foreground">
                 <span>
-                  Detected Curriculum ({proposal.modules.length} modules, {proposal.totalLessons} lessons)
+                  Detected Curriculum ({proposal.modules.length} modules,{' '}
+                  {proposal.totalLessons} lessons)
                 </span>
               </div>
 
               <div className="max-h-60 overflow-y-auto space-y-2 rounded-xl border border-border/60 bg-card/60 p-2">
                 {proposal.modules.map((mod, idx) => (
-                  <div key={mod.id || idx} className="rounded-lg border border-border/40 bg-secondary/20 p-2 text-xs">
+                  <div
+                    key={mod.id || idx}
+                    className="rounded-lg border border-border/40 bg-secondary/20 p-2 text-xs"
+                  >
                     <div className="flex items-center gap-2 font-semibold text-foreground mb-1">
                       <Folder className="h-3.5 w-3.5 text-primary" />
                       <span>{mod.title}</span>
@@ -242,12 +267,20 @@ export function ImportModal(): React.JSX.Element {
         )}
 
         <DialogFooter className="gap-2 sm:gap-0 pt-3 border-t border-border">
-          <Button variant="outline" onClick={handleClose} disabled={isImporting}>
+          <Button
+            variant="outline"
+            onClick={handleClose}
+            disabled={isImporting}
+          >
             {t('common.cancel')}
           </Button>
 
           {step === 'preview' && (
-            <Button onClick={handleConfirmImport} disabled={isImporting} className="gap-1.5 shadow">
+            <Button
+              onClick={handleConfirmImport}
+              disabled={isImporting}
+              className="gap-1.5 shadow"
+            >
               {isImporting ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />

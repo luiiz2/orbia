@@ -18,7 +18,11 @@ export interface SpeedMenuProps {
 
 const SPEED_OPTIONS = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0]
 
-export function SpeedMenu({ playbackRate, onRateChange, className }: SpeedMenuProps): React.JSX.Element {
+export function SpeedMenu({
+  playbackRate,
+  onRateChange,
+  className
+}: SpeedMenuProps): React.JSX.Element {
   const { t } = useTranslation()
 
   return (

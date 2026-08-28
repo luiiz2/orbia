@@ -3,15 +3,7 @@ import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { useProfileStore } from '../../stores/useProfileStore'
 import { mediaUrl } from '../../lib/utils'
-import {
-  Plus,
-  Edit2,
-  Trash2,
-  Camera,
-  Save,
-  X,
-  Settings2
-} from 'lucide-react'
+import { Plus, Edit2, Trash2, Camera, Save, X, Settings2 } from 'lucide-react'
 import type { LocalProfile } from '@shared'
 
 interface StartupProfilePickerProps {
@@ -21,12 +13,8 @@ interface StartupProfilePickerProps {
 export function StartupProfilePicker({
   onSelect
 }: StartupProfilePickerProps): React.JSX.Element {
-  const {
-    profiles,
-    createProfile,
-    updateProfile,
-    deleteProfile
-  } = useProfileStore()
+  const { profiles, createProfile, updateProfile, deleteProfile } =
+    useProfileStore()
 
   const [isManaging, setIsManaging] = useState(false)
   const [editingProfileId, setEditingProfileId] = useState<string | null>(null)
@@ -59,7 +47,11 @@ export function StartupProfilePicker({
       alert('Você precisa ter pelo menos um perfil cadastrado.')
       return
     }
-    if (confirm(`Deseja realmente excluir o perfil "${name}"? Os cursos e progresso continuarão intactos na biblioteca.`)) {
+    if (
+      confirm(
+        `Deseja realmente excluir o perfil "${name}"? Os cursos e progresso continuarão intactos na biblioteca.`
+      )
+    ) {
       await deleteProfile(id)
     }
   }
@@ -75,7 +67,10 @@ export function StartupProfilePicker({
     if (!newProfileName.trim()) return
     setIsCreating(true)
     try {
-      const p = await createProfile(newProfileName.trim(), newProfileAvatar || undefined)
+      const p = await createProfile(
+        newProfileName.trim(),
+        newProfileAvatar || undefined
+      )
       if (p) {
         setNewProfileName('')
         setNewProfileAvatar(null)
@@ -123,10 +118,14 @@ export function StartupProfilePicker({
                       handleChangeAvatar(p.id)
                     }
                   }}
-                  className="h-24 w-24 sm:h-28 sm:w-28 rounded-3xl overflow-hidden border-2 border-border/80 group-hover:border-primary shadow-xl bg-gradient-to-tr from-orange-500 to-amber-400 flex items-center justify-center text-white font-extrabold text-3xl sm:text-4xl cursor-pointer transition-all duration-200"
+                  className="h-24 w-24 sm:h-28 sm:w-28 rounded-3xl overflow-hidden border-2 border-border/80 group-hover:border-primary shadow-xl bg-primary flex items-center justify-center text-primary-foreground font-extrabold text-3xl sm:text-4xl cursor-pointer transition-all duration-200"
                 >
                   {p.avatarPath ? (
-                    <img src={mediaUrl(p.avatarPath)} alt={p.name} className="h-full w-full object-cover" />
+                    <img
+                      src={mediaUrl(p.avatarPath)}
+                      alt={p.name}
+                      className="h-full w-full object-cover"
+                    />
                   ) : (
                     <span>{p.name.charAt(0).toUpperCase()}</span>
                   )}
@@ -230,7 +229,9 @@ export function StartupProfilePicker({
       {isAddingNew && (
         <div className="p-5 rounded-3xl border border-primary/40 bg-card shadow-2xl space-y-4 max-w-sm w-full animate-in fade-in zoom-in-95">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-foreground">Criar Novo Perfil</h3>
+            <h3 className="text-sm font-bold text-foreground">
+              Criar Novo Perfil
+            </h3>
             <button
               type="button"
               onClick={() => setIsAddingNew(false)}
@@ -247,7 +248,11 @@ export function StartupProfilePicker({
               title="Escolher foto"
             >
               {newProfileAvatar ? (
-                <img src={mediaUrl(newProfileAvatar)} alt="Avatar" className="h-full w-full object-cover" />
+                <img
+                  src={mediaUrl(newProfileAvatar)}
+                  alt="Avatar"
+                  className="h-full w-full object-cover"
+                />
               ) : (
                 <Camera className="h-6 w-6 text-muted-foreground group-hover:text-primary" />
               )}

@@ -1,6 +1,15 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
-import { PackageCheck, ShieldCheck, Check, X, Layers, FileText, Sparkles, Bookmark } from 'lucide-react'
+import {
+  PackageCheck,
+  ShieldCheck,
+  Check,
+  X,
+  Layers,
+  FileText,
+  Sparkles,
+  Bookmark
+} from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -43,7 +52,10 @@ export function BackupPreviewModal({
     : '-'
 
   return (
-    <Dialog open={open} onOpenChange={(val) => !val && !isRestoring && onClose()}>
+    <Dialog
+      open={open}
+      onOpenChange={(val) => !val && !isRestoring && onClose()}
+    >
       <DialogContent className="max-w-md bg-card/95 backdrop-blur-2xl border border-border/80 p-6 shadow-2xl">
         <DialogHeader>
           <div className="flex items-center gap-3 mb-1">
@@ -55,7 +67,8 @@ export function BackupPreviewModal({
                 {t('backup.previewTitle', 'Restaurar Backup do Vault')}
               </DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground">
-                {manifest?.vaultName || 'Vault'} · Orbia {manifest?.appVersion || 'v0.3'}
+                {manifest?.vaultName || 'Vault'} · Orbia{' '}
+                {manifest?.appVersion || 'v0.3'}
               </DialogDescription>
             </div>
           </div>
@@ -66,49 +79,70 @@ export function BackupPreviewModal({
           <div className="p-3.5 rounded-2xl bg-secondary/30 border border-border/60 text-xs space-y-2">
             <div className="flex items-center justify-between text-muted-foreground pb-1.5 border-b border-border/40">
               <span>Data de Criação</span>
-              <span className="font-semibold text-foreground">{formattedDate}</span>
+              <span className="font-semibold text-foreground">
+                {formattedDate}
+              </span>
             </div>
 
             <div className="grid grid-cols-2 gap-2 pt-1">
               <div className="flex items-center gap-2 p-2 rounded-xl bg-background/60 border border-border/40">
                 <Layers className="h-4 w-4 text-primary" />
                 <div>
-                  <div className="font-bold text-foreground text-xs">{manifest?.courseCount ?? 0}</div>
-                  <div className="text-[10px] text-muted-foreground">Cursos</div>
+                  <div className="font-bold text-foreground text-xs">
+                    {manifest?.courseCount ?? 0}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground">
+                    Cursos
+                  </div>
                 </div>
               </div>
 
               <div className="flex items-center gap-2 p-2 rounded-xl bg-background/60 border border-border/40">
                 <FileText className="h-4 w-4 text-emerald-400" />
                 <div>
-                  <div className="font-bold text-foreground text-xs">{manifest?.notesCount ?? 0}</div>
-                  <div className="text-[10px] text-muted-foreground">Anotações</div>
+                  <div className="font-bold text-foreground text-xs">
+                    {manifest?.notesCount ?? 0}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground">
+                    Anotações
+                  </div>
                 </div>
               </div>
 
               <div className="flex items-center gap-2 p-2 rounded-xl bg-background/60 border border-border/40">
-                <Sparkles className="h-4 w-4 text-purple-400" />
+                <Sparkles className="h-4 w-4 text-accent" />
                 <div>
-                  <div className="font-bold text-foreground text-xs">{manifest?.flashcardsCount ?? 0}</div>
-                  <div className="text-[10px] text-muted-foreground">Flashcards</div>
+                  <div className="font-bold text-foreground text-xs">
+                    {manifest?.flashcardsCount ?? 0}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground">
+                    Flashcards
+                  </div>
                 </div>
               </div>
 
               <div className="flex items-center gap-2 p-2 rounded-xl bg-background/60 border border-border/40">
-                <Bookmark className="h-4 w-4 text-amber-500" />
+                <Bookmark className="h-4 w-4 text-primary" />
                 <div>
-                  <div className="font-bold text-foreground text-xs">{manifest?.bookmarksCount ?? 0}</div>
-                  <div className="text-[10px] text-muted-foreground">Marcadores</div>
+                  <div className="font-bold text-foreground text-xs">
+                    {manifest?.bookmarksCount ?? 0}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground">
+                    Marcadores
+                  </div>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Safety Rollback Badge */}
-          <div className="flex items-start gap-2 p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-xs text-blue-300">
-            <ShieldCheck className="h-4 w-4 text-blue-400 shrink-0 mt-0.5" />
+          <div className="flex items-start gap-2 p-3 rounded-xl bg-accent/10 border border-accent/20 text-xs text-accent">
+            <ShieldCheck className="h-4 w-4 text-accent shrink-0 mt-0.5" />
             <span>
-              {t('backup.safetyNotice', 'Uma cópia de segurança do seu banco atual será criada automaticamente antes de restaurar.')}
+              {t(
+                'backup.safetyNotice',
+                'Uma cópia de segurança do seu banco atual será criada automaticamente antes de restaurar.'
+              )}
             </span>
           </div>
         </div>

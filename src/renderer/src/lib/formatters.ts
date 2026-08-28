@@ -45,11 +45,15 @@ export function formatFileSize(bytes: number): string {
   if (isNaN(bytes) || bytes <= 0 || !isFinite(bytes)) return '0 B'
 
   const units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']
-  const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1)
-  const formatted = parseFloat((bytes / Math.pow(1024, i)).toFixed(i === 0 ? 0 : 1))
+  const i = Math.min(
+    Math.floor(Math.log(bytes) / Math.log(1024)),
+    units.length - 1
+  )
+  const formatted = parseFloat(
+    (bytes / Math.pow(1024, i)).toFixed(i === 0 ? 0 : 1)
+  )
 
   return `${formatted} ${units[i]}`
 }
 
 export const formatBytes = formatFileSize
-

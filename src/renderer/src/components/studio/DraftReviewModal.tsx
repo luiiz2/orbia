@@ -33,7 +33,8 @@ export function DraftReviewModal(): React.JSX.Element | null {
             <span>Revisar Alterações Pendentes ({draftChanges.length})</span>
           </DialogTitle>
           <DialogDescription>
-            Confirme as edições em lote antes de gravá-las no banco de dados. Todas as operações são transacionais e reversíveis pelo Histórico.
+            Confirme as edições em lote antes de gravá-las no banco de dados.
+            Todas as operações são transacionais e reversíveis pelo Histórico.
           </DialogDescription>
         </DialogHeader>
 
@@ -45,7 +46,9 @@ export function DraftReviewModal(): React.JSX.Element | null {
               className="flex items-center justify-between gap-3 p-2 rounded bg-background border border-border/30"
             >
               <div className="flex-1 min-w-0">
-                <span className="font-bold text-foreground capitalize mr-2">[{change.field}]</span>
+                <span className="font-bold text-foreground capitalize mr-2">
+                  [{change.field}]
+                </span>
                 <span className="text-muted-foreground line-through mr-2">
                   {String(change.oldValue ?? '(vazio)')}
                 </span>
@@ -78,7 +81,11 @@ export function DraftReviewModal(): React.JSX.Element | null {
           </Button>
 
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => setDraftModalOpen(false)}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setDraftModalOpen(false)}
+            >
               Continuar Editando
             </Button>
             <Button
@@ -86,7 +93,9 @@ export function DraftReviewModal(): React.JSX.Element | null {
               onClick={applyDraftChanges}
               disabled={isLoading || draftChanges.length === 0}
             >
-              {isLoading ? 'Gravando...' : `Aplicar ${draftChanges.length} Alterações`}
+              {isLoading
+                ? 'Gravando...'
+                : `Aplicar ${draftChanges.length} Alterações`}
             </Button>
           </div>
         </DialogFooter>

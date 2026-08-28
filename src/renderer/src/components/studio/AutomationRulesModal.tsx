@@ -41,7 +41,9 @@ export function AutomationRulesModal(): React.JSX.Element | null {
         isActive: true,
         executionMode: 'manual',
         triggerEvent: 'onManualTrigger',
-        conditions: [{ field: 'entity_type', operator: 'equals', value: 'lesson' }],
+        conditions: [
+          { field: 'entity_type', operator: 'equals', value: 'lesson' }
+        ],
         actions: [{ actionType: 'add_tag', params: { tag: 'Revisado' } }]
       })
       setRuleName('')
@@ -56,7 +58,9 @@ export function AutomationRulesModal(): React.JSX.Element | null {
     try {
       const res = await window.api.studio.executeAutomationRule(ruleId)
       if (res.success) {
-        alert(`Regra executada com sucesso! ${res.affectedCount} item(ns) afetado(s).`)
+        alert(
+          `Regra executada com sucesso! ${res.affectedCount} item(ns) afetado(s).`
+        )
       }
     } finally {
       setIsExecuting(null)
@@ -73,11 +77,12 @@ export function AutomationRulesModal(): React.JSX.Element | null {
       <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Zap className="h-5 w-5 text-amber-500" />
+            <Zap className="h-5 w-5 text-primary" />
             <span>Motor de Automações Locais (Regras Determinísticas)</span>
           </DialogTitle>
           <DialogDescription>
-            Crie regras de automação local baseadas em condições (IF ➔ THEN). Sem IA e sem dependência de serviços externos.
+            Crie regras de automação local baseadas em condições (IF ➔ THEN).
+            Sem IA e sem dependência de serviços externos.
           </DialogDescription>
         </DialogHeader>
 
@@ -85,7 +90,9 @@ export function AutomationRulesModal(): React.JSX.Element | null {
         <div className="p-3 rounded-xl border border-border/50 bg-muted/20 space-y-3 text-xs">
           <div className="grid grid-cols-3 gap-3">
             <div className="col-span-2">
-              <label className="font-semibold text-foreground">Nome da Regra:</label>
+              <label className="font-semibold text-foreground">
+                Nome da Regra:
+              </label>
               <Input
                 value={ruleName}
                 onChange={(e) => setRuleName(e.target.value)}
@@ -94,7 +101,9 @@ export function AutomationRulesModal(): React.JSX.Element | null {
               />
             </div>
             <div>
-              <label className="font-semibold text-foreground">Prioridade (Numérica):</label>
+              <label className="font-semibold text-foreground">
+                Prioridade (Numérica):
+              </label>
               <Input
                 type="number"
                 value={priority}
@@ -129,8 +138,10 @@ export function AutomationRulesModal(): React.JSX.Element | null {
             >
               <div className="space-y-1 min-w-0 flex-1 pr-3">
                 <div className="flex items-center gap-2">
-                  <span className="font-semibold text-foreground truncate">{rule.name}</span>
-                  <span className="px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-500 font-mono text-[10px] font-bold">
+                  <span className="font-semibold text-foreground truncate">
+                    {rule.name}
+                  </span>
+                  <span className="px-1.5 py-0.2 rounded bg-primary/10 text-primary font-mono text-[10px] font-bold">
                     P{rule.priority}
                   </span>
                   <span className="text-[10px] text-muted-foreground uppercase font-mono">
@@ -138,7 +149,8 @@ export function AutomationRulesModal(): React.JSX.Element | null {
                   </span>
                 </div>
                 <div className="text-[11px] text-muted-foreground">
-                  Condições: {rule.conditions.length} | Ações: {rule.actions.length}
+                  Condições: {rule.conditions.length} | Ações:{' '}
+                  {rule.actions.length}
                 </div>
               </div>
 
@@ -151,7 +163,9 @@ export function AutomationRulesModal(): React.JSX.Element | null {
                   className="h-7 text-xs rounded-lg flex items-center gap-1 cursor-pointer"
                 >
                   <Play className="h-3 w-3 text-emerald-500" />
-                  <span>{isExecuting === rule.id ? 'Executando...' : 'Executar'}</span>
+                  <span>
+                    {isExecuting === rule.id ? 'Executando...' : 'Executar'}
+                  </span>
                 </Button>
 
                 <Button
@@ -169,7 +183,11 @@ export function AutomationRulesModal(): React.JSX.Element | null {
         </div>
 
         <DialogFooter className="pt-2">
-          <Button variant="outline" size="sm" onClick={() => setAutomationModalOpen(false)}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setAutomationModalOpen(false)}
+          >
             Fechar
           </Button>
         </DialogFooter>

@@ -36,7 +36,8 @@ export function OrganizationHistoryModal(): React.JSX.Element | null {
             <span>Histórico de Organização da Biblioteca</span>
           </DialogTitle>
           <DialogDescription>
-            Visualize todas as alterações de estrutura, renomeações em massa e automações. É possível desfazer operações de forma segura.
+            Visualize todas as alterações de estrutura, renomeações em massa e
+            automações. É possível desfazer operações de forma segura.
           </DialogDescription>
         </DialogHeader>
 
@@ -68,7 +69,9 @@ export function OrganizationHistoryModal(): React.JSX.Element | null {
                       </span>
                     )}
                   </div>
-                  <h4 className="font-semibold text-foreground truncate">{entry.description}</h4>
+                  <h4 className="font-semibold text-foreground truncate">
+                    {entry.description}
+                  </h4>
                 </div>
 
                 {!entry.isUndone && (
@@ -89,7 +92,11 @@ export function OrganizationHistoryModal(): React.JSX.Element | null {
         </div>
 
         <DialogFooter className="pt-2">
-          <Button variant="outline" size="sm" onClick={() => setHistoryModalOpen(false)}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setHistoryModalOpen(false)}
+          >
             Fechar
           </Button>
         </DialogFooter>

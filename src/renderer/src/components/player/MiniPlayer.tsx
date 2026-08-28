@@ -1,5 +1,13 @@
 import React, { useRef, useEffect } from 'react'
-import { Play, Pause, Maximize2, X, RotateCcw, RotateCw, SkipForward } from 'lucide-react'
+import {
+  Play,
+  Pause,
+  Maximize2,
+  X,
+  RotateCcw,
+  RotateCw,
+  SkipForward
+} from 'lucide-react'
 import { usePlayerStore } from '../../stores/usePlayerStore'
 import { useNavigationStore } from '../../stores/useNavigationStore'
 import { mediaUrl } from '../../lib/utils'
@@ -28,7 +36,9 @@ export function MiniPlayer(): React.JSX.Element | null {
   const { currentView, navigateToPlayer } = useNavigationStore()
   const videoRef = useRef<HTMLVideoElement | null>(null)
 
-  const isVisible = Boolean(isMiniPlayerActive && currentView !== 'player' && activeLesson)
+  const isVisible = Boolean(
+    isMiniPlayerActive && currentView !== 'player' && activeLesson
+  )
 
   // Sync playback state with video element (always called, guarded internally)
   useEffect(() => {
@@ -37,7 +47,9 @@ export function MiniPlayer(): React.JSX.Element | null {
     if (!video) return
 
     if (isPlaying) {
-      video.play().catch((err) => console.warn('MiniPlayer autoplay prevented:', err))
+      video
+        .play()
+        .catch((err) => console.warn('MiniPlayer autoplay prevented:', err))
     } else {
       video.pause()
     }
@@ -115,17 +127,25 @@ export function MiniPlayer(): React.JSX.Element | null {
         />
       ) : (
         <div className="w-full h-full flex flex-col items-center justify-center bg-slate-950 p-4 text-center">
-          <p className="text-xs text-muted-foreground uppercase font-mono tracking-wider">Documento em Estudo</p>
-          <h4 className="text-sm font-semibold text-white mt-1 line-clamp-1">{activeLesson.title}</h4>
+          <p className="text-xs text-muted-foreground uppercase font-mono tracking-wider">
+            Documento em Estudo
+          </p>
+          <h4 className="text-sm font-semibold text-white mt-1 line-clamp-1">
+            {activeLesson.title}
+          </h4>
         </div>
       )}
 
       {/* Top Controls Overlay (Hover) */}
       <div className="absolute top-0 inset-x-0 p-2.5 bg-gradient-to-b from-black/90 via-black/40 to-transparent flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-30">
         <div className="flex-1 min-w-0 pr-2">
-          <h4 className="text-xs font-semibold text-white truncate drop-shadow-sm">{activeLesson.title}</h4>
+          <h4 className="text-xs font-semibold text-white truncate drop-shadow-sm">
+            {activeLesson.title}
+          </h4>
           {activeCourse && (
-            <p className="text-[10px] text-slate-300/80 truncate">{activeCourse.title}</p>
+            <p className="text-[10px] text-slate-300/80 truncate">
+              {activeCourse.title}
+            </p>
           )}
         </div>
 
@@ -141,7 +161,9 @@ export function MiniPlayer(): React.JSX.Element | null {
                 <Maximize2 className="h-3.5 w-3.5" />
               </button>
             </TooltipTrigger>
-            <TooltipContent side="top" className="text-xs">Expandir</TooltipContent>
+            <TooltipContent side="top" className="text-xs">
+              Expandir
+            </TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -155,7 +177,9 @@ export function MiniPlayer(): React.JSX.Element | null {
                 <X className="h-3.5 w-3.5" />
               </button>
             </TooltipTrigger>
-            <TooltipContent side="top" className="text-xs">Fechar</TooltipContent>
+            <TooltipContent side="top" className="text-xs">
+              Fechar
+            </TooltipContent>
           </Tooltip>
         </div>
       </div>
@@ -184,7 +208,11 @@ export function MiniPlayer(): React.JSX.Element | null {
           aria-label={isPlaying ? 'Pausar' : 'Reproduzir'}
           className="p-3 rounded-full bg-primary text-primary-foreground pointer-events-auto transition-transform hover:scale-110 cursor-pointer shadow-lg shadow-primary/30"
         >
-          {isPlaying ? <Pause className="h-5 w-5 fill-current" /> : <Play className="h-5 w-5 fill-current ml-0.5" />}
+          {isPlaying ? (
+            <Pause className="h-5 w-5 fill-current" />
+          ) : (
+            <Play className="h-5 w-5 fill-current ml-0.5" />
+          )}
         </button>
 
         <button
@@ -192,7 +220,10 @@ export function MiniPlayer(): React.JSX.Element | null {
           onClick={() => {
             const video = videoRef.current
             if (video) {
-              const target = Math.min(video.duration || duration, video.currentTime + 10)
+              const target = Math.min(
+                video.duration || duration,
+                video.currentTime + 10
+              )
               video.currentTime = target
               seek(target)
             }
@@ -223,7 +254,7 @@ export function MiniPlayer(): React.JSX.Element | null {
         {/* Progress Line */}
         <div className="w-full h-1 bg-white/20 rounded-full overflow-hidden">
           <div
-            className="h-full bg-gradient-to-r from-orange-500 to-amber-400 rounded-full transition-all duration-150"
+            className="h-full bg-primary rounded-full transition-all duration-150"
             style={{ width: `${percentage}%` }}
           />
         </div>

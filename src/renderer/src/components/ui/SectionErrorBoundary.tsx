@@ -1,20 +1,24 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
 import {
-  AlertTriangle,
-  Check,
+  AlertCircle,
   ChevronDown,
   ChevronUp,
   Copy,
-  RefreshCw
+  Check,
+  RefreshCw,
+  Home
 } from 'lucide-react'
-import { Button } from './ui/button'
+import { Button } from './button'
 
-interface Props {
+interface SectionErrorBoundaryProps {
   children: ReactNode
+  title?: string
   fallback?: ReactNode
+  onReset?: () => void
+  onNavigateHome?: () => void
 }
 
-interface State {
+interface SectionErrorBoundaryState {
   hasError: boolean
   error: Error | null
   errorInfo: ErrorInfo | null
@@ -22,8 +26,11 @@ interface State {
   copied: boolean
 }
 
-export class ErrorBoundary extends Component<Props, State> {
-  public state: State = {
+export class SectionErrorBoundary extends Component<
+  SectionErrorBoundaryProps,
+  SectionErrorBoundaryState
+> {
+  public state: SectionErrorBoundaryState = {
     hasError: false,
     error: null,
     errorInfo: null,
@@ -31,28 +38,36 @@ export class ErrorBoundary extends Component<Props, State> {
     copied: false
   }
 
-  public static getDerivedStateFromError(error: Error): Partial<State> {
+  public static getDerivedStateFromError(
+    error: Error
+  ): Partial<SectionErrorBoundaryState> {
     return { hasError: true, error }
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
     this.setState({ errorInfo })
     console.error(
-      '[React ErrorBoundary] Uncaught component error:',
+      '[SectionErrorBoundary] Intercepted component error:',
       error,
       errorInfo
     )
   }
 
-  private handleReload = (): void => {
-    this.setState({ hasError: false, error: null, errorInfo: null })
-    window.location.reload()
+  private handleReset = (): void => {
+    this.setState({
+      hasError: false,
+      error: null,
+      errorInfo: null,
+      showDetails: false,
+      copied: false
+    })
+    this.props.onReset?.()
   }
 
   private handleCopyDiagnostics = async (): Promise<void> => {
     const { error, errorInfo } = this.state
     const diagnostics = [
-      `[Orbia Critical Crash Report]`,
+      `[Orbia Error Report]`,
       `Timestamp: ${new Date().toISOString()}`,
       `Error: ${error?.name || 'Error'}: ${error?.message || 'Unknown error'}`,
       `Stack:\n${error?.stack || 'No stack trace'}`,
@@ -74,28 +89,29 @@ export class ErrorBoundary extends Component<Props, State> {
         return this.props.fallback
       }
 
+      const { title, onNavigateHome } = this.props
       const { error, errorInfo, showDetails, copied } = this.state
 
       return (
-        <div className="min-h-screen w-full flex items-center justify-center p-6 bg-background text-foreground bg-grid-subtle">
-          <div className="max-w-md w-full p-6 rounded-2xl bg-card border border-border text-center space-y-4 shadow-2xl backdrop-blur-md">
-            <div className="w-14 h-14 rounded-2xl bg-destructive/10 border border-destructive/30 flex items-center justify-center text-destructive mx-auto shadow-inner">
-              <AlertTriangle className="w-7 h-7" />
+        <div className="flex w-full flex-col items-center justify-center p-6 text-center animate-in fade-in duration-200">
+          <div className="w-full max-w-lg rounded-2xl border border-border/80 bg-card/90 p-6 shadow-xl backdrop-blur-sm space-y-4">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl border border-destructive/30 bg-destructive/10 text-destructive shadow-inner">
+              <AlertCircle className="h-6 w-6" />
             </div>
 
             <div className="space-y-1.5">
-              <h2 className="text-lg font-bold text-foreground">
-                Ocorreu um erro inesperado
-              </h2>
+              <h3 className="text-base font-bold text-foreground">
+                {title || 'Falha ao renderizar esta seção'}
+              </h3>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Um erro inesperado na interface foi interceptado com segurança.
-                Seus dados e progresso continuam preservados.
+                Ocorreu uma falha no carregamento deste painel. Seus dados e
+                progresso continuam intactos.
               </p>
             </div>
 
             {error && (
               <div className="space-y-2 text-left">
-                <div className="p-3 rounded-xl bg-secondary/40 border border-border/80 text-[11px] text-destructive font-mono select-all break-words">
+                <div className="rounded-lg border border-border/60 bg-secondary/30 p-2.5 font-mono text-[11px] text-destructive/90 select-all">
                   {error.message}
                 </div>
 
@@ -114,7 +130,9 @@ export class ErrorBoundary extends Component<Props, State> {
                     ) : (
                       <ChevronDown className="h-3 w-3" />
                     )}
-                    {showDetails ? 'Ocultar detalhes' : 'Ver detalhes técnicos'}
+                    {showDetails
+                      ? 'Ocultar detalhes técnicos'
+                      : 'Ver detalhes técnicos'}
                   </button>
 
                   <button
@@ -127,7 +145,7 @@ export class ErrorBoundary extends Component<Props, State> {
                     ) : (
                       <Copy className="h-3 w-3" />
                     )}
-                    {copied ? 'Copiado!' : 'Copiar diagnóstico'}
+                    {copied ? 'Diagnóstico copiado!' : 'Copiar diagnóstico'}
                   </button>
                 </div>
 
@@ -140,15 +158,29 @@ export class ErrorBoundary extends Component<Props, State> {
               </div>
             )}
 
-            <Button
-              onClick={this.handleReload}
-              variant="default"
-              size="sm"
-              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl shadow-md"
-            >
-              <RefreshCw className="w-3.5 h-3.5 mr-2" />
-              Recarregar Aplicação
-            </Button>
+            <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
+              <Button
+                variant="default"
+                size="sm"
+                onClick={this.handleReset}
+                className="font-semibold shadow-md rounded-xl"
+              >
+                <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+                Tentar Novamente
+              </Button>
+
+              {onNavigateHome && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onNavigateHome}
+                  className="rounded-xl"
+                >
+                  <Home className="mr-1.5 h-3.5 w-3.5" />
+                  Voltar ao Início
+                </Button>
+              )}
+            </div>
           </div>
         </div>
       )

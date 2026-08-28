@@ -1,12 +1,20 @@
 import { create } from 'zustand'
-import type { Course, Module, Lesson, LessonProgress, ProposedCourseStructure, CourseProgressSummary } from '@shared'
+import type {
+  Course,
+  Module,
+  Lesson,
+  LessonProgress,
+  ProposedCourseStructure,
+  CourseProgressSummary
+} from '@shared'
 
 export interface CourseHierarchy {
   course: Course
   modules: (Module & { lessons: Lesson[] })[]
 }
 
-export type CourseFilterStatus = 'all' | 'in_progress' | 'completed' | 'favorites'
+export type CourseFilterStatus =
+  'all' | 'in_progress' | 'completed' | 'favorites'
 
 export interface LibraryState {
   courses: Course[]
@@ -35,8 +43,14 @@ export interface LibraryState {
   clearImportHistory: () => Promise<void>
   updateCourseCover: (courseId: string, coverPath: string) => Promise<boolean>
   updateLessonCover: (lessonId: string, coverPath: string) => Promise<boolean>
-  deleteCourse: (id: string, deleteFiles: boolean) => Promise<{ success: boolean; error?: string }>
-  deleteLesson: (lessonId: string, deleteFileFromDisk?: boolean) => Promise<{ success: boolean; error?: string }>
+  deleteCourse: (
+    id: string,
+    deleteFiles: boolean
+  ) => Promise<{ success: boolean; error?: string }>
+  deleteLesson: (
+    lessonId: string,
+    deleteFileFromDisk?: boolean
+  ) => Promise<{ success: boolean; error?: string }>
   updateCourseMetadata: (courseId: string, customTitle: string) => Promise<void>
   updateModuleMetadata: (moduleId: string, customTitle: string) => Promise<void>
   updateLessonMetadata: (lessonId: string, customTitle: string) => Promise<void>
@@ -45,15 +59,26 @@ export interface LibraryState {
   toggleLessonFavorite: (lessonId: string) => Promise<boolean>
   toggleModuleCompletion: (moduleId: string, courseId: string) => Promise<void>
   searchGlobal: (query: string) => Promise<import('@shared').SearchResultItem[]>
-  
+
   courseHealth: import('@shared').CourseHealthReport | null
-  fetchCourseHealth: (courseId: string) => Promise<import('@shared').CourseHealthReport | null>
-  fixCourseProblems: (courseId: string) => Promise<{ success: boolean; fixedCount: number; removedCount: number; error?: string }>
+  fetchCourseHealth: (
+    courseId: string
+  ) => Promise<import('@shared').CourseHealthReport | null>
+  fixCourseProblems: (courseId: string) => Promise<{
+    success: boolean
+    fixedCount: number
+    removedCount: number
+    error?: string
+  }>
   autoOrganizeLibrary: () => Promise<import('@shared').AutoOrganizeResult>
-  separateMistakenlyMergedCourses: () => Promise<import('@shared').SeparateCoursesResult>
+  separateMistakenlyMergedCourses: () => Promise<
+    import('@shared').SeparateCoursesResult
+  >
   toggleFavorite: (courseId: string) => Promise<boolean>
   setSearchQuery: (query: string) => void
-  setFilterStatus: (status: 'all' | 'in_progress' | 'completed' | 'favorites') => void
+  setFilterStatus: (
+    status: 'all' | 'in_progress' | 'completed' | 'favorites'
+  ) => void
   setActiveCourse: (course: Course | null) => void
   clearActiveCourse: () => void
   clearError: () => void
@@ -77,7 +102,9 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
     try {
       const [courses, progressSummaries] = await Promise.all([
         window.api.courses.list(),
-        window.api.player.getAllProgressSummaries().catch(() => ({} as Record<string, CourseProgressSummary>))
+        window.api.player
+          .getAllProgressSummaries()
+          .catch(() => ({}) as Record<string, CourseProgressSummary>)
       ])
 
       set({
@@ -138,7 +165,10 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
     }
   },
 
-  importCourse: async (proposal: ProposedCourseStructure, isExternal: boolean) => {
+  importCourse: async (
+    proposal: ProposedCourseStructure,
+    isExternal: boolean
+  ) => {
     set({ isLoading: true, error: null })
     try {
       const res = await window.api.courses.importCourse(proposal, isExternal)
@@ -158,7 +188,9 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
     }
   },
 
-  importBatch: async (items: { proposal: ProposedCourseStructure; isExternal: boolean }[]) => {
+  importBatch: async (
+    items: { proposal: ProposedCourseStructure; isExternal: boolean }[]
+  ) => {
     set({ isLoading: true, error: null })
     try {
       const res = await window.api.courses.importBatch(items)
@@ -198,11 +230,16 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
 
   updateCourseCover: async (courseId: string, coverPath: string) => {
     try {
-      const res = await window.api.courses.updateCourseCover(courseId, coverPath)
+      const res = await window.api.courses.updateCourseCover(
+        courseId,
+        coverPath
+      )
       if (res.success) {
         // Optimistically update courses list and active course
         set((state) => ({
-          courses: state.courses.map((c) => (c.id === courseId ? { ...c, coverPath } : c)),
+          courses: state.courses.map((c) =>
+            c.id === courseId ? { ...c, coverPath } : c
+          ),
           activeCourse:
             state.activeCourse?.id === courseId
               ? { ...state.activeCourse, coverPath }
@@ -225,15 +262,22 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
 
   updateLessonCover: async (lessonId: string, coverPath: string) => {
     try {
-      const res = await window.api.courses.updateLessonCover(lessonId, coverPath)
+      const res = await window.api.courses.updateLessonCover(
+        lessonId,
+        coverPath
+      )
       if (res.success) {
         // Optimistically update activeCourseHierarchy
         set((state) => {
           if (!state.activeCourseHierarchy) return state
-          const updatedModules = state.activeCourseHierarchy.modules.map((mod) => ({
-            ...mod,
-            lessons: mod.lessons.map((l) => (l.id === lessonId ? { ...l, coverPath } : l))
-          }))
+          const updatedModules = state.activeCourseHierarchy.modules.map(
+            (mod) => ({
+              ...mod,
+              lessons: mod.lessons.map((l) =>
+                l.id === lessonId ? { ...l, coverPath } : l
+              )
+            })
+          )
           return {
             activeCourseHierarchy: {
               ...state.activeCourseHierarchy,
@@ -263,7 +307,8 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
           courses: updatedCourses,
           progressSummaries: updatedSummaries,
           activeCourse: activeCourse?.id === id ? null : activeCourse,
-          activeCourseHierarchy: activeCourse?.id === id ? null : get().activeCourseHierarchy,
+          activeCourseHierarchy:
+            activeCourse?.id === id ? null : get().activeCourseHierarchy,
           isLoading: false,
           error: null
         })
@@ -282,7 +327,10 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
 
   deleteLesson: async (lessonId: string, deleteFileFromDisk = false) => {
     try {
-      const res = await window.api.courses.deleteLesson(lessonId, deleteFileFromDisk)
+      const res = await window.api.courses.deleteLesson(
+        lessonId,
+        deleteFileFromDisk
+      )
       if (res.success) {
         const { activeCourseHierarchy } = get()
         if (activeCourseHierarchy) {
@@ -377,7 +425,8 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
   },
 
   toggleFavorite: async (courseId: string) => {
-    const current = get().courses.find((c) => c.id === courseId) || get().activeCourse
+    const current =
+      get().courses.find((c) => c.id === courseId) || get().activeCourse
     const newFavoriteState = current ? !current.isFavorite : true
 
     // Optimistically update courses, activeCourse, and activeCourseHierarchy
@@ -393,13 +442,17 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
         state.activeCourseHierarchy?.course.id === courseId
           ? {
               ...state.activeCourseHierarchy,
-              course: { ...state.activeCourseHierarchy.course, isFavorite: newFavoriteState }
+              course: {
+                ...state.activeCourseHierarchy.course,
+                isFavorite: newFavoriteState
+              }
             }
           : state.activeCourseHierarchy
     }))
 
     try {
-      const actualFavoriteState = await window.api.courses.toggleFavorite(courseId)
+      const actualFavoriteState =
+        await window.api.courses.toggleFavorite(courseId)
       if (actualFavoriteState !== newFavoriteState) {
         set((state) => ({
           courses: state.courses.map((c) =>
@@ -413,7 +466,10 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
             state.activeCourseHierarchy?.course.id === courseId
               ? {
                   ...state.activeCourseHierarchy,
-                  course: { ...state.activeCourseHierarchy.course, isFavorite: actualFavoriteState }
+                  course: {
+                    ...state.activeCourseHierarchy.course,
+                    isFavorite: actualFavoriteState
+                  }
                 }
               : state.activeCourseHierarchy
         }))
@@ -433,7 +489,10 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
           state.activeCourseHierarchy?.course.id === courseId
             ? {
                 ...state.activeCourseHierarchy,
-                course: { ...state.activeCourseHierarchy.course, isFavorite: !newFavoriteState }
+                course: {
+                  ...state.activeCourseHierarchy.course,
+                  isFavorite: !newFavoriteState
+                }
               }
             : state.activeCourseHierarchy
       }))
@@ -443,10 +502,15 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
 
   updateCourseMetadata: async (courseId: string, customTitle: string) => {
     try {
-      const res = await window.api.courses.updateMetadata({ courseId, customTitle })
+      const res = await window.api.courses.updateMetadata({
+        courseId,
+        customTitle
+      })
       if (res.success) {
         set((state) => ({
-          courses: state.courses.map((c) => (c.id === courseId ? { ...c, customTitle } : c)),
+          courses: state.courses.map((c) =>
+            c.id === courseId ? { ...c, customTitle } : c
+          ),
           activeCourse:
             state.activeCourse?.id === courseId
               ? { ...state.activeCourse, customTitle }
@@ -467,14 +531,17 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
 
   updateModuleMetadata: async (moduleId: string, customTitle: string) => {
     try {
-      const res = await window.api.courses.updateModuleMetadata({ moduleId, customTitle })
+      const res = await window.api.courses.updateModuleMetadata({
+        moduleId,
+        customTitle
+      })
       if (res.success) {
         set((state) => {
           if (!state.activeCourseHierarchy) return state
           return {
             activeCourseHierarchy: {
               ...state.activeCourseHierarchy,
-              modules: state.activeCourseHierarchy.modules.map(m =>
+              modules: state.activeCourseHierarchy.modules.map((m) =>
                 m.id === moduleId ? { ...m, customTitle } : m
               )
             }
@@ -488,16 +555,19 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
 
   updateLessonMetadata: async (lessonId: string, customTitle: string) => {
     try {
-      const res = await window.api.courses.updateLessonMetadata({ lessonId, customTitle })
+      const res = await window.api.courses.updateLessonMetadata({
+        lessonId,
+        customTitle
+      })
       if (res.success) {
         set((state) => {
           if (!state.activeCourseHierarchy) return state
           return {
             activeCourseHierarchy: {
               ...state.activeCourseHierarchy,
-              modules: state.activeCourseHierarchy.modules.map(m => ({
+              modules: state.activeCourseHierarchy.modules.map((m) => ({
                 ...m,
-                lessons: m.lessons.map(l =>
+                lessons: m.lessons.map((l) =>
                   l.id === lessonId ? { ...l, customTitle } : l
                 )
               }))
@@ -546,9 +616,9 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
         return {
           activeCourseHierarchy: {
             ...state.activeCourseHierarchy,
-            modules: state.activeCourseHierarchy.modules.map(m => ({
+            modules: state.activeCourseHierarchy.modules.map((m) => ({
               ...m,
-              lessons: m.lessons.map(l =>
+              lessons: m.lessons.map((l) =>
                 l.id === lessonId ? { ...l, isFavorite: newState } : l
               )
             }))
@@ -564,13 +634,19 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
 
   toggleModuleCompletion: async (moduleId: string, courseId: string) => {
     try {
-      const res = await window.api.courses.toggleModuleCompletion(moduleId, courseId)
+      const res = await window.api.courses.toggleModuleCompletion(
+        moduleId,
+        courseId
+      )
       if (res.success) {
         await Promise.all([
           get().fetchCourseProgress(courseId),
-          window.api.player.getAllProgressSummaries().then(summaries => {
-            set({ progressSummaries: summaries || {} })
-          }).catch(() => {})
+          window.api.player
+            .getAllProgressSummaries()
+            .then((summaries) => {
+              set({ progressSummaries: summaries || {} })
+            })
+            .catch(() => {})
         ])
       }
     } catch (err) {
@@ -591,7 +667,9 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
     set({ searchQuery })
   },
 
-  setFilterStatus: (filterStatus: 'all' | 'in_progress' | 'completed' | 'favorites') => {
+  setFilterStatus: (
+    filterStatus: 'all' | 'in_progress' | 'completed' | 'favorites'
+  ) => {
     set({ filterStatus })
   },
 

@@ -84,7 +84,11 @@ export function ProfileSelectorModal({
       alert('Você precisa ter pelo menos um perfil cadastrado.')
       return
     }
-    if (confirm(`Deseja realmente excluir o perfil "${name}"? Os cursos e o progresso continuam salvos na biblioteca.`)) {
+    if (
+      confirm(
+        `Deseja realmente excluir o perfil "${name}"? Os cursos e o progresso continuam salvos na biblioteca.`
+      )
+    ) {
       await deleteProfile(id)
     }
   }
@@ -100,7 +104,10 @@ export function ProfileSelectorModal({
     if (!newProfileName.trim()) return
     setIsCreating(true)
     try {
-      const p = await createProfile(newProfileName.trim(), newProfileAvatar || undefined)
+      const p = await createProfile(
+        newProfileName.trim(),
+        newProfileAvatar || undefined
+      )
       if (p) {
         setActiveProfile(p)
         setNewProfileName('')
@@ -169,7 +176,7 @@ export function ProfileSelectorModal({
                           handleChangeAvatar(p.id)
                         }
                       }}
-                      className="h-16 w-16 rounded-full overflow-hidden border-2 border-border/80 shadow-md bg-gradient-to-tr from-orange-500 to-amber-400 flex items-center justify-center text-white font-bold text-xl cursor-pointer group-hover:scale-105 transition-transform"
+                      className="h-16 w-16 rounded-full overflow-hidden border-2 border-border/80 shadow-md bg-primary flex items-center justify-center text-primary-foreground font-bold text-xl cursor-pointer group-hover:scale-105 transition-transform"
                     >
                       {p.avatarPath ? (
                         <img
@@ -249,7 +256,10 @@ export function ProfileSelectorModal({
 
                   {/* Active / Delete Badges */}
                   {!isManaging && isSelected && (
-                    <Badge variant="outline" className="text-[10px] h-4.5 px-1.5 py-0 border-primary/40 text-primary font-semibold mt-1.5 gap-1">
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] h-4.5 px-1.5 py-0 border-primary/40 text-primary font-semibold mt-1.5 gap-1"
+                    >
                       <Check className="h-2.5 w-2.5" /> Ativo
                     </Badge>
                   )}
@@ -278,7 +288,9 @@ export function ProfileSelectorModal({
                 <div className="h-14 w-14 rounded-full border border-dashed border-border flex items-center justify-center text-muted-foreground group-hover:text-primary mb-2">
                   <Plus className="h-6 w-6" />
                 </div>
-                <span className="text-xs font-semibold text-muted-foreground">Adicionar Perfil</span>
+                <span className="text-xs font-semibold text-muted-foreground">
+                  Adicionar Perfil
+                </span>
               </button>
             )}
           </div>
@@ -287,7 +299,9 @@ export function ProfileSelectorModal({
           {isAddingNew && (
             <div className="mt-4 p-4 rounded-2xl border border-primary/30 bg-primary/5 space-y-3 animate-in fade-in">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-foreground">Novo Perfil de Estudo</span>
+                <span className="text-xs font-bold text-foreground">
+                  Novo Perfil de Estudo
+                </span>
                 <button
                   type="button"
                   onClick={() => setIsAddingNew(false)}
@@ -305,7 +319,11 @@ export function ProfileSelectorModal({
                   title="Escolher foto"
                 >
                   {newProfileAvatar ? (
-                    <img src={mediaUrl(newProfileAvatar)} alt="Avatar" className="h-full w-full object-cover" />
+                    <img
+                      src={mediaUrl(newProfileAvatar)}
+                      alt="Avatar"
+                      className="h-full w-full object-cover"
+                    />
                   ) : (
                     <Camera className="h-5 w-5 text-muted-foreground group-hover:text-primary" />
                   )}
@@ -329,7 +347,9 @@ export function ProfileSelectorModal({
                       className="h-6 px-2 text-[11px] text-muted-foreground hover:text-foreground"
                     >
                       <Camera className="h-3 w-3 mr-1" />
-                      {newProfileAvatar ? 'Trocar Foto' : 'Adicionar Foto (Opcional)'}
+                      {newProfileAvatar
+                        ? 'Trocar Foto'
+                        : 'Adicionar Foto (Opcional)'}
                     </Button>
                   </div>
                 </div>
@@ -349,9 +369,15 @@ export function ProfileSelectorModal({
 
         <DialogFooter className="p-4 border-t border-border/50 bg-muted/20 flex items-center justify-between">
           <p className="text-[11px] text-muted-foreground">
-            Cada perfil mantém seus próprios temas, visualizações e preferências.
+            Cada perfil mantém seus próprios temas, visualizações e
+            preferências.
           </p>
-          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)} className="rounded-xl text-xs">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onOpenChange(false)}
+            className="rounded-xl text-xs"
+          >
             Fechar
           </Button>
         </DialogFooter>

@@ -1,7 +1,14 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Sparkles, ChevronLeft, ChevronRight, FileText } from 'lucide-react'
-import { Button, Skeleton, Tooltip, TooltipTrigger, TooltipContent, CourseCover } from '../ui'
+import {
+  Button,
+  Skeleton,
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+  CourseCover
+} from '../ui'
 import { useNavigationStore, usePlayerStore } from '../../stores'
 import { formatTime } from '../../lib/formatters'
 import type { WatchHistoryEntry } from '@shared'
@@ -16,7 +23,10 @@ interface ContinueCardProps {
   onResume: (entry: WatchHistoryEntry) => void
 }
 
-function ContinueCard({ entry, onResume }: ContinueCardProps): React.JSX.Element {
+function ContinueCard({
+  entry,
+  onResume
+}: ContinueCardProps): React.JSX.Element {
   const isPdf = entry.fileExtension?.toLowerCase().includes('pdf') || false
   const percentage =
     entry.duration > 0
@@ -53,7 +63,7 @@ function ContinueCard({ entry, onResume }: ContinueCardProps): React.JSX.Element
         {/* Top Progress Badge (video only) */}
         {!isPdf && percentage > 0 && (
           <div className="absolute top-2 right-2 z-30 pointer-events-none">
-            <span className="rounded-md bg-black/70 backdrop-blur-md px-2 py-0.5 text-[10px] font-bold text-amber-400 border border-white/10 shadow-xs font-mono">
+            <span className="rounded-md bg-black/70 backdrop-blur-md px-2 py-0.5 text-[10px] font-bold text-primary border border-white/10 shadow-xs font-mono">
               {percentage}%
             </span>
           </div>
@@ -63,7 +73,7 @@ function ContinueCard({ entry, onResume }: ContinueCardProps): React.JSX.Element
         {isPdf && (
           <div className="absolute top-2 right-2 z-30 pointer-events-none">
             <span className="rounded-md bg-black/70 backdrop-blur-md px-2 py-0.5 text-[10px] font-bold text-white/90 border border-white/10 shadow-xs uppercase flex items-center gap-1 font-mono">
-              <FileText className="h-2.5 w-2.5 text-amber-400" />
+              <FileText className="h-2.5 w-2.5 text-primary" />
               PDF
             </span>
           </div>
@@ -78,7 +88,7 @@ function ContinueCard({ entry, onResume }: ContinueCardProps): React.JSX.Element
         <p className="mt-0.5 flex items-center gap-1.5 text-[10px] text-muted-foreground">
           <span className="truncate">{entry.courseTitle}</span>
           {!isPdf && entry.currentTime > 0 && (
-            <span className="font-mono text-amber-400/90 shrink-0 font-medium">
+            <span className="font-mono text-primary/90 shrink-0 font-medium">
               {formatTime(entry.currentTime)}
               {entry.duration > 0 ? ` / ${formatTime(entry.duration)}` : ''}
             </span>
@@ -89,7 +99,10 @@ function ContinueCard({ entry, onResume }: ContinueCardProps): React.JSX.Element
   )
 }
 
-export function ContinueWatchingRail({ className, isLoading }: ContinueWatchingRailProps): React.JSX.Element | null {
+export function ContinueWatchingRail({
+  className,
+  isLoading
+}: ContinueWatchingRailProps): React.JSX.Element | null {
   const { t } = useTranslation()
   const { navigateToPlayer } = useNavigationStore()
   const { loadHierarchy } = usePlayerStore()
@@ -143,7 +156,10 @@ export function ContinueWatchingRail({ className, isLoading }: ContinueWatchingR
   // Loading skeleton state
   if (isLoading || isHistoryLoading) {
     return (
-      <section className={`space-y-3.5 ${className || ''}`} aria-label="Loading continue watching">
+      <section
+        className={`space-y-3.5 ${className || ''}`}
+        aria-label="Loading continue watching"
+      >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Skeleton className="h-7 w-7 rounded-lg" />
@@ -194,18 +210,24 @@ export function ContinueWatchingRail({ className, isLoading }: ContinueWatchingR
       const { scrollLeft, clientWidth } = scrollContainerRef.current
       const scrollAmount = clientWidth * 0.75
       scrollContainerRef.current.scrollTo({
-        left: direction === 'left' ? scrollLeft - scrollAmount : scrollLeft + scrollAmount,
+        left:
+          direction === 'left'
+            ? scrollLeft - scrollAmount
+            : scrollLeft + scrollAmount,
         behavior: 'smooth'
       })
     }
   }
 
   return (
-    <section className={`space-y-3.5 ${className || ''}`} aria-label={t('home.continueWatching', 'Continue Watching')}>
+    <section
+      className={`space-y-3.5 ${className || ''}`}
+      aria-label={t('home.continueWatching', 'Continue Watching')}
+    >
       {/* Header with Title and Scroll Controls */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-orange-500/15 text-primary shadow-xs">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/15 text-primary shadow-xs">
             <Sparkles className="h-4 w-4" />
           </div>
           <div>
@@ -232,7 +254,9 @@ export function ContinueWatchingRail({ className, isLoading }: ContinueWatchingR
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="top">{t('home.scrollLeft', 'Rolar para a esquerda')}</TooltipContent>
+              <TooltipContent side="top">
+                {t('home.scrollLeft', 'Rolar para a esquerda')}
+              </TooltipContent>
             </Tooltip>
 
             <Tooltip>
@@ -247,7 +271,9 @@ export function ContinueWatchingRail({ className, isLoading }: ContinueWatchingR
                   <ChevronRight className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="top">{t('home.scrollRight', 'Rolar para a direita')}</TooltipContent>
+              <TooltipContent side="top">
+                {t('home.scrollRight', 'Rolar para a direita')}
+              </TooltipContent>
             </Tooltip>
           </div>
         )}

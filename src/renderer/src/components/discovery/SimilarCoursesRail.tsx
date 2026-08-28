@@ -7,21 +7,26 @@ interface SimilarCoursesRailProps {
   courseId: string
 }
 
-export function SimilarCoursesRail({ courseId }: SimilarCoursesRailProps): React.JSX.Element | null {
+export function SimilarCoursesRail({
+  courseId
+}: SimilarCoursesRailProps): React.JSX.Element | null {
   const [similarItems, setSimilarItems] = useState<DiscoveryItem[]>([])
   const [isLoading, setIsLoading] = useState<boolean>(true)
 
   useEffect(() => {
     let isMounted = true
     if (window.api?.discovery?.getSimilarCourses) {
-      window.api.discovery.getSimilarCourses(courseId, 6).then((items) => {
-        if (isMounted) {
-          setSimilarItems(items)
-          setIsLoading(false)
-        }
-      }).catch(() => {
-        if (isMounted) setIsLoading(false)
-      })
+      window.api.discovery
+        .getSimilarCourses(courseId, 6)
+        .then((items) => {
+          if (isMounted) {
+            setSimilarItems(items)
+            setIsLoading(false)
+          }
+        })
+        .catch(() => {
+          if (isMounted) setIsLoading(false)
+        })
     }
     return () => {
       isMounted = false
@@ -37,17 +42,19 @@ export function SimilarCoursesRail({ courseId }: SimilarCoursesRailProps): React
           <Sparkles className="w-4 h-4" />
         </div>
         <div>
-          <h2 className="text-lg font-bold text-foreground">Cursos Semelhantes</h2>
-          <p className="text-xs text-muted-foreground">Baseado em tópicos e afinidade pedagógica</p>
+          <h2 className="text-lg font-bold text-foreground">
+            Cursos Semelhantes
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            Baseado em tópicos e afinidade pedagógica
+          </p>
         </div>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
         {similarItems.map((it) => (
           <div key={it.course.id} className="relative group">
-            <CourseCard
-              course={it.course}
-            />
+            <CourseCard course={it.course} />
             {it.reasons[0] && (
               <div className="mt-1 text-[11px] text-muted-foreground truncate">
                 {it.reasons[0].type === 'shared_tags'

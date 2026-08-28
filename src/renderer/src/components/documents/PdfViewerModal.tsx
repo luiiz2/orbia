@@ -1,12 +1,7 @@
 ﻿import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { FileText, ExternalLink } from 'lucide-react'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle
-} from '../ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog'
 import { Button } from '../ui/button'
 import { Badge } from '../ui/badge'
 import { formatFileSize } from '../../lib/formatters'
@@ -40,9 +35,10 @@ export function PdfViewerModal({
   if (!resource) return null
 
   const docMediaUrl = mediaUrl(resource.filePath)
-  const pageHash = initialPage && Number.isInteger(initialPage) && initialPage > 0
-    ? `#page=${initialPage}`
-    : ''
+  const pageHash =
+    initialPage && Number.isInteger(initialPage) && initialPage > 0
+      ? `#page=${initialPage}`
+      : ''
   const isPdf =
     resource.fileExtension?.toLowerCase().includes('pdf') ||
     resource.name.toLowerCase().endsWith('.pdf') ||
@@ -58,20 +54,28 @@ export function PdfViewerModal({
         {/* Header Bar */}
         <DialogHeader className="px-5 py-3.5 border-b border-border/80 bg-card flex flex-row items-center justify-between space-y-0 shrink-0">
           <div className="flex items-center gap-3 overflow-hidden mr-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-orange-500/15 text-primary border border-primary/20">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary border border-primary/20">
               <FileText className="h-5 w-5" />
             </div>
             <div className="flex flex-col overflow-hidden min-w-0">
-              <DialogTitle className="text-sm sm:text-base font-bold text-foreground truncate" title={resource.name}>
+              <DialogTitle
+                className="text-sm sm:text-base font-bold text-foreground truncate"
+                title={resource.name}
+              >
                 {resource.name}
               </DialogTitle>
               <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-0.5">
                 {resource.fileExtension && (
-                  <Badge variant="outline" className="text-[10px] py-0 px-1.5 uppercase font-mono font-bold">
+                  <Badge
+                    variant="outline"
+                    className="text-[10px] py-0 px-1.5 uppercase font-mono font-bold"
+                  >
                     {resource.fileExtension.replace('.', '')}
                   </Badge>
                 )}
-                {resource.fileSize ? <span>{formatFileSize(resource.fileSize)}</span> : null}
+                {resource.fileSize ? (
+                  <span>{formatFileSize(resource.fileSize)}</span>
+                ) : null}
               </div>
             </div>
           </div>
@@ -86,7 +90,9 @@ export function PdfViewerModal({
                 title={t('documents.openExternal', 'Abrir em nova janela')}
               >
                 <ExternalLink className="h-3.5 w-3.5 text-primary" />
-                <span className="hidden sm:inline">{t('documents.openExternal', 'Abrir em Nova Janela')}</span>
+                <span className="hidden sm:inline">
+                  {t('documents.openExternal', 'Abrir em Nova Janela')}
+                </span>
               </Button>
             </div>
           )}
@@ -106,7 +112,9 @@ export function PdfViewerModal({
                 <FileText className="h-8 w-8" />
               </div>
               <div className="space-y-1">
-                <h4 className="text-base font-bold text-foreground">{resource.name}</h4>
+                <h4 className="text-base font-bold text-foreground">
+                  {resource.name}
+                </h4>
                 <p className="text-xs text-muted-foreground leading-relaxed">
                   {t('documents.previewUnavailable')}
                 </p>

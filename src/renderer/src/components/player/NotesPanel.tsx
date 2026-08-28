@@ -86,7 +86,9 @@ export function NotesPanel({ className }: NotesPanelProps): React.JSX.Element {
   }
 
   const autosaveTimer = useRef<NodeJS.Timeout | null>(null)
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>(
+    'idle'
+  )
   const editingIdRef = useRef(editingId)
   const editingContentRef = useRef(editingContent)
 
@@ -96,7 +98,11 @@ export function NotesPanel({ className }: NotesPanelProps): React.JSX.Element {
   }, [editingId, editingContent])
 
   const flushAutosave = React.useCallback(async () => {
-    if (autosaveTimer.current && editingIdRef.current && editingContentRef.current.trim()) {
+    if (
+      autosaveTimer.current &&
+      editingIdRef.current &&
+      editingContentRef.current.trim()
+    ) {
       clearTimeout(autosaveTimer.current)
       autosaveTimer.current = null
       await updateNote(editingIdRef.current, editingContentRef.current)
@@ -112,30 +118,39 @@ export function NotesPanel({ className }: NotesPanelProps): React.JSX.Element {
 
   useEffect(() => {
     const handleBeforeUnload = () => {
-      if (autosaveTimer.current && editingIdRef.current && editingContentRef.current.trim()) {
+      if (
+        autosaveTimer.current &&
+        editingIdRef.current &&
+        editingContentRef.current.trim()
+      ) {
         clearTimeout(autosaveTimer.current)
         // Try synchronous update via window.api
-        window.api.player.updateLessonNote(editingIdRef.current, editingContentRef.current).catch(console.warn)
+        window.api.player
+          .updateLessonNote(editingIdRef.current, editingContentRef.current)
+          .catch(console.warn)
       }
     }
     window.addEventListener('beforeunload', handleBeforeUnload)
     return () => window.removeEventListener('beforeunload', handleBeforeUnload)
   }, [])
 
-  const debouncedSave = React.useCallback((id: string, content: string) => {
-    if (autosaveTimer.current) clearTimeout(autosaveTimer.current)
-    if (!content.trim()) return
+  const debouncedSave = React.useCallback(
+    (id: string, content: string) => {
+      if (autosaveTimer.current) clearTimeout(autosaveTimer.current)
+      if (!content.trim()) return
 
-    setSaveStatus('saving')
-    autosaveTimer.current = setTimeout(async () => {
-      autosaveTimer.current = null
-      await updateNote(id, content)
-      setSaveStatus('saved')
-      setTimeout(() => {
-        setSaveStatus(prev => prev === 'saved' ? 'idle' : prev)
-      }, 2000)
-    }, 600)
-  }, [updateNote])
+      setSaveStatus('saving')
+      autosaveTimer.current = setTimeout(async () => {
+        autosaveTimer.current = null
+        await updateNote(id, content)
+        setSaveStatus('saved')
+        setTimeout(() => {
+          setSaveStatus((prev) => (prev === 'saved' ? 'idle' : prev))
+        }, 2000)
+      }, 600)
+    },
+    [updateNote]
+  )
 
   const saveEdit = async (): Promise<void> => {
     if (!editingContent.trim()) return
@@ -151,7 +166,9 @@ export function NotesPanel({ className }: NotesPanelProps): React.JSX.Element {
     try {
       const markdown = await exportNotes(activeCourse.id)
       if (markdown) {
-        const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' })
+        const blob = new Blob([markdown], {
+          type: 'text/markdown;charset=utf-8'
+        })
         const url = URL.createObjectURL(blob)
         const a = document.createElement('a')
         a.href = url
@@ -176,14 +193,14 @@ export function NotesPanel({ className }: NotesPanelProps): React.JSX.Element {
   }
 
   return (
-    <div className={cn('flex flex-col h-full space-y-3 select-none', className)}>
+    <div
+      className={cn('flex flex-col h-full space-y-3 select-none', className)}
+    >
       {/* Header with Export Action */}
       <div className="flex items-center justify-between gap-2 px-1">
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <Clock className="h-3.5 w-3.5 text-primary" />
-          <span>
-            {t('player.notes')}:
-          </span>
+          <span>{t('player.notes')}:</span>
           <span className="rounded-full bg-primary/15 px-2 py-0.2 text-[10px] font-bold text-primary border border-primary/20">
             {notes.length}
           </span>
@@ -198,7 +215,8 @@ export function NotesPanel({ className }: NotesPanelProps): React.JSX.Element {
               disabled={!activeCourse || isExporting || notes.length === 0}
               className={cn(
                 'h-7.5 px-2.5 text-[11px] font-medium gap-1.5 rounded-xl border-border/80 hover:bg-secondary transition-all cursor-pointer disabled:opacity-40 min-h-[30px]',
-                exportSuccess && 'border-emerald-500/50 text-emerald-400 bg-emerald-500/10'
+                exportSuccess &&
+                  'border-emerald-500/50 text-emerald-400 bg-emerald-500/10'
               )}
               aria-label={t('player.exportNotes')}
             >
@@ -209,10 +227,16 @@ export function NotesPanel({ className }: NotesPanelProps): React.JSX.Element {
               ) : (
                 <Download className="h-3 w-3" />
               )}
-              <span>{exportSuccess ? t('player.notesExported') : t('player.exportNotes')}</span>
+              <span>
+                {exportSuccess
+                  ? t('player.notesExported')
+                  : t('player.exportNotes')}
+              </span>
             </Button>
           </TooltipTrigger>
-          <TooltipContent side="left">Exportar todas as anotações do curso em Markdown</TooltipContent>
+          <TooltipContent side="left">
+            Exportar todas as anotações do curso em Markdown
+          </TooltipContent>
         </Tooltip>
       </div>
 
@@ -246,14 +270,16 @@ export function NotesPanel({ className }: NotesPanelProps): React.JSX.Element {
             size="sm"
             onClick={() => handleAddNote()}
             disabled={!newContent.trim() || isSubmitting || !activeLesson}
-            className="h-7.5 px-3 text-[11px] font-semibold gap-1.5 rounded-xl shadow-md shadow-orange-500/20 bg-gradient-to-r from-orange-500 to-amber-500 text-primary-foreground cursor-pointer hover:opacity-95 active:scale-[0.98] transition-all min-h-[30px]"
+            className="h-7.5 px-3 text-[11px] font-semibold gap-1.5 rounded-xl shadow-md shadow-primary/20 bg-primary text-primary-foreground cursor-pointer hover:opacity-95 active:scale-[0.98] transition-all min-h-[30px]"
           >
             {isSubmitting ? (
               <Loader2 className="h-3 w-3 animate-spin" />
             ) : (
               <Plus className="h-3.5 w-3.5" />
             )}
-            <span>{t('player.addNoteAt', { time: formatTime(currentTime) })}</span>
+            <span>
+              {t('player.addNoteAt', { time: formatTime(currentTime) })}
+            </span>
           </Button>
         </div>
       </div>
@@ -270,7 +296,9 @@ export function NotesPanel({ className }: NotesPanelProps): React.JSX.Element {
             <div className="flex h-10 w-10 mx-auto items-center justify-center rounded-2xl bg-secondary text-primary shadow-xs">
               <BookOpen className="h-5 w-5" />
             </div>
-            <h4 className="text-xs font-bold text-foreground">{t('player.noNotes')}</h4>
+            <h4 className="text-xs font-bold text-foreground">
+              {t('player.noNotes')}
+            </h4>
             <p className="text-[11px] text-muted-foreground leading-relaxed">
               {t('player.noNotesSubtitle')}
             </p>
@@ -323,13 +351,18 @@ export function NotesPanel({ className }: NotesPanelProps): React.JSX.Element {
                                 })
                               }
                             }}
-                            className="h-6.5 w-6.5 rounded-lg text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10 cursor-pointer"
-                            aria-label={t('aiNotes.improveNote', 'Melhorar com IA')}
+                            className="h-6.5 w-6.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 cursor-pointer"
+                            aria-label={t(
+                              'aiNotes.improveNote',
+                              'Melhorar com IA'
+                            )}
                           >
                             <Sparkles className="h-3 w-3" />
                           </Button>
                         </TooltipTrigger>
-                        <TooltipContent side="top">{t('aiNotes.improveNote', 'Melhorar com IA')}</TooltipContent>
+                        <TooltipContent side="top">
+                          {t('aiNotes.improveNote', 'Melhorar com IA')}
+                        </TooltipContent>
                       </Tooltip>
 
                       <Tooltip>
@@ -344,7 +377,9 @@ export function NotesPanel({ className }: NotesPanelProps): React.JSX.Element {
                             <Pencil className="h-3 w-3" />
                           </Button>
                         </TooltipTrigger>
-                        <TooltipContent side="top">{t('player.editNote')}</TooltipContent>
+                        <TooltipContent side="top">
+                          {t('player.editNote')}
+                        </TooltipContent>
                       </Tooltip>
 
                       <Tooltip>
@@ -359,7 +394,10 @@ export function NotesPanel({ className }: NotesPanelProps): React.JSX.Element {
                             <Trash2 className="h-3 w-3" />
                           </Button>
                         </TooltipTrigger>
-                        <TooltipContent side="top" className="text-destructive font-semibold">
+                        <TooltipContent
+                          side="top"
+                          className="text-destructive font-semibold"
+                        >
                           {t('player.deleteNote')}
                         </TooltipContent>
                       </Tooltip>
@@ -381,7 +419,9 @@ export function NotesPanel({ className }: NotesPanelProps): React.JSX.Element {
                       autoFocus
                     />
                     <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-                      <span className="font-mono">{editingContent.length} chars</span>
+                      <span className="font-mono">
+                        {editingContent.length} chars
+                      </span>
                       <div className="flex items-center gap-1.5">
                         <Button
                           variant="ghost"
@@ -418,7 +458,7 @@ export function NotesPanel({ className }: NotesPanelProps): React.JSX.Element {
         )}
         <div ref={notesEndRef} />
       </div>
-      
+
       {/* Save Status Indicator */}
       {saveStatus !== 'idle' && (
         <div className="flex items-center justify-center gap-1.5 py-1 text-xs font-medium animate-in fade-in duration-200">

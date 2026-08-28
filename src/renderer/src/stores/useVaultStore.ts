@@ -10,9 +10,17 @@ export interface VaultState {
 
   // Actions
   init: () => Promise<void>
-  openVault: (path: string) => Promise<{ success: boolean; vault?: Vault; error?: string }>
-  createVault: (path: string, name: string) => Promise<{ success: boolean; vault?: Vault; error?: string }>
-  deleteVault: (path: string, deleteFiles: boolean) => Promise<{ success: boolean; error?: string }>
+  openVault: (
+    path: string
+  ) => Promise<{ success: boolean; vault?: Vault; error?: string }>
+  createVault: (
+    path: string,
+    name: string
+  ) => Promise<{ success: boolean; vault?: Vault; error?: string }>
+  deleteVault: (
+    path: string,
+    deleteFiles: boolean
+  ) => Promise<{ success: boolean; error?: string }>
   selectDirectory: () => Promise<string | null>
   refreshStats: () => Promise<void>
   setCurrentVault: (vault: Vault | null) => void

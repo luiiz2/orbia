@@ -4,24 +4,22 @@ import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from '../../lib/utils'
 
 const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500/50 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 cursor-pointer select-none',
+  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 cursor-pointer select-none',
   {
     variants: {
       variant: {
         default:
           'bg-primary text-primary-foreground font-semibold shadow-md shadow-primary/20 hover:bg-primary/90 hover:shadow-primary/30 active:scale-[0.98]',
         gradient:
-          'bg-gradient-to-r from-orange-500 via-purple-600 to-indigo-600 text-primary-foreground font-semibold shadow-lg shadow-orange-500/20 hover:opacity-95 hover:shadow-orange-500/30 active:scale-[0.98]',
+          'bg-primary text-primary-foreground font-semibold shadow-md shadow-primary/20 hover:bg-primary/90 hover:shadow-primary/30 active:scale-[0.98]',
         destructive:
           'bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90 active:scale-[0.98]',
         outline:
           'border border-border bg-card text-foreground shadow-sm hover:bg-secondary hover:text-foreground hover:border-primary/40',
         secondary:
           'bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80 hover:text-foreground',
-        ghost:
-          'text-muted-foreground hover:bg-secondary hover:text-foreground',
-        link:
-          'text-primary underline-offset-4 hover:underline hover:text-primary/80',
+        ghost: 'text-muted-foreground hover:bg-secondary hover:text-foreground',
+        link: 'text-primary underline-offset-4 hover:underline hover:text-primary/80',
         subtle:
           'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground'
       },
@@ -41,7 +39,8 @@ const buttonVariants = cva(
 )
 
 export interface ButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
+  extends
+    React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {
   asChild?: boolean
 }

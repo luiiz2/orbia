@@ -1,5 +1,14 @@
 import React from 'react'
-import { Play, Star, Plus, Check, Info, Clock, CheckCircle2, SlidersHorizontal } from 'lucide-react'
+import {
+  Play,
+  Star,
+  Plus,
+  Check,
+  Info,
+  Clock,
+  CheckCircle2,
+  SlidersHorizontal
+} from 'lucide-react'
 import { CourseCover } from '../ui/CourseCover'
 import { Badge } from '../ui/badge'
 import { Tooltip, TooltipTrigger, TooltipContent } from '../ui/tooltip'
@@ -49,7 +58,9 @@ export function MediaCard({
   aspectRatio = 'video',
   type = 'course'
 }: MediaCardProps): React.JSX.Element {
-  const percentage = isCompleted ? 100 : Math.min(100, Math.max(0, Math.round(progressPercentage)))
+  const percentage = isCompleted
+    ? 100
+    : Math.min(100, Math.max(0, Math.round(progressPercentage)))
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>): void => {
     if (e.key === 'Enter' || e.key === ' ') {
@@ -69,7 +80,7 @@ export function MediaCard({
     >
       {/* 16:9 Media Artwork Container */}
       <div
-        className={`relative w-full overflow-hidden rounded-xl border border-white/[0.08] bg-[#0A0D14] shadow-md transition-all duration-300 group-hover:border-primary/40 group-hover:shadow-xl group-hover:shadow-primary/10 ${
+        className={`relative w-full overflow-hidden rounded-xl border border-white/[0.08] bg-background shadow-md transition-all duration-300 group-hover:border-primary/40 group-hover:shadow-xl group-hover:shadow-primary/10 ${
           aspectRatio === 'video' ? 'aspect-video' : 'aspect-square'
         }`}
       >
@@ -97,16 +108,20 @@ export function MediaCard({
               <TooltipTrigger asChild>
                 <button
                   type="button"
-                  aria-label={isFavorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
+                  aria-label={
+                    isFavorite
+                      ? 'Remover dos favoritos'
+                      : 'Adicionar aos favoritos'
+                  }
                   className={`flex h-7.5 w-7.5 items-center justify-center rounded-lg backdrop-blur-md transition-all duration-200 cursor-pointer shadow-sm ${
                     isFavorite
-                      ? 'bg-amber-500/30 text-amber-400 border border-amber-500/50 opacity-100'
-                      : 'bg-black/60 text-white/70 hover:text-amber-400 hover:bg-black/80 border border-white/10 opacity-0 group-hover:opacity-100'
+                      ? 'bg-primary/30 text-primary border border-primary/50 opacity-100'
+                      : 'bg-black/60 text-white/70 hover:text-primary hover:bg-black/80 border border-white/10 opacity-0 group-hover:opacity-100'
                   }`}
                 >
                   <Star
                     className={`h-4 w-4 transition-transform active:scale-125 ${
-                      isFavorite ? 'fill-amber-400 text-amber-400' : ''
+                      isFavorite ? 'fill-primary text-primary' : ''
                     }`}
                   />
                 </button>
@@ -130,12 +145,15 @@ export function MediaCard({
           )}
 
           {isCompleted ? (
-            <Badge variant="success" className="gap-1 shadow-sm font-semibold py-0.5 px-2">
+            <Badge
+              variant="success"
+              className="gap-1 shadow-sm font-semibold py-0.5 px-2"
+            >
               <CheckCircle2 className="h-3 w-3" />
               <span>Concluído</span>
             </Badge>
           ) : percentage > 0 ? (
-            <span className="rounded-md bg-black/75 backdrop-blur-md px-2 py-0.5 text-[10px] font-bold text-amber-400 border border-white/10 shadow-sm font-mono">
+            <span className="rounded-md bg-black/75 backdrop-blur-md px-2 py-0.5 text-[10px] font-bold text-primary border border-white/10 shadow-sm font-mono">
               {percentage}%
             </span>
           ) : null}
@@ -156,8 +174,8 @@ export function MediaCard({
               {currentTime && currentTime > 0
                 ? `${formatTime(currentTime)} / ${formatTime(duration)}`
                 : type === 'lesson'
-                ? formatTime(duration)
-                : formatDurationHuman(duration)}
+                  ? formatTime(duration)
+                  : formatDurationHuman(duration)}
             </span>
           </div>
         )}
@@ -183,7 +201,11 @@ export function MediaCard({
                       : 'bg-black/70 text-white/80 hover:text-white hover:bg-black/90 border-white/15'
                   }`}
                 >
-                  {isQueued ? <Check className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
+                  {isQueued ? (
+                    <Check className="h-3.5 w-3.5" />
+                  ) : (
+                    <Plus className="h-3.5 w-3.5" />
+                  )}
                 </button>
               </TooltipTrigger>
               <TooltipContent side="top" className="text-xs font-semibold">
@@ -202,7 +224,7 @@ export function MediaCard({
                     onOrganize()
                   }}
                   aria-label="Organizar curso"
-                  className="flex h-7 w-7 items-center justify-center rounded-lg bg-black/70 hover:bg-orange-600/90 text-white/80 hover:text-white border border-white/15 backdrop-blur-md transition-colors cursor-pointer"
+                  className="flex h-7 w-7 items-center justify-center rounded-lg bg-black/70 hover:bg-primary/90 text-primary-foreground/80 hover:text-primary-foreground border border-white/15 backdrop-blur-md transition-colors cursor-pointer"
                 >
                   <SlidersHorizontal className="h-3.5 w-3.5" />
                 </button>
@@ -240,7 +262,7 @@ export function MediaCard({
           <div className="absolute bottom-0 inset-x-0 h-[3px] bg-black/60 z-10 overflow-hidden">
             <div
               className={`h-full transition-all duration-300 ${
-                isCompleted ? 'bg-emerald-400' : 'bg-gradient-to-r from-orange-500 to-amber-400'
+                isCompleted ? 'bg-emerald-400' : 'bg-primary'
               }`}
               style={{ width: `${percentage}%` }}
             />

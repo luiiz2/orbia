@@ -98,7 +98,7 @@ export function DiscoverView(): React.JSX.Element {
             onClick={() => setSurpriseModalOpen(true)}
             variant="outline"
             size="sm"
-            className="gap-2 rounded-xl border-border/80 hover:border-amber-500/50 text-xs font-semibold text-amber-500 hover:text-amber-400"
+            className="gap-2 rounded-xl border-border/80 hover:border-primary/50 text-xs font-semibold text-primary hover:text-primary"
           >
             <Sparkles className="w-3.5 h-3.5" />
             Surpreenda-me
@@ -162,8 +162,12 @@ export function DiscoverView(): React.JSX.Element {
       ) : rails.length === 0 ? (
         <div className="py-20 text-center text-muted-foreground">
           <Compass className="w-12 h-12 mx-auto mb-3 opacity-20 text-primary" />
-          <h3 className="text-base font-bold text-foreground mb-1">Nenhum curso disponível</h3>
-          <p className="text-xs">Importe cursos para o seu Vault para gerar recomendações locais.</p>
+          <h3 className="text-base font-bold text-foreground mb-1">
+            Nenhum curso disponível
+          </h3>
+          <p className="text-xs">
+            Importe cursos para o seu Vault para gerar recomendações locais.
+          </p>
         </div>
       ) : (
         <div className="space-y-10">
@@ -183,7 +187,9 @@ export function DiscoverView(): React.JSX.Element {
                     )}
                   </div>
                   {rail.subtitle && (
-                    <p className="text-xs text-muted-foreground">{rail.subtitle}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {rail.subtitle}
+                    </p>
                   )}
                 </div>
               </div>
@@ -191,27 +197,26 @@ export function DiscoverView(): React.JSX.Element {
               {/* Cards Grid / Carousel */}
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
                 {rail.items.map((it) => (
-                  <div key={it.course.id} className="relative group flex flex-col">
-                    <CourseCard
-                      course={it.course}
-                    />
+                  <div
+                    key={it.course.id}
+                    className="relative group flex flex-col"
+                  >
+                    <CourseCard course={it.course} />
 
                     {/* Explainability Reason & Feedback Actions */}
                     <div className="mt-2 flex items-center justify-between text-[11px] text-muted-foreground px-1">
                       <span className="truncate pr-1 font-medium">
-                        {it.reasons[0] ? (
-                          it.reasons[0].type === 'because_watched'
+                        {it.reasons[0]
+                          ? it.reasons[0].type === 'because_watched'
                             ? `Similar a ${it.reasons[0].params.targetTitle}`
                             : it.reasons[0].type === 'almost_finished'
-                            ? `${it.reasons[0].params.percent}% concluído`
-                            : it.reasons[0].type === 'quick_win'
-                            ? `Faltam ${it.reasons[0].params.minutes} min`
-                            : it.reasons[0].type === 'rediscover'
-                            ? `Parado há ${it.reasons[0].params.days} dias`
-                            : 'Recomendado'
-                        ) : (
-                          'Afinidade'
-                        )}
+                              ? `${it.reasons[0].params.percent}% concluído`
+                              : it.reasons[0].type === 'quick_win'
+                                ? `Faltam ${it.reasons[0].params.minutes} min`
+                                : it.reasons[0].type === 'rediscover'
+                                  ? `Parado há ${it.reasons[0].params.days} dias`
+                                  : 'Recomendado'
+                          : 'Afinidade'}
                       </span>
 
                       {/* Feedback Buttons */}

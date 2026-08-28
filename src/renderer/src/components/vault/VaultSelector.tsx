@@ -18,7 +18,8 @@ import appLogo from '../../assets/icon.png'
 
 export function VaultSelector(): React.JSX.Element {
   const { t } = useTranslation()
-  const { recentVaults, openVault, selectDirectory, isLoading, error } = useVaultStore()
+  const { recentVaults, openVault, selectDirectory, isLoading, error } =
+    useVaultStore()
   const [creatorOpen, setCreatorOpen] = useState(false)
   const [openingPath, setOpeningPath] = useState<string | null>(null)
   const [vaultToDelete, setVaultToDelete] = useState<Vault | null>(null)
@@ -56,14 +57,14 @@ export function VaultSelector(): React.JSX.Element {
       <div className="w-full max-w-xl space-y-8 animate-in fade-in zoom-in-95 duration-300">
         {/* Header Branding */}
         <div className="text-center space-y-3">
-          <div className="inline-flex items-center justify-center w-24 h-24 rounded-3xl p-2 bg-gradient-to-br from-orange-500/20 via-purple-600/15 to-blue-600/10 shadow-2xl shadow-orange-500/15 ring-1 ring-orange-500/30 mb-1 hover:scale-105 transition-transform duration-300">
+          <div className="inline-flex items-center justify-center w-24 h-24 rounded-3xl p-2 bg-primary/10 border border-primary/30 shadow-2xl shadow-primary/15 ring-1 ring-primary/30 mb-1 hover:scale-105 transition-transform duration-300">
             <img
               src={appLogo}
               alt="Orbia Logo"
               className="w-full h-full object-contain drop-shadow-lg"
             />
           </div>
-          <h1 className="text-4xl font-extrabold tracking-tight text-orbia-gradient">
+          <h1 className="text-4xl font-extrabold tracking-tight text-orbia-mark">
             {t('app.name')}
           </h1>
           <p className="text-sm text-muted-foreground max-w-sm mx-auto font-normal">
@@ -81,10 +82,10 @@ export function VaultSelector(): React.JSX.Element {
         {/* Main Action Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Card
-            className="cursor-pointer border-border hover:border-primary/60 bg-card hover:bg-secondary/50 transition-all duration-200 group relative overflow-hidden shadow-lg hover:shadow-orange-500/10 rounded-2xl"
+            className="cursor-pointer border-border hover:border-primary/60 bg-card hover:bg-secondary/50 transition-all duration-200 group relative overflow-hidden shadow-lg hover:shadow-primary/10 rounded-2xl"
             onClick={() => setCreatorOpen(true)}
           >
-            <div className="absolute inset-0 bg-gradient-to-br from-orange-500/10 via-purple-600/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity" />
             <CardHeader className="pb-4">
               <div className="w-11 h-11 rounded-xl bg-primary/10 border border-primary/30 flex items-center justify-center text-primary mb-3 group-hover:scale-110 group-hover:bg-primary group-hover:text-primary-foreground transition-all shadow-md">
                 <FolderPlus className="w-5 h-5" />
@@ -99,15 +100,15 @@ export function VaultSelector(): React.JSX.Element {
           </Card>
 
           <Card
-            className="cursor-pointer border-border hover:border-purple-500/60 bg-card hover:bg-secondary/50 transition-all duration-200 group relative overflow-hidden shadow-lg hover:shadow-purple-500/10 rounded-2xl"
+            className="cursor-pointer border-border hover:border-accent/60 bg-card hover:bg-secondary/50 transition-all duration-200 group relative overflow-hidden shadow-lg hover:shadow-accent/10 rounded-2xl"
             onClick={handleOpenExisting}
           >
-            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-blue-600/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="absolute inset-0 bg-accent/5 opacity-0 group-hover:opacity-100 transition-opacity" />
             <CardHeader className="pb-4">
-              <div className="w-11 h-11 rounded-xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-purple-400 mb-3 group-hover:scale-110 group-hover:bg-purple-600 group-hover:text-white transition-all shadow-md">
+              <div className="w-11 h-11 rounded-xl bg-accent/10 border border-accent/30 flex items-center justify-center text-accent mb-3 group-hover:scale-110 group-hover:bg-accent group-hover:text-accent-foreground transition-all shadow-md">
                 <FolderOpen className="w-5 h-5" />
               </div>
-              <CardTitle className="text-base font-semibold group-hover:text-purple-400 transition-colors">
+              <CardTitle className="text-base font-semibold group-hover:text-accent transition-colors">
                 {t('vault.openExisting')}
               </CardTitle>
               <CardDescription className="text-xs text-muted-foreground">
@@ -179,10 +180,7 @@ export function VaultSelector(): React.JSX.Element {
         )}
       </div>
 
-      <VaultCreator
-        open={creatorOpen}
-        onOpenChange={setCreatorOpen}
-      />
+      <VaultCreator open={creatorOpen} onOpenChange={setCreatorOpen} />
 
       <DeleteVaultModal
         vault={vaultToDelete}

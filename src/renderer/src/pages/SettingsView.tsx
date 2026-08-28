@@ -21,7 +21,13 @@ import { useVaultStore } from '../stores/useVaultStore'
 import { useNavigationStore } from '../stores/useNavigationStore'
 import { useLibraryStore } from '../stores/useLibraryStore'
 import { Button } from '../components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card'
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription
+} from '../components/ui/card'
 import { Slider } from '../components/ui/slider'
 import { DeleteVaultModal } from '../components/vault/DeleteVaultModal'
 import { BackupPreviewModal } from '../components/vault/BackupPreviewModal'
@@ -35,18 +41,28 @@ export function SettingsView(): React.JSX.Element {
   const { currentVault } = useVaultStore()
   const { setVaultModalOpen } = useNavigationStore()
   const { fetchCourses } = useLibraryStore()
-  const [deleteVaultModalOpen, setDeleteVaultModalOpen] = useState<boolean>(false)
+  const [deleteVaultModalOpen, setDeleteVaultModalOpen] =
+    useState<boolean>(false)
 
   // Backup & Portability state (v0.3)
   const [isCreatingBackup, setIsCreatingBackup] = useState(false)
-  const [backupStatusMessage, setBackupStatusMessage] = useState<string | null>(null)
-  const [backupErrorMessage, setBackupErrorMessage] = useState<string | null>(null)
+  const [backupStatusMessage, setBackupStatusMessage] = useState<string | null>(
+    null
+  )
+  const [backupErrorMessage, setBackupErrorMessage] = useState<string | null>(
+    null
+  )
   const [backupPreview, setBackupPreview] = useState<BackupPreview | null>(null)
-  const [selectedBackupPath, setSelectedBackupPath] = useState<string | null>(null)
-  const [isBackupPreviewModalOpen, setIsBackupPreviewModalOpen] = useState(false)
+  const [selectedBackupPath, setSelectedBackupPath] = useState<string | null>(
+    null
+  )
+  const [isBackupPreviewModalOpen, setIsBackupPreviewModalOpen] =
+    useState(false)
   const [isRestoringBackup, setIsRestoringBackup] = useState(false)
-  const [autoTranscribeNewLessons, setAutoTranscribeNewLessons] = useState(false)
-  const [isSavingTranscriptionSettings, setIsSavingTranscriptionSettings] = useState(false)
+  const [autoTranscribeNewLessons, setAutoTranscribeNewLessons] =
+    useState(false)
+  const [isSavingTranscriptionSettings, setIsSavingTranscriptionSettings] =
+    useState(false)
 
   useEffect(() => {
     let active = true
@@ -57,11 +73,17 @@ export function SettingsView(): React.JSX.Element {
       }
     }
 
-    window.api.transcription.getSettings()
+    window.api.transcription
+      .getSettings()
       .then((transcriptionSettings) => {
-        if (active) setAutoTranscribeNewLessons(transcriptionSettings.autoTranscribeNewLessons)
+        if (active)
+          setAutoTranscribeNewLessons(
+            transcriptionSettings.autoTranscribeNewLessons
+          )
       })
-      .catch((error: unknown) => console.warn('Failed to load transcription settings:', error))
+      .catch((error: unknown) =>
+        console.warn('Failed to load transcription settings:', error)
+      )
 
     return () => {
       active = false
@@ -73,7 +95,9 @@ export function SettingsView(): React.JSX.Element {
     setAutoTranscribeNewLessons(nextValue)
     setIsSavingTranscriptionSettings(true)
     try {
-      const saved = await window.api.transcription.updateSettings({ autoTranscribeNewLessons: nextValue })
+      const saved = await window.api.transcription.updateSettings({
+        autoTranscribeNewLessons: nextValue
+      })
       if (!saved) setAutoTranscribeNewLessons(!nextValue)
     } catch (error: unknown) {
       setAutoTranscribeNewLessons(!nextValue)
@@ -101,7 +125,9 @@ export function SettingsView(): React.JSX.Element {
         setBackupErrorMessage(res.error || 'Erro ao criar backup.')
       }
     } catch (err: unknown) {
-      setBackupErrorMessage(err instanceof Error ? err.message : 'Falha na criação do backup.')
+      setBackupErrorMessage(
+        err instanceof Error ? err.message : 'Falha na criação do backup.'
+      )
     } finally {
       setIsCreatingBackup(false)
     }
@@ -120,10 +146,14 @@ export function SettingsView(): React.JSX.Element {
         setSelectedBackupPath(filePath)
         setIsBackupPreviewModalOpen(true)
       } else {
-        setBackupErrorMessage(inspectRes.error || 'Arquivo de backup inválido ou corrompido.')
+        setBackupErrorMessage(
+          inspectRes.error || 'Arquivo de backup inválido ou corrompido.'
+        )
       }
     } catch (err: unknown) {
-      setBackupErrorMessage(err instanceof Error ? err.message : 'Erro ao inspecionar backup.')
+      setBackupErrorMessage(
+        err instanceof Error ? err.message : 'Erro ao inspecionar backup.'
+      )
     }
   }
 
@@ -136,13 +166,20 @@ export function SettingsView(): React.JSX.Element {
         setIsBackupPreviewModalOpen(false)
         setBackupPreview(null)
         setSelectedBackupPath(null)
-        setBackupStatusMessage('Vault restaurado com sucesso! Os cursos e dados foram recarregados.')
+        setBackupStatusMessage(
+          'Vault restaurado com sucesso! Os cursos e dados foram recarregados.'
+        )
         await fetchCourses()
       } else {
-        setBackupErrorMessage(res.error || 'Falha ao restaurar backup. O banco anterior foi preservado.')
+        setBackupErrorMessage(
+          res.error ||
+            'Falha ao restaurar backup. O banco anterior foi preservado.'
+        )
       }
     } catch (err: unknown) {
-      setBackupErrorMessage(err instanceof Error ? err.message : 'Falha durante restauração.')
+      setBackupErrorMessage(
+        err instanceof Error ? err.message : 'Falha durante restauração.'
+      )
     } finally {
       setIsRestoringBackup(false)
     }
@@ -151,36 +188,51 @@ export function SettingsView(): React.JSX.Element {
   const handleExportNotes = async (): Promise<void> => {
     try {
       const md = await window.api.exports.notesMarkdown()
-      const res = await window.api.exports.saveExportToFile(`Orbia-Anotacoes-${new Date().toISOString().split('T')[0]}.md`, md)
+      const res = await window.api.exports.saveExportToFile(
+        `Orbia-Anotacoes-${new Date().toISOString().split('T')[0]}.md`,
+        md
+      )
       if (res.success) {
         setBackupStatusMessage('Anotações exportadas com sucesso em Markdown!')
       }
     } catch (err: unknown) {
-      setBackupErrorMessage(err instanceof Error ? err.message : 'Erro ao exportar anotações.')
+      setBackupErrorMessage(
+        err instanceof Error ? err.message : 'Erro ao exportar anotações.'
+      )
     }
   }
 
   const handleExportBookmarks = async (): Promise<void> => {
     try {
       const md = await window.api.exports.bookmarksMarkdown()
-      const res = await window.api.exports.saveExportToFile(`Orbia-Marcadores-${new Date().toISOString().split('T')[0]}.md`, md)
+      const res = await window.api.exports.saveExportToFile(
+        `Orbia-Marcadores-${new Date().toISOString().split('T')[0]}.md`,
+        md
+      )
       if (res.success) {
         setBackupStatusMessage('Marcadores exportados com sucesso em Markdown!')
       }
     } catch (err: unknown) {
-      setBackupErrorMessage(err instanceof Error ? err.message : 'Erro ao exportar marcadores.')
+      setBackupErrorMessage(
+        err instanceof Error ? err.message : 'Erro ao exportar marcadores.'
+      )
     }
   }
 
   const handleExportFlashcardsCsv = async (): Promise<void> => {
     try {
       const csv = await window.api.exports.flashcardsCsv()
-      const res = await window.api.exports.saveExportToFile(`Orbia-Flashcards-${new Date().toISOString().split('T')[0]}.csv`, csv)
+      const res = await window.api.exports.saveExportToFile(
+        `Orbia-Flashcards-${new Date().toISOString().split('T')[0]}.csv`,
+        csv
+      )
       if (res.success) {
         setBackupStatusMessage('Flashcards exportados com sucesso em CSV!')
       }
     } catch (err: unknown) {
-      setBackupErrorMessage(err instanceof Error ? err.message : 'Erro ao exportar flashcards.')
+      setBackupErrorMessage(
+        err instanceof Error ? err.message : 'Erro ao exportar flashcards.'
+      )
     }
   }
 
@@ -210,7 +262,9 @@ export function SettingsView(): React.JSX.Element {
           <h1 className="text-xl font-bold tracking-tight text-foreground">
             {t('settings.title')}
           </h1>
-          <p className="text-xs text-muted-foreground">{t('settings.subtitle')}</p>
+          <p className="text-xs text-muted-foreground">
+            {t('settings.subtitle')}
+          </p>
         </div>
       </div>
 
@@ -220,7 +274,9 @@ export function SettingsView(): React.JSX.Element {
           <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
               <Palette className="h-4 w-4 text-primary" />
-              <CardTitle className="text-base font-bold">{t('settings.general')}</CardTitle>
+              <CardTitle className="text-base font-bold">
+                {t('settings.general')}
+              </CardTitle>
             </div>
             <CardDescription className="text-xs">
               {t('settings.generalDesc')}
@@ -230,19 +286,27 @@ export function SettingsView(): React.JSX.Element {
             {/* Language */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3.5 border-b border-border/40">
               <div>
-                <p className="text-sm font-semibold text-foreground">{t('settings.language')}</p>
-                <p className="text-xs text-muted-foreground">{t('settings.languageDesc')}</p>
+                <p className="text-sm font-semibold text-foreground">
+                  {t('settings.language')}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {t('settings.languageDesc')}
+                </p>
               </div>
               <div className="flex items-center gap-2">
                 {languages.map((lang) => (
                   <Button
                     key={lang.code}
-                    variant={settings.language === lang.code ? 'default' : 'outline'}
+                    variant={
+                      settings.language === lang.code ? 'default' : 'outline'
+                    }
                     size="sm"
                     onClick={() => setLanguage(lang.code)}
                     className="text-xs h-8 rounded-xl font-medium"
                   >
-                    {settings.language === lang.code && <Check className="h-3.5 w-3.5 mr-1" />}
+                    {settings.language === lang.code && (
+                      <Check className="h-3.5 w-3.5 mr-1" />
+                    )}
                     {lang.label}
                   </Button>
                 ))}
@@ -252,8 +316,12 @@ export function SettingsView(): React.JSX.Element {
             {/* Theme */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <p className="text-sm font-semibold text-foreground">{t('settings.theme')}</p>
-                <p className="text-xs text-muted-foreground">{t('settings.themeDesc')}</p>
+                <p className="text-sm font-semibold text-foreground">
+                  {t('settings.theme')}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {t('settings.themeDesc')}
+                </p>
               </div>
               <div className="flex items-center gap-2">
                 {themes.map((th) => (
@@ -264,7 +332,9 @@ export function SettingsView(): React.JSX.Element {
                     onClick={() => setTheme(th.id)}
                     className="text-xs h-8 rounded-xl font-medium"
                   >
-                    {settings.theme === th.id && <Check className="h-3.5 w-3.5 mr-1" />}
+                    {settings.theme === th.id && (
+                      <Check className="h-3.5 w-3.5 mr-1" />
+                    )}
                     {th.label}
                   </Button>
                 ))}
@@ -278,7 +348,9 @@ export function SettingsView(): React.JSX.Element {
           <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
               <PlaySquare className="h-4 w-4 text-primary" />
-              <CardTitle className="text-base font-bold">{t('settings.playback')}</CardTitle>
+              <CardTitle className="text-base font-bold">
+                {t('settings.playback')}
+              </CardTitle>
             </div>
             <CardDescription className="text-xs">
               {t('settings.playbackDesc')}
@@ -288,14 +360,22 @@ export function SettingsView(): React.JSX.Element {
             {/* Default Playback Speed */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3.5 border-b border-border/40">
               <div>
-                <p className="text-sm font-semibold text-foreground">{t('settings.defaultSpeed')}</p>
-                <p className="text-xs text-muted-foreground">{t('settings.defaultSpeedDesc')}</p>
+                <p className="text-sm font-semibold text-foreground">
+                  {t('settings.defaultSpeed')}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {t('settings.defaultSpeedDesc')}
+                </p>
               </div>
               <div className="flex items-center gap-1.5 flex-wrap">
                 {speeds.map((spd) => (
                   <Button
                     key={spd}
-                    variant={settings.defaultPlaybackSpeed === spd ? 'default' : 'outline'}
+                    variant={
+                      settings.defaultPlaybackSpeed === spd
+                        ? 'default'
+                        : 'outline'
+                    }
                     size="xs"
                     onClick={() => updateSetting('defaultPlaybackSpeed', spd)}
                     className="text-xs h-7.5 px-3 rounded-lg font-mono font-semibold"
@@ -309,14 +389,20 @@ export function SettingsView(): React.JSX.Element {
             {/* Auto Play Next Lesson Toggle */}
             <div className="flex items-center justify-between gap-3 pb-3.5 border-b border-border/40">
               <div>
-                <p className="text-sm font-semibold text-foreground">{t('settings.autoPlayNext')}</p>
-                <p className="text-xs text-muted-foreground">{t('settings.autoPlayNextDesc')}</p>
+                <p className="text-sm font-semibold text-foreground">
+                  {t('settings.autoPlayNext')}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {t('settings.autoPlayNextDesc')}
+                </p>
               </div>
               <button
                 type="button"
                 role="switch"
                 aria-checked={settings.autoPlayNext}
-                onClick={() => updateSetting('autoPlayNext', !settings.autoPlayNext)}
+                onClick={() =>
+                  updateSetting('autoPlayNext', !settings.autoPlayNext)
+                }
                 className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
                   settings.autoPlayNext ? 'bg-primary' : 'bg-secondary'
                 }`}
@@ -349,7 +435,9 @@ export function SettingsView(): React.JSX.Element {
                 min={50}
                 max={100}
                 step={5}
-                onValueChange={(vals) => updateSetting('completionThreshold', vals[0] / 100)}
+                onValueChange={(vals) =>
+                  updateSetting('completionThreshold', vals[0] / 100)
+                }
                 className="py-2"
               />
             </div>
@@ -363,15 +451,23 @@ export function SettingsView(): React.JSX.Element {
           <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
               <FileText className="h-4 w-4 text-primary" />
-              <CardTitle className="text-base font-bold">{t('settings.transcription')}</CardTitle>
+              <CardTitle className="text-base font-bold">
+                {t('settings.transcription')}
+              </CardTitle>
             </div>
-            <CardDescription className="text-xs">{t('settings.transcriptionDesc')}</CardDescription>
+            <CardDescription className="text-xs">
+              {t('settings.transcriptionDesc')}
+            </CardDescription>
           </CardHeader>
           <CardContent className="pt-1">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-sm font-semibold text-foreground">{t('settings.autoTranscribeNewLessons')}</p>
-                <p className="text-xs text-muted-foreground">{t('settings.autoTranscribeNewLessonsDesc')}</p>
+                <p className="text-sm font-semibold text-foreground">
+                  {t('settings.autoTranscribeNewLessons')}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {t('settings.autoTranscribeNewLessonsDesc')}
+                </p>
               </div>
               <button
                 type="button"
@@ -399,7 +495,9 @@ export function SettingsView(): React.JSX.Element {
           <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
               <Target className="h-4 w-4 text-primary" />
-              <CardTitle className="text-base font-bold">{t('settings.studyGoals')}</CardTitle>
+              <CardTitle className="text-base font-bold">
+                {t('settings.studyGoals')}
+              </CardTitle>
             </div>
             <CardDescription className="text-xs">
               {t('settings.studyGoalsDesc')}
@@ -417,8 +515,9 @@ export function SettingsView(): React.JSX.Element {
                     {t('settings.dailyStudyGoalDesc')}
                   </p>
                 </div>
-                <span className="font-mono text-sm font-bold text-blue-400 px-2.5 py-1 rounded-lg bg-blue-500/10 border border-blue-500/20">
-                  {settings.dailyStudyGoalMinutes || 30} {t('settings.minPerDay')}
+                <span className="font-mono text-sm font-bold text-accent px-2.5 py-1 rounded-lg bg-accent/10 border border-accent/20">
+                  {settings.dailyStudyGoalMinutes || 30}{' '}
+                  {t('settings.minPerDay')}
                 </span>
               </div>
 
@@ -427,7 +526,11 @@ export function SettingsView(): React.JSX.Element {
                 {dailyGoalPresets.map((mins) => (
                   <Button
                     key={mins}
-                    variant={(settings.dailyStudyGoalMinutes || 30) === mins ? 'default' : 'outline'}
+                    variant={
+                      (settings.dailyStudyGoalMinutes || 30) === mins
+                        ? 'default'
+                        : 'outline'
+                    }
                     size="xs"
                     onClick={() => updateSetting('dailyStudyGoalMinutes', mins)}
                     className="text-xs h-7.5 px-3 rounded-lg font-medium"
@@ -443,7 +546,9 @@ export function SettingsView(): React.JSX.Element {
                 min={5}
                 max={180}
                 step={5}
-                onValueChange={(vals) => updateSetting('dailyStudyGoalMinutes', vals[0])}
+                onValueChange={(vals) =>
+                  updateSetting('dailyStudyGoalMinutes', vals[0])
+                }
                 className="py-1"
               />
             </div>
@@ -460,7 +565,8 @@ export function SettingsView(): React.JSX.Element {
                   </p>
                 </div>
                 <span className="font-mono text-sm font-bold text-emerald-400 px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-                  {settings.weeklyLessonsGoal || 10} {t('settings.lessonsPerWeek')}
+                  {settings.weeklyLessonsGoal || 10}{' '}
+                  {t('settings.lessonsPerWeek')}
                 </span>
               </div>
 
@@ -469,7 +575,11 @@ export function SettingsView(): React.JSX.Element {
                 {weeklyLessonPresets.map((cnt) => (
                   <Button
                     key={cnt}
-                    variant={(settings.weeklyLessonsGoal || 10) === cnt ? 'default' : 'outline'}
+                    variant={
+                      (settings.weeklyLessonsGoal || 10) === cnt
+                        ? 'default'
+                        : 'outline'
+                    }
                     size="xs"
                     onClick={() => updateSetting('weeklyLessonsGoal', cnt)}
                     className="text-xs h-7.5 px-3 rounded-lg font-medium"
@@ -485,7 +595,9 @@ export function SettingsView(): React.JSX.Element {
                 min={1}
                 max={50}
                 step={1}
-                onValueChange={(vals) => updateSetting('weeklyLessonsGoal', vals[0])}
+                onValueChange={(vals) =>
+                  updateSetting('weeklyLessonsGoal', vals[0])
+                }
                 className="py-1"
               />
             </div>
@@ -497,9 +609,13 @@ export function SettingsView(): React.JSX.Element {
           <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
               <Database className="h-4 w-4 text-primary" />
-              <CardTitle className="text-base font-bold">{t('settings.currentVault')}</CardTitle>
+              <CardTitle className="text-base font-bold">
+                {t('settings.currentVault')}
+              </CardTitle>
             </div>
-            <CardDescription className="text-xs">{t('settings.vaultDesc')}</CardDescription>
+            <CardDescription className="text-xs">
+              {t('settings.vaultDesc')}
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3 pt-1">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-border/70 bg-secondary/30 p-3.5">
@@ -529,7 +645,9 @@ export function SettingsView(): React.JSX.Element {
                     className="text-xs rounded-xl gap-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10 cursor-pointer"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
-                    <span>{t('vault.unlinkOrDelete', 'Desvincular / Excluir')}</span>
+                    <span>
+                      {t('vault.unlinkOrDelete', 'Desvincular / Excluir')}
+                    </span>
                   </Button>
                 )}
               </div>
@@ -542,10 +660,15 @@ export function SettingsView(): React.JSX.Element {
           <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
               <PackageCheck className="h-4 w-4 text-primary" />
-              <CardTitle className="text-base font-bold">{t('backup.sectionTitle', 'Backup & Portabilidade')}</CardTitle>
+              <CardTitle className="text-base font-bold">
+                {t('backup.sectionTitle', 'Backup & Portabilidade')}
+              </CardTitle>
             </div>
             <CardDescription className="text-xs">
-              {t('backup.sectionDesc', 'Proteja seu progresso, histórico, anotações, flashcards e marcadores em um arquivo compacto (.orbia).')}
+              {t(
+                'backup.sectionDesc',
+                'Proteja seu progresso, histórico, anotações, flashcards e marcadores em um arquivo compacto (.orbia).'
+              )}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4 pt-1">
@@ -553,7 +676,11 @@ export function SettingsView(): React.JSX.Element {
             {backupStatusMessage && (
               <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs flex items-center justify-between animate-in fade-in">
                 <span>{backupStatusMessage}</span>
-                <button type="button" onClick={() => setBackupStatusMessage(null)} className="text-muted-foreground hover:text-foreground">
+                <button
+                  type="button"
+                  onClick={() => setBackupStatusMessage(null)}
+                  className="text-muted-foreground hover:text-foreground"
+                >
                   <Check className="h-3.5 w-3.5" />
                 </button>
               </div>
@@ -562,7 +689,11 @@ export function SettingsView(): React.JSX.Element {
             {backupErrorMessage && (
               <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/30 text-destructive text-xs flex items-center justify-between animate-in fade-in">
                 <span>{backupErrorMessage}</span>
-                <button type="button" onClick={() => setBackupErrorMessage(null)} className="text-muted-foreground hover:text-foreground">
+                <button
+                  type="button"
+                  onClick={() => setBackupErrorMessage(null)}
+                  className="text-muted-foreground hover:text-foreground"
+                >
                   <AlertCircle className="h-3.5 w-3.5" />
                 </button>
               </div>
@@ -571,8 +702,15 @@ export function SettingsView(): React.JSX.Element {
             {/* Backup & Restore Action Buttons */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl border border-border/70 bg-secondary/20">
               <div>
-                <p className="text-sm font-semibold text-foreground">{t('backup.vaultBackup', 'Backup do Vault')}</p>
-                <p className="text-xs text-muted-foreground">{t('backup.vaultBackupDesc', 'Gere uma cópia leve de segurança ou migre para outro computador.')}</p>
+                <p className="text-sm font-semibold text-foreground">
+                  {t('backup.vaultBackup', 'Backup do Vault')}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {t(
+                    'backup.vaultBackupDesc',
+                    'Gere uma cópia leve de segurança ou migre para outro computador.'
+                  )}
+                </p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <Button
@@ -583,7 +721,11 @@ export function SettingsView(): React.JSX.Element {
                   className="text-xs rounded-xl gap-1.5 font-semibold"
                 >
                   <PackageCheck className="h-3.5 w-3.5" />
-                  <span>{isCreatingBackup ? t('backup.creating', 'Criando...') : t('backup.create', 'Criar Backup (.orbia)')}</span>
+                  <span>
+                    {isCreatingBackup
+                      ? t('backup.creating', 'Criando...')
+                      : t('backup.create', 'Criar Backup (.orbia)')}
+                  </span>
                 </Button>
 
                 <Button
@@ -602,8 +744,15 @@ export function SettingsView(): React.JSX.Element {
             {/* Portable Data Exports */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-border/40">
               <div>
-                <p className="text-sm font-semibold text-foreground">{t('backup.dataExport', 'Exportação Portátil')}</p>
-                <p className="text-xs text-muted-foreground">{t('backup.dataExportDesc', 'Exporte suas anotações e marcadores para Markdown e flashcards para Anki (CSV).')}</p>
+                <p className="text-sm font-semibold text-foreground">
+                  {t('backup.dataExport', 'Exportação Portátil')}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {t(
+                    'backup.dataExportDesc',
+                    'Exporte suas anotações e marcadores para Markdown e flashcards para Anki (CSV).'
+                  )}
+                </p>
               </div>
               <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
                 <Button
@@ -643,22 +792,32 @@ export function SettingsView(): React.JSX.Element {
           <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
               <Info className="h-4 w-4 text-primary" />
-              <CardTitle className="text-base font-bold">{t('settings.about')}</CardTitle>
+              <CardTitle className="text-base font-bold">
+                {t('settings.about')}
+              </CardTitle>
             </div>
           </CardHeader>
           <CardContent className="space-y-3 pt-1">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl p-1 bg-gradient-to-br from-orange-500/20 via-purple-600/15 to-blue-600/10 border border-border shadow-sm flex items-center justify-center">
-                <img src={appLogo} alt="Orbia" className="h-full w-full object-contain" />
+              <div className="h-10 w-10 rounded-xl p-1 bg-primary/10 border border-primary/30 shadow-sm flex items-center justify-center">
+                <img
+                  src={appLogo}
+                  alt="Orbia"
+                  className="h-full w-full object-contain"
+                />
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="font-extrabold text-foreground text-sm">Orbia Desktop</span>
+                  <span className="font-extrabold text-foreground text-sm">
+                    Orbia Desktop
+                  </span>
                   <span className="text-[10px] font-mono font-semibold px-2 py-0.2 rounded-full bg-primary/20 text-primary">
                     v0.1-MVP
                   </span>
                 </div>
-                <p className="text-xs text-muted-foreground">{t('app.tagline')}</p>
+                <p className="text-xs text-muted-foreground">
+                  {t('app.tagline')}
+                </p>
               </div>
             </div>
 
@@ -689,4 +848,3 @@ export function SettingsView(): React.JSX.Element {
     </div>
   )
 }
-

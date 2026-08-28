@@ -1,11 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import {
-  Dialog,
-  DialogContent,
-  Button,
-  Input,
-  Badge
-} from '../ui'
+import { Dialog, DialogContent, Button, Input, Badge } from '../ui'
 import {
   Folder,
   Film,
@@ -55,7 +49,9 @@ export function QuickCourseOrganizerModal({
   const [courseTitleInput, setCourseTitleInput] = useState('')
   const [editingModuleId, setEditingModuleId] = useState<string | null>(null)
   const [editingLessonId, setEditingLessonId] = useState<string | null>(null)
-  const [expandedModules, setExpandedModules] = useState<Record<string, boolean>>({})
+  const [expandedModules, setExpandedModules] = useState<
+    Record<string, boolean>
+  >({})
   const [saveStatus, setSaveStatus] = useState<string | null>(null)
 
   useEffect(() => {
@@ -95,7 +91,10 @@ export function QuickCourseOrganizerModal({
     await loadHierarchy(courseData.course.id)
   }
 
-  const handleSaveModuleTitle = async (moduleId: string, newTitle: string): Promise<void> => {
+  const handleSaveModuleTitle = async (
+    moduleId: string,
+    newTitle: string
+  ): Promise<void> => {
     if (!newTitle.trim()) return
     await updateModuleMetadata(moduleId, newTitle.trim())
     setEditingModuleId(null)
@@ -104,7 +103,10 @@ export function QuickCourseOrganizerModal({
     if (courseData) await loadHierarchy(courseData.course.id)
   }
 
-  const handleSaveLessonTitle = async (lessonId: string, newTitle: string): Promise<void> => {
+  const handleSaveLessonTitle = async (
+    lessonId: string,
+    newTitle: string
+  ): Promise<void> => {
     if (!newTitle.trim()) return
     await updateLessonMetadata(lessonId, newTitle.trim())
     setEditingLessonId(null)
@@ -113,18 +115,28 @@ export function QuickCourseOrganizerModal({
     if (courseData) await loadHierarchy(courseData.course.id)
   }
 
-  const handleReorderModule = async (moduleId: string, direction: 'up' | 'down'): Promise<void> => {
+  const handleReorderModule = async (
+    moduleId: string,
+    direction: 'up' | 'down'
+  ): Promise<void> => {
     await reorderModule(moduleId, direction)
     if (courseData) await loadHierarchy(courseData.course.id)
   }
 
-  const handleReorderLesson = async (lessonId: string, direction: 'up' | 'down'): Promise<void> => {
+  const handleReorderLesson = async (
+    lessonId: string,
+    direction: 'up' | 'down'
+  ): Promise<void> => {
     await reorderLesson(lessonId, direction)
     if (courseData) await loadHierarchy(courseData.course.id)
   }
 
   const handleDeleteLesson = async (lessonId: string): Promise<void> => {
-    if (!confirm('Deseja realmente remover esta aula da biblioteca? O arquivo físico permanecerá seguro no disco.')) {
+    if (
+      !confirm(
+        'Deseja realmente remover esta aula da biblioteca? O arquivo físico permanecerá seguro no disco.'
+      )
+    ) {
       return
     }
     const res = await deleteLesson(lessonId, false)
@@ -154,14 +166,14 @@ export function QuickCourseOrganizerModal({
   const getMediaIcon = (type: string): React.JSX.Element => {
     switch (type) {
       case 'video':
-        return <Film className="h-3.5 w-3.5 text-orange-400" />
+        return <Film className="h-3.5 w-3.5 text-primary" />
       case 'audio':
-        return <Film className="h-3.5 w-3.5 text-blue-400" />
+        return <Film className="h-3.5 w-3.5 text-accent" />
       case 'pdf':
       case 'document':
         return <FileText className="h-3.5 w-3.5 text-emerald-400" />
       case 'code':
-        return <FileCode className="h-3.5 w-3.5 text-purple-400" />
+        return <FileCode className="h-3.5 w-3.5 text-accent" />
       default:
         return <Film className="h-3.5 w-3.5 text-slate-400" />
     }
@@ -173,7 +185,9 @@ export function QuickCourseOrganizerModal({
         <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden p-6 flex flex-col items-center justify-center min-h-[350px]">
           <div className="flex flex-col items-center gap-3">
             <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-            <p className="text-sm text-muted-foreground">Carregando estrutura visual do curso...</p>
+            <p className="text-sm text-muted-foreground">
+              Carregando estrutura visual do curso...
+            </p>
           </div>
         </DialogContent>
       </Dialog>
@@ -192,13 +206,17 @@ export function QuickCourseOrganizerModal({
           <div className="flex flex-col sm:flex-row sm:items-center gap-4">
             {/* Thumbnail Preview */}
             <div className="relative group/cover w-28 h-18 sm:w-36 sm:h-20 shrink-0 rounded-xl overflow-hidden border border-border/60 shadow-sm bg-black/40">
-              <CourseCover src={course.coverPath} title={course.title} className="w-full h-full object-cover" />
+              <CourseCover
+                src={course.coverPath}
+                title={course.title}
+                className="w-full h-full object-cover"
+              />
               <button
                 type="button"
                 onClick={handleChangeCover}
                 className="absolute inset-0 bg-black/70 opacity-0 group-hover/cover:opacity-100 flex flex-col items-center justify-center gap-1 text-[11px] text-white font-medium transition-opacity cursor-pointer backdrop-blur-xs"
               >
-                <ImageIcon className="h-4 w-4 text-orange-400" />
+                <ImageIcon className="h-4 w-4 text-primary" />
                 <span>Trocar Capa</span>
               </button>
             </div>
@@ -206,11 +224,14 @@ export function QuickCourseOrganizerModal({
             {/* Editable Title and Info */}
             <div className="flex-1 min-w-0 space-y-2">
               <div className="flex items-center gap-2">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-orange-500 font-mono">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-primary font-mono">
                   Editor Rápido do Curso
                 </span>
                 {course.sourceType === 'local-ref' && (
-                  <Badge variant="outline" className="text-[10px] py-0 px-1.5 border-orange-500/30 text-orange-400">
+                  <Badge
+                    variant="outline"
+                    className="text-[10px] py-0 px-1.5 border-primary/30 text-primary"
+                  >
                     Referência Externa
                   </Badge>
                 )}
@@ -228,7 +249,9 @@ export function QuickCourseOrganizerModal({
                   value={courseTitleInput}
                   onChange={(e) => setCourseTitleInput(e.target.value)}
                   onBlur={handleSaveCourseTitle}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSaveCourseTitle()}
+                  onKeyDown={(e) =>
+                    e.key === 'Enter' && handleSaveCourseTitle()
+                  }
                   placeholder="Nome do Curso..."
                   className="text-base font-bold text-foreground bg-background/80 border-border/80 h-9 rounded-xl focus-visible:ring-1 focus-visible:ring-primary"
                 />
@@ -296,7 +319,9 @@ export function QuickCourseOrganizerModal({
 
           {modules.length === 0 ? (
             <div className="p-8 text-center border border-dashed border-border/60 rounded-xl">
-              <p className="text-sm text-muted-foreground">Nenhum módulo encontrado neste curso.</p>
+              <p className="text-sm text-muted-foreground">
+                Nenhum módulo encontrado neste curso.
+              </p>
             </div>
           ) : (
             modules.map((mod, modIdx) => {
@@ -315,7 +340,9 @@ export function QuickCourseOrganizerModal({
                       className="flex items-center gap-2.5 flex-1 min-w-0 cursor-pointer"
                       onClick={() => toggleModuleExpand(mod.id)}
                     >
-                      <Folder className={`h-4 w-4 shrink-0 ${isExpanded ? 'text-primary' : 'text-amber-500'}`} />
+                      <Folder
+                        className={`h-4 w-4 shrink-0 ${isExpanded ? 'text-primary' : 'text-primary'}`}
+                      />
                       <span className="text-xs font-mono font-bold text-muted-foreground shrink-0">
                         #{modIdx + 1}
                       </span>
@@ -328,9 +355,15 @@ export function QuickCourseOrganizerModal({
                           <Input
                             autoFocus
                             defaultValue={displayModTitle}
-                            onBlur={(e) => handleSaveModuleTitle(mod.id, e.target.value)}
+                            onBlur={(e) =>
+                              handleSaveModuleTitle(mod.id, e.target.value)
+                            }
                             onKeyDown={(e) => {
-                              if (e.key === 'Enter') handleSaveModuleTitle(mod.id, e.currentTarget.value)
+                              if (e.key === 'Enter')
+                                handleSaveModuleTitle(
+                                  mod.id,
+                                  e.currentTarget.value
+                                )
                               if (e.key === 'Escape') setEditingModuleId(null)
                             }}
                             className="h-7 text-xs font-semibold bg-background py-1 px-2 rounded-lg"
@@ -349,7 +382,10 @@ export function QuickCourseOrganizerModal({
                         </span>
                       )}
 
-                      <Badge variant="secondary" className="text-[10px] h-5 py-0 px-1.5 font-mono shrink-0">
+                      <Badge
+                        variant="secondary"
+                        className="text-[10px] h-5 py-0 px-1.5 font-mono shrink-0"
+                      >
                         {mod.lessons.length} aulas
                       </Badge>
                     </div>
@@ -389,7 +425,8 @@ export function QuickCourseOrganizerModal({
                       ) : (
                         mod.lessons.map((les, lesIdx) => {
                           const isEditingLes = editingLessonId === les.id
-                          const displayLessonTitle = les.customTitle || les.title
+                          const displayLessonTitle =
+                            les.customTitle || les.title
 
                           return (
                             <div
@@ -406,10 +443,20 @@ export function QuickCourseOrganizerModal({
                                   <Input
                                     autoFocus
                                     defaultValue={displayLessonTitle}
-                                    onBlur={(e) => handleSaveLessonTitle(les.id, e.target.value)}
+                                    onBlur={(e) =>
+                                      handleSaveLessonTitle(
+                                        les.id,
+                                        e.target.value
+                                      )
+                                    }
                                     onKeyDown={(e) => {
-                                      if (e.key === 'Enter') handleSaveLessonTitle(les.id, e.currentTarget.value)
-                                      if (e.key === 'Escape') setEditingLessonId(null)
+                                      if (e.key === 'Enter')
+                                        handleSaveLessonTitle(
+                                          les.id,
+                                          e.currentTarget.value
+                                        )
+                                      if (e.key === 'Escape')
+                                        setEditingLessonId(null)
                                     }}
                                     className="h-6.5 text-xs bg-background py-0.5 px-2 rounded-md flex-1"
                                   />
@@ -436,7 +483,9 @@ export function QuickCourseOrganizerModal({
                                   size="icon"
                                   variant="ghost"
                                   disabled={lesIdx === 0}
-                                  onClick={() => handleReorderLesson(les.id, 'up')}
+                                  onClick={() =>
+                                    handleReorderLesson(les.id, 'up')
+                                  }
                                   className="h-6 w-6 text-muted-foreground hover:text-foreground disabled:opacity-20 rounded"
                                   title="Subir Aula"
                                 >
@@ -446,7 +495,9 @@ export function QuickCourseOrganizerModal({
                                   size="icon"
                                   variant="ghost"
                                   disabled={lesIdx === mod.lessons.length - 1}
-                                  onClick={() => handleReorderLesson(les.id, 'down')}
+                                  onClick={() =>
+                                    handleReorderLesson(les.id, 'down')
+                                  }
                                   className="h-6 w-6 text-muted-foreground hover:text-foreground disabled:opacity-20 rounded"
                                   title="Descer Aula"
                                 >
@@ -477,11 +528,12 @@ export function QuickCourseOrganizerModal({
         {/* Modal Footer */}
         <div className="p-4 border-t border-border/60 bg-muted/20 flex items-center justify-between">
           <p className="text-xs text-muted-foreground">
-            As alterações são salvas automaticamente na biblioteca sem mover ou alterar arquivos em disco.
+            As alterações são salvas automaticamente na biblioteca sem mover ou
+            alterar arquivos em disco.
           </p>
           <Button
             onClick={() => onOpenChange(false)}
-            className="rounded-xl px-5 text-xs font-semibold bg-gradient-to-r from-orange-500 to-amber-500 text-white"
+            className="rounded-xl px-5 text-xs font-semibold bg-primary text-primary-foreground"
           >
             Concluir Edição
           </Button>

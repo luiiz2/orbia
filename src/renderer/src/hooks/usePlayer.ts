@@ -38,11 +38,15 @@ export interface UsePlayerReturn {
   cancelAutoAdvance: () => void
   skipToNextNow: () => void
   handleUserActivity: () => void
+  addBookmark: (time: number) => void
 }
 
 const SPEED_PRESETS = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0]
 
-export function usePlayer({ videoRef, containerRef }: UsePlayerProps): UsePlayerReturn {
+export function usePlayer({
+  videoRef,
+  containerRef
+}: UsePlayerProps): UsePlayerReturn {
   const {
     activeCourse,
     activeLesson,
@@ -72,13 +76,16 @@ export function usePlayer({ videoRef, containerRef }: UsePlayerProps): UsePlayer
     toggleComplete,
     updateProgress: storeUpdateProgress,
     nextLesson: storeNextLesson,
-    prevLesson: storePrevLesson
+    prevLesson: storePrevLesson,
+    addBookmark: storeAddBookmark
   } = usePlayerStore()
 
   const { settings } = useSettingsStore()
 
   const [showControls, setShowControls] = useState<boolean>(true)
-  const [autoAdvanceCountdown, setAutoAdvanceCountdown] = useState<number | null>(null)
+  const [autoAdvanceCountdown, setAutoAdvanceCountdown] = useState<
+    number | null
+  >(null)
 
   const inactivityTimerRef = useRef<NodeJS.Timeout | null>(null)
   const lastSaveTimeRef = useRef<number>(0)
@@ -99,7 +106,12 @@ export function usePlayer({ videoRef, containerRef }: UsePlayerProps): UsePlayer
   // The main-process resource manager uses this signal to give playback
   // priority over background transcription and optimization jobs.
   useEffect(() => {
-    if (typeof window === 'undefined' || !activeLesson || !window.api?.player?.setActive) return
+    if (
+      typeof window === 'undefined' ||
+      !activeLesson ||
+      !window.api?.player?.setActive
+    )
+      return
     void window.api.player.setActive(isPlaying).catch(() => undefined)
     return () => {
       void window.api.player.setActive(false).catch(() => undefined)
@@ -108,8 +120,11 @@ export function usePlayer({ videoRef, containerRef }: UsePlayerProps): UsePlayer
 
   // Determine if next / prev lessons exist
   const allLessons = modulesWithLessons.flatMap((m) => m.lessons || [])
-  const currentIndex = activeLesson ? allLessons.findIndex((l) => l.id === activeLesson.id) : -1
-  const hasNextLesson = currentIndex !== -1 && currentIndex + 1 < allLessons.length
+  const currentIndex = activeLesson
+    ? allLessons.findIndex((l) => l.id === activeLesson.id)
+    : -1
+  const hasNextLesson =
+    currentIndex !== -1 && currentIndex + 1 < allLessons.length
   const hasPrevLesson = currentIndex > 0
   const nextLessonObj = hasNextLesson ? allLessons[currentIndex + 1] : null
   const nextLessonTitle = nextLessonObj ? nextLessonObj.title : null
@@ -197,7 +212,10 @@ export function usePlayer({ videoRef, containerRef }: UsePlayerProps): UsePlayer
       const video = videoRef.current
       if (!video) return
 
-      const clamped = Math.max(0, Math.min(video.duration || Infinity, targetTime))
+      const clamped = Math.max(
+        0,
+        Math.min(video.duration || Infinity, targetTime)
+      )
       pendingSeekRef.current = { time: clamped, at: Date.now() }
       video.currentTime = clamped
       storeSeek(clamped)
@@ -214,7 +232,10 @@ export function usePlayer({ videoRef, containerRef }: UsePlayerProps): UsePlayer
       const video = videoRef.current
       if (!video) return
 
-      const newTime = Math.max(0, Math.min(video.duration || Infinity, video.currentTime + delta))
+      const newTime = Math.max(
+        0,
+        Math.min(video.duration || Infinity, video.currentTime + delta)
+      )
       pendingSeekRef.current = { time: newTime, at: Date.now() }
       video.currentTime = newTime
       storeSeek(newTime)
@@ -265,7 +286,10 @@ export function usePlayer({ videoRef, containerRef }: UsePlayerProps): UsePlayer
    * Fullscreen
    */
   const toggleFullscreen = useCallback(() => {
-    const targetElement = containerRef?.current || videoRef.current?.parentElement || videoRef.current
+    const targetElement =
+      containerRef?.current ||
+      videoRef.current?.parentElement ||
+      videoRef.current
     if (!targetElement) return
 
     if (!document.fullscreenElement) {
@@ -354,7 +378,15 @@ export function usePlayer({ videoRef, containerRef }: UsePlayerProps): UsePlayer
         /* autoplay may fail until metadata loads; retried on play event */
       })
     }
-  }, [activeLesson?.id, videoRef, cancelAutoAdvance, playbackRate, volume, isMuted, isPlaying])
+  }, [
+    activeLesson?.id,
+    videoRef,
+    cancelAutoAdvance,
+    playbackRate,
+    volume,
+    isMuted,
+    isPlaying
+  ])
 
   /**
    * Synchronize active subtitle track with video TextTracks
@@ -363,13 +395,16 @@ export function usePlayer({ videoRef, containerRef }: UsePlayerProps): UsePlayer
     const video = videoRef.current
     if (!video || !video.textTracks) return
 
-    const activeTrackObj = subtitleTracks.find((t) => t.id === activeSubtitleTrack)
+    const activeTrackObj = subtitleTracks.find(
+      (t) => t.id === activeSubtitleTrack
+    )
 
     for (let i = 0; i < video.textTracks.length; i++) {
       const textTrack = video.textTracks[i]
       if (
         activeTrackObj &&
-        (textTrack.label === activeTrackObj.label || textTrack.id === activeTrackObj.id)
+        (textTrack.label === activeTrackObj.label ||
+          textTrack.id === activeTrackObj.id)
       ) {
         textTrack.mode = 'showing'
       } else {
@@ -507,7 +542,9 @@ export function usePlayer({ videoRef, containerRef }: UsePlayerProps): UsePlayer
         case '>':
         case '.': {
           // Increase speed
-          const currIdx = SPEED_PRESETS.findIndex((s) => Math.abs(s - playbackRate) < 0.05)
+          const currIdx = SPEED_PRESETS.findIndex(
+            (s) => Math.abs(s - playbackRate) < 0.05
+          )
           if (currIdx !== -1 && currIdx + 1 < SPEED_PRESETS.length) {
             setPlaybackRate(SPEED_PRESETS[currIdx + 1])
           }
@@ -518,12 +555,26 @@ export function usePlayer({ videoRef, containerRef }: UsePlayerProps): UsePlayer
         case '<':
         case ',': {
           // Decrease speed
-          const currIdx = SPEED_PRESETS.findIndex((s) => Math.abs(s - playbackRate) < 0.05)
+          const currIdx = SPEED_PRESETS.findIndex(
+            (s) => Math.abs(s - playbackRate) < 0.05
+          )
           if (currIdx > 0) {
             setPlaybackRate(SPEED_PRESETS[currIdx - 1])
           }
           break
         }
+
+        case 'b':
+        case 'B':
+          e.preventDefault()
+          if (activeLesson) {
+            void storeAddBookmark(
+              undefined,
+              undefined,
+              videoRef.current?.currentTime || currentTime
+            )
+          }
+          break
 
         default:
           break
@@ -547,7 +598,10 @@ export function usePlayer({ videoRef, containerRef }: UsePlayerProps): UsePlayer
     playbackRate,
     setPlaybackRate,
     hasNextLesson,
-    storeNextLesson
+    storeNextLesson,
+    storeAddBookmark,
+    activeLesson,
+    currentTime
   ])
 
   /**
@@ -594,7 +648,10 @@ export function usePlayer({ videoRef, containerRef }: UsePlayerProps): UsePlayer
       if (video.duration && !isNaN(video.duration)) {
         storeSetDuration(video.duration)
         // Lazy duration probe: persist once so course totals become accurate.
-        if (activeLesson && (!activeLesson.duration || activeLesson.duration <= 0)) {
+        if (
+          activeLesson &&
+          (!activeLesson.duration || activeLesson.duration <= 0)
+        ) {
           void window.api.courses
             .updateLessonDuration(activeLesson.id, video.duration)
             .catch(() => undefined)
@@ -746,6 +803,9 @@ export function usePlayer({ videoRef, containerRef }: UsePlayerProps): UsePlayer
     prevLesson: storePrevLesson,
     cancelAutoAdvance,
     skipToNextNow,
-    handleUserActivity
+    handleUserActivity,
+    addBookmark: (time: number) => {
+      void storeAddBookmark(undefined, undefined, time)
+    }
   }
 }

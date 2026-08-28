@@ -36,8 +36,18 @@ export function CustomFieldsModal(): React.JSX.Element | null {
     if (!name.trim()) return
     setIsCreating(true)
     try {
-      const options = fieldType === 'select' ? optionsStr.split(',').map((s) => s.trim()).filter(Boolean) : undefined
-      await window.api.studio.createCustomFieldDefinition(name.trim(), fieldType, options)
+      const options =
+        fieldType === 'select'
+          ? optionsStr
+              .split(',')
+              .map((s) => s.trim())
+              .filter(Boolean)
+          : undefined
+      await window.api.studio.createCustomFieldDefinition(
+        name.trim(),
+        fieldType,
+        options
+      )
       setName('')
       setOptionsStr('')
       await fetchCustomFields()
@@ -52,7 +62,10 @@ export function CustomFieldsModal(): React.JSX.Element | null {
   }
 
   return (
-    <Dialog open={isCustomFieldsModalOpen} onOpenChange={setCustomFieldsModalOpen}>
+    <Dialog
+      open={isCustomFieldsModalOpen}
+      onOpenChange={setCustomFieldsModalOpen}
+    >
       <DialogContent className="max-w-xl max-h-[85vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -60,7 +73,8 @@ export function CustomFieldsModal(): React.JSX.Element | null {
             <span>Gerenciar Metadados e Campos Customizados</span>
           </DialogTitle>
           <DialogDescription>
-            Crie campos personalizados para associar a cursos, módulos ou aulas (ex: Professor, Nível, Prioridade).
+            Crie campos personalizados para associar a cursos, módulos ou aulas
+            (ex: Professor, Nível, Prioridade).
           </DialogDescription>
         </DialogHeader>
 
@@ -68,7 +82,9 @@ export function CustomFieldsModal(): React.JSX.Element | null {
         <div className="p-3 rounded-xl border border-border/50 bg-muted/20 space-y-3 text-xs">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="font-semibold text-foreground">Nome do Campo:</label>
+              <label className="font-semibold text-foreground">
+                Nome do Campo:
+              </label>
               <Input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -77,10 +93,14 @@ export function CustomFieldsModal(): React.JSX.Element | null {
               />
             </div>
             <div>
-              <label className="font-semibold text-foreground">Tipo de Dado:</label>
+              <label className="font-semibold text-foreground">
+                Tipo de Dado:
+              </label>
               <select
                 value={fieldType}
-                onChange={(e) => setFieldType(e.target.value as CustomFieldType)}
+                onChange={(e) =>
+                  setFieldType(e.target.value as CustomFieldType)
+                }
                 className="mt-1 flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-xs text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               >
                 <option value="text">Texto</option>
@@ -98,7 +118,9 @@ export function CustomFieldsModal(): React.JSX.Element | null {
 
           {fieldType === 'select' && (
             <div>
-              <label className="font-semibold text-foreground">Opções (separadas por vírgula):</label>
+              <label className="font-semibold text-foreground">
+                Opções (separadas por vírgula):
+              </label>
               <Input
                 value={optionsStr}
                 onChange={(e) => setOptionsStr(e.target.value)}
@@ -109,7 +131,12 @@ export function CustomFieldsModal(): React.JSX.Element | null {
           )}
 
           <div className="flex justify-end">
-            <Button size="sm" onClick={handleCreate} disabled={isCreating || !name.trim()} className="h-8 text-xs">
+            <Button
+              size="sm"
+              onClick={handleCreate}
+              disabled={isCreating || !name.trim()}
+              className="h-8 text-xs"
+            >
               <Plus className="h-3.5 w-3.5 mr-1" />
               <span>Adicionar Campo</span>
             </Button>
@@ -127,7 +154,9 @@ export function CustomFieldsModal(): React.JSX.Element | null {
               className="flex items-center justify-between p-2 rounded-lg bg-card border border-border/40"
             >
               <div>
-                <span className="font-semibold text-foreground mr-2">{f.name}</span>
+                <span className="font-semibold text-foreground mr-2">
+                  {f.name}
+                </span>
                 <span className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground text-[10px] uppercase font-mono">
                   {f.fieldType}
                 </span>
@@ -152,7 +181,11 @@ export function CustomFieldsModal(): React.JSX.Element | null {
         </div>
 
         <DialogFooter className="pt-2">
-          <Button variant="outline" size="sm" onClick={() => setCustomFieldsModalOpen(false)}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCustomFieldsModalOpen(false)}
+          >
             Fechar
           </Button>
         </DialogFooter>

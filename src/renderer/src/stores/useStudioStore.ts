@@ -65,7 +65,10 @@ export const useStudioStore = create<StudioStoreState>((set, get) => ({
   fetchAppearances: async (courseId?: string) => {
     set({ isLoading: true })
     try {
-      const apps = await window.api.studio.listAppearances(courseId, get().includeHidden)
+      const apps = await window.api.studio.listAppearances(
+        courseId,
+        get().includeHidden
+      )
       set({ appearances: apps })
     } catch (err) {
       console.warn('Failed to fetch appearances:', err)
@@ -123,7 +126,8 @@ export const useStudioStore = create<StudioStoreState>((set, get) => ({
     set((state) => {
       // If a draft change for this appearance and field already exists, replace it
       const filtered = state.draftChanges.filter(
-        (c) => !(c.appearanceId === change.appearanceId && c.field === change.field)
+        (c) =>
+          !(c.appearanceId === change.appearanceId && c.field === change.field)
       )
       return { draftChanges: [...filtered, change] }
     })
@@ -184,6 +188,8 @@ export const useStudioStore = create<StudioStoreState>((set, get) => ({
   setDraftModalOpen: (open: boolean) => set({ isDraftModalOpen: open }),
   setHistoryModalOpen: (open: boolean) => set({ isHistoryModalOpen: open }),
   setRenameModalOpen: (open: boolean) => set({ isRenameModalOpen: open }),
-  setCustomFieldsModalOpen: (open: boolean) => set({ isCustomFieldsModalOpen: open }),
-  setAutomationModalOpen: (open: boolean) => set({ isAutomationModalOpen: open })
+  setCustomFieldsModalOpen: (open: boolean) =>
+    set({ isCustomFieldsModalOpen: open }),
+  setAutomationModalOpen: (open: boolean) =>
+    set({ isAutomationModalOpen: open })
 }))

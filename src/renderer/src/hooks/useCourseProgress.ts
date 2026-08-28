@@ -1,7 +1,12 @@
 import { useMemo } from 'react'
 import { usePlayerStore } from '../stores/usePlayerStore'
 import { useLibraryStore } from '../stores/useLibraryStore'
-import type { Module, Lesson, LessonProgress, CourseProgressSummary } from '@shared'
+import type {
+  Module,
+  Lesson,
+  LessonProgress,
+  CourseProgressSummary
+} from '@shared'
 
 export interface ModuleProgressInfo {
   moduleId: string
@@ -38,7 +43,9 @@ export interface CalculateProgressParams {
 /**
  * Pure calculation function for course and module progression.
  */
-export function calculateProgressDetails(params: CalculateProgressParams): CourseProgressResult {
+export function calculateProgressDetails(
+  params: CalculateProgressParams
+): CourseProgressResult {
   const { modules, progressMap = {}, summary } = params
 
   if (!modules || modules.length === 0) {
@@ -106,7 +113,8 @@ export function calculateProgressDetails(params: CalculateProgressParams): Cours
     }
 
     const modTotal = lessons.length
-    const modPercentage = modTotal > 0 ? Math.round((modCompleted / modTotal) * 100) : 0
+    const modPercentage =
+      modTotal > 0 ? Math.round((modCompleted / modTotal) * 100) : 0
 
     moduleProgress[mod.id] = {
       moduleId: mod.id,
@@ -118,7 +126,8 @@ export function calculateProgressDetails(params: CalculateProgressParams): Cours
     }
   }
 
-  const coursePercentage = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0
+  const coursePercentage =
+    totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0
   const isCompleted = totalLessons > 0 && completedLessons === totalLessons
 
   const getLessonProgress = (lessonId: string): LessonProgress | undefined => {
@@ -149,7 +158,9 @@ export function calculateProgressDetails(params: CalculateProgressParams): Cours
  * Custom hook to compute course and module progress, completion percentages,
  * and remaining durations based on the active player state or library store.
  */
-export function useCourseProgress(options?: UseCourseProgressOptions): CourseProgressResult {
+export function useCourseProgress(
+  options?: UseCourseProgressOptions
+): CourseProgressResult {
   const playerModules = usePlayerStore((s) => s.modulesWithLessons)
   const playerProgressMap = usePlayerStore((s) => s.progressMap)
   const activePlayerCourse = usePlayerStore((s) => s.activeCourse)

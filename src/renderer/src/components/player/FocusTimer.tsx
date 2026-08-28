@@ -36,7 +36,9 @@ export function FocusTimer(): React.JSX.Element {
             setIsRunning(false)
             setIsCompleted(true)
             if (sessionId) {
-              window.api.sessions.end(sessionId, selectedDuration).catch(console.error)
+              window.api.sessions
+                .end(sessionId, selectedDuration)
+                .catch(console.error)
               setSessionId(null)
             }
             return 0
@@ -59,7 +61,10 @@ export function FocusTimer(): React.JSX.Element {
       setIsCompleted(false)
     }
     try {
-      const session = await window.api.sessions.start(activeCourse?.id, 'focus_timer')
+      const session = await window.api.sessions.start(
+        activeCourse?.id,
+        'focus_timer'
+      )
       setSessionId(session.id)
     } catch (err) {
       console.warn('Failed to record session start:', err)
@@ -78,7 +83,9 @@ export function FocusTimer(): React.JSX.Element {
     setSelectedDuration(target)
     setTimeLeft(target)
     if (sessionId) {
-      window.api.sessions.end(sessionId, selectedDuration - timeLeft).catch(console.error)
+      window.api.sessions
+        .end(sessionId, selectedDuration - timeLeft)
+        .catch(console.error)
       setSessionId(null)
     }
   }
@@ -91,7 +98,7 @@ export function FocusTimer(): React.JSX.Element {
             isCompleted
               ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 animate-pulse'
               : isRunning
-                ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40 shadow-sm shadow-amber-500/10'
+                ? 'bg-primary/20 text-primary border border-primary/40 shadow-sm shadow-primary/10'
                 : 'bg-secondary/60 hover:bg-secondary text-muted-foreground hover:text-foreground border border-border/60'
           }`}
           title={t('player.focusTimerTooltip', 'Timer de Foco')}
@@ -99,16 +106,22 @@ export function FocusTimer(): React.JSX.Element {
           {isCompleted ? (
             <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
           ) : (
-            <Timer className={`h-3.5 w-3.5 ${isRunning ? 'animate-spin' : ''}`} style={{ animationDuration: '3s' }} />
+            <Timer
+              className={`h-3.5 w-3.5 ${isRunning ? 'animate-spin' : ''}`}
+              style={{ animationDuration: '3s' }}
+            />
           )}
           <span>{formatTime(timeLeft)}</span>
         </button>
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent align="end" className="w-56 p-3 bg-popover/95 backdrop-blur-md border border-border/80 shadow-xl">
+      <DropdownMenuContent
+        align="end"
+        className="w-56 p-3 bg-popover/95 backdrop-blur-md border border-border/80 shadow-xl"
+      >
         <div className="flex items-center justify-between pb-2 mb-2 border-b border-border/60">
           <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
-            <Timer className="h-4 w-4 text-amber-500" />
+            <Timer className="h-4 w-4 text-primary" />
             <span>{t('player.focusTimer', 'Timer de Foco')}</span>
           </div>
           {isCompleted && (
@@ -126,7 +139,9 @@ export function FocusTimer(): React.JSX.Element {
               type="button"
               onClick={() => handleReset(preset.seconds)}
               className={`w-full text-left px-2 py-1.5 rounded text-xs transition-colors ${
-                selectedDuration === preset.seconds && !isRunning && !isCompleted
+                selectedDuration === preset.seconds &&
+                !isRunning &&
+                !isCompleted
                   ? 'bg-primary/20 text-primary font-semibold'
                   : 'hover:bg-accent/50 text-muted-foreground hover:text-foreground'
               }`}
@@ -142,7 +157,7 @@ export function FocusTimer(): React.JSX.Element {
             <Button
               size="sm"
               variant="outline"
-              className="h-8 gap-1 text-xs border-amber-500/40 text-amber-400 hover:bg-amber-500/10"
+              className="h-8 gap-1 text-xs border-primary/40 text-primary hover:bg-primary/10"
               onClick={handlePause}
             >
               <Pause className="h-3.5 w-3.5 mr-1" />
@@ -151,7 +166,7 @@ export function FocusTimer(): React.JSX.Element {
           ) : (
             <Button
               size="sm"
-              className="h-8 gap-1 text-xs bg-amber-500 hover:bg-amber-600 text-black font-semibold"
+              className="h-8 gap-1 text-xs bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
               onClick={handleStart}
             >
               <Play className="h-3.5 w-3.5 mr-1 fill-current" />

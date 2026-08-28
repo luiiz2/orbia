@@ -726,7 +726,7 @@ export function LibrarySearchDialog(): React.JSX.Element {
                         vaultId: event.target.checked ? 'current' : undefined
                       })
                     }
-                    className="h-3.5 w-3.5 accent-orange-500"
+                    className="h-3.5 w-3.5 accent-primary"
                   />
                   Vault atual
                 </label>
@@ -774,7 +774,7 @@ export function LibrarySearchDialog(): React.JSX.Element {
 
               {response?.semanticUnavailable && (
                 <div
-                  className="mb-4 flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-300"
+                  className="mb-4 flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/10 p-3 text-xs text-primary dark:text-primary"
                   role="status"
                 >
                   <Sparkles

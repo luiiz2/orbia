@@ -11,7 +11,10 @@ export interface SettingsState {
   init: () => Promise<void>
   setLanguage: (lang: 'en' | 'pt-BR') => Promise<void>
   setTheme: (theme: 'dark' | 'light' | 'system') => Promise<void>
-  updateSetting: <K extends keyof AppSettings>(key: K, val: AppSettings[K]) => Promise<void>
+  updateSetting: <K extends keyof AppSettings>(
+    key: K,
+    val: AppSettings[K]
+  ) => Promise<void>
   clearError: () => void
 }
 
@@ -165,7 +168,10 @@ export const useSettingsStore = create<SettingsState>((set) => ({
     }
   },
 
-  updateSetting: async <K extends keyof AppSettings>(key: K, val: AppSettings[K]) => {
+  updateSetting: async <K extends keyof AppSettings>(
+    key: K,
+    val: AppSettings[K]
+  ) => {
     try {
       await window.api.settings.set(key, val)
       set((state) => ({

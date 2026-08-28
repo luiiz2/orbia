@@ -14,7 +14,8 @@ import { useStudioStore } from '../../stores/useStudioStore'
 import type { BulkRenameOptions, BulkRenamePreviewItem } from '@shared'
 
 export function BulkRenameDialog(): React.JSX.Element | null {
-  const { isRenameModalOpen, setRenameModalOpen, fetchAppearances } = useStudioStore()
+  const { isRenameModalOpen, setRenameModalOpen, fetchAppearances } =
+    useStudioStore()
   const { getSelectedArray, clearSelection } = useSelectionStore()
 
   const [pattern, setPattern] = useState('{number:02} — {title}')
@@ -22,7 +23,9 @@ export function BulkRenameDialog(): React.JSX.Element | null {
   const [replaceText, setReplaceText] = useState('')
   const [addPrefix, setAddPrefix] = useState('')
   const [addSuffix, setAddSuffix] = useState('')
-  const [caseTransform, setCaseTransform] = useState<'none' | 'lowercase' | 'uppercase' | 'titlecase' | 'sentencecase'>('none')
+  const [caseTransform, setCaseTransform] = useState<
+    'none' | 'lowercase' | 'uppercase' | 'titlecase' | 'sentencecase'
+  >('none')
   const [cleanTags, setCleanTags] = useState(false)
   const [cleanCodecs, setCleanCodecs] = useState(false)
   const [replaceUnderscores, setReplaceUnderscores] = useState(true)
@@ -53,7 +56,10 @@ export function BulkRenameDialog(): React.JSX.Element | null {
     }
 
     const ids = selected.map((s) => s.appearanceId)
-    window.api.studio.renamePreview(ids, options).then(setPreviewList).catch(console.warn)
+    window.api.studio
+      .renamePreview(ids, options)
+      .then(setPreviewList)
+      .catch(console.warn)
   }, [
     isRenameModalOpen,
     selected,
@@ -92,7 +98,9 @@ export function BulkRenameDialog(): React.JSX.Element | null {
         <DialogHeader>
           <DialogTitle>Renomeação em Massa Avançada</DialogTitle>
           <DialogDescription>
-            Defina padrões de títulos, numeração e formatação para os {selected.length} itens selecionados. Os arquivos no disco NÃO serão modificados.
+            Defina padrões de títulos, numeração e formatação para os{' '}
+            {selected.length} itens selecionados. Os arquivos no disco NÃO serão
+            modificados.
           </DialogDescription>
         </DialogHeader>
 
@@ -100,19 +108,25 @@ export function BulkRenameDialog(): React.JSX.Element | null {
         <div className="grid grid-cols-2 gap-4 py-3 border-y border-border/50 text-xs">
           <div className="space-y-3">
             <div>
-              <label className="font-semibold text-foreground">Template de Padrão:</label>
+              <label className="font-semibold text-foreground">
+                Template de Padrão:
+              </label>
               <Input
                 value={pattern}
                 onChange={(e) => setPattern(e.target.value)}
                 placeholder="{number:02} — {title}"
                 className="mt-1 h-8 text-xs font-mono"
               />
-              <p className="text-[10px] text-muted-foreground mt-0.5">Use {"{number:02}"} e {"{title}"}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">
+                Use {'{number:02}'} e {'{title}'}
+              </p>
             </div>
 
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="font-semibold text-foreground">Localizar:</label>
+                <label className="font-semibold text-foreground">
+                  Localizar:
+                </label>
                 <Input
                   value={findText}
                   onChange={(e) => setFindText(e.target.value)}
@@ -121,7 +135,9 @@ export function BulkRenameDialog(): React.JSX.Element | null {
                 />
               </div>
               <div>
-                <label className="font-semibold text-foreground">Substituir por:</label>
+                <label className="font-semibold text-foreground">
+                  Substituir por:
+                </label>
                 <Input
                   value={replaceText}
                   onChange={(e) => setReplaceText(e.target.value)}
@@ -133,7 +149,9 @@ export function BulkRenameDialog(): React.JSX.Element | null {
 
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="font-semibold text-foreground">Prefixo:</label>
+                <label className="font-semibold text-foreground">
+                  Prefixo:
+                </label>
                 <Input
                   value={addPrefix}
                   onChange={(e) => setAddPrefix(e.target.value)}
@@ -156,35 +174,53 @@ export function BulkRenameDialog(): React.JSX.Element | null {
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="font-semibold text-foreground">Número Inicial:</label>
+                <label className="font-semibold text-foreground">
+                  Número Inicial:
+                </label>
                 <Input
                   type="number"
                   value={startNumber}
-                  onChange={(e) => setStartNumber(parseInt(e.target.value, 10) || 1)}
+                  onChange={(e) =>
+                    setStartNumber(parseInt(e.target.value, 10) || 1)
+                  }
                   className="mt-1 h-8 text-xs font-mono"
                 />
               </div>
               <div>
-                <label className="font-semibold text-foreground">Dígitos Zero (Padding):</label>
+                <label className="font-semibold text-foreground">
+                  Dígitos Zero (Padding):
+                </label>
                 <Input
                   type="number"
                   value={zeroPadding}
-                  onChange={(e) => setZeroPadding(parseInt(e.target.value, 10) || 2)}
+                  onChange={(e) =>
+                    setZeroPadding(parseInt(e.target.value, 10) || 2)
+                  }
                   className="mt-1 h-8 text-xs font-mono"
                 />
               </div>
             </div>
 
             <div>
-              <label className="font-semibold text-foreground">Formatação de Caixa:</label>
+              <label className="font-semibold text-foreground">
+                Formatação de Caixa:
+              </label>
               <select
                 value={caseTransform}
-                onChange={(e) => setCaseTransform(e.target.value as unknown as typeof caseTransform)}
+                onChange={(e) =>
+                  setCaseTransform(
+                    e.target.value as unknown as typeof caseTransform
+                  )
+                }
                 className="mt-1 flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-xs text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               >
                 <option value="none">Manter original</option>
-                <option value="titlecase">Primeira Letra Em Maiúsculo (Title Case)</option>
-                <option value="sentencecase">Apenas primeira palavra (Sentence case)</option>
+                <option value="titlecase">
+                  Primeira Letra Em Maiúsculo (Title Case)
+                </option>
+                <option value="sentencecase">
+                  Apenas primeira palavra (Sentence case)
+                </option>
                 <option value="lowercase">minúsculas</option>
                 <option value="uppercase">MAIÚSCULAS</option>
               </select>
@@ -233,20 +269,34 @@ export function BulkRenameDialog(): React.JSX.Element | null {
                 key={p.appearanceId}
                 className="flex items-center justify-between gap-4 p-1.5 rounded bg-background/50 border border-border/30"
               >
-                <span className="text-muted-foreground truncate flex-1">{p.originalTitle || '(Sem título)'}</span>
+                <span className="text-muted-foreground truncate flex-1">
+                  {p.originalTitle || '(Sem título)'}
+                </span>
                 <span className="text-muted-foreground">➔</span>
-                <span className="text-primary font-semibold truncate flex-1">{p.newTitle}</span>
+                <span className="text-primary font-semibold truncate flex-1">
+                  {p.newTitle}
+                </span>
               </div>
             ))}
           </div>
         </div>
 
         <DialogFooter className="pt-2">
-          <Button variant="outline" size="sm" onClick={() => setRenameModalOpen(false)}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setRenameModalOpen(false)}
+          >
             Cancelar
           </Button>
-          <Button size="sm" onClick={handleApply} disabled={isApplying || previewList.length === 0}>
-            {isApplying ? 'Aplicando...' : `Aplicar em ${previewList.length} Itens`}
+          <Button
+            size="sm"
+            onClick={handleApply}
+            disabled={isApplying || previewList.length === 0}
+          >
+            {isApplying
+              ? 'Aplicando...'
+              : `Aplicar em ${previewList.length} Itens`}
           </Button>
         </DialogFooter>
       </DialogContent>

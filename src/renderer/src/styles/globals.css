@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 @theme inline {
   --color-background: var(--background);
@@ -28,103 +28,104 @@
 }
 
 :root {
-  /* Dark Theme Default — Orbia Streaming Palette (near-black, orange accent) */
-  --background: #0a0a0c;
-  --foreground: #f5f5f7;
+  /* Dark Theme Default — graphite surfaces, warm paper type, copper action */
+  --background: #101312;
+  --foreground: #f3eee5;
 
-  --muted: #16161a;
-  --muted-foreground: #8e8e96;
+  --muted: #191d1b;
+  --muted-foreground: #9ca49e;
 
-  --popover: #101014;
-  --popover-foreground: #f5f5f7;
+  --popover: #161a18;
+  --popover-foreground: #f3eee5;
 
-  --card: #131316;
-  --card-foreground: #f5f5f7;
+  --card: #171b19;
+  --card-foreground: #f3eee5;
 
-  --border: #232329;
-  --input: #232329;
+  --border: #2b322e;
+  --input: #2b322e;
 
-  /* Brand Primary: Vibrant Sunset Orange */
-  --primary: #ff6b00;
-  --primary-foreground: #1c1917;
+  /* Brand Primary: muted copper */
+  --primary: #d08a52;
+  --primary-foreground: #24170f;
 
-  /* Brand Secondary: Near-black surface */
-  --secondary: #1a1a1f;
-  --secondary-foreground: #f5f5f7;
+  /* Brand Secondary: deep moss graphite */
+  --secondary: #202623;
+  --secondary-foreground: #f3eee5;
 
-  --accent: #ff8533;
-  --accent-foreground: #1a1a1f;
+  /* Supporting accent: quiet sage */
+  --accent: #a8b6aa;
+  --accent-foreground: #17211c;
 
-  --destructive: #ef4444;
-  --destructive-foreground: #ffffff;
+  --destructive: #d57569;
+  --destructive-foreground: #fff8f2;
 
-  --ring: #ff6b00;
+  --ring: #d08a52;
   --radius: 0.5rem;
 }
 
 html.dark,
 .dark {
-  --background: #0a0a0c;
-  --foreground: #f5f5f7;
+  --background: #101312;
+  --foreground: #f3eee5;
 
-  --muted: #16161a;
-  --muted-foreground: #8e8e96;
+  --muted: #191d1b;
+  --muted-foreground: #9ca49e;
 
-  --popover: #101014;
-  --popover-foreground: #f5f5f7;
+  --popover: #161a18;
+  --popover-foreground: #f3eee5;
 
-  --card: #131316;
-  --card-foreground: #f5f5f7;
+  --card: #171b19;
+  --card-foreground: #f3eee5;
 
-  --border: #232329;
-  --input: #232329;
+  --border: #2b322e;
+  --input: #2b322e;
 
-  --primary: #ff6b00;
-  --primary-foreground: #1c1917;
+  --primary: #d08a52;
+  --primary-foreground: #24170f;
 
-  --secondary: #1a1a1f;
-  --secondary-foreground: #f5f5f7;
+  --secondary: #202623;
+  --secondary-foreground: #f3eee5;
 
-  --accent: #ff8533;
-  --accent-foreground: #1a1a1f;
+  --accent: #a8b6aa;
+  --accent-foreground: #17211c;
 
-  --destructive: #ef4444;
-  --destructive-foreground: #ffffff;
+  --destructive: #d57569;
+  --destructive-foreground: #fff8f2;
 
-  --ring: #ff6b00;
+  --ring: #d08a52;
 }
 
 html.light,
 .light {
-  /* Light Theme — Clean Slate & Warm Paper */
-  --background: #f8fafc;
-  --foreground: #0f172a;
+  /* Light Theme — warm paper and mineral ink */
+  --background: #f4f0e8;
+  --foreground: #202723;
 
-  --muted: #f1f5f9;
-  --muted-foreground: #64748b;
+  --muted: #e7e3da;
+  --muted-foreground: #66716a;
 
-  --popover: #ffffff;
-  --popover-foreground: #0f172a;
+  --popover: #fcfaf5;
+  --popover-foreground: #202723;
 
-  --card: #ffffff;
-  --card-foreground: #0f172a;
+  --card: #fcfaf6;
+  --card-foreground: #202723;
 
-  --border: #e2e8f0;
-  --input: #e2e8f0;
+  --border: #d9d5ca;
+  --input: #d9d5ca;
 
-  --primary: #ea580c;
-  --primary-foreground: #1c1917;
+  --primary: #a85f32;
+  --primary-foreground: #fff8ef;
 
-  --secondary: #f1f5f9;
-  --secondary-foreground: #0f172a;
+  --secondary: #e8e6de;
+  --secondary-foreground: #202723;
 
-  --accent: #f97316;
-  --accent-foreground: #ffffff;
+  --accent: #5b7668;
+  --accent-foreground: #f7faf6;
 
-  --destructive: #ef4444;
-  --destructive-foreground: #ffffff;
+  --destructive: #b9554d;
+  --destructive-foreground: #fff8f2;
 
-  --ring: #ea580c;
+  --ring: #a85f32;
 }
 
 * {
@@ -132,31 +133,23 @@ html.light,
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial,
+    sans-serif;
   user-select: none;
   background-color: var(--background);
   color: var(--foreground);
   overflow-x: hidden;
-  transition: background-color 0.15s ease, color 0.15s ease;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
 }
 
-/* Orbia Brand Helpers */
-.text-orbia-gradient {
+/* Orbia brand mark */
+.text-orbia-mark {
   color: var(--primary);
   font-weight: 800;
   letter-spacing: -0.025em;
-}
-
-.bg-orbia-gradient {
-  background: linear-gradient(135deg, #ff6b00 0%, #ea580c 45%, #9333ea 100%);
-}
-
-.bg-orbia-glow {
-  box-shadow: 0 0 25px -5px rgba(255, 107, 0, 0.35), 0 0 15px -5px rgba(147, 51, 234, 0.25);
-}
-
-.border-orbia-gradient {
-  border-image: linear-gradient(135deg, #ff6b00, #9333ea, #3b82f6) 1;
 }
 
 /* Custom scrollbar */
@@ -178,7 +171,7 @@ body {
   background: color-mix(in srgb, var(--foreground) 28%, transparent);
 }
 
-/* Shimmer Animation for Cosmic Theme */
+/* Quiet loading shimmer */
 @keyframes shimmer {
   0% {
     transform: translateX(-100%);
@@ -203,8 +196,7 @@ body {
   background-image: linear-gradient(
     90deg,
     rgba(255, 255, 255, 0) 0%,
-    rgba(255, 107, 0, 0.06) 20%,
-    rgba(147, 51, 234, 0.1) 50%,
+    color-mix(in srgb, var(--foreground) 7%, transparent) 50%,
     rgba(255, 255, 255, 0) 100%
   );
   animation: shimmer 2s infinite ease-in-out;
@@ -245,7 +237,8 @@ body {
 
 /* Floating Ambient Aura */
 @keyframes float-slow {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateY(0px);
   }
   50% {
@@ -258,7 +251,8 @@ body {
 }
 
 @keyframes pulse-subtle {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
     transform: scale(1);
   }
@@ -272,6 +266,53 @@ body {
   animation: pulse-subtle 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
+/* Performance & Rendering Containment for Scale (10,000+ Items) */
+.contain-content {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 320px;
+}
+
+.contain-item {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 64px;
+}
+
+/* Tactile Surface Micro-Texture & Grid Pattern */
+.bg-grid-subtle {
+  background-image: radial-gradient(
+    circle at 1px 1px,
+    var(--border) 1px,
+    transparent 0
+  );
+  background-size: 24px 24px;
+}
+
+/* Custom Refined Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--border) 85%, transparent);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--muted-foreground) 60%, transparent);
+}
+
+/* Global Accessible Focus Visible */
+*:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: calc(var(--radius) - 2px);
+}
+
 /* Reduced Motion Respect */
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -283,4 +324,3 @@ body {
     scroll-behavior: auto !important;
   }
 }
-

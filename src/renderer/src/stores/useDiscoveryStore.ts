@@ -37,11 +37,25 @@ interface DiscoveryState {
   fetchRails: (profileId?: string) => Promise<void>
   fetchInsights: () => Promise<void>
   fetchCategories: () => Promise<void>
-  fetchTimeRecommendations: (minutes: number, profileId?: string) => Promise<void>
-  fetchSurpriseMe: (profileId?: string, mode?: 'continue' | 'start_new' | 'quick_lesson' | 'random') => Promise<void>
-  submitFeedback: (courseId: string, feedbackType: RecommendationFeedbackType, profileId?: string) => Promise<void>
+  fetchTimeRecommendations: (
+    minutes: number,
+    profileId?: string
+  ) => Promise<void>
+  fetchSurpriseMe: (
+    profileId?: string,
+    mode?: 'continue' | 'start_new' | 'quick_lesson' | 'random'
+  ) => Promise<void>
+  submitFeedback: (
+    courseId: string,
+    feedbackType: RecommendationFeedbackType,
+    profileId?: string
+  ) => Promise<void>
   loadRelationships: (courseId?: string) => Promise<void>
-  addRelationship: (sourceId: string, targetId: string, type: CourseRelationshipType) => Promise<void>
+  addRelationship: (
+    sourceId: string,
+    targetId: string,
+    type: CourseRelationshipType
+  ) => Promise<void>
   deleteRelationship: (id: string) => Promise<void>
   loadPreferences: (profileId: string) => Promise<void>
   savePreferences: (prefs: ProfileDiscoveryPreferences) => Promise<void>
@@ -108,7 +122,11 @@ export const useDiscoveryStore = create<DiscoveryState>((set, get) => ({
   fetchTimeRecommendations: async (minutes: number, profileId?: string) => {
     try {
       if (window.api?.discovery?.getTimeBasedRecommendations) {
-        const timeRecommendations = await window.api.discovery.getTimeBasedRecommendations(minutes, profileId)
+        const timeRecommendations =
+          await window.api.discovery.getTimeBasedRecommendations(
+            minutes,
+            profileId
+          )
         set({ timeRecommendations })
       }
     } catch (err) {
@@ -116,10 +134,16 @@ export const useDiscoveryStore = create<DiscoveryState>((set, get) => ({
     }
   },
 
-  fetchSurpriseMe: async (profileId?: string, mode?: 'continue' | 'start_new' | 'quick_lesson' | 'random') => {
+  fetchSurpriseMe: async (
+    profileId?: string,
+    mode?: 'continue' | 'start_new' | 'quick_lesson' | 'random'
+  ) => {
     try {
       if (window.api?.discovery?.getSurpriseMe) {
-        const surprise = await window.api.discovery.getSurpriseMe(profileId, mode)
+        const surprise = await window.api.discovery.getSurpriseMe(
+          profileId,
+          mode
+        )
         set({ surprise })
       }
     } catch (err) {
@@ -127,10 +151,18 @@ export const useDiscoveryStore = create<DiscoveryState>((set, get) => ({
     }
   },
 
-  submitFeedback: async (courseId: string, feedbackType: RecommendationFeedbackType, profileId?: string) => {
+  submitFeedback: async (
+    courseId: string,
+    feedbackType: RecommendationFeedbackType,
+    profileId?: string
+  ) => {
     try {
       if (window.api?.discovery?.submitFeedback) {
-        await window.api.discovery.submitFeedback(profileId || 'default_profile', courseId, feedbackType)
+        await window.api.discovery.submitFeedback(
+          profileId || 'default_profile',
+          courseId,
+          feedbackType
+        )
         // Refresh rails after feedback
         get().fetchRails(profileId)
       }
@@ -142,7 +174,8 @@ export const useDiscoveryStore = create<DiscoveryState>((set, get) => ({
   loadRelationships: async (courseId?: string) => {
     try {
       if (window.api?.discovery?.listCourseRelationships) {
-        const relationships = await window.api.discovery.listCourseRelationships(courseId)
+        const relationships =
+          await window.api.discovery.listCourseRelationships(courseId)
         set({ relationships })
       }
     } catch (err) {
@@ -150,10 +183,18 @@ export const useDiscoveryStore = create<DiscoveryState>((set, get) => ({
     }
   },
 
-  addRelationship: async (sourceId: string, targetId: string, type: CourseRelationshipType) => {
+  addRelationship: async (
+    sourceId: string,
+    targetId: string,
+    type: CourseRelationshipType
+  ) => {
     try {
       if (window.api?.discovery?.addCourseRelationship) {
-        await window.api.discovery.addCourseRelationship(sourceId, targetId, type)
+        await window.api.discovery.addCourseRelationship(
+          sourceId,
+          targetId,
+          type
+        )
         get().loadRelationships()
       }
     } catch (err) {
@@ -175,7 +216,8 @@ export const useDiscoveryStore = create<DiscoveryState>((set, get) => ({
   loadPreferences: async (profileId: string) => {
     try {
       if (window.api?.discovery?.getProfileDiscoveryPreferences) {
-        const preferences = await window.api.discovery.getProfileDiscoveryPreferences(profileId)
+        const preferences =
+          await window.api.discovery.getProfileDiscoveryPreferences(profileId)
         set({ preferences })
       }
     } catch (err) {

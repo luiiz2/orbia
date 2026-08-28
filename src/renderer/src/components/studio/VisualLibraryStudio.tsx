@@ -43,11 +43,8 @@ export function VisualLibraryStudio(): React.JSX.Element {
     toggleFavorite
   } = useLibraryStore()
 
-  const {
-    setHistoryModalOpen,
-    includeHidden,
-    toggleIncludeHidden
-  } = useStudioStore()
+  const { setHistoryModalOpen, includeHidden, toggleIncludeHidden } =
+    useStudioStore()
 
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null)
   const [courseHierarchy, setCourseHierarchy] = useState<{
@@ -56,12 +53,16 @@ export function VisualLibraryStudio(): React.JSX.Element {
   } | null>(null)
   const [isLoadingHierarchy, setIsLoadingHierarchy] = useState<boolean>(false)
   const [searchQuery, setSearchQuery] = useState<string>('')
-  const [filterType, setFilterType] = useState<'all' | 'favorites' | 'refs'>('all')
+  const [filterType, setFilterType] = useState<'all' | 'favorites' | 'refs'>(
+    'all'
+  )
 
   const [editingCourseTitle, setEditingCourseTitle] = useState<string>('')
   const [editingModuleId, setEditingModuleId] = useState<string | null>(null)
   const [editingLessonId, setEditingLessonId] = useState<string | null>(null)
-  const [expandedModules, setExpandedModules] = useState<Record<string, boolean>>({})
+  const [expandedModules, setExpandedModules] = useState<
+    Record<string, boolean>
+  >({})
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
 
   // Initial load: fetch courses and pick first one if none selected
@@ -125,13 +126,19 @@ export function VisualLibraryStudio(): React.JSX.Element {
 
   const handleSaveCourseTitle = async (): Promise<void> => {
     if (!courseHierarchy || !editingCourseTitle.trim()) return
-    await updateCourseMetadata(courseHierarchy.course.id, editingCourseTitle.trim())
+    await updateCourseMetadata(
+      courseHierarchy.course.id,
+      editingCourseTitle.trim()
+    )
     showNotification('Título do curso salvo!')
     await loadHierarchy(courseHierarchy.course.id)
     await fetchCourses()
   }
 
-  const handleSaveModuleTitle = async (moduleId: string, newTitle: string): Promise<void> => {
+  const handleSaveModuleTitle = async (
+    moduleId: string,
+    newTitle: string
+  ): Promise<void> => {
     if (!newTitle.trim()) return
     await updateModuleMetadata(moduleId, newTitle.trim())
     setEditingModuleId(null)
@@ -139,7 +146,10 @@ export function VisualLibraryStudio(): React.JSX.Element {
     if (courseHierarchy) await loadHierarchy(courseHierarchy.course.id)
   }
 
-  const handleSaveLessonTitle = async (lessonId: string, newTitle: string): Promise<void> => {
+  const handleSaveLessonTitle = async (
+    lessonId: string,
+    newTitle: string
+  ): Promise<void> => {
     if (!newTitle.trim()) return
     await updateLessonMetadata(lessonId, newTitle.trim())
     setEditingLessonId(null)
@@ -147,18 +157,29 @@ export function VisualLibraryStudio(): React.JSX.Element {
     if (courseHierarchy) await loadHierarchy(courseHierarchy.course.id)
   }
 
-  const handleReorderModule = async (moduleId: string, direction: 'up' | 'down'): Promise<void> => {
+  const handleReorderModule = async (
+    moduleId: string,
+    direction: 'up' | 'down'
+  ): Promise<void> => {
     await reorderModule(moduleId, direction)
     if (courseHierarchy) await loadHierarchy(courseHierarchy.course.id)
   }
 
-  const handleReorderLesson = async (lessonId: string, direction: 'up' | 'down'): Promise<void> => {
+  const handleReorderLesson = async (
+    lessonId: string,
+    direction: 'up' | 'down'
+  ): Promise<void> => {
     await reorderLesson(lessonId, direction)
     if (courseHierarchy) await loadHierarchy(courseHierarchy.course.id)
   }
 
   const handleDeleteLesson = async (lessonId: string): Promise<void> => {
-    if (!confirm('Deseja remover esta aula da biblioteca? O arquivo físico não será apagado.')) return
+    if (
+      !confirm(
+        'Deseja remover esta aula da biblioteca? O arquivo físico não será apagado.'
+      )
+    )
+      return
     const res = await deleteLesson(lessonId, false)
     if (res.success && courseHierarchy) {
       showNotification('Aula removida da biblioteca.')
@@ -169,7 +190,11 @@ export function VisualLibraryStudio(): React.JSX.Element {
 
   const handleDeleteCourse = async (): Promise<void> => {
     if (!courseHierarchy) return
-    if (!confirm(`Deseja remover o curso "${courseHierarchy.course.title}" da biblioteca? Seus arquivos em disco continuarão seguros.`)) {
+    if (
+      !confirm(
+        `Deseja remover o curso "${courseHierarchy.course.title}" da biblioteca? Seus arquivos em disco continuarão seguros.`
+      )
+    ) {
       return
     }
     const res = await deleteCourse(courseHierarchy.course.id, false)
@@ -201,14 +226,14 @@ export function VisualLibraryStudio(): React.JSX.Element {
   const getMediaIcon = (type: string): React.JSX.Element => {
     switch (type) {
       case 'video':
-        return <Film className="h-3.5 w-3.5 text-orange-400" />
+        return <Film className="h-3.5 w-3.5 text-primary" />
       case 'audio':
-        return <Film className="h-3.5 w-3.5 text-blue-400" />
+        return <Film className="h-3.5 w-3.5 text-accent" />
       case 'pdf':
       case 'document':
         return <FileText className="h-3.5 w-3.5 text-emerald-400" />
       case 'code':
-        return <FileCode className="h-3.5 w-3.5 text-purple-400" />
+        return <FileCode className="h-3.5 w-3.5 text-accent" />
       default:
         return <Film className="h-3.5 w-3.5 text-slate-400" />
     }
@@ -219,18 +244,22 @@ export function VisualLibraryStudio(): React.JSX.Element {
       {/* Top Header Bar */}
       <div className="p-4 border-b border-border/60 bg-card/50 backdrop-blur-md flex items-center justify-between gap-4 shrink-0">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-500/15 text-orange-400 border border-orange-500/25">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/15 text-primary border border-primary/25">
             <SlidersHorizontal className="h-5 w-5" />
           </div>
           <div>
             <h2 className="text-base font-bold text-foreground flex items-center gap-2">
               <span>Library Studio — Organizador Visual de Cursos</span>
-              <Badge variant="outline" className="text-[10px] font-mono border-orange-500/30 text-orange-400">
+              <Badge
+                variant="outline"
+                className="text-[10px] font-mono border-primary/30 text-primary"
+              >
                 {courses.length} Cursos
               </Badge>
             </h2>
             <p className="text-xs text-muted-foreground">
-              Edite nomes de cursos e aulas, reordene módulos e organize sua biblioteca visualmente sem alterar arquivos no disco.
+              Edite nomes de cursos e aulas, reordene módulos e organize sua
+              biblioteca visualmente sem alterar arquivos no disco.
             </p>
           </div>
         </div>
@@ -249,11 +278,17 @@ export function VisualLibraryStudio(): React.JSX.Element {
             size="sm"
             onClick={toggleIncludeHidden}
             className={`h-8 text-xs rounded-xl flex items-center gap-1.5 cursor-pointer ${
-              includeHidden ? 'border-purple-500/50 bg-purple-500/10 text-purple-400' : ''
+              includeHidden ? 'border-accent/50 bg-accent/10 text-accent' : ''
             }`}
           >
-            {includeHidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
-            <span>{includeHidden ? 'Exibindo Ocultos' : 'Mostrar Ocultos'}</span>
+            {includeHidden ? (
+              <Eye className="h-3.5 w-3.5" />
+            ) : (
+              <EyeOff className="h-3.5 w-3.5" />
+            )}
+            <span>
+              {includeHidden ? 'Exibindo Ocultos' : 'Mostrar Ocultos'}
+            </span>
           </Button>
 
           <Button
@@ -302,7 +337,7 @@ export function VisualLibraryStudio(): React.JSX.Element {
                 onClick={() => setFilterType('favorites')}
                 className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors cursor-pointer flex items-center gap-1 ${
                   filterType === 'favorites'
-                    ? 'bg-amber-500 text-white shadow-xs'
+                    ? 'bg-primary text-primary-foreground shadow-xs'
                     : 'text-muted-foreground hover:bg-muted/40'
                 }`}
               >
@@ -314,7 +349,7 @@ export function VisualLibraryStudio(): React.JSX.Element {
                 onClick={() => setFilterType('refs')}
                 className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
                   filterType === 'refs'
-                    ? 'bg-blue-500 text-white shadow-xs'
+                    ? 'bg-accent text-accent-foreground shadow-xs'
                     : 'text-muted-foreground hover:bg-muted/40'
                 }`}
               >
@@ -340,13 +375,17 @@ export function VisualLibraryStudio(): React.JSX.Element {
                     onClick={() => setSelectedCourseId(c.id)}
                     className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-center gap-3 ${
                       isSelected
-                        ? 'border-orange-500 bg-orange-500/10 shadow-sm'
+                        ? 'border-primary bg-primary/10 shadow-sm'
                         : 'border-border/40 bg-card/40 hover:bg-muted/30 hover:border-border/80'
                     }`}
                   >
                     {/* Course Thumbnail */}
                     <div className="w-16 h-10 shrink-0 rounded-lg overflow-hidden border border-border/40 bg-black/40 relative">
-                      <CourseCover src={c.coverPath} title={displayTitle} className="w-full h-full object-cover" />
+                      <CourseCover
+                        src={c.coverPath}
+                        title={displayTitle}
+                        className="w-full h-full object-cover"
+                      />
                     </div>
 
                     {/* Course Info */}
@@ -356,7 +395,7 @@ export function VisualLibraryStudio(): React.JSX.Element {
                           {displayTitle}
                         </span>
                         {c.isFavorite && (
-                          <Star className="h-3 w-3 fill-amber-400 text-amber-400 shrink-0" />
+                          <Star className="h-3 w-3 fill-primary text-primary shrink-0" />
                         )}
                       </div>
                       <div className="flex items-center gap-2 text-[11px] text-muted-foreground font-mono mt-0.5">
@@ -379,12 +418,17 @@ export function VisualLibraryStudio(): React.JSX.Element {
           {!selectedCourseId || !courseHierarchy ? (
             <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-muted-foreground space-y-3">
               <SlidersHorizontal className="h-12 w-12 text-muted-foreground/40 stroke-1" />
-              <p className="text-sm font-medium">Selecione um curso ao lado para visualizar e organizar sua estrutura.</p>
+              <p className="text-sm font-medium">
+                Selecione um curso ao lado para visualizar e organizar sua
+                estrutura.
+              </p>
             </div>
           ) : isLoadingHierarchy ? (
             <div className="flex-1 flex flex-col items-center justify-center p-8">
               <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent mb-3" />
-              <p className="text-xs text-muted-foreground">Carregando estrutura visual do curso...</p>
+              <p className="text-xs text-muted-foreground">
+                Carregando estrutura visual do curso...
+              </p>
             </div>
           ) : (
             <div className="flex-1 flex flex-col overflow-hidden">
@@ -403,7 +447,7 @@ export function VisualLibraryStudio(): React.JSX.Element {
                       onClick={handleChangeCover}
                       className="absolute inset-0 bg-black/75 opacity-0 group-hover/cover:opacity-100 flex flex-col items-center justify-center gap-1 text-[11px] text-white font-medium transition-opacity cursor-pointer backdrop-blur-xs"
                     >
-                      <ImageIcon className="h-4 w-4 text-orange-400" />
+                      <ImageIcon className="h-4 w-4 text-primary" />
                       <span>Trocar Capa</span>
                     </button>
                   </div>
@@ -412,11 +456,14 @@ export function VisualLibraryStudio(): React.JSX.Element {
                   <div className="flex-1 min-w-0 space-y-2">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span className="text-[11px] font-bold uppercase tracking-wider text-orange-500 font-mono">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-primary font-mono">
                           Curso Selecionado
                         </span>
                         {courseHierarchy.course.sourceType === 'local-ref' && (
-                          <Badge variant="outline" className="text-[10px] py-0 px-1.5 border-orange-500/30 text-orange-400">
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] py-0 px-1.5 border-primary/30 text-primary"
+                          >
                             Referência Externa
                           </Badge>
                         )}
@@ -427,13 +474,23 @@ export function VisualLibraryStudio(): React.JSX.Element {
                         <Button
                           size="sm"
                           variant="ghost"
-                          onClick={() => toggleFavorite(courseHierarchy.course.id)}
+                          onClick={() =>
+                            toggleFavorite(courseHierarchy.course.id)
+                          }
                           className={`h-7 px-2 text-xs rounded-lg ${
-                            courseHierarchy.course.isFavorite ? 'text-amber-400' : 'text-muted-foreground'
+                            courseHierarchy.course.isFavorite
+                              ? 'text-primary'
+                              : 'text-muted-foreground'
                           }`}
                         >
-                          <Star className={`h-3.5 w-3.5 mr-1 ${courseHierarchy.course.isFavorite ? 'fill-current' : ''}`} />
-                          <span>{courseHierarchy.course.isFavorite ? 'Favoritado' : 'Favoritar'}</span>
+                          <Star
+                            className={`h-3.5 w-3.5 mr-1 ${courseHierarchy.course.isFavorite ? 'fill-current' : ''}`}
+                          />
+                          <span>
+                            {courseHierarchy.course.isFavorite
+                              ? 'Favoritado'
+                              : 'Favoritar'}
+                          </span>
                         </Button>
                         <Button
                           size="sm"
@@ -453,7 +510,9 @@ export function VisualLibraryStudio(): React.JSX.Element {
                         value={editingCourseTitle}
                         onChange={(e) => setEditingCourseTitle(e.target.value)}
                         onBlur={handleSaveCourseTitle}
-                        onKeyDown={(e) => e.key === 'Enter' && handleSaveCourseTitle()}
+                        onKeyDown={(e) =>
+                          e.key === 'Enter' && handleSaveCourseTitle()
+                        }
                         placeholder="Nome do Curso..."
                         className="text-base font-bold text-foreground bg-background/90 border-border/80 h-9 rounded-xl focus-visible:ring-1 focus-visible:ring-primary"
                       />
@@ -482,7 +541,9 @@ export function VisualLibraryStudio(): React.JSX.Element {
                       <span>•</span>
                       <span className="flex items-center gap-1 font-mono">
                         <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                        {formatDurationHuman(courseHierarchy.course.totalDuration)}
+                        {formatDurationHuman(
+                          courseHierarchy.course.totalDuration
+                        )}
                       </span>
                     </div>
                   </div>
@@ -493,7 +554,8 @@ export function VisualLibraryStudio(): React.JSX.Element {
               <div className="flex-1 overflow-y-auto p-5 space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                    Módulos e Aulas do Curso (Clique em qualquer título para editar)
+                    Módulos e Aulas do Curso (Clique em qualquer título para
+                    editar)
                   </h3>
                   <div className="flex items-center gap-2">
                     <Button
@@ -501,7 +563,9 @@ export function VisualLibraryStudio(): React.JSX.Element {
                       size="sm"
                       onClick={() => {
                         const allOpen: Record<string, boolean> = {}
-                        courseHierarchy.modules.forEach((m) => (allOpen[m.id] = true))
+                        courseHierarchy.modules.forEach(
+                          (m) => (allOpen[m.id] = true)
+                        )
                         setExpandedModules(allOpen)
                       }}
                       className="h-7 text-xs text-muted-foreground hover:text-foreground"
@@ -521,7 +585,9 @@ export function VisualLibraryStudio(): React.JSX.Element {
 
                 {courseHierarchy.modules.length === 0 ? (
                   <div className="p-8 text-center border border-dashed border-border/60 rounded-xl">
-                    <p className="text-sm text-muted-foreground">Nenhum módulo encontrado neste curso.</p>
+                    <p className="text-sm text-muted-foreground">
+                      Nenhum módulo encontrado neste curso.
+                    </p>
                   </div>
                 ) : (
                   courseHierarchy.modules.map((mod, modIdx) => {
@@ -540,7 +606,9 @@ export function VisualLibraryStudio(): React.JSX.Element {
                             className="flex items-center gap-2.5 flex-1 min-w-0 cursor-pointer"
                             onClick={() => toggleModuleExpand(mod.id)}
                           >
-                            <Folder className={`h-4 w-4 shrink-0 ${isExpanded ? 'text-primary' : 'text-amber-500'}`} />
+                            <Folder
+                              className={`h-4 w-4 shrink-0 ${isExpanded ? 'text-primary' : 'text-primary'}`}
+                            />
                             <span className="text-xs font-mono font-bold text-muted-foreground shrink-0">
                               #{modIdx + 1}
                             </span>
@@ -553,10 +621,20 @@ export function VisualLibraryStudio(): React.JSX.Element {
                                 <Input
                                   autoFocus
                                   defaultValue={displayModTitle}
-                                  onBlur={(e) => handleSaveModuleTitle(mod.id, e.target.value)}
+                                  onBlur={(e) =>
+                                    handleSaveModuleTitle(
+                                      mod.id,
+                                      e.target.value
+                                    )
+                                  }
                                   onKeyDown={(e) => {
-                                    if (e.key === 'Enter') handleSaveModuleTitle(mod.id, e.currentTarget.value)
-                                    if (e.key === 'Escape') setEditingModuleId(null)
+                                    if (e.key === 'Enter')
+                                      handleSaveModuleTitle(
+                                        mod.id,
+                                        e.currentTarget.value
+                                      )
+                                    if (e.key === 'Escape')
+                                      setEditingModuleId(null)
                                   }}
                                   className="h-7 text-xs font-semibold bg-background py-1 px-2 rounded-lg"
                                 />
@@ -574,7 +652,10 @@ export function VisualLibraryStudio(): React.JSX.Element {
                               </span>
                             )}
 
-                            <Badge variant="secondary" className="text-[10px] h-5 py-0 px-1.5 font-mono shrink-0">
+                            <Badge
+                              variant="secondary"
+                              className="text-[10px] h-5 py-0 px-1.5 font-mono shrink-0"
+                            >
                               {mod.lessons.length} aulas
                             </Badge>
                           </div>
@@ -594,8 +675,12 @@ export function VisualLibraryStudio(): React.JSX.Element {
                             <Button
                               size="icon"
                               variant="ghost"
-                              disabled={modIdx === courseHierarchy.modules.length - 1}
-                              onClick={() => handleReorderModule(mod.id, 'down')}
+                              disabled={
+                                modIdx === courseHierarchy.modules.length - 1
+                              }
+                              onClick={() =>
+                                handleReorderModule(mod.id, 'down')
+                              }
                               className="h-7 w-7 text-muted-foreground hover:text-foreground disabled:opacity-30 rounded-lg"
                               title="Mover Módulo para Baixo"
                             >
@@ -614,7 +699,8 @@ export function VisualLibraryStudio(): React.JSX.Element {
                             ) : (
                               mod.lessons.map((les, lesIdx) => {
                                 const isEditingLes = editingLessonId === les.id
-                                const displayLessonTitle = les.customTitle || les.title
+                                const displayLessonTitle =
+                                  les.customTitle || les.title
 
                                 return (
                                   <div
@@ -631,16 +717,28 @@ export function VisualLibraryStudio(): React.JSX.Element {
                                         <Input
                                           autoFocus
                                           defaultValue={displayLessonTitle}
-                                          onBlur={(e) => handleSaveLessonTitle(les.id, e.target.value)}
+                                          onBlur={(e) =>
+                                            handleSaveLessonTitle(
+                                              les.id,
+                                              e.target.value
+                                            )
+                                          }
                                           onKeyDown={(e) => {
-                                            if (e.key === 'Enter') handleSaveLessonTitle(les.id, e.currentTarget.value)
-                                            if (e.key === 'Escape') setEditingLessonId(null)
+                                            if (e.key === 'Enter')
+                                              handleSaveLessonTitle(
+                                                les.id,
+                                                e.currentTarget.value
+                                              )
+                                            if (e.key === 'Escape')
+                                              setEditingLessonId(null)
                                           }}
                                           className="h-6.5 text-xs bg-background py-0.5 px-2 rounded-md flex-1"
                                         />
                                       ) : (
                                         <span
-                                          onClick={() => setEditingLessonId(les.id)}
+                                          onClick={() =>
+                                            setEditingLessonId(les.id)
+                                          }
                                           className="font-medium text-foreground truncate cursor-text hover:text-primary transition-colors flex-1"
                                           title="Clique para renomear aula"
                                         >
@@ -661,7 +759,9 @@ export function VisualLibraryStudio(): React.JSX.Element {
                                         size="icon"
                                         variant="ghost"
                                         disabled={lesIdx === 0}
-                                        onClick={() => handleReorderLesson(les.id, 'up')}
+                                        onClick={() =>
+                                          handleReorderLesson(les.id, 'up')
+                                        }
                                         className="h-6 w-6 text-muted-foreground hover:text-foreground disabled:opacity-20 rounded"
                                         title="Subir Aula"
                                       >
@@ -670,8 +770,12 @@ export function VisualLibraryStudio(): React.JSX.Element {
                                       <Button
                                         size="icon"
                                         variant="ghost"
-                                        disabled={lesIdx === mod.lessons.length - 1}
-                                        onClick={() => handleReorderLesson(les.id, 'down')}
+                                        disabled={
+                                          lesIdx === mod.lessons.length - 1
+                                        }
+                                        onClick={() =>
+                                          handleReorderLesson(les.id, 'down')
+                                        }
                                         className="h-6 w-6 text-muted-foreground hover:text-foreground disabled:opacity-20 rounded"
                                         title="Descer Aula"
                                       >
@@ -680,7 +784,9 @@ export function VisualLibraryStudio(): React.JSX.Element {
                                       <Button
                                         size="icon"
                                         variant="ghost"
-                                        onClick={() => handleDeleteLesson(les.id)}
+                                        onClick={() =>
+                                          handleDeleteLesson(les.id)
+                                        }
                                         className="h-6 w-6 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded"
                                         title="Remover aula da biblioteca"
                                       >

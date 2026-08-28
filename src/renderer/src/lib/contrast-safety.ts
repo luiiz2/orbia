@@ -5,7 +5,10 @@
 function hexToRgb(hex: string): [number, number, number] {
   let clean = hex.replace('#', '')
   if (clean.length === 3) {
-    clean = clean.split('').map((c) => c + c).join('')
+    clean = clean
+      .split('')
+      .map((c) => c + c)
+      .join('')
   }
   const num = parseInt(clean, 16)
   if (isNaN(num)) return [0, 0, 0]
@@ -44,7 +47,10 @@ export interface ContrastEvaluation {
   suggestedColor?: string
 }
 
-export function evaluateContrast(textColor: string, bgColor: string): ContrastEvaluation {
+export function evaluateContrast(
+  textColor: string,
+  bgColor: string
+): ContrastEvaluation {
   const ratio = Math.round(getContrastRatio(textColor, bgColor) * 100) / 100
   const isAA = ratio >= 4.5
   const isAAA = ratio >= 7.0
@@ -55,7 +61,7 @@ export function evaluateContrast(textColor: string, bgColor: string): ContrastEv
   if (!isAA) {
     const [, , bgL] = hexToRgb(bgColor)
     // If background is dark, suggest bright text; otherwise dark text
-    suggestedColor = bgL < 128 ? '#f8fafc' : '#090d16'
+    suggestedColor = bgL < 128 ? '#f3eee5' : '#202723'
     warning = `Baixo contraste detectado (${ratio}:1). O padrão WCAG AA recomenda no mínimo 4.5:1 para garantir a legibilidade.`
   }
 

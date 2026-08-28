@@ -9,13 +9,19 @@ import type {
 interface TranscriptStoreState {
   lessonId: string | null
   transcript: Transcript | null
-  subtitleCandidate: Awaited<ReturnType<Window['api']['transcription']['getSubtitleCandidate']>>
+  subtitleCandidate: Awaited<
+    ReturnType<Window['api']['transcription']['getSubtitleCandidate']>
+  >
   isLoading: boolean
   errorMessage: string | null
   progress: TranscriptProgressEvent | null
   load: (lessonId: string) => Promise<void>
-  transcribe: (options?: TranscriptionOptions) => Promise<TranscriptionEnqueueResult | null>
-  retranscribe: (options?: TranscriptionOptions) => Promise<TranscriptionEnqueueResult | null>
+  transcribe: (
+    options?: TranscriptionOptions
+  ) => Promise<TranscriptionEnqueueResult | null>
+  retranscribe: (
+    options?: TranscriptionOptions
+  ) => Promise<TranscriptionEnqueueResult | null>
   reuseSubtitle: (language?: string) => Promise<Transcript | null>
   clear: () => void
 }
@@ -29,7 +35,14 @@ export const useTranscriptStore = create<TranscriptStoreState>((set, get) => ({
   progress: null,
 
   load: async (lessonId: string) => {
-    set({ lessonId, transcript: null, subtitleCandidate: null, isLoading: true, errorMessage: null, progress: null })
+    set({
+      lessonId,
+      transcript: null,
+      subtitleCandidate: null,
+      isLoading: true,
+      errorMessage: null,
+      progress: null
+    })
     try {
       const [transcript, subtitleCandidate] = await Promise.all([
         window.api.transcription.getCurrent(lessonId),
@@ -39,7 +52,11 @@ export const useTranscriptStore = create<TranscriptStoreState>((set, get) => ({
       set({ transcript, subtitleCandidate, isLoading: false })
     } catch (error) {
       if (get().lessonId !== lessonId) return
-      set({ isLoading: false, errorMessage: error instanceof Error ? error.message : 'Failed to load transcript' })
+      set({
+        isLoading: false,
+        errorMessage:
+          error instanceof Error ? error.message : 'Failed to load transcript'
+      })
     }
   },
 
@@ -48,32 +65,69 @@ export const useTranscriptStore = create<TranscriptStoreState>((set, get) => ({
     if (!lessonId) return null
     set({ errorMessage: null })
     try {
-      const result = await window.api.transcription.enqueueLesson(lessonId, options)
-      set({ progress: result.jobId ? { jobId: result.jobId, lessonId, status: 'queued', progressPercent: 0 } : null })
+      const result = await window.api.transcription.enqueueLesson(
+        lessonId,
+        options
+      )
+      set({
+        progress: result.jobId
+          ? {
+              jobId: result.jobId,
+              lessonId,
+              status: 'queued',
+              progressPercent: 0
+            }
+          : null
+      })
       return result
     } catch (error) {
-      set({ errorMessage: error instanceof Error ? error.message : 'Failed to queue transcription' })
+      set({
+        errorMessage:
+          error instanceof Error
+            ? error.message
+            : 'Failed to queue transcription'
+      })
       return null
     }
   },
 
-  retranscribe: async (options = {}) => get().transcribe({ ...options, retranscribe: true, reuseExistingSubtitle: false }),
+  retranscribe: async (options = {}) =>
+    get().transcribe({
+      ...options,
+      retranscribe: true,
+      reuseExistingSubtitle: false
+    }),
 
   reuseSubtitle: async (language?: string) => {
     const lessonId = get().lessonId
     if (!lessonId) return null
     set({ errorMessage: null })
     try {
-      const transcript = await window.api.transcription.reuseSubtitle(lessonId, language)
-      if (get().lessonId === lessonId) set({ transcript, subtitleCandidate: null })
+      const transcript = await window.api.transcription.reuseSubtitle(
+        lessonId,
+        language
+      )
+      if (get().lessonId === lessonId)
+        set({ transcript, subtitleCandidate: null })
       return transcript
     } catch (error) {
-      set({ errorMessage: error instanceof Error ? error.message : 'Failed to reuse subtitle' })
+      set({
+        errorMessage:
+          error instanceof Error ? error.message : 'Failed to reuse subtitle'
+      })
       return null
     }
   },
 
-  clear: () => set({ lessonId: null, transcript: null, subtitleCandidate: null, isLoading: false, errorMessage: null, progress: null })
+  clear: () =>
+    set({
+      lessonId: null,
+      transcript: null,
+      subtitleCandidate: null,
+      isLoading: false,
+      errorMessage: null,
+      progress: null
+    })
 }))
 
 export function applyTranscriptProgress(event: TranscriptProgressEvent): void {
@@ -88,6 +142,6 @@ function setProgress(event: TranscriptProgressEvent): void {
     ...(event.status === 'completed' ? { errorMessage: null } : {}),
     ...(event.errorMessage ? { errorMessage: event.errorMessage } : {})
   })
-  if (event.status === 'completed') void useTranscriptStore.getState().load(event.lessonId)
+  if (event.status === 'completed')
+    void useTranscriptStore.getState().load(event.lessonId)
 }
-

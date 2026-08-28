@@ -43,7 +43,10 @@ export function CreateCourseFromSelectionModal({
 
     try {
       const ids = selected.map((s) => s.appearanceId)
-      const res = await window.api.studio.createCourseFromSelection(ids, title.trim())
+      const res = await window.api.studio.createCourseFromSelection(
+        ids,
+        title.trim()
+      )
       if (res.success && res.newCourse) {
         await fetchCourses()
         clearSelection()
@@ -65,13 +68,16 @@ export function CreateCourseFromSelectionModal({
         <DialogHeader>
           <DialogTitle>Criar Curso a partir da Seleção</DialogTitle>
           <DialogDescription>
-            Cria uma nova estrutura de curso reunindo os {selected.length} itens selecionados. Os arquivos físicos no disco permanecerão intactos.
+            Cria uma nova estrutura de curso reunindo os {selected.length} itens
+            selecionados. Os arquivos físicos no disco permanecerão intactos.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-3 py-2">
           <div>
-            <label className="text-xs font-semibold text-foreground">Título do Novo Curso:</label>
+            <label className="text-xs font-semibold text-foreground">
+              Título do Novo Curso:
+            </label>
             <Input
               value={title}
               onChange={(e) => {
@@ -84,14 +90,24 @@ export function CreateCourseFromSelectionModal({
             />
           </div>
 
-          {error && <p className="text-xs text-destructive font-medium">{error}</p>}
+          {error && (
+            <p className="text-xs text-destructive font-medium">{error}</p>
+          )}
         </div>
 
         <DialogFooter>
-          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onOpenChange(false)}
+          >
             Cancelar
           </Button>
-          <Button size="sm" onClick={handleCreate} disabled={isCreating || !title.trim()}>
+          <Button
+            size="sm"
+            onClick={handleCreate}
+            disabled={isCreating || !title.trim()}
+          >
             {isCreating ? 'Criando...' : 'Criar Curso'}
           </Button>
         </DialogFooter>

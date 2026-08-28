@@ -24,20 +24,28 @@ import {
   ProfileOnboardingModal,
   StartupProfilePicker
 } from './components/studio'
-import { OptimizerDashboardModal, VisualComparatorModal } from './components/optimizer'
+import {
+  OptimizerDashboardModal,
+  VisualComparatorModal
+} from './components/optimizer'
 import { useNavigationStore } from './stores/useNavigationStore'
 import { useVaultStore } from './stores/useVaultStore'
 import { useSettingsStore } from './stores/useSettingsStore'
 import { useLibraryStore } from './stores/useLibraryStore'
 import { useProfileStore } from './stores/useProfileStore'
 import { TooltipProvider } from './components/ui/tooltip'
+import { SectionErrorBoundary } from './components/ui/SectionErrorBoundary'
+import { KeyboardShortcutsModal } from './components/layout/KeyboardShortcutsModal'
 import { LibrarySearchDialog } from './components/search'
 import { GroundedChatPanel } from './components/chat/GroundedChatPanel'
 import { useGroundedChatStore } from './stores/useGroundedChatStore'
 import { SummaryViewModal } from './components/summaries/SummaryViewModal'
 import { AiNotePreviewModal } from './components/notes/AiNotePreviewModal'
+import { useGlobalShortcuts } from './hooks'
 
 export function App(): React.JSX.Element {
+  useGlobalShortcuts()
+
   const {
     currentView,
     isImportModalOpen,
@@ -45,19 +53,26 @@ export function App(): React.JSX.Element {
     isThemeModalOpen,
     setThemeModalOpen,
     isProfileModalOpen,
-    setProfileModalOpen
+    setProfileModalOpen,
+    isShortcutsModalOpen,
+    setShortcutsModalOpen,
+    navigateToHome
   } = useNavigationStore()
   const { init: initVault, currentVault } = useVaultStore()
   const { init: initSettings } = useSettingsStore()
   const { fetchCourses } = useLibraryStore()
-  const { profiles, fetchProfiles, fetchResolvedTheme, setActiveProfile } = useProfileStore()
+  const { profiles, fetchProfiles, fetchResolvedTheme, setActiveProfile } =
+    useProfileStore()
   const [isAppReady, setIsAppReady] = useState(false)
   const [isSplashDone, setIsSplashDone] = useState(false)
 
-  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState<boolean>(() => {
-    return localStorage.getItem('orbia_profile_onboarding_done') === 'true'
-  })
-  const [hasSelectedStartupProfile, setHasSelectedStartupProfile] = useState<boolean>(false)
+  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState<boolean>(
+    () => {
+      return localStorage.getItem('orbia_profile_onboarding_done') === 'true'
+    }
+  )
+  const [hasSelectedStartupProfile, setHasSelectedStartupProfile] =
+    useState<boolean>(false)
 
   useEffect(() => {
     async function preloadData(): Promise<void> {
@@ -78,33 +93,55 @@ export function App(): React.JSX.Element {
   }, [initSettings, initVault, fetchCourses, fetchProfiles, fetchResolvedTheme])
 
   const renderActiveView = (): React.ReactNode => {
+    let viewContent: React.ReactNode
+
     switch (currentView) {
       case 'home':
-        return <HomeView />
+        viewContent = <HomeView />
+        break
       case 'discover':
-        return <DiscoverView />
+        viewContent = <DiscoverView />
+        break
       case 'course':
-        return <CourseView />
+        viewContent = <CourseView />
+        break
       case 'player':
-        return <PlayerView />
+        viewContent = <PlayerView />
+        break
       case 'review':
-        return <ReviewView />
+        viewContent = <ReviewView />
+        break
       case 'studio':
-        return <VisualLibraryStudio />
+        viewContent = <VisualLibraryStudio />
+        break
       case 'history':
-        return <HistoryView />
+        viewContent = <HistoryView />
+        break
       case 'settings':
-        return <SettingsView />
+        viewContent = <SettingsView />
+        break
       default:
-        return <HomeView />
+        viewContent = <HomeView />
     }
+
+    return (
+      <SectionErrorBoundary
+        key={currentView}
+        onNavigateHome={currentView !== 'home' ? navigateToHome : undefined}
+      >
+        {viewContent}
+      </SectionErrorBoundary>
+    )
   }
 
   return (
     <ThemeProvider>
       <TooltipProvider delayDuration={150}>
         {!isSplashDone && (
-          <SplashScreen isReady={isAppReady} onFinish={() => setIsSplashDone(true)} />
+          <SplashScreen
+            isReady={isAppReady}
+            onFinish={() => setIsSplashDone(true)}
+          />
         )}
 
         {isSplashDone && !hasCompletedOnboarding && (
@@ -114,42 +151,55 @@ export function App(): React.JSX.Element {
           />
         )}
 
-        {isSplashDone && hasCompletedOnboarding && profiles.length > 1 && !hasSelectedStartupProfile && (
-          <StartupProfilePicker
-            onSelect={(profile) => {
-              setActiveProfile(profile)
-              setHasSelectedStartupProfile(true)
-            }}
-          />
-        )}
+        {isSplashDone &&
+          hasCompletedOnboarding &&
+          profiles.length > 1 &&
+          !hasSelectedStartupProfile && (
+            <StartupProfilePicker
+              onSelect={(profile) => {
+                setActiveProfile(profile)
+                setHasSelectedStartupProfile(true)
+              }}
+            />
+          )}
 
         {isSplashDone &&
-          (!hasCompletedOnboarding
-            ? null
-            : profiles.length > 1 && !hasSelectedStartupProfile
-            ? null
-            : !currentVault
-            ? <VaultSelector />
-            : (
-              <>
-                <AppShell>{renderActiveView()}</AppShell>
-                <LibrarySearchDialog />
-                <ImportWizard open={isImportModalOpen} onOpenChange={setImportModalOpen} />
-                <VaultModal />
-                <BulkActionBar />
-                <DraftReviewModal />
-                <OrganizationHistoryModal />
-                <CustomFieldsModal />
-                <AutomationRulesModal />
-                <ProfileSelectorModal open={isProfileModalOpen} onOpenChange={setProfileModalOpen} />
-                <ThemeEditorModal open={isThemeModalOpen} onOpenChange={setThemeModalOpen} />
-                <OptimizerDashboardModal />
-                <VisualComparatorModal />
-                <SummaryViewModal />
-                <AiNotePreviewModal />
-                <GroundedChatPanelWrapper />
-              </>
-            ))}
+          (!hasCompletedOnboarding ? null : profiles.length > 1 &&
+            !hasSelectedStartupProfile ? null : !currentVault ? (
+            <VaultSelector />
+          ) : (
+            <>
+              <AppShell>{renderActiveView()}</AppShell>
+              <LibrarySearchDialog />
+              <KeyboardShortcutsModal
+                open={isShortcutsModalOpen}
+                onOpenChange={setShortcutsModalOpen}
+              />
+              <ImportWizard
+                open={isImportModalOpen}
+                onOpenChange={setImportModalOpen}
+              />
+              <VaultModal />
+              <BulkActionBar />
+              <DraftReviewModal />
+              <OrganizationHistoryModal />
+              <CustomFieldsModal />
+              <AutomationRulesModal />
+              <ProfileSelectorModal
+                open={isProfileModalOpen}
+                onOpenChange={setProfileModalOpen}
+              />
+              <ThemeEditorModal
+                open={isThemeModalOpen}
+                onOpenChange={setThemeModalOpen}
+              />
+              <OptimizerDashboardModal />
+              <VisualComparatorModal />
+              <SummaryViewModal />
+              <AiNotePreviewModal />
+              <GroundedChatPanelWrapper />
+            </>
+          ))}
       </TooltipProvider>
     </ThemeProvider>
   )
@@ -161,10 +211,13 @@ function GroundedChatPanelWrapper(): React.JSX.Element | null {
 
   return (
     <div className="fixed inset-y-0 right-0 z-50 flex w-full max-w-2xl shadow-2xl border-l border-border bg-background animate-in slide-in-from-right duration-200">
-      <GroundedChatPanel onNavigate={(target) => useNavigationStore.getState().openSourceTarget(target)} />
+      <GroundedChatPanel
+        onNavigate={(target) =>
+          useNavigationStore.getState().openSourceTarget(target)
+        }
+      />
     </div>
   )
 }
 
 export default App
-

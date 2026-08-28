@@ -1,20 +1,30 @@
 import React, { useState } from 'react'
-import { Clock, Play, Sparkles, X } from 'lucide-react'
+import { Clock, Play, Sparkles } from 'lucide-react'
 import { useDiscoveryStore } from '../../stores/useDiscoveryStore'
 import { useNavigationStore } from '../../stores/useNavigationStore'
 import { usePlayerStore } from '../../stores/usePlayerStore'
-import { Button } from '../ui'
+import {
+  Button,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription
+} from '../ui'
 import { formatTime } from '../../lib/formatters'
 
 export function TimePickerModal(): React.JSX.Element | null {
-  const { isTimeModalOpen, setTimeModalOpen, timeRecommendations, fetchTimeRecommendations } = useDiscoveryStore()
+  const {
+    isTimeModalOpen,
+    setTimeModalOpen,
+    timeRecommendations,
+    fetchTimeRecommendations
+  } = useDiscoveryStore()
   const { navigateToPlayer } = useNavigationStore()
   const { loadLesson } = usePlayerStore()
 
   const [selectedMinutes, setSelectedMinutes] = useState<number>(30)
   const [hasSearched, setHasSearched] = useState<boolean>(false)
-
-  if (!isTimeModalOpen) return null
 
   const handleSelectTime = (minutes: number) => {
     setSelectedMinutes(minutes)
@@ -29,35 +39,32 @@ export function TimePickerModal(): React.JSX.Element | null {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-      <div className="bg-card border border-border/80 rounded-2xl w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[85vh]">
+    <Dialog open={isTimeModalOpen} onOpenChange={setTimeModalOpen}>
+      <DialogContent className="max-w-2xl max-h-[85vh] p-0 overflow-hidden flex flex-col rounded-3xl border border-border/80 shadow-2xl">
         {/* Header */}
-        <div className="p-6 border-b border-border/60 flex items-center justify-between bg-secondary/30">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
-              <Clock className="w-5 h-5" />
-            </div>
-            <div>
-              <h2 className="text-xl font-bold text-foreground">Quanto tempo você tem agora?</h2>
-              <p className="text-xs text-muted-foreground">Encontre aulas perfeitas para a sua janela de estudo disponível</p>
-            </div>
+        <DialogHeader className="p-6 border-b border-border/60 flex flex-row items-center gap-3 bg-secondary/30 text-left">
+          <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shrink-0">
+            <Clock className="w-5 h-5" />
           </div>
-          <button
-            onClick={() => setTimeModalOpen(false)}
-            className="p-2 text-muted-foreground hover:text-foreground rounded-lg hover:bg-secondary transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+          <div>
+            <DialogTitle className="text-xl font-bold text-foreground">
+              Quanto tempo você tem agora?
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Encontre aulas perfeitas para a sua janela de estudo disponível
+            </DialogDescription>
+          </div>
+        </DialogHeader>
 
         {/* Time Selector Chips */}
         <div className="p-6 pb-2">
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {[15, 30, 45, 60].map((mins) => (
               <button
                 key={mins}
+                type="button"
                 onClick={() => handleSelectTime(mins)}
-                className={`py-3 px-4 rounded-xl border font-semibold text-sm transition-all flex flex-col items-center gap-1 ${
+                className={`py-3 px-4 rounded-xl border font-semibold text-sm transition-all flex flex-col items-center gap-1 cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary ${
                   selectedMinutes === mins && hasSearched
                     ? 'bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/20 scale-[1.02]'
                     : 'bg-secondary/40 border-border/60 text-foreground hover:bg-secondary/80'
@@ -65,7 +72,13 @@ export function TimePickerModal(): React.JSX.Element | null {
               >
                 <span className="text-base font-bold">{mins} min</span>
                 <span className="text-[11px] opacity-70">
-                  {mins === 15 ? 'Pausa rápida' : mins === 30 ? 'Foco leve' : mins === 45 ? 'Sessão padrão' : 'Imersão'}
+                  {mins === 15
+                    ? 'Pausa rápida'
+                    : mins === 30
+                      ? 'Foco leve'
+                      : mins === 45
+                        ? 'Sessão padrão'
+                        : 'Imersão'}
                 </span>
               </button>
             ))}
@@ -77,12 +90,18 @@ export function TimePickerModal(): React.JSX.Element | null {
           {!hasSearched ? (
             <div className="py-12 text-center text-muted-foreground">
               <Sparkles className="w-10 h-10 mx-auto mb-3 opacity-30 text-primary" />
-              <p className="text-sm font-medium">Selecione uma duração acima para encontrar aulas sob medida</p>
+              <p className="text-sm font-medium">
+                Selecione uma duração acima para encontrar aulas sob medida
+              </p>
             </div>
           ) : timeRecommendations.length === 0 ? (
             <div className="py-12 text-center text-muted-foreground">
-              <p className="text-sm">Nenhuma aula pendente encontrada nessa janela de tempo.</p>
-              <p className="text-xs mt-1 opacity-70">Tente selecionar 45 ou 60 minutos para mais opções.</p>
+              <p className="text-sm">
+                Nenhuma aula pendente encontrada nessa janela de tempo.
+              </p>
+              <p className="text-xs mt-1 opacity-70">
+                Tente selecionar 45 ou 60 minutos para mais opções.
+              </p>
             </div>
           ) : (
             timeRecommendations.map((rec) => (
@@ -107,7 +126,9 @@ export function TimePickerModal(): React.JSX.Element | null {
                     {rec.currentTimeSeconds > 0 && (
                       <>
                         <span>•</span>
-                        <span className="text-amber-500 font-medium">Em andamento</span>
+                        <span className="text-primary font-medium">
+                          Em andamento
+                        </span>
                       </>
                     )}
                   </div>
@@ -116,7 +137,7 @@ export function TimePickerModal(): React.JSX.Element | null {
                 <Button
                   onClick={() => handlePlayLesson(rec.courseId, rec.lessonId)}
                   size="sm"
-                  className="shrink-0 gap-1.5 shadow-sm"
+                  className="shrink-0 gap-1.5 shadow-sm cursor-pointer"
                 >
                   <Play className="w-3.5 h-3.5 fill-current" />
                   Assistir
@@ -125,7 +146,7 @@ export function TimePickerModal(): React.JSX.Element | null {
             ))
           )}
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }

@@ -1,5 +1,14 @@
 import { create } from 'zustand'
-import type { Course, Module, Lesson, LessonProgress, LessonNote, VideoBookmark, Flashcard, LessonChapter } from '@shared'
+import type {
+  Course,
+  Module,
+  Lesson,
+  LessonProgress,
+  LessonNote,
+  VideoBookmark,
+  Flashcard,
+  LessonChapter
+} from '@shared'
 import { mediaUrl } from '../lib/utils'
 
 export interface PlayerModuleWithLessons extends Module {
@@ -79,7 +88,11 @@ export interface PlayerState {
   nextLesson: () => Promise<boolean>
   prevLesson: () => Promise<boolean>
   toggleComplete: (lessonId?: string) => Promise<void>
-  updateProgress: (currentTime: number, duration: number, completed?: boolean) => Promise<void>
+  updateProgress: (
+    currentTime: number,
+    duration: number,
+    completed?: boolean
+  ) => Promise<void>
   setCurrentTime: (currentTime: number) => void
   setDuration: (duration: number) => void
 
@@ -94,18 +107,33 @@ export interface PlayerState {
   fetchChapters: (lessonId: string) => Promise<void>
   generateChapters: () => Promise<void>
   addChapter: (title: string, timestampSeconds: number) => Promise<void>
-  updateChapter: (id: string, title?: string, timestampSeconds?: number) => Promise<void>
+  updateChapter: (
+    id: string,
+    title?: string,
+    timestampSeconds?: number
+  ) => Promise<void>
   deleteChapter: (id: string) => Promise<void>
 
   // Bookmark actions (v0.3)
   fetchBookmarks: (lessonId: string) => Promise<void>
-  addBookmark: (title?: string, color?: string, timestamp?: number) => Promise<VideoBookmark | null>
-  updateBookmark: (id: string, updates: { title?: string; color?: string; timestamp?: number }) => Promise<boolean>
+  addBookmark: (
+    title?: string,
+    color?: string,
+    timestamp?: number
+  ) => Promise<VideoBookmark | null>
+  updateBookmark: (
+    id: string,
+    updates: { title?: string; color?: string; timestamp?: number }
+  ) => Promise<boolean>
   deleteBookmark: (id: string) => Promise<boolean>
 
   // Flashcard actions (v0.3)
   fetchFlashcards: (lessonId: string) => Promise<void>
-  addFlashcard: (question: string, answer: string, timestamp?: number) => Promise<Flashcard | null>
+  addFlashcard: (
+    question: string,
+    answer: string,
+    timestamp?: number
+  ) => Promise<Flashcard | null>
   deleteFlashcard: (id: string) => Promise<boolean>
 
   // Subtitle actions
@@ -114,7 +142,10 @@ export interface PlayerState {
   // Broken / Error Lessons
   brokenLessonIds: string[]
   markLessonBroken: (lessonId: string) => void
-  deleteLesson: (lessonId: string, deleteFileFromDisk?: boolean) => Promise<{ success: boolean; error?: string }>
+  deleteLesson: (
+    lessonId: string,
+    deleteFileFromDisk?: boolean
+  ) => Promise<{ success: boolean; error?: string }>
 
   reset: () => void
 }
@@ -168,7 +199,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
   pause: () => {
     set({ isPlaying: false })
-    const { activeLesson, activeCourse, currentTime, duration, progressMap } = get()
+    const { activeLesson, activeCourse, currentTime, duration, progressMap } =
+      get()
     if (activeLesson && activeCourse && duration > 0) {
       const isCompleted =
         progressMap[activeLesson.id]?.completed ||
@@ -292,7 +324,9 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
         const summary = await window.api.player.getCourseProgress(course.id)
         if (summary?.lastPlayedLessonId) {
           const allLessons = modules.flatMap((m) => m.lessons || [])
-          const exists = allLessons.some((l) => l.id === summary.lastPlayedLessonId)
+          const exists = allLessons.some(
+            (l) => l.id === summary.lastPlayedLessonId
+          )
           if (exists) {
             targetLessonId = summary.lastPlayedLessonId
           }
@@ -317,7 +351,11 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   },
 
   loadLesson: async (lessonId: string) => {
-    const { modulesWithLessons, activeCourse, subtitleTracks: oldTracks } = get()
+    const {
+      modulesWithLessons,
+      activeCourse,
+      subtitleTracks: oldTracks
+    } = get()
     let foundLesson: Lesson | null = null
     let foundModule: Module | null = null
 
@@ -347,7 +385,10 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     if (foundLesson.subtitles && foundLesson.subtitles.length > 0) {
       for (const sub of foundLesson.subtitles) {
         let vttUrl = mediaUrl(sub.filePath)
-        if (sub.format === 'srt' || sub.filePath.toLowerCase().endsWith('.srt')) {
+        if (
+          sub.format === 'srt' ||
+          sub.filePath.toLowerCase().endsWith('.srt')
+        ) {
           try {
             const res = await window.api.courses.convertSrtToVtt(sub.filePath)
             if (res.success && res.vttContent) {
@@ -355,7 +396,11 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
               vttUrl = URL.createObjectURL(blob)
             }
           } catch (e) {
-            console.warn('Failed to convert SRT to VTT for subtitle:', sub.label, e)
+            console.warn(
+              'Failed to convert SRT to VTT for subtitle:',
+              sub.label,
+              e
+            )
           }
         }
         preparedTracks.push({
@@ -386,7 +431,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
         // Resume from saved position if within bounds (up to 98% of duration)
         if (
           savedProgress.currentTime > 0 &&
-          (savedProgress.duration <= 0 || savedProgress.currentTime < savedProgress.duration * 0.98)
+          (savedProgress.duration <= 0 ||
+            savedProgress.currentTime < savedProgress.duration * 0.98)
         ) {
           initialTime = savedProgress.currentTime
         }
@@ -402,7 +448,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       duration: lessonDuration,
       isPlaying: true,
       subtitleTracks: preparedTracks,
-      activeSubtitleTrack: preparedTracks.length > 0 ? preparedTracks[0].id : null
+      activeSubtitleTrack:
+        preparedTracks.length > 0 ? preparedTracks[0].id : null
     })
 
     // Fetch notes, chapters, bookmarks, and flashcards for the active lesson
@@ -484,7 +531,10 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     if (!targetId || !activeCourse) return
 
     try {
-      const completed = await window.api.player.toggleLessonCompletion(targetId, activeCourse.id)
+      const completed = await window.api.player.toggleLessonCompletion(
+        targetId,
+        activeCourse.id
+      )
       const existing = progressMap[targetId] || {
         lessonId: targetId,
         courseId: activeCourse.id,
@@ -509,14 +559,19 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     }
   },
 
-  updateProgress: async (currentTime: number, duration: number, completed?: boolean) => {
+  updateProgress: async (
+    currentTime: number,
+    duration: number,
+    completed?: boolean
+  ) => {
     const { activeLesson, activeCourse, progressMap } = get()
     if (!activeLesson || !activeCourse) return
 
     const isCompleted =
       completed !== undefined
         ? completed
-        : (progressMap[activeLesson.id]?.completed || (duration > 0 && currentTime / duration >= 0.9))
+        : progressMap[activeLesson.id]?.completed ||
+          (duration > 0 && currentTime / duration >= 0.9)
 
     const newProgress: LessonProgress = {
       lessonId: activeLesson.id,
@@ -561,7 +616,9 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     set({ isLoadingNotes: true })
     try {
       const notes = await window.api.player.getLessonNotes(lessonId)
-      const sorted = (notes || []).slice().sort((a, b) => a.timestampSeconds - b.timestampSeconds)
+      const sorted = (notes || [])
+        .slice()
+        .sort((a, b) => a.timestampSeconds - b.timestampSeconds)
       set({ notes: sorted, isLoadingNotes: false })
     } catch (err) {
       console.error('Failed to fetch lesson notes:', err)
@@ -581,7 +638,9 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
         content: content.trim()
       })
       set((state) => ({
-        notes: [...state.notes, newNote].sort((a, b) => a.timestampSeconds - b.timestampSeconds)
+        notes: [...state.notes, newNote].sort(
+          (a, b) => a.timestampSeconds - b.timestampSeconds
+        )
       }))
     } catch (err) {
       console.error('Failed to add lesson note:', err)
@@ -590,11 +649,16 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
   updateNote: async (id: string, content: string) => {
     try {
-      const success = await window.api.player.updateLessonNote(id, content.trim())
+      const success = await window.api.player.updateLessonNote(
+        id,
+        content.trim()
+      )
       if (success) {
         set((state) => ({
           notes: state.notes.map((n) =>
-            n.id === id ? { ...n, content: content.trim(), updatedAt: Date.now() } : n
+            n.id === id
+              ? { ...n, content: content.trim(), updatedAt: Date.now() }
+              : n
           )
         }))
       }
@@ -680,7 +744,11 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     }
   },
 
-  updateChapter: async (id: string, title?: string, timestampSeconds?: number) => {
+  updateChapter: async (
+    id: string,
+    title?: string,
+    timestampSeconds?: number
+  ) => {
     const { activeLesson, activeCourse } = get()
     if (!activeLesson || !activeCourse) return
 
@@ -750,7 +818,9 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
         color
       })
       set((state) => ({
-        bookmarks: [...state.bookmarks, bmark].sort((a, b) => a.timestamp - b.timestamp)
+        bookmarks: [...state.bookmarks, bmark].sort(
+          (a, b) => a.timestamp - b.timestamp
+        )
       }))
       return bmark
     } catch (err) {
@@ -759,13 +829,18 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     }
   },
 
-  updateBookmark: async (id: string, updates: { title?: string; color?: string; timestamp?: number }) => {
+  updateBookmark: async (
+    id: string,
+    updates: { title?: string; color?: string; timestamp?: number }
+  ) => {
     try {
       const ok = await window.api.bookmarks.update(id, updates)
       if (ok) {
         set((state) => ({
           bookmarks: state.bookmarks
-            .map((b) => (b.id === id ? { ...b, ...updates, updatedAt: Date.now() } : b))
+            .map((b) =>
+              b.id === id ? { ...b, ...updates, updatedAt: Date.now() } : b
+            )
             .sort((a, b) => a.timestamp - b.timestamp)
         }))
       }
@@ -803,7 +878,11 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     }
   },
 
-  addFlashcard: async (question: string, answer: string, timestamp?: number) => {
+  addFlashcard: async (
+    question: string,
+    answer: string,
+    timestamp?: number
+  ) => {
     const { activeLesson, activeCourse, activeModule, currentTime } = get()
     if (!activeLesson || !question.trim() || !answer.trim()) return null
     const time = timestamp !== undefined ? timestamp : currentTime
@@ -859,16 +938,24 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
   deleteLesson: async (lessonId: string, deleteFileFromDisk = false) => {
     try {
-      const res = await window.api.courses.deleteLesson(lessonId, deleteFileFromDisk)
+      const res = await window.api.courses.deleteLesson(
+        lessonId,
+        deleteFileFromDisk
+      )
       if (res.success) {
         const { activeLesson, modulesWithLessons, nextLesson } = get()
         const isCurrentLesson = activeLesson?.id === lessonId
 
         // Remove lesson from modules in player state
-        const updatedModules = modulesWithLessons.map((m) => ({
-          ...m,
-          lessons: m.lessons.filter((l) => l.id !== lessonId)
-        })).filter((m) => m.lessons.length > 0 || (m.resources && m.resources.length > 0))
+        const updatedModules = modulesWithLessons
+          .map((m) => ({
+            ...m,
+            lessons: m.lessons.filter((l) => l.id !== lessonId)
+          }))
+          .filter(
+            (m) =>
+              m.lessons.length > 0 || (m.resources && m.resources.length > 0)
+          )
 
         set((state) => ({
           modulesWithLessons: updatedModules,

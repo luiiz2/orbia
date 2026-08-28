@@ -16,7 +16,11 @@ export function AppShell({ children }: AppShellProps): React.JSX.Element {
   const isVideoFullscreen = isFullscreen && currentView === 'player'
 
   if (isVideoFullscreen) {
-    return <div className="h-screen w-screen overflow-hidden bg-black">{children}</div>
+    return (
+      <div className="h-screen w-screen overflow-hidden bg-black">
+        {children}
+      </div>
+    )
   }
 
   return (

@@ -15,7 +15,13 @@ import { BulkRenameDialog } from './BulkRenameDialog'
 import { CreateCourseFromSelectionModal } from './CreateCourseFromSelectionModal'
 
 export function BulkActionBar(): React.JSX.Element | null {
-  const { isSelectionMode, selectedMap, getSelectedArray, getCountsByType, clearSelection } = useSelectionStore()
+  const {
+    isSelectionMode,
+    selectedMap,
+    getSelectedArray,
+    getCountsByType,
+    clearSelection
+  } = useSelectionStore()
   const { setRenameModalOpen } = useStudioStore()
   const [isCreateCourseModalOpen, setIsCreateCourseModalOpen] = useState(false)
 
@@ -34,7 +40,11 @@ export function BulkActionBar(): React.JSX.Element | null {
   }
 
   const handleDeleteSelected = async (): Promise<void> => {
-    if (!window.confirm(`Tem certeza que deseja remover ${totalCount} item(ns) da biblioteca lógica? (Os arquivos em disco NÃO serão apagados)`)) {
+    if (
+      !window.confirm(
+        `Tem certeza que deseja remover ${totalCount} item(ns) da biblioteca lógica? (Os arquivos em disco NÃO serão apagados)`
+      )
+    ) {
       return
     }
     for (const item of selectedItems) {
@@ -55,7 +65,9 @@ export function BulkActionBar(): React.JSX.Element | null {
           <span className="flex items-center justify-center px-2.5 py-0.5 rounded-full bg-primary font-mono font-bold text-xs text-primary-foreground shadow-sm">
             {totalCount}
           </span>
-          <span className="text-xs text-slate-300 font-medium whitespace-nowrap">selecionado(s)</span>
+          <span className="text-xs text-slate-300 font-medium whitespace-nowrap">
+            selecionado(s)
+          </span>
           <Button
             variant="ghost"
             size="icon"
@@ -78,11 +90,13 @@ export function BulkActionBar(): React.JSX.Element | null {
                 onClick={() => setRenameModalOpen(true)}
                 className="h-8 px-2.5 text-xs text-slate-200 hover:text-white hover:bg-white/15 rounded-lg flex items-center gap-1.5 cursor-pointer"
               >
-                <Edit3 className="h-3.5 w-3.5 text-orange-400" />
+                <Edit3 className="h-3.5 w-3.5 text-primary" />
                 <span>Renomear</span>
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="top">Renomeação com padrões e numeração</TooltipContent>
+            <TooltipContent side="top">
+              Renomeação com padrões e numeração
+            </TooltipContent>
           </Tooltip>
 
           {/* Criar Curso a partir da Seleção */}
@@ -94,11 +108,13 @@ export function BulkActionBar(): React.JSX.Element | null {
                 onClick={() => setIsCreateCourseModalOpen(true)}
                 className="h-8 px-2.5 text-xs text-slate-200 hover:text-white hover:bg-white/15 rounded-lg flex items-center gap-1.5 cursor-pointer"
               >
-                <FolderPlus className="h-3.5 w-3.5 text-amber-400" />
+                <FolderPlus className="h-3.5 w-3.5 text-primary" />
                 <span>Criar Curso</span>
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="top">Criar novo curso a partir dos itens selecionados</TooltipContent>
+            <TooltipContent side="top">
+              Criar novo curso a partir dos itens selecionados
+            </TooltipContent>
           </Tooltip>
 
           {/* Adicionar à Fila de Estudos (se contiver aulas) */}
@@ -109,18 +125,22 @@ export function BulkActionBar(): React.JSX.Element | null {
                   variant="ghost"
                   size="sm"
                   onClick={async () => {
-                    for (const item of selectedItems.filter((i) => i.type === 'lesson')) {
+                    for (const item of selectedItems.filter(
+                      (i) => i.type === 'lesson'
+                    )) {
                       await window.api.studyQueue.add('lesson', item.id)
                     }
                     clearSelection()
                   }}
                   className="h-8 px-2.5 text-xs text-slate-200 hover:text-white hover:bg-white/15 rounded-lg flex items-center gap-1.5 cursor-pointer"
                 >
-                  <BookmarkPlus className="h-3.5 w-3.5 text-blue-400" />
+                  <BookmarkPlus className="h-3.5 w-3.5 text-accent" />
                   <span>Estudar Depois</span>
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="top">Adicionar aulas selecionadas à fila de estudos</TooltipContent>
+              <TooltipContent side="top">
+                Adicionar aulas selecionadas à fila de estudos
+              </TooltipContent>
             </Tooltip>
           )}
 
@@ -133,11 +153,13 @@ export function BulkActionBar(): React.JSX.Element | null {
                 onClick={handleHideSelected}
                 className="h-8 px-2.5 text-xs text-slate-200 hover:text-white hover:bg-white/15 rounded-lg flex items-center gap-1.5 cursor-pointer"
               >
-                <EyeOff className="h-3.5 w-3.5 text-purple-400" />
+                <EyeOff className="h-3.5 w-3.5 text-accent" />
                 <span>Ocultar</span>
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="top">Ocultar da Home e da navegação normal</TooltipContent>
+            <TooltipContent side="top">
+              Ocultar da Home e da navegação normal
+            </TooltipContent>
           </Tooltip>
 
           {/* Excluir da Biblioteca (Lógico) */}
@@ -153,7 +175,10 @@ export function BulkActionBar(): React.JSX.Element | null {
                 <span>Remover</span>
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="top">Remover apenas da biblioteca (arquivos no disco permanecem intocados)</TooltipContent>
+            <TooltipContent side="top">
+              Remover apenas da biblioteca (arquivos no disco permanecem
+              intocados)
+            </TooltipContent>
           </Tooltip>
         </div>
       </div>

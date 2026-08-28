@@ -34,7 +34,10 @@ export const useAiNotesStore = create<AiNotesState>((set, get) => ({
       const suggestion = await window.api.aiNotes.suggest(input)
       set({ suggestion, isLoading: false })
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Falha ao gerar sugestão de anotação.'
+      const message =
+        err instanceof Error
+          ? err.message
+          : 'Falha ao gerar sugestão de anotação.'
       set({ error: message, isLoading: false })
     }
   },
@@ -51,14 +54,26 @@ export const useAiNotesStore = create<AiNotesState>((set, get) => ({
       } else {
         await addNote(suggestion.suggestedContent)
       }
-      set({ isOpen: false, suggestion: null, targetNoteId: undefined, error: null })
+      set({
+        isOpen: false,
+        suggestion: null,
+        targetNoteId: undefined,
+        error: null
+      })
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Falha ao salvar anotação.'
+      const message =
+        err instanceof Error ? err.message : 'Falha ao salvar anotação.'
       set({ error: message })
     }
   },
 
   closeModal: () => {
-    set({ isOpen: false, suggestion: null, targetNoteId: undefined, error: null, isLoading: false })
+    set({
+      isOpen: false,
+      suggestion: null,
+      targetNoteId: undefined,
+      error: null,
+      isLoading: false
+    })
   }
 }))

@@ -28,7 +28,13 @@ import { Input } from '../ui/input'
 export function VaultModal(): React.JSX.Element {
   const { t } = useTranslation()
   const { isVaultModalOpen, setVaultModalOpen } = useNavigationStore()
-  const { currentVault, recentVaults, createVault, openVault, selectDirectory } = useVaultStore()
+  const {
+    currentVault,
+    recentVaults,
+    createVault,
+    openVault,
+    selectDirectory
+  } = useVaultStore()
   const { fetchCourses } = useLibraryStore()
 
   const [mode, setMode] = useState<'recent' | 'create' | 'open'>('recent')
@@ -118,14 +124,21 @@ export function VaultModal(): React.JSX.Element {
   }
 
   return (
-    <Dialog open={isVaultModalOpen} onOpenChange={(open) => !open && handleClose()}>
+    <Dialog
+      open={isVaultModalOpen}
+      onOpenChange={(open) => !open && handleClose()}
+    >
       <DialogContent className="max-w-lg rounded-2xl bg-card border-border text-foreground">
         <DialogHeader>
           <div className="flex items-center gap-2 text-primary">
             <Database className="h-5 w-5" />
-            <DialogTitle className="text-lg font-bold">{t('vault.title')}</DialogTitle>
+            <DialogTitle className="text-lg font-bold">
+              {t('vault.title')}
+            </DialogTitle>
           </div>
-          <DialogDescription className="text-xs text-muted-foreground">{t('vault.subtitle')}</DialogDescription>
+          <DialogDescription className="text-xs text-muted-foreground">
+            {t('vault.subtitle')}
+          </DialogDescription>
         </DialogHeader>
 
         {errorMessage && (
@@ -141,7 +154,9 @@ export function VaultModal(): React.JSX.Element {
             type="button"
             onClick={() => setMode('recent')}
             className={`flex-1 py-1.5 text-center font-semibold rounded-lg transition-colors cursor-pointer ${
-              mode === 'recent' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+              mode === 'recent'
+                ? 'bg-card text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             {t('vault.recentVaults')}
@@ -150,7 +165,9 @@ export function VaultModal(): React.JSX.Element {
             type="button"
             onClick={() => setMode('create')}
             className={`flex-1 py-1.5 text-center font-semibold rounded-lg transition-colors cursor-pointer ${
-              mode === 'create' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+              mode === 'create'
+                ? 'bg-card text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             {t('vault.createNew')}
@@ -171,7 +188,9 @@ export function VaultModal(): React.JSX.Element {
                   return (
                     <div
                       key={vault.id || vault.path}
-                      onClick={() => !isActive && handleOpenExisting(vault.path)}
+                      onClick={() =>
+                        !isActive && handleOpenExisting(vault.path)
+                      }
                       className={`flex items-center justify-between p-3 rounded-xl border text-xs transition-colors ${
                         isActive
                           ? 'border-primary/50 bg-primary/10'
@@ -183,7 +202,9 @@ export function VaultModal(): React.JSX.Element {
                           className={`h-4 w-4 shrink-0 ${isActive ? 'text-primary' : 'text-muted-foreground'}`}
                         />
                         <div className="flex flex-col overflow-hidden">
-                          <span className="font-bold text-foreground truncate">{vault.name}</span>
+                          <span className="font-bold text-foreground truncate">
+                            {vault.name}
+                          </span>
                           <span className="text-[10px] font-mono text-muted-foreground truncate">
                             {vault.path}
                           </span>
@@ -197,7 +218,11 @@ export function VaultModal(): React.JSX.Element {
                             Active
                           </span>
                         ) : (
-                          <Button variant="ghost" size="xs" className="h-7 text-[11px] rounded-lg">
+                          <Button
+                            variant="ghost"
+                            size="xs"
+                            className="h-7 text-[11px] rounded-lg"
+                          >
                             Open
                           </Button>
                         )}
@@ -240,7 +265,9 @@ export function VaultModal(): React.JSX.Element {
         {mode === 'create' && (
           <div className="space-y-4 py-2">
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-foreground">{t('vault.vaultName')}</label>
+              <label className="text-xs font-bold text-foreground">
+                {t('vault.vaultName')}
+              </label>
               <Input
                 value={vaultName}
                 onChange={(e) => setVaultName(e.target.value)}
@@ -274,7 +301,12 @@ export function VaultModal(): React.JSX.Element {
         )}
 
         <DialogFooter className="gap-2 sm:gap-0 pt-2 border-t border-border">
-          <Button variant="ghost" onClick={handleClose} disabled={isProcessing} className="rounded-xl text-xs">
+          <Button
+            variant="ghost"
+            onClick={handleClose}
+            disabled={isProcessing}
+            className="rounded-xl text-xs"
+          >
             {t('vault.cancel')}
           </Button>
 
@@ -282,7 +314,7 @@ export function VaultModal(): React.JSX.Element {
             <Button
               onClick={handleCreate}
               disabled={isProcessing}
-              className="gap-1.5 font-semibold shadow-lg shadow-orange-500/20 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-500 text-primary-foreground rounded-xl text-xs"
+              className="gap-1.5 font-semibold shadow-lg shadow-primary/20 bg-primary text-primary-foreground rounded-xl text-xs"
             >
               {isProcessing ? (
                 <>
@@ -309,4 +341,3 @@ export function VaultModal(): React.JSX.Element {
     </Dialog>
   )
 }
-

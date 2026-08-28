@@ -1,24 +1,36 @@
 import React, { useEffect, useState } from 'react'
-import { Sparkles, Play, RefreshCw, X, BookOpen, CheckCircle2 } from 'lucide-react'
+import { Sparkles, Play, RefreshCw, BookOpen, CheckCircle2 } from 'lucide-react'
 import { useDiscoveryStore } from '../../stores/useDiscoveryStore'
 import { useNavigationStore } from '../../stores/useNavigationStore'
-import { Button } from '../ui'
-import { CourseCover } from '../ui/CourseCover'
+import {
+  Button,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  CourseCover
+} from '../ui'
 
 export function SurpriseModal(): React.JSX.Element | null {
-  const { isSurpriseModalOpen, setSurpriseModalOpen, surprise, fetchSurpriseMe } = useDiscoveryStore()
+  const {
+    isSurpriseModalOpen,
+    setSurpriseModalOpen,
+    surprise,
+    fetchSurpriseMe
+  } = useDiscoveryStore()
   const { navigateToCourse, navigateToPlayer } = useNavigationStore()
 
-  const [mode, setMode] = useState<'continue' | 'start_new' | 'quick_lesson' | 'random'>('continue')
+  const [mode, setMode] = useState<
+    'continue' | 'start_new' | 'quick_lesson' | 'random'
+  >('continue')
   const [isRolling, setIsRolling] = useState<boolean>(false)
 
   useEffect(() => {
     if (isSurpriseModalOpen) {
       fetchSurpriseMe(undefined, mode)
     }
-  }, [isSurpriseModalOpen, mode])
-
-  if (!isSurpriseModalOpen) return null
+  }, [isSurpriseModalOpen, mode, fetchSurpriseMe])
 
   const handleRollAgain = async () => {
     setIsRolling(true)
@@ -37,26 +49,22 @@ export function SurpriseModal(): React.JSX.Element | null {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-in fade-in duration-200">
-      <div className="bg-card border border-border/80 rounded-3xl w-full max-w-xl overflow-hidden shadow-2xl flex flex-col relative">
+    <Dialog open={isSurpriseModalOpen} onOpenChange={setSurpriseModalOpen}>
+      <DialogContent className="max-w-xl p-0 overflow-hidden flex flex-col rounded-3xl border border-border/80 shadow-2xl">
         {/* Header */}
-        <div className="p-6 pb-4 flex items-center justify-between border-b border-border/40">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/30 flex items-center justify-center text-amber-500 shadow-inner">
-              <Sparkles className="w-5 h-5" />
-            </div>
-            <div>
-              <h2 className="text-xl font-bold text-foreground">Surpreenda-me</h2>
-              <p className="text-xs text-muted-foreground">Sorteio ponderado inteligente da sua própria biblioteca</p>
-            </div>
+        <DialogHeader className="p-6 pb-4 flex flex-row items-center gap-3 border-b border-border/40 text-left">
+          <div className="w-10 h-10 rounded-2xl bg-primary/10 border border-primary/30 flex items-center justify-center text-primary shadow-inner shrink-0">
+            <Sparkles className="w-5 h-5" />
           </div>
-          <button
-            onClick={() => setSurpriseModalOpen(false)}
-            className="p-2 text-muted-foreground hover:text-foreground rounded-lg hover:bg-secondary transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+          <div>
+            <DialogTitle className="text-xl font-bold text-foreground">
+              Surpreenda-me
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Sorteio ponderado inteligente da sua própria biblioteca
+            </DialogDescription>
+          </div>
+        </DialogHeader>
 
         {/* Mode Selector */}
         <div className="px-6 pt-4 pb-2">
@@ -71,8 +79,9 @@ export function SurpriseModal(): React.JSX.Element | null {
             ).map((m) => (
               <button
                 key={m.id}
+                type="button"
                 onClick={() => setMode(m.id)}
-                className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold transition-all ${
+                className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                   mode === m.id
                     ? 'bg-primary text-primary-foreground shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
@@ -88,27 +97,28 @@ export function SurpriseModal(): React.JSX.Element | null {
         <div className="p-6">
           {surprise?.item ? (
             <div
-              className={`bg-gradient-to-b from-secondary/40 to-secondary/20 border border-border/60 rounded-2xl p-5 transition-all duration-300 ${
-                isRolling ? 'scale-[0.98] opacity-50 blur-[1px]' : 'scale-100 opacity-100'
+              className={`bg-secondary border border-border/60 rounded-2xl p-5 transition-all duration-300 ${
+                isRolling
+                  ? 'scale-[0.98] opacity-50 blur-[1px]'
+                  : 'scale-100 opacity-100'
               }`}
             >
-              <div className="text-xs font-bold text-amber-500 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+              <div className="text-xs font-bold text-primary uppercase tracking-wider mb-3 flex items-center gap-1.5">
                 <Sparkles className="w-3.5 h-3.5" />
                 {surprise.headline}
               </div>
 
-              <div className="flex gap-4 items-start">
-                <div className="w-28 shrink-0">
+              <div className="flex flex-col sm:flex-row gap-4 items-start">
+                <div className="w-full sm:w-28 shrink-0 aspect-video sm:aspect-auto">
                   <CourseCover
                     src={surprise.item.course.coverPath}
                     title={surprise.item.course.title}
-                    aspectRatio="video"
-                    className="rounded-xl shadow-md"
+                    className="rounded-xl shadow-md h-full w-full object-cover"
                   />
                 </div>
 
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-lg font-bold text-foreground leading-tight mb-2">
+                  <h3 className="text-lg font-bold text-foreground leading-tight mb-2 truncate">
                     {surprise.item.course.title}
                   </h3>
 
@@ -123,7 +133,10 @@ export function SurpriseModal(): React.JSX.Element | null {
                       <BookOpen className="w-3.5 h-3.5 text-primary" />
                       <span>{surprise.item.course.lessonCount} aulas</span>
                       <span>•</span>
-                      <span>{Math.round(surprise.item.course.totalDuration / 60)} min totais</span>
+                      <span>
+                        {Math.round(surprise.item.course.totalDuration / 60)}{' '}
+                        min totais
+                      </span>
                     </div>
 
                     {surprise.item.progressPercent > 0 && (
@@ -143,19 +156,23 @@ export function SurpriseModal(): React.JSX.Element | null {
                   variant="outline"
                   size="sm"
                   disabled={isRolling}
-                  className="gap-2 text-xs font-semibold"
+                  className="gap-2 text-xs font-semibold cursor-pointer"
                 >
-                  <RefreshCw className={`w-3.5 h-3.5 ${isRolling ? 'animate-spin' : ''}`} />
+                  <RefreshCw
+                    className={`w-3.5 h-3.5 ${isRolling ? 'animate-spin' : ''}`}
+                  />
                   Tentar Outro
                 </Button>
 
                 <Button
                   onClick={handleStartStudying}
                   size="sm"
-                  className="flex-1 gap-2 shadow-lg shadow-primary/20"
+                  className="flex-1 gap-2 shadow-lg shadow-primary/20 cursor-pointer"
                 >
                   <Play className="w-4 h-4 fill-current" />
-                  {surprise.item.progressPercent > 0 ? 'Continuar Agora' : 'Começar Curso'}
+                  {surprise.item.progressPercent > 0
+                    ? 'Continuar Agora'
+                    : 'Começar Curso'}
                 </Button>
               </div>
             </div>
@@ -165,7 +182,7 @@ export function SurpriseModal(): React.JSX.Element | null {
             </div>
           )}
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }
