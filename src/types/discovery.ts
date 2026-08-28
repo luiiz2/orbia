@@ -48,7 +48,8 @@ export interface DiscoveryRail {
   badge?: string
 }
 
-export type CourseRelationshipType = 'prerequisite' | 'sequel' | 'same_journey' | 'related'
+export type CourseRelationshipType =
+  'prerequisite' | 'sequel' | 'same_journey' | 'related'
 
 export interface CourseRelationship {
   id: string
@@ -72,11 +73,7 @@ export interface ProfileDiscoveryPreferences {
 }
 
 export type RecommendationFeedbackType =
-  | 'like'
-  | 'dislike'
-  | 'not_interested'
-  | 'show_less'
-  | 'show_more'
+  'like' | 'dislike' | 'not_interested' | 'show_less' | 'show_more'
 
 export interface RecommendationFeedback {
   profileId: string

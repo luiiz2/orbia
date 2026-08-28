@@ -9,7 +9,10 @@ import {
 } from '../services/optimizer'
 import { appConfigService } from '../services/app-config.service'
 import { databaseService } from '../services/database.service'
-import type { OptimizationProfile, OptimizationSettings } from '../../types/optimizer'
+import type {
+  OptimizationProfile,
+  OptimizationSettings
+} from '../../types/optimizer'
 import { logger } from '../services/logger.service'
 
 export function registerOptimizerIpc(): void {
@@ -25,14 +28,17 @@ export function registerOptimizerIpc(): void {
   })
 
   // 1. Analyze Vault
-  ipcMain.handle('optimizer:analyze-vault', async (_event, profile?: OptimizationProfile) => {
-    try {
-      return await optimizerAnalysisService.analyzeVault(profile)
-    } catch (err) {
-      logger.error('[IPC optimizer:analyze-vault]', err)
-      throw err
+  ipcMain.handle(
+    'optimizer:analyze-vault',
+    async (_event, profile?: OptimizationProfile) => {
+      try {
+        return await optimizerAnalysisService.analyzeVault(profile)
+      } catch (err) {
+        logger.error('[IPC optimizer:analyze-vault]', err)
+        throw err
+      }
     }
-  })
+  )
 
   // 2. Hardware Capabilities
   ipcMain.handle('optimizer:get-hardware-capabilities', async () => {
@@ -56,7 +62,9 @@ export function registerOptimizerIpc(): void {
       }
     ) => {
       try {
-        const analysis = await optimizerAnalysisService.analyzeVault(options?.profile)
+        const analysis = await optimizerAnalysisService.analyzeVault(
+          options?.profile
+        )
         const excludedSet = new Set(options?.excludedLessonIds || [])
 
         const candidates = analysis.plans
@@ -95,9 +103,14 @@ export function registerOptimizerIpc(): void {
         const db = databaseService.getDatabase()
         if (!db) throw new Error('Database not connected.')
 
-        const lesson = db.prepare(`
+        const lesson = db
+          .prepare(
+            `
           SELECT id, course_id as courseId, file_path as filePath FROM lessons WHERE id = ?
-        `).get(lessonId) as { id: string; courseId: string; filePath: string } | undefined
+        `
+          )
+          .get(lessonId) as
+          { id: string; courseId: string; filePath: string } | undefined
 
         if (!lesson) throw new Error('Lesson not found.')
 
@@ -156,7 +169,10 @@ export function registerOptimizerIpc(): void {
     'optimizer:generate-visual-comparison',
     async (_event, lessonId: string, profile?: OptimizationProfile) => {
       try {
-        return await visualComparatorService.generateComparison(lessonId, profile)
+        return await visualComparatorService.generateComparison(
+          lessonId,
+          profile
+        )
       } catch (err) {
         logger.error('[IPC optimizer:generate-visual-comparison]', err)
         throw err
@@ -169,14 +185,20 @@ export function registerOptimizerIpc(): void {
     return provenanceAndExclusionsService.listRecords(limit)
   })
 
-  ipcMain.handle('optimizer:restore-original', async (_event, recordId: string) => {
-    return await provenanceAndExclusionsService.restoreOriginal(recordId)
-  })
+  ipcMain.handle(
+    'optimizer:restore-original',
+    async (_event, recordId: string) => {
+      return await provenanceAndExclusionsService.restoreOriginal(recordId)
+    }
+  )
 
   ipcMain.handle(
     'optimizer:reoptimize-lesson',
     async (_event, lessonId: string, profile?: OptimizationProfile) => {
-      return await provenanceAndExclusionsService.reoptimizeLesson(lessonId, profile)
+      return await provenanceAndExclusionsService.reoptimizeLesson(
+        lessonId,
+        profile
+      )
     }
   )
 
@@ -203,8 +225,17 @@ export function registerOptimizerIpc(): void {
 
   ipcMain.handle(
     'optimizer:set-exclusion',
-    async (_event, scopeType: import('../../types/optimizer').OptimizationExclusionRule['scopeType'], scopeId: string, isExcluded: boolean) => {
-      return provenanceAndExclusionsService.setExclusion(scopeType, scopeId, isExcluded)
+    async (
+      _event,
+      scopeType: import('../../types/optimizer').OptimizationExclusionRule['scopeType'],
+      scopeId: string,
+      isExcluded: boolean
+    ) => {
+      return provenanceAndExclusionsService.setExclusion(
+        scopeType,
+        scopeId,
+        isExcluded
+      )
     }
   )
 }

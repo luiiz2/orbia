@@ -7,9 +7,18 @@ import type {
   TranscriptionOptions,
   TranscriptionSettings
 } from '../../../types/transcription'
-import { optimizationQueueService, type EnqueueTranscriptionJobInput } from '../optimizer/optimization-queue.service'
-import { transcriptRepository, type TranscriptRepository } from './transcript-repository.service'
-import { transcriptionEngineService, type TranscriptionEngine } from './transcription-engine.service'
+import {
+  optimizationQueueService,
+  type EnqueueTranscriptionJobInput
+} from '../optimizer/optimization-queue.service'
+import {
+  transcriptRepository,
+  type TranscriptRepository
+} from './transcript-repository.service'
+import {
+  transcriptionEngineService,
+  type TranscriptionEngine
+} from './transcription-engine.service'
 
 export interface TranscriptionServiceDependencies {
   repository?: TranscriptRepository
@@ -21,7 +30,9 @@ export class TranscriptionService {
   private readonly repository: TranscriptRepository
   private readonly queue: typeof optimizationQueueService
   private readonly engine: TranscriptionEngine
-  private readonly progressListeners: Array<(event: TranscriptProgressEvent) => void> = []
+  private readonly progressListeners: Array<
+    (event: TranscriptProgressEvent) => void
+  > = []
 
   public constructor(dependencies: TranscriptionServiceDependencies = {}) {
     this.repository = dependencies.repository ?? transcriptRepository
@@ -57,9 +68,15 @@ export class TranscriptionService {
     return this.repository.setCourseAutoTranscribe(courseId, enabled)
   }
 
-  public enqueueAutomaticallyIfEnabled(courseId: string): TranscriptionBatchResult | null {
+  public enqueueAutomaticallyIfEnabled(
+    courseId: string
+  ): TranscriptionBatchResult | null {
     const vaultSettings = this.repository.getSettings()
-    if (!vaultSettings.autoTranscribeNewLessons && !this.repository.getCourseAutoTranscribe(courseId)) return null
+    if (
+      !vaultSettings.autoTranscribeNewLessons &&
+      !this.repository.getCourseAutoTranscribe(courseId)
+    )
+      return null
     return this.enqueueCourse(courseId, { reuseExistingSubtitle: true })
   }
 
@@ -83,22 +100,39 @@ export class TranscriptionService {
     return this.queue.retryJob(jobId)
   }
 
-  public enqueueLesson(lessonId: string, options: TranscriptionOptions = {}): TranscriptionEnqueueResult {
+  public enqueueLesson(
+    lessonId: string,
+    options: TranscriptionOptions = {}
+  ): TranscriptionEnqueueResult {
     const source = this.repository.getLessonSource(lessonId)
     if (!source) return { lessonId, skipped: true, reason: 'missing_lesson' }
     if (source.mediaType !== 'video' && source.mediaType !== 'audio') {
       return { lessonId, skipped: true, reason: 'unsupported_media' }
     }
 
-    const active = this.queue.listTranscriptionQueue().find((job) =>
-      job.lessonId === lessonId && ['queued', 'extracting', 'transcribing', 'waiting_for_resources', 'paused'].includes(job.status)
-    )
+    const active = this.queue
+      .listTranscriptionQueue()
+      .find(
+        (job) =>
+          job.lessonId === lessonId &&
+          [
+            'queued',
+            'extracting',
+            'transcribing',
+            'waiting_for_resources',
+            'paused'
+          ].includes(job.status)
+      )
     if (active) {
       return { lessonId, skipped: true, reason: 'active_job', jobId: active.id }
     }
 
     const current = this.repository.getCurrent(lessonId)
-    if (current && !options.retranscribe && current.sourceRevision === source.sourceRevision) {
+    if (
+      current &&
+      !options.retranscribe &&
+      current.sourceRevision === source.sourceRevision
+    ) {
       return { lessonId, skipped: true, reason: 'already_current' }
     }
 
@@ -108,24 +142,47 @@ export class TranscriptionService {
       sourcePath: source.filePath,
       sourceRevision: source.sourceRevision,
       ...(options.language ? { language: options.language } : {}),
-      ...(options.autoDetect === undefined ? {} : { autoDetect: options.autoDetect }),
-      ...(options.reuseExistingSubtitle === undefined ? {} : { reuseExistingSubtitle: options.reuseExistingSubtitle }),
-      ...(options.retranscribe === undefined ? {} : { retranscribe: options.retranscribe }),
-      ...(options.cloudConsent === undefined ? {} : { cloudConsent: options.cloudConsent })
+      ...(options.autoDetect === undefined
+        ? {}
+        : { autoDetect: options.autoDetect }),
+      ...(options.reuseExistingSubtitle === undefined
+        ? {}
+        : { reuseExistingSubtitle: options.reuseExistingSubtitle }),
+      ...(options.retranscribe === undefined
+        ? {}
+        : { retranscribe: options.retranscribe }),
+      ...(options.cloudConsent === undefined
+        ? {}
+        : { cloudConsent: options.cloudConsent })
     }
     const job = this.queue.enqueueTranscription(input)
     return { lessonId, skipped: false, jobId: job.id }
   }
 
-  public enqueueModule(moduleId: string, options: TranscriptionOptions = {}): TranscriptionBatchResult {
-    return this.enqueueMany(this.repository.listLessonIdsForModule(moduleId), options)
+  public enqueueModule(
+    moduleId: string,
+    options: TranscriptionOptions = {}
+  ): TranscriptionBatchResult {
+    return this.enqueueMany(
+      this.repository.listLessonIdsForModule(moduleId),
+      options
+    )
   }
 
-  public enqueueCourse(courseId: string, options: TranscriptionOptions = {}): TranscriptionBatchResult {
-    return this.enqueueMany(this.repository.listLessonIdsForCourse(courseId), options)
+  public enqueueCourse(
+    courseId: string,
+    options: TranscriptionOptions = {}
+  ): TranscriptionBatchResult {
+    return this.enqueueMany(
+      this.repository.listLessonIdsForCourse(courseId),
+      options
+    )
   }
 
-  public async reuseSubtitle(lessonId: string, language?: string): Promise<Transcript | null> {
+  public async reuseSubtitle(
+    lessonId: string,
+    language?: string
+  ): Promise<Transcript | null> {
     const source = this.repository.getLessonSource(lessonId)
     const candidate = this.repository.getSubtitleCandidate(lessonId, language)
     if (!source || !candidate) return null
@@ -143,7 +200,9 @@ export class TranscriptionService {
     })
   }
 
-  public subscribeProgress(listener: (event: TranscriptProgressEvent) => void): () => void {
+  public subscribeProgress(
+    listener: (event: TranscriptProgressEvent) => void
+  ): () => void {
     this.progressListeners.push(listener)
     return () => {
       const index = this.progressListeners.indexOf(listener)
@@ -156,7 +215,11 @@ export class TranscriptionService {
     signal: AbortSignal,
     notify?: (event: TranscriptProgressEvent) => void
   ): Promise<void> {
-    const emit = (status: TranscriptProgressEvent['status'], progressPercent: number, errorMessage?: string): void => {
+    const emit = (
+      status: TranscriptProgressEvent['status'],
+      progressPercent: number,
+      errorMessage?: string
+    ): void => {
       this.queue.updateJob(job.id, {
         status,
         progressPercent,
@@ -181,9 +244,14 @@ export class TranscriptionService {
     }
 
     try {
-      const shouldReuse = job.transcriptionReuseExistingSubtitle !== false && !job.transcriptionRetranscribe
+      const shouldReuse =
+        job.transcriptionReuseExistingSubtitle !== false &&
+        !job.transcriptionRetranscribe
       if (shouldReuse) {
-        const reused = await this.reuseSubtitle(job.lessonId, job.transcriptionLanguage)
+        const reused = await this.reuseSubtitle(
+          job.lessonId,
+          job.transcriptionLanguage
+        )
         if (reused) {
           emit('completed', 100)
           return
@@ -201,12 +269,15 @@ export class TranscriptionService {
         source.filePath,
         source.fileName,
         {
-          ...(job.transcriptionLanguage ? { language: job.transcriptionLanguage } : {}),
+          ...(job.transcriptionLanguage
+            ? { language: job.transcriptionLanguage }
+            : {}),
           autoDetect: job.transcriptionAutoDetect !== false,
           cloudConsent: Boolean(job.transcriptionCloudConsent)
         },
         signal,
-        (progressPercent) => emit('extracting', Math.min(34, Math.max(5, progressPercent)))
+        (progressPercent) =>
+          emit('extracting', Math.min(34, Math.max(5, progressPercent)))
       )
       if (signal.aborted || this.queue.isCancelled(job.id)) return
 
@@ -221,23 +292,34 @@ export class TranscriptionService {
           requestedLanguage: job.transcriptionLanguage ?? null,
           autoDetect: job.transcriptionAutoDetect !== false,
           retranscribe: Boolean(job.transcriptionRetranscribe),
-          reuseExistingSubtitle: job.transcriptionReuseExistingSubtitle !== false,
+          reuseExistingSubtitle:
+            job.transcriptionReuseExistingSubtitle !== false,
           cloudConsent: Boolean(job.transcriptionCloudConsent)
         },
         segments: result.segments
       })
-      if (!saved || saved.status !== 'completed') throw new Error('Transcript was not committed')
+      if (!saved || saved.status !== 'completed')
+        throw new Error('Transcript was not committed')
       emit('completed', 100)
     } catch (error) {
       if (signal.aborted && !this.queue.isCancelled(job.id)) return
       const message = error instanceof Error ? error.message : String(error)
-      const status: TranscriptProgressEvent['status'] = this.queue.isCancelled(job.id) ? 'cancelled' : 'failed'
+      const status: TranscriptProgressEvent['status'] = this.queue.isCancelled(
+        job.id
+      )
+        ? 'cancelled'
+        : 'failed'
       emit(status, 0, message)
     }
   }
 
-  private enqueueMany(lessonIds: string[], options: TranscriptionOptions): TranscriptionBatchResult {
-    const jobs: TranscriptionEnqueueResult[] = lessonIds.map((lessonId) => this.enqueueLesson(lessonId, options))
+  private enqueueMany(
+    lessonIds: string[],
+    options: TranscriptionOptions
+  ): TranscriptionBatchResult {
+    const jobs: TranscriptionEnqueueResult[] = lessonIds.map((lessonId) =>
+      this.enqueueLesson(lessonId, options)
+    )
     return {
       requestedCount: lessonIds.length,
       enqueuedCount: jobs.filter((job) => !job.skipped).length,

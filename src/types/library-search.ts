@@ -14,7 +14,8 @@ export const LIBRARY_SEARCH_RESULT_TYPES = [
   'code',
   'note'
 ] as const
-export type LibrarySearchResultType = (typeof LIBRARY_SEARCH_RESULT_TYPES)[number]
+export type LibrarySearchResultType =
+  (typeof LIBRARY_SEARCH_RESULT_TYPES)[number]
 
 export type LibrarySearchGroupType =
   | 'courses'

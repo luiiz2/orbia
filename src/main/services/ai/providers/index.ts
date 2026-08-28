@@ -1,7 +1,14 @@
 import type { AiProviderConfig } from '../../../../types/ai'
-import { AiProviderError, type AiFetch, type AiProviderAdapter } from '../ai-provider'
+import {
+  AiProviderError,
+  type AiFetch,
+  type AiProviderAdapter
+} from '../ai-provider'
 import { OllamaProvider } from './ollama.provider'
-import { OpenAICompatibleProvider, OpenAIProvider } from './openai-compatible.provider'
+import {
+  OpenAICompatibleProvider,
+  OpenAIProvider
+} from './openai-compatible.provider'
 
 export { OllamaProvider, OpenAICompatibleProvider, OpenAIProvider }
 export type { AiFetch }

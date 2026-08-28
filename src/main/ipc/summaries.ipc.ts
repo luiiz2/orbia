@@ -1,5 +1,8 @@
 import { ipcMain } from 'electron'
-import type { GenerateSummaryRequest, SummaryScope } from '../../types/summaries'
+import type {
+  GenerateSummaryRequest,
+  SummaryScope
+} from '../../types/summaries'
 import { summariesService } from '../services/summaries/summaries.service'
 
 function readScope(value: unknown): SummaryScope {

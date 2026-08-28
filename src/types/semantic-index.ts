@@ -25,11 +25,7 @@ export type SemanticIndexScope =
     }
 
 export type SemanticIndexGenerationStatus =
-  | 'building'
-  | 'partial'
-  | 'completed'
-  | 'failed'
-  | 'cancelled'
+  'building' | 'partial' | 'completed' | 'failed' | 'cancelled'
 
 export interface SemanticChunkLocator {
   page?: number
@@ -155,7 +151,8 @@ export interface SemanticSourceSelection {
 }
 
 export interface SemanticIndexProgress {
-  status: 'indexing' | 'partial' | 'completed' | 'failed' | 'cancelled' | 'queued'
+  status:
+    'indexing' | 'partial' | 'completed' | 'failed' | 'cancelled' | 'queued'
   progressPercent: number
   errorMessage?: string
 }

@@ -44,7 +44,9 @@ export class ScannerService {
    * Scans a parent directory containing multiple course folders and returns
    * a ScannedDirectory tree for each valid child course folder.
    */
-  public async scanMultiCourseRoot(rootPath: string): Promise<ScannedDirectory[]> {
+  public async scanMultiCourseRoot(
+    rootPath: string
+  ): Promise<ScannedDirectory[]> {
     const stats = await fs.promises.stat(rootPath)
     if (!stats.isDirectory()) {
       throw new Error(`The path "${rootPath}" is not a valid directory.`)
@@ -66,7 +68,10 @@ export class ScannerService {
           results.push(scanned)
         }
       } catch (err) {
-        console.warn(`[Scanner] Warning: Could not scan course directory "${subDirPath}":`, err)
+        console.warn(
+          `[Scanner] Warning: Could not scan course directory "${subDirPath}":`,
+          err
+        )
       }
     }
 
@@ -76,12 +81,17 @@ export class ScannerService {
   /**
    * Internal recursive directory walker.
    */
-  private async walkDirectory(dirPath: string, dirName: string): Promise<ScannedDirectory> {
+  private async walkDirectory(
+    dirPath: string,
+    dirName: string
+  ): Promise<ScannedDirectory> {
     const files: ScannedFile[] = []
     const subDirectories: ScannedDirectory[] = []
 
     try {
-      const entries = await fs.promises.readdir(dirPath, { withFileTypes: true })
+      const entries = await fs.promises.readdir(dirPath, {
+        withFileTypes: true
+      })
 
       for (const entry of entries) {
         if (isIgnoredPath(entry.name)) {
@@ -98,7 +108,10 @@ export class ScannerService {
               subDirectories.push(subDir)
             }
           } catch (err) {
-            console.warn(`[Scanner] Warning: Could not access subdirectory "${fullPath}":`, err)
+            console.warn(
+              `[Scanner] Warning: Could not access subdirectory "${fullPath}":`,
+              err
+            )
           }
         } else if (entry.isFile()) {
           try {
@@ -112,7 +125,10 @@ export class ScannerService {
               fingerprint: await computeFingerprint(fullPath, fileStat.size)
             })
           } catch (err) {
-            console.warn(`[Scanner] Warning: Could not stat file "${fullPath}":`, err)
+            console.warn(
+              `[Scanner] Warning: Could not stat file "${fullPath}":`,
+              err
+            )
           }
         }
       }
@@ -148,7 +164,10 @@ const SAMPLE_SIZE = 64 * 1024
  * otherwise SHA-1 of the first + last 64KB samples. Cheap enough for scans with
  * multi-gigabyte videos, robust enough to tell identical files from look-alikes.
  */
-export async function computeFingerprint(fullPath: string, sizeBytes: number): Promise<string> {
+export async function computeFingerprint(
+  fullPath: string,
+  sizeBytes: number
+): Promise<string> {
   const hash = crypto.createHash('sha1')
   const fd = await fs.promises.open(fullPath, 'r')
   try {

@@ -37,10 +37,12 @@ export class CollectionService {
     }
 
     db.transaction(() => {
-      db.prepare(`
+      db.prepare(
+        `
         INSERT INTO collections (id, name, description, color, icon, created_at)
         VALUES (@id, @name, @description, @color, @icon, @createdAt)
-      `).run(collection)
+      `
+      ).run(collection)
 
       studioHistoryService.recordOperation(
         db,
@@ -54,7 +56,11 @@ export class CollectionService {
     return collection
   }
 
-  public updateCollection(db: Database.Database, id: string, updates: Partial<Collection>): boolean {
+  public updateCollection(
+    db: Database.Database,
+    id: string,
+    updates: Partial<Collection>
+  ): boolean {
     const fields: string[] = []
     const params: Record<string, unknown> = { id }
 
@@ -77,7 +83,9 @@ export class CollectionService {
 
     if (fields.length === 0) return true
 
-    const res = db.prepare(`UPDATE collections SET ${fields.join(', ')} WHERE id = @id`).run(params)
+    const res = db
+      .prepare(`UPDATE collections SET ${fields.join(', ')} WHERE id = @id`)
+      .run(params)
     return res.changes > 0
   }
 
@@ -86,15 +94,23 @@ export class CollectionService {
     return res.changes > 0
   }
 
-  public addItemsToCollection(db: Database.Database, collectionId: string, appearanceIds: string[]): boolean {
+  public addItemsToCollection(
+    db: Database.Database,
+    collectionId: string,
+    appearanceIds: string[]
+  ): boolean {
     if (appearanceIds.length === 0) return true
 
     return db.transaction(() => {
-      const maxOrderRow = db.prepare(`
+      const maxOrderRow = db
+        .prepare(
+          `
         SELECT COALESCE(MAX(order_index), 0) as maxOrder
         FROM collection_items
         WHERE collection_id = ?
-      `).get(collectionId) as { maxOrder: number }
+      `
+        )
+        .get(collectionId) as { maxOrder: number }
 
       let nextOrder = (maxOrderRow?.maxOrder || 0) + 1
 
@@ -119,14 +135,22 @@ export class CollectionService {
     })()
   }
 
-  public removeItemsFromCollection(db: Database.Database, collectionId: string, appearanceIds: string[]): boolean {
+  public removeItemsFromCollection(
+    db: Database.Database,
+    collectionId: string,
+    appearanceIds: string[]
+  ): boolean {
     if (appearanceIds.length === 0) return true
 
     const placeholders = appearanceIds.map(() => '?').join(',')
-    const res = db.prepare(`
+    const res = db
+      .prepare(
+        `
       DELETE FROM collection_items
       WHERE collection_id = ? AND appearance_id IN (${placeholders})
-    `).run(collectionId, ...appearanceIds)
+    `
+      )
+      .run(collectionId, ...appearanceIds)
 
     return res.changes > 0
   }

@@ -16,7 +16,11 @@ export interface ReviewCalculationResult {
  * - GOOD ("Lembrei"): Progressive intervals [3d, 7d, 14d, 30d], increments successCount, state -> REVIEW
  */
 export function calculateNextReview(
-  current: { state: FlashcardState; intervalDays: number; successCount: number },
+  current: {
+    state: FlashcardState
+    intervalDays: number
+    successCount: number
+  },
   grade: FlashcardReviewGrade,
   now = Date.now()
 ): ReviewCalculationResult {

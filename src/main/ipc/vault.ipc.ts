@@ -3,32 +3,56 @@ import { vaultService } from '../services/vault.service'
 import { logger } from '../services/logger.service'
 
 export function registerVaultIpc(): void {
-  ipcMain.handle('vault:create', async (_event, payload: { path: string; name: string }) => {
-    try {
-      if (!payload || typeof payload.path !== 'string' || !payload.path.trim()) {
-        return { success: false, error: 'Path is required and must be a valid directory path.' }
+  ipcMain.handle(
+    'vault:create',
+    async (_event, payload: { path: string; name: string }) => {
+      try {
+        if (
+          !payload ||
+          typeof payload.path !== 'string' ||
+          !payload.path.trim()
+        ) {
+          return {
+            success: false,
+            error: 'Path is required and must be a valid directory path.'
+          }
+        }
+        const trimmedPath = payload.path.trim()
+        const trimmedName =
+          typeof payload.name === 'string' ? payload.name.trim() : ''
+        const vault = await vaultService.createVault(trimmedPath, trimmedName)
+        return { success: true, vault }
+      } catch (err: unknown) {
+        logger.error('[IPC] vault:create error:', err)
+        return {
+          success: false,
+          error: err instanceof Error ? err.message : String(err)
+        }
       }
-      const trimmedPath = payload.path.trim()
-      const trimmedName = typeof payload.name === 'string' ? payload.name.trim() : ''
-      const vault = await vaultService.createVault(trimmedPath, trimmedName)
-      return { success: true, vault }
-    } catch (err: unknown) {
-      logger.error('[IPC] vault:create error:', err)
-      return { success: false, error: err instanceof Error ? err.message : String(err) }
     }
-  })
+  )
 
   ipcMain.handle('vault:open', async (_event, payload: { path: string }) => {
     try {
-      if (!payload || typeof payload.path !== 'string' || !payload.path.trim()) {
-        return { success: false, error: 'Path is required and must be a valid directory path.' }
+      if (
+        !payload ||
+        typeof payload.path !== 'string' ||
+        !payload.path.trim()
+      ) {
+        return {
+          success: false,
+          error: 'Path is required and must be a valid directory path.'
+        }
       }
       const trimmedPath = payload.path.trim()
       const vault = await vaultService.openVault(trimmedPath)
       return { success: true, vault }
     } catch (err: unknown) {
       logger.error('[IPC] vault:open error:', err)
-      return { success: false, error: err instanceof Error ? err.message : String(err) }
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : String(err)
+      }
     }
   })
 
@@ -89,17 +113,30 @@ export function registerVaultIpc(): void {
     }
   })
 
-  ipcMain.handle('vault:delete', async (_event, payload: { path: string; deleteFiles: boolean }) => {
-    try {
-      if (!payload || typeof payload.path !== 'string' || !payload.path.trim()) {
-        return { success: false, error: 'Vault path is required.' }
+  ipcMain.handle(
+    'vault:delete',
+    async (_event, payload: { path: string; deleteFiles: boolean }) => {
+      try {
+        if (
+          !payload ||
+          typeof payload.path !== 'string' ||
+          !payload.path.trim()
+        ) {
+          return { success: false, error: 'Vault path is required.' }
+        }
+        const trimmedPath = payload.path.trim()
+        const success = await vaultService.deleteVault(
+          trimmedPath,
+          Boolean(payload.deleteFiles)
+        )
+        return { success }
+      } catch (err: unknown) {
+        logger.error('[IPC] vault:delete error:', err)
+        return {
+          success: false,
+          error: err instanceof Error ? err.message : String(err)
+        }
       }
-      const trimmedPath = payload.path.trim()
-      const success = await vaultService.deleteVault(trimmedPath, Boolean(payload.deleteFiles))
-      return { success }
-    } catch (err: unknown) {
-      logger.error('[IPC] vault:delete error:', err)
-      return { success: false, error: err instanceof Error ? err.message : String(err) }
     }
-  })
+  )
 }

@@ -4,7 +4,8 @@
 
 import type { SemanticIndexScope } from './semantic-index'
 
-export type OptimizationProfile = 'balanced' | 'max_quality' | 'space_saving' | 'custom'
+export type OptimizationProfile =
+  'balanced' | 'max_quality' | 'space_saving' | 'custom'
 
 export type OptimizationJobStatus =
   | 'queued'
@@ -25,7 +26,8 @@ export type OptimizationJobStatus =
   | 'partial'
   | 'indexing'
 
-export type OptimizationResourceMode = 'automatic' | 'economy' | 'balanced' | 'max_performance'
+export type OptimizationResourceMode =
+  'automatic' | 'economy' | 'balanced' | 'max_performance'
 
 export interface VideoStreamInfo {
   index: number
@@ -180,7 +182,8 @@ export interface OptimizationRecord {
 
 export interface OptimizationExclusionRule {
   id: string
-  scopeType: 'vault' | 'course' | 'module' | 'lesson' | 'folder' | 'codec' | 'tag'
+  scopeType:
+    'vault' | 'course' | 'module' | 'lesson' | 'folder' | 'codec' | 'tag'
   scopeId: string
   isExcluded: boolean
   createdAt: number

@@ -26,7 +26,7 @@ export function registerSettingsIpc(): void {
         theme: 'dark',
         defaultPlaybackSpeed: 1.0,
         autoPlayNext: true,
-        completionThreshold: 0.90
+        completionThreshold: 0.9
       }
     }
   })
@@ -38,7 +38,11 @@ export function registerSettingsIpc(): void {
       payload: { key: K; value: AppSettings[K] }
     ) => {
       try {
-        if (!payload || typeof payload.key !== 'string' || !ALLOWED_SETTING_KEYS.has(payload.key)) {
+        if (
+          !payload ||
+          typeof payload.key !== 'string' ||
+          !ALLOWED_SETTING_KEYS.has(payload.key)
+        ) {
           return
         }
         appConfigService.setSetting(payload.key, payload.value)
@@ -62,7 +66,8 @@ export function registerSettingsIpc(): void {
     try {
       if (typeof url !== 'string') return false
       const parsed = new URL(url)
-      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false
+      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:')
+        return false
       await shell.openExternal(parsed.toString())
       return true
     } catch (err) {
@@ -75,7 +80,12 @@ export function registerSettingsIpc(): void {
   // Restricted to importable extensions — never executes arbitrary paths.
   ipcMain.handle('system:open-path', async (_event, filePath: string) => {
     try {
-      if (typeof filePath !== 'string' || !filePath || !isImportableFile(filePath)) return false
+      if (
+        typeof filePath !== 'string' ||
+        !filePath ||
+        !isImportableFile(filePath)
+      )
+        return false
       const stat = await fs.promises.stat(filePath)
       if (!stat.isFile()) return false
       const error = await shell.openPath(filePath)

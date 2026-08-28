@@ -40,7 +40,9 @@ function parseSemanticScope(value: string): SemanticIndexScope | undefined {
 }
 
 function mapSemanticQueueRow(row: SemanticQueueDbRow): OptimizationQueueItem {
-  const scope = row.semanticScopeJson ? parseSemanticScope(row.semanticScopeJson) : undefined
+  const scope = row.semanticScopeJson
+    ? parseSemanticScope(row.semanticScopeJson)
+    : undefined
   return {
     id: row.id,
     jobType: 'semantic_index',
@@ -58,13 +60,17 @@ function mapSemanticQueueRow(row: SemanticQueueDbRow): OptimizationQueueItem {
     ...(row.semanticRebuild === null || row.semanticRebuild === undefined
       ? {}
       : { semanticRebuild: Boolean(row.semanticRebuild) }),
-    ...(row.semanticIncludeNotes === null || row.semanticIncludeNotes === undefined
+    ...(row.semanticIncludeNotes === null ||
+    row.semanticIncludeNotes === undefined
       ? {}
       : { semanticIncludeNotes: Boolean(row.semanticIncludeNotes) }),
-    ...(row.semanticCloudConsent === null || row.semanticCloudConsent === undefined
+    ...(row.semanticCloudConsent === null ||
+    row.semanticCloudConsent === undefined
       ? {}
       : { semanticCloudConsent: Boolean(row.semanticCloudConsent) }),
-    ...(row.semanticGenerationId ? { semanticGenerationId: row.semanticGenerationId } : {}),
+    ...(row.semanticGenerationId
+      ? { semanticGenerationId: row.semanticGenerationId }
+      : {}),
     isSharedFile: false,
     sharedConfirmationGiven: false,
     createdAt: row.createdAt,
@@ -133,7 +139,9 @@ type QueueDbRow = Omit<
 export class OptimizationQueueService {
   private readonly cancellationListeners = new Set<(jobId: string) => void>()
 
-  public constructor(private readonly database: DatabaseService = databaseService) {}
+  public constructor(
+    private readonly database: DatabaseService = databaseService
+  ) {}
 
   public subscribeCancellation(listener: (jobId: string) => void): () => void {
     this.cancellationListeners.add(listener)
@@ -169,7 +177,8 @@ export class OptimizationQueueService {
       updatedAt: now
     }
 
-    db.prepare(`
+    db.prepare(
+      `
       INSERT INTO optimization_queue (
         id, job_type, lesson_id, course_id, source_path, profile, target_codec,
         target_resolution, estimated_savings, status, progress_percent,
@@ -179,7 +188,8 @@ export class OptimizationQueueService {
         @targetResolution, @estimatedSavings, @status, @progressPercent,
         @retryCount, @isSharedFile, @sharedConfirmationGiven, @createdAt, @updatedAt
       )
-    `).run({
+    `
+    ).run({
       ...item,
       isSharedFile: item.isSharedFile ? 1 : 0,
       sharedConfirmationGiven: item.sharedConfirmationGiven ? 1 : 0
@@ -189,11 +199,15 @@ export class OptimizationQueueService {
   }
 
   /** Adds a transcription request to the same durable queue used by optimization. */
-  public enqueueTranscription(input: EnqueueTranscriptionJobInput): OptimizationQueueItem {
+  public enqueueTranscription(
+    input: EnqueueTranscriptionJobInput
+  ): OptimizationQueueItem {
     const db = this.database.getDatabase()
     if (!db) throw new Error('Database is not connected to any vault.')
 
-    const existing = db.prepare(`
+    const existing = db
+      .prepare(
+        `
       SELECT id, job_type as jobType, lesson_id as lessonId, course_id as courseId, source_path as sourcePath,
              transcription_language as transcriptionLanguage, transcription_auto_detect as transcriptionAutoDetect,
              transcription_reuse_subtitle as transcriptionReuseExistingSubtitle,
@@ -207,34 +221,40 @@ export class OptimizationQueueService {
         AND status IN ('queued', 'extracting', 'transcribing', 'waiting_for_resources', 'paused')
       ORDER BY created_at DESC
       LIMIT 1
-    `).get(input.lessonId) as {
-      id: string
-      jobType: 'transcription'
-      lessonId: string
-      courseId?: string
-      sourcePath: string
-      transcriptionLanguage?: string
-      transcriptionAutoDetect: number
-      transcriptionReuseExistingSubtitle: number
-      transcriptionRetranscribe: number
-      transcriptionCloudConsent: number
-      sourceRevision?: string
-      profile: OptimizationProfile
-      targetCodec: string
-      estimatedSavings: number
-      status: OptimizationQueueItem['status']
-      progressPercent: number
-      retryCount: number
-      createdAt: number
-      updatedAt: number
-    } | undefined
+    `
+      )
+      .get(input.lessonId) as
+      | {
+          id: string
+          jobType: 'transcription'
+          lessonId: string
+          courseId?: string
+          sourcePath: string
+          transcriptionLanguage?: string
+          transcriptionAutoDetect: number
+          transcriptionReuseExistingSubtitle: number
+          transcriptionRetranscribe: number
+          transcriptionCloudConsent: number
+          sourceRevision?: string
+          profile: OptimizationProfile
+          targetCodec: string
+          estimatedSavings: number
+          status: OptimizationQueueItem['status']
+          progressPercent: number
+          retryCount: number
+          createdAt: number
+          updatedAt: number
+        }
+      | undefined
     if (existing) {
       return {
         ...existing,
         isSharedFile: false,
         sharedConfirmationGiven: false,
         transcriptionAutoDetect: Boolean(existing.transcriptionAutoDetect),
-        transcriptionReuseExistingSubtitle: Boolean(existing.transcriptionReuseExistingSubtitle),
+        transcriptionReuseExistingSubtitle: Boolean(
+          existing.transcriptionReuseExistingSubtitle
+        ),
         transcriptionRetranscribe: Boolean(existing.transcriptionRetranscribe),
         transcriptionCloudConsent: Boolean(existing.transcriptionCloudConsent)
       }
@@ -266,7 +286,8 @@ export class OptimizationQueueService {
       updatedAt: now
     }
 
-    db.prepare(`
+    db.prepare(
+      `
       INSERT INTO optimization_queue (
         id, job_type, lesson_id, course_id, source_path, profile, target_codec,
         status, progress_percent, retry_count, transcription_language,
@@ -279,10 +300,12 @@ export class OptimizationQueueService {
         @transcriptionReuseExistingSubtitle, @transcriptionRetranscribe,
         @transcriptionCloudConsent, @sourceRevision, @createdAt, @updatedAt
       )
-    `).run({
+    `
+    ).run({
       ...item,
       transcriptionAutoDetect: item.transcriptionAutoDetect ? 1 : 0,
-      transcriptionReuseExistingSubtitle: item.transcriptionReuseExistingSubtitle ? 1 : 0,
+      transcriptionReuseExistingSubtitle:
+        item.transcriptionReuseExistingSubtitle ? 1 : 0,
       transcriptionRetranscribe: item.transcriptionRetranscribe ? 1 : 0,
       transcriptionCloudConsent: item.transcriptionCloudConsent ? 1 : 0
     })
@@ -290,7 +313,9 @@ export class OptimizationQueueService {
   }
 
   /** Adds a semantic-index request to the shared durable background queue. */
-  public enqueueSemanticIndex(input: EnqueueSemanticIndexJobInput): OptimizationQueueItem {
+  public enqueueSemanticIndex(
+    input: EnqueueSemanticIndexJobInput
+  ): OptimizationQueueItem {
     const db = this.database.getDatabase()
     if (!db) throw new Error('Database is not connected to any vault.')
 
@@ -299,7 +324,9 @@ export class OptimizationQueueService {
     const rebuild = input.rebuild === true ? 1 : 0
     const includeNotes = input.includeNotes === true ? 1 : 0
     const cloudConsent = input.cloudConsent === true ? 1 : 0
-    const existing = db.prepare(`
+    const existing = db
+      .prepare(
+        `
       SELECT id, job_type as jobType, lesson_id as lessonId, course_id as courseId,
              source_path as sourcePath, profile, target_codec as targetCodec,
              estimated_savings as estimatedSavings, status,
@@ -318,7 +345,10 @@ export class OptimizationQueueService {
         AND status IN ('queued', 'indexing', 'waiting_for_resources', 'paused')
       ORDER BY created_at DESC
       LIMIT 1
-    `).get(scopeJson, rebuild, includeNotes, cloudConsent) as SemanticQueueDbRow | undefined
+    `
+      )
+      .get(scopeJson, rebuild, includeNotes, cloudConsent) as
+      SemanticQueueDbRow | undefined
     if (existing) return mapSemanticQueueRow(existing)
 
     const id = `job_${crypto.randomUUID()}`
@@ -343,14 +373,16 @@ export class OptimizationQueueService {
       updatedAt: now
     }
 
-    db.prepare(`
+    db.prepare(
+      `
       INSERT INTO optimization_queue (
         id, job_type, lesson_id, course_id, source_path, profile, target_codec,
         estimated_savings, status, progress_percent, retry_count,
         semantic_scope, semantic_rebuild, semantic_include_notes,
         semantic_cloud_consent, created_at, updated_at
       ) VALUES (?, 'semantic_index', NULL, ?, '', 'balanced', 'none', 0, 'queued', 0, 0, ?, ?, ?, ?, ?, ?)
-    `).run(
+    `
+    ).run(
       id,
       item.courseId ?? null,
       scopeJson,
@@ -374,10 +406,14 @@ export class OptimizationQueueService {
     const tx = db.transaction((inputs: EnqueueJobInput[]) => {
       for (const input of inputs) {
         // Skip if there is already an active/pending job for this lesson
-        const existing = db.prepare(`
+        const existing = db
+          .prepare(
+            `
           SELECT id FROM optimization_queue
           WHERE job_type = 'optimization' AND lesson_id = ? AND status IN ('queued', 'analyzing', 'encoding', 'validating', 'backing_up', 'replacing', 'ready')
-        `).get(input.lessonId)
+        `
+          )
+          .get(input.lessonId)
 
         if (!existing) {
           created.push(this.enqueue(input))
@@ -396,7 +432,9 @@ export class OptimizationQueueService {
     const db = this.database.getDatabase()
     if (!db) return []
 
-    const rows = db.prepare(`
+    const rows = db
+      .prepare(
+        `
       SELECT
         id, job_type as jobType, lesson_id as lessonId, course_id as courseId, source_path as sourcePath,
         temp_output_path as tempOutputPath, final_output_path as finalOutputPath,
@@ -433,7 +471,12 @@ export class OptimizationQueueService {
           ELSE 14
         END,
         created_at ASC
-    `).all() as (Omit<OptimizationQueueItem, 'isSharedFile' | 'sharedConfirmationGiven'> & {
+    `
+      )
+      .all() as (Omit<
+      OptimizationQueueItem,
+      'isSharedFile' | 'sharedConfirmationGiven'
+    > & {
       isSharedFile: number
       sharedConfirmationGiven: number
     })[]
@@ -453,7 +496,9 @@ export class OptimizationQueueService {
     const db = this.database.getDatabase()
     if (!db) return null
 
-    const row = db.prepare(`
+    const row = db
+      .prepare(
+        `
       SELECT
         id, job_type as jobType, lesson_id as lessonId, course_id as courseId, source_path as sourcePath,
         temp_output_path as tempOutputPath, final_output_path as finalOutputPath,
@@ -474,10 +519,17 @@ export class OptimizationQueueService {
       WHERE job_type = 'optimization' AND status IN ('queued', 'ready')
       ORDER BY created_at ASC
       LIMIT 1
-    `).get() as (Omit<OptimizationQueueItem, 'isSharedFile' | 'sharedConfirmationGiven'> & {
-      isSharedFile: number
-      sharedConfirmationGiven: number
-    }) | undefined
+    `
+      )
+      .get() as
+      | (Omit<
+          OptimizationQueueItem,
+          'isSharedFile' | 'sharedConfirmationGiven'
+        > & {
+          isSharedFile: number
+          sharedConfirmationGiven: number
+        })
+      | undefined
 
     if (!row) return null
     return {
@@ -491,7 +543,9 @@ export class OptimizationQueueService {
   public listTranscriptionQueue(): OptimizationQueueItem[] {
     const db = this.database.getDatabase()
     if (!db) return []
-    const rows = db.prepare(`
+    const rows = db
+      .prepare(
+        `
       SELECT
         id, job_type as jobType, lesson_id as lessonId, course_id as courseId, source_path as sourcePath,
         temp_output_path as tempOutputPath, status, progress_percent as progressPercent,
@@ -505,17 +559,23 @@ export class OptimizationQueueService {
       FROM optimization_queue
       WHERE job_type = 'transcription'
       ORDER BY created_at ASC
-    `).all() as Array<OptimizationQueueItem & {
-      transcriptionAutoDetect?: number
-      transcriptionReuseExistingSubtitle?: number
-      transcriptionRetranscribe?: number
-      transcriptionCloudConsent?: number
-    }>
+    `
+      )
+      .all() as Array<
+      OptimizationQueueItem & {
+        transcriptionAutoDetect?: number
+        transcriptionReuseExistingSubtitle?: number
+        transcriptionRetranscribe?: number
+        transcriptionCloudConsent?: number
+      }
+    >
     return rows.map((row) => ({
       ...row,
       jobType: 'transcription',
       transcriptionAutoDetect: Boolean(row.transcriptionAutoDetect),
-      transcriptionReuseExistingSubtitle: Boolean(row.transcriptionReuseExistingSubtitle),
+      transcriptionReuseExistingSubtitle: Boolean(
+        row.transcriptionReuseExistingSubtitle
+      ),
       transcriptionRetranscribe: Boolean(row.transcriptionRetranscribe),
       transcriptionCloudConsent: Boolean(row.transcriptionCloudConsent)
     }))
@@ -524,7 +584,9 @@ export class OptimizationQueueService {
   public listSemanticIndexQueue(): OptimizationQueueItem[] {
     const db = this.database.getDatabase()
     if (!db) return []
-    const rows = db.prepare(`
+    const rows = db
+      .prepare(
+        `
       SELECT id, job_type as jobType, lesson_id as lessonId, course_id as courseId,
              source_path as sourcePath, profile, target_codec as targetCodec,
              estimated_savings as estimatedSavings, status,
@@ -537,14 +599,18 @@ export class OptimizationQueueService {
       FROM optimization_queue
       WHERE job_type = 'semantic_index'
       ORDER BY created_at ASC
-    `).all() as SemanticQueueDbRow[]
+    `
+      )
+      .all() as SemanticQueueDbRow[]
     return rows.map(mapSemanticQueueRow)
   }
 
   public getNextBackgroundJob(): OptimizationQueueItem | null {
     const db = this.database.getDatabase()
     if (!db) return null
-    const row = db.prepare(`
+    const row = db
+      .prepare(
+        `
       SELECT
         id, job_type as jobType, lesson_id as lessonId, course_id as courseId, source_path as sourcePath,
         temp_output_path as tempOutputPath, final_output_path as finalOutputPath,
@@ -582,7 +648,9 @@ export class OptimizationQueueService {
         END,
         created_at ASC
       LIMIT 1
-    `).get() as QueueDbRow | undefined
+    `
+      )
+      .get() as QueueDbRow | undefined
     if (!row) return null
     const {
       isSharedFile,
@@ -605,14 +673,34 @@ export class OptimizationQueueService {
       jobType: rest.jobType ?? 'optimization',
       isSharedFile: Boolean(isSharedFile),
       sharedConfirmationGiven: Boolean(sharedConfirmationGiven),
-      ...(transcriptionAutoDetect === undefined ? {} : { transcriptionAutoDetect: Boolean(transcriptionAutoDetect) }),
-      ...(transcriptionReuseExistingSubtitle === undefined ? {} : { transcriptionReuseExistingSubtitle: Boolean(transcriptionReuseExistingSubtitle) }),
-      ...(transcriptionRetranscribe === undefined ? {} : { transcriptionRetranscribe: Boolean(transcriptionRetranscribe) }),
-      ...(transcriptionCloudConsent === undefined ? {} : { transcriptionCloudConsent: Boolean(transcriptionCloudConsent) }),
-      ...(semanticScopeJson ? { semanticScope: parseSemanticScope(semanticScopeJson) } : {}),
-      ...(semanticRebuild === undefined || semanticRebuild === null ? {} : { semanticRebuild: Boolean(semanticRebuild) }),
-      ...(semanticIncludeNotes === undefined || semanticIncludeNotes === null ? {} : { semanticIncludeNotes: Boolean(semanticIncludeNotes) }),
-      ...(semanticCloudConsent === undefined || semanticCloudConsent === null ? {} : { semanticCloudConsent: Boolean(semanticCloudConsent) }),
+      ...(transcriptionAutoDetect === undefined
+        ? {}
+        : { transcriptionAutoDetect: Boolean(transcriptionAutoDetect) }),
+      ...(transcriptionReuseExistingSubtitle === undefined
+        ? {}
+        : {
+            transcriptionReuseExistingSubtitle: Boolean(
+              transcriptionReuseExistingSubtitle
+            )
+          }),
+      ...(transcriptionRetranscribe === undefined
+        ? {}
+        : { transcriptionRetranscribe: Boolean(transcriptionRetranscribe) }),
+      ...(transcriptionCloudConsent === undefined
+        ? {}
+        : { transcriptionCloudConsent: Boolean(transcriptionCloudConsent) }),
+      ...(semanticScopeJson
+        ? { semanticScope: parseSemanticScope(semanticScopeJson) }
+        : {}),
+      ...(semanticRebuild === undefined || semanticRebuild === null
+        ? {}
+        : { semanticRebuild: Boolean(semanticRebuild) }),
+      ...(semanticIncludeNotes === undefined || semanticIncludeNotes === null
+        ? {}
+        : { semanticIncludeNotes: Boolean(semanticIncludeNotes) }),
+      ...(semanticCloudConsent === undefined || semanticCloudConsent === null
+        ? {}
+        : { semanticCloudConsent: Boolean(semanticCloudConsent) }),
       ...(semanticGenerationId ? { semanticGenerationId } : {})
     }
   }
@@ -706,27 +794,37 @@ export class OptimizationQueueService {
     }
 
     values.push(id)
-    db.prepare(`UPDATE optimization_queue SET ${fields.join(', ')} WHERE id = ?`).run(...values)
+    db.prepare(
+      `UPDATE optimization_queue SET ${fields.join(', ')} WHERE id = ?`
+    ).run(...values)
   }
 
   public pauseJob(id: string): boolean {
     const db = this.database.getDatabase()
     if (!db) return false
-    db.prepare(`UPDATE optimization_queue SET status = 'paused', updated_at = ? WHERE id = ? AND status IN ('queued', 'ready', 'waiting_for_resources')`).run(Date.now(), id)
+    db.prepare(
+      `UPDATE optimization_queue SET status = 'paused', updated_at = ? WHERE id = ? AND status IN ('queued', 'ready', 'waiting_for_resources')`
+    ).run(Date.now(), id)
     return true
   }
 
   public resumeJob(id: string): boolean {
     const db = this.database.getDatabase()
     if (!db) return false
-    db.prepare(`UPDATE optimization_queue SET status = 'queued', updated_at = ? WHERE id = ? AND status = 'paused'`).run(Date.now(), id)
+    db.prepare(
+      `UPDATE optimization_queue SET status = 'queued', updated_at = ? WHERE id = ? AND status = 'paused'`
+    ).run(Date.now(), id)
     return true
   }
 
   public cancelJob(id: string): boolean {
     const db = this.database.getDatabase()
     if (!db) return false
-    const result = db.prepare(`UPDATE optimization_queue SET status = 'cancelled', updated_at = ? WHERE id = ? AND status NOT IN ('completed', 'cancelled')`).run(Date.now(), id)
+    const result = db
+      .prepare(
+        `UPDATE optimization_queue SET status = 'cancelled', updated_at = ? WHERE id = ? AND status NOT IN ('completed', 'cancelled')`
+      )
+      .run(Date.now(), id)
     if (result.changes > 0) {
       for (const listener of this.cancellationListeners) listener(id)
     }
@@ -736,42 +834,54 @@ export class OptimizationQueueService {
   public isCancelled(id: string): boolean {
     const db = this.database.getDatabase()
     if (!db) return false
-    const row = db.prepare(`SELECT status FROM optimization_queue WHERE id = ?`).get(id) as { status?: string } | undefined
+    const row = db
+      .prepare(`SELECT status FROM optimization_queue WHERE id = ?`)
+      .get(id) as { status?: string } | undefined
     return row?.status === 'cancelled'
   }
 
   public isPaused(id: string): boolean {
     const db = this.database.getDatabase()
     if (!db) return false
-    const row = db.prepare(`SELECT status FROM optimization_queue WHERE id = ?`).get(id) as { status?: string } | undefined
+    const row = db
+      .prepare(`SELECT status FROM optimization_queue WHERE id = ?`)
+      .get(id) as { status?: string } | undefined
     return row?.status === 'paused'
   }
 
   public retryJob(id: string): boolean {
     const db = this.database.getDatabase()
     if (!db) return false
-    db.prepare(`UPDATE optimization_queue SET status = 'queued', retry_count = 0, error_message = NULL, progress_percent = 0, updated_at = ? WHERE id = ?`).run(Date.now(), id)
+    db.prepare(
+      `UPDATE optimization_queue SET status = 'queued', retry_count = 0, error_message = NULL, progress_percent = 0, updated_at = ? WHERE id = ?`
+    ).run(Date.now(), id)
     return true
   }
 
   public clearCompleted(): boolean {
     const db = this.database.getDatabase()
     if (!db) return false
-    db.prepare(`DELETE FROM optimization_queue WHERE status IN ('completed', 'cancelled')`).run()
+    db.prepare(
+      `DELETE FROM optimization_queue WHERE status IN ('completed', 'cancelled')`
+    ).run()
     return true
   }
 
   public pauseAll(): boolean {
     const db = this.database.getDatabase()
     if (!db) return false
-    db.prepare(`UPDATE optimization_queue SET status = 'paused', updated_at = ? WHERE status IN ('queued', 'ready', 'waiting_for_resources')`).run(Date.now())
+    db.prepare(
+      `UPDATE optimization_queue SET status = 'paused', updated_at = ? WHERE status IN ('queued', 'ready', 'waiting_for_resources')`
+    ).run(Date.now())
     return true
   }
 
   public resumeAll(): boolean {
     const db = this.database.getDatabase()
     if (!db) return false
-    db.prepare(`UPDATE optimization_queue SET status = 'queued', updated_at = ? WHERE status = 'paused'`).run(Date.now())
+    db.prepare(
+      `UPDATE optimization_queue SET status = 'queued', updated_at = ? WHERE status = 'paused'`
+    ).run(Date.now())
     return true
   }
 
@@ -784,11 +894,15 @@ export class OptimizationQueueService {
 
     try {
       // Find jobs that were in active processing states during a shutdown or crash
-      const interrupted = db.prepare(`
+      const interrupted = db
+        .prepare(
+          `
         SELECT id, temp_output_path as tempOutputPath
         FROM optimization_queue
         WHERE status IN ('encoding', 'validating', 'backing_up', 'analyzing', 'waiting_for_resources', 'extracting', 'transcribing', 'indexing')
-      `).all() as { id: string; tempOutputPath?: string }[]
+      `
+        )
+        .all() as { id: string; tempOutputPath?: string }[]
 
       for (const job of interrupted) {
         // Clean partial temp file

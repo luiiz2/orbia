@@ -18,7 +18,8 @@ export interface CourseSummaryScope {
   courseId: string
 }
 
-export type SummaryScope = LessonSummaryScope | ModuleSummaryScope | CourseSummaryScope
+export type SummaryScope =
+  LessonSummaryScope | ModuleSummaryScope | CourseSummaryScope
 
 export interface SummaryTimestamp {
   timestampSeconds: number

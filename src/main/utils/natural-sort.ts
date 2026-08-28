@@ -13,7 +13,11 @@ const collator = new Intl.Collator(undefined, {
  */
 function getBaseAndExt(str: string): { base: string; ext: string } {
   const dotIndex = str.lastIndexOf('.')
-  if (dotIndex > 0 && dotIndex < str.length - 1 && !str.slice(dotIndex).includes(' ')) {
+  if (
+    dotIndex > 0 &&
+    dotIndex < str.length - 1 &&
+    !str.slice(dotIndex).includes(' ')
+  ) {
     const ext = str.slice(dotIndex)
     if (ext.length <= 6) {
       return { base: str.slice(0, dotIndex), ext }
@@ -54,8 +58,13 @@ export function naturalSort(items: string[]): string[] {
 /**
  * Sort an array of objects by a specific string key in natural alphanumeric order.
  */
-export function naturalSortBy<T>(items: T[], keySelector: (item: T) => string): T[] {
-  return [...items].sort((a, b) => naturalCompare(keySelector(a), keySelector(b)))
+export function naturalSortBy<T>(
+  items: T[],
+  keySelector: (item: T) => string
+): T[] {
+  return [...items].sort((a, b) =>
+    naturalCompare(keySelector(a), keySelector(b))
+  )
 }
 
 /**

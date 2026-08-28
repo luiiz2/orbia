@@ -18,11 +18,17 @@ export class ProvenanceAndExclusionsService {
     const db = databaseService.getDatabase()
     if (!db) return []
 
-    const rows = db.prepare(`
+    const rows = db
+      .prepare(
+        `
       SELECT id, scope_type as scopeType, scope_id as scopeId, is_excluded as isExcluded, created_at as createdAt
       FROM optimization_exclusions
       ORDER BY created_at DESC
-    `).all() as (Omit<OptimizationExclusionRule, 'isExcluded'> & { isExcluded: number })[]
+    `
+      )
+      .all() as (Omit<OptimizationExclusionRule, 'isExcluded'> & {
+      isExcluded: number
+    })[]
 
     return rows.map((r) => ({ ...r, isExcluded: Boolean(r.isExcluded) }))
   }
@@ -38,19 +44,33 @@ export class ProvenanceAndExclusionsService {
     const db = databaseService.getDatabase()
     if (!db) return false
 
-    const existing = db.prepare(`
+    const existing = db
+      .prepare(
+        `
       SELECT id FROM optimization_exclusions WHERE scope_type = ? AND scope_id = ?
-    `).get(scopeType, scopeId) as { id: string } | undefined
+    `
+      )
+      .get(scopeType, scopeId) as { id: string } | undefined
 
     if (existing) {
-      db.prepare(`
+      db.prepare(
+        `
         UPDATE optimization_exclusions SET is_excluded = ? WHERE id = ?
-      `).run(isExcluded ? 1 : 0, existing.id)
+      `
+      ).run(isExcluded ? 1 : 0, existing.id)
     } else {
-      db.prepare(`
+      db.prepare(
+        `
         INSERT INTO optimization_exclusions (id, scope_type, scope_id, is_excluded, created_at)
         VALUES (?, ?, ?, ?, ?)
-      `).run(`excl_${crypto.randomUUID()}`, scopeType, scopeId, isExcluded ? 1 : 0, Date.now())
+      `
+      ).run(
+        `excl_${crypto.randomUUID()}`,
+        scopeType,
+        scopeId,
+        isExcluded ? 1 : 0,
+        Date.now()
+      )
     }
 
     return true
@@ -76,30 +96,42 @@ export class ProvenanceAndExclusionsService {
 
     // 1. Check Lesson level (most specific override)
     if (context.lessonId) {
-      const rule = exclusions.find((e) => e.scopeType === 'lesson' && e.scopeId === context.lessonId)
+      const rule = exclusions.find(
+        (e) => e.scopeType === 'lesson' && e.scopeId === context.lessonId
+      )
       if (rule) return rule.isExcluded
     }
 
     // 2. Check Module level
     if (context.moduleId) {
-      const rule = exclusions.find((e) => e.scopeType === 'module' && e.scopeId === context.moduleId)
+      const rule = exclusions.find(
+        (e) => e.scopeType === 'module' && e.scopeId === context.moduleId
+      )
       if (rule) return rule.isExcluded
     }
 
     // 3. Check Course level
     if (context.courseId) {
-      const rule = exclusions.find((e) => e.scopeType === 'course' && e.scopeId === context.courseId)
+      const rule = exclusions.find(
+        (e) => e.scopeType === 'course' && e.scopeId === context.courseId
+      )
       if (rule) return rule.isExcluded
     }
 
     // 4. Check Codec or Tag level
     if (context.codec) {
-      const rule = exclusions.find((e) => e.scopeType === 'codec' && e.scopeId.toLowerCase() === context.codec!.toLowerCase())
+      const rule = exclusions.find(
+        (e) =>
+          e.scopeType === 'codec' &&
+          e.scopeId.toLowerCase() === context.codec!.toLowerCase()
+      )
       if (rule) return rule.isExcluded
     }
 
     if (context.tag) {
-      const rule = exclusions.find((e) => e.scopeType === 'tag' && e.scopeId === context.tag)
+      const rule = exclusions.find(
+        (e) => e.scopeType === 'tag' && e.scopeId === context.tag
+      )
       if (rule) return rule.isExcluded
     }
 
@@ -113,7 +145,9 @@ export class ProvenanceAndExclusionsService {
     const db = databaseService.getDatabase()
     if (!db) return []
 
-    const rows = db.prepare(`
+    const rows = db
+      .prepare(
+        `
       SELECT
         id, lesson_id as lessonId, original_path as originalPath,
         original_size as originalSize, original_codec as originalCodec,
@@ -126,7 +160,9 @@ export class ProvenanceAndExclusionsService {
       FROM optimization_records
       ORDER BY created_at DESC
       LIMIT ?
-    `).all(limit) as OptimizationRecord[]
+    `
+      )
+      .all(limit) as OptimizationRecord[]
 
     return rows
   }
@@ -134,11 +170,15 @@ export class ProvenanceAndExclusionsService {
   /**
    * Restores an original media file from its recorded backup.
    */
-  public async restoreOriginal(recordId: string): Promise<{ success: boolean; error?: string }> {
+  public async restoreOriginal(
+    recordId: string
+  ): Promise<{ success: boolean; error?: string }> {
     const db = databaseService.getDatabase()
     if (!db) return { success: false, error: 'Database not connected.' }
 
-    const record = db.prepare(`
+    const record = db
+      .prepare(
+        `
       SELECT
         id, lesson_id as lessonId, original_path as originalPath,
         original_size as originalSize, original_codec as originalCodec,
@@ -150,7 +190,9 @@ export class ProvenanceAndExclusionsService {
         created_at as createdAt
       FROM optimization_records
       WHERE id = ?
-    `).get(recordId) as OptimizationRecord | undefined
+    `
+      )
+      .get(recordId) as OptimizationRecord | undefined
 
     if (!record) {
       return { success: false, error: 'Optimization record not found.' }
@@ -173,7 +215,10 @@ export class ProvenanceAndExclusionsService {
     }
 
     // If extension had changed (e.g. .mkv -> .mp4), and optimized path exists, delete optimized file
-    if (record.optimizedPath !== record.originalPath && fs.existsSync(record.optimizedPath)) {
+    if (
+      record.optimizedPath !== record.originalPath &&
+      fs.existsSync(record.optimizedPath)
+    ) {
       try {
         fs.unlinkSync(record.optimizedPath)
       } catch {
@@ -184,11 +229,19 @@ export class ProvenanceAndExclusionsService {
     // Update lesson row in database
     const fileName = path.basename(record.originalPath)
     const fileExt = path.extname(record.originalPath)
-    db.prepare(`
+    db.prepare(
+      `
       UPDATE lessons
       SET file_path = ?, file_name = ?, file_extension = ?, file_size = ?
       WHERE id = ?
-    `).run(record.originalPath, fileName, fileExt, record.originalSize, record.lessonId)
+    `
+    ).run(
+      record.originalPath,
+      fileName,
+      fileExt,
+      record.originalSize,
+      record.lessonId
+    )
 
     // Remove provenance record
     db.prepare(`DELETE FROM optimization_records WHERE id = ?`).run(recordId)
@@ -207,21 +260,31 @@ export class ProvenanceAndExclusionsService {
     const db = databaseService.getDatabase()
     if (!db) return { success: false, error: 'Database not connected.' }
 
-    const lesson = db.prepare(`
+    const lesson = db
+      .prepare(
+        `
       SELECT id, course_id as courseId, file_path as filePath FROM lessons WHERE id = ?
-    `).get(lessonId) as { id: string; courseId: string; filePath: string } | undefined
+    `
+      )
+      .get(lessonId) as
+      { id: string; courseId: string; filePath: string } | undefined
 
     if (!lesson) {
       return { success: false, error: 'Lesson not found.' }
     }
 
-    const record = db.prepare(`
+    const record = db
+      .prepare(
+        `
       SELECT backup_path as backupPath, original_path as originalPath
       FROM optimization_records
       WHERE lesson_id = ?
       ORDER BY created_at DESC
       LIMIT 1
-    `).get(lessonId) as { backupPath?: string; originalPath: string } | undefined
+    `
+      )
+      .get(lessonId) as
+      { backupPath?: string; originalPath: string } | undefined
 
     let sourceToUse = lesson.filePath
     if (record?.backupPath && fs.existsSync(record.backupPath)) {
@@ -239,4 +302,5 @@ export class ProvenanceAndExclusionsService {
   }
 }
 
-export const provenanceAndExclusionsService = new ProvenanceAndExclusionsService()
+export const provenanceAndExclusionsService =
+  new ProvenanceAndExclusionsService()

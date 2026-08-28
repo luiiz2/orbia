@@ -28,7 +28,9 @@ export class MediaValidatorService {
     if (!fs.existsSync(optimizedFilePath)) {
       return {
         isValid: false,
-        errors: [`Optimized file was not created on disk: ${optimizedFilePath}`],
+        errors: [
+          `Optimized file was not created on disk: ${optimizedFilePath}`
+        ],
         warnings
       }
     }
@@ -37,7 +39,9 @@ export class MediaValidatorService {
     if (stat.size < 4096) {
       return {
         isValid: false,
-        errors: [`Optimized file is suspiciously small or empty (${stat.size} bytes)`],
+        errors: [
+          `Optimized file is suspiciously small or empty (${stat.size} bytes)`
+        ],
         warnings
       }
     }
@@ -49,7 +53,9 @@ export class MediaValidatorService {
     } catch (analysisErr) {
       return {
         isValid: false,
-        errors: [`Could not parse stream topology from optimized media: ${String(analysisErr)}`],
+        errors: [
+          `Could not parse stream topology from optimized media: ${String(analysisErr)}`
+        ],
         warnings
       }
     }
@@ -60,7 +66,8 @@ export class MediaValidatorService {
       errors.push('Optimized media is missing the primary video stream.')
     } else {
       // Codec match check
-      const expectedCodec = plan.targetCodec === 'hevc' ? ['hevc', 'h265'] : [plan.targetCodec]
+      const expectedCodec =
+        plan.targetCodec === 'hevc' ? ['hevc', 'h265'] : [plan.targetCodec]
       if (!expectedCodec.includes(outputVideo.codecName.toLowerCase())) {
         errors.push(
           `Video codec mismatch: expected ${plan.targetCodec}, found ${outputVideo.codecName}`
@@ -69,7 +76,10 @@ export class MediaValidatorService {
 
       // Resolution match check
       if (plan.isResolutionReduced) {
-        if (outputVideo.width !== plan.targetWidth || outputVideo.height !== plan.targetHeight) {
+        if (
+          outputVideo.width !== plan.targetWidth ||
+          outputVideo.height !== plan.targetHeight
+        ) {
           errors.push(
             `Resolution mismatch: expected ${plan.targetWidth}x${plan.targetHeight}, got ${outputVideo.width}x${outputVideo.height}`
           )
@@ -87,8 +97,13 @@ export class MediaValidatorService {
     }
 
     // 4. Duration tolerance check (within ±1.5s or 2%)
-    if (sourceMetadata.durationSeconds > 2 && outputMetadata.durationSeconds > 0) {
-      const diff = Math.abs(sourceMetadata.durationSeconds - outputMetadata.durationSeconds)
+    if (
+      sourceMetadata.durationSeconds > 2 &&
+      outputMetadata.durationSeconds > 0
+    ) {
+      const diff = Math.abs(
+        sourceMetadata.durationSeconds - outputMetadata.durationSeconds
+      )
       const diffPercent = (diff / sourceMetadata.durationSeconds) * 100
       if (diff > 2.0 && diffPercent > 3.0) {
         errors.push(
@@ -99,7 +114,9 @@ export class MediaValidatorService {
 
     // 5. Audio streams preservation check
     if (sourceMetadata.audioStreams.length > 0) {
-      if (outputMetadata.audioStreams.length < sourceMetadata.audioStreams.length) {
+      if (
+        outputMetadata.audioStreams.length < sourceMetadata.audioStreams.length
+      ) {
         errors.push(
           `Audio stream dropped: source has ${sourceMetadata.audioStreams.length} audio tracks, optimized only has ${outputMetadata.audioStreams.length}`
         )
@@ -108,7 +125,10 @@ export class MediaValidatorService {
 
     // 6. Subtitle streams check
     if (sourceMetadata.subtitleStreams.length > 0) {
-      if (outputMetadata.subtitleStreams.length < sourceMetadata.subtitleStreams.length) {
+      if (
+        outputMetadata.subtitleStreams.length <
+        sourceMetadata.subtitleStreams.length
+      ) {
         warnings.push(
           `Subtitle stream count mismatch: source ${sourceMetadata.subtitleStreams.length} vs optimized ${outputMetadata.subtitleStreams.length}`
         )
@@ -116,9 +136,14 @@ export class MediaValidatorService {
     }
 
     // 7. Multi-point seek & decode check
-    const duration = outputMetadata.durationSeconds || sourceMetadata.durationSeconds
+    const duration =
+      outputMetadata.durationSeconds || sourceMetadata.durationSeconds
     if (duration > 5) {
-      const seekPoints = [1, Math.floor(duration * 0.5), Math.max(1, Math.floor(duration - 2))]
+      const seekPoints = [
+        1,
+        Math.floor(duration * 0.5),
+        Math.max(1, Math.floor(duration - 2))
+      ]
       for (const seekSec of seekPoints) {
         const canSeek = await this.testSeekAndDecode(optimizedFilePath, seekSec)
         if (!canSeek) {
@@ -145,7 +170,10 @@ export class MediaValidatorService {
   /**
    * Tests seeking to a specific timestamp and decoding a 1-second segment.
    */
-  private testSeekAndDecode(filePath: string, timestampSeconds: number): Promise<boolean> {
+  private testSeekAndDecode(
+    filePath: string,
+    timestampSeconds: number
+  ): Promise<boolean> {
     const executablePath = ffmpegStatic
     if (!executablePath) return Promise.resolve(false)
 

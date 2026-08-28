@@ -19,7 +19,10 @@ export class OptimizationPlannerService {
   /**
    * Generates a deterministic optimization plan for a single media file.
    */
-  public createPlan(metadata: MediaMetadata, options: PlanOptions): OptimizationPlan {
+  public createPlan(
+    metadata: MediaMetadata,
+    options: PlanOptions
+  ): OptimizationPlan {
     const profile = options.profile || 'balanced'
     const minThreshold = options.minSavingsPercentThreshold ?? 15
 
@@ -58,7 +61,8 @@ export class OptimizationPlannerService {
     const sourceWidth = video.width
     const sourceHeight = video.height
     const sourceResolution = `${sourceWidth}x${sourceHeight}`
-    const sourceBitrate = video.bitRate > 0 ? video.bitRate : metadata.overallBitrate
+    const sourceBitrate =
+      video.bitRate > 0 ? video.bitRate : metadata.overallBitrate
 
     // 1. Determine target resolution
     let targetWidth = sourceWidth
@@ -67,13 +71,18 @@ export class OptimizationPlannerService {
     const warnings: string[] = []
 
     const is4KorHigher = sourceWidth >= 2560 || sourceHeight >= 1440
-    if (is4KorHigher && (profile === 'balanced' || profile === 'space_saving')) {
+    if (
+      is4KorHigher &&
+      (profile === 'balanced' || profile === 'space_saving')
+    ) {
       // Propose downscale to 1080p
       const aspectRatio = sourceWidth / sourceHeight
       targetHeight = 1080
       targetWidth = Math.round((1080 * aspectRatio) / 2) * 2 // even width
       isResolutionReduced = true
-      warnings.push(`Resolução reduzida de ${sourceResolution} para ${targetWidth}x${targetHeight} para economia expressiva.`)
+      warnings.push(
+        `Resolução reduzida de ${sourceResolution} para ${targetWidth}x${targetHeight} para economia expressiva.`
+      )
     }
 
     const targetResolution = `${targetWidth}x${targetHeight}`
@@ -96,19 +105,32 @@ export class OptimizationPlannerService {
     }
 
     // 3. Estimate target bitrate and size
-    const estimatedVideoBitrate = this.estimateTargetBitrate(targetWidth, targetHeight, targetCrf, targetCodec)
-    const audioBitrateTotal = metadata.audioStreams.reduce((acc, a) => acc + (a.bitRate || 128000), 0)
-    const totalTargetBitrate = estimatedVideoBitrate + Math.max(audioBitrateTotal, 128000)
+    const estimatedVideoBitrate = this.estimateTargetBitrate(
+      targetWidth,
+      targetHeight,
+      targetCrf,
+      targetCodec
+    )
+    const audioBitrateTotal = metadata.audioStreams.reduce(
+      (acc, a) => acc + (a.bitRate || 128000),
+      0
+    )
+    const totalTargetBitrate =
+      estimatedVideoBitrate + Math.max(audioBitrateTotal, 128000)
 
     const estimatedTargetSize = Math.max(
       1024 * 1024,
       Math.round((totalTargetBitrate * metadata.durationSeconds) / 8)
     )
 
-    const savingsBytes = Math.max(0, metadata.fileSizeBytes - estimatedTargetSize)
-    const savingsPercent = metadata.fileSizeBytes > 0
-      ? Math.round((savingsBytes / metadata.fileSizeBytes) * 100)
-      : 0
+    const savingsBytes = Math.max(
+      0,
+      metadata.fileSizeBytes - estimatedTargetSize
+    )
+    const savingsPercent =
+      metadata.fileSizeBytes > 0
+        ? Math.round((savingsBytes / metadata.fileSizeBytes) * 100)
+        : 0
 
     // 4. Determine if media is already efficient
     let isAlreadyEfficient = false
@@ -116,7 +138,8 @@ export class OptimizationPlannerService {
 
     if (sourceCodec === 'av1' && sourceBitrate <= estimatedVideoBitrate * 1.2) {
       isAlreadyEfficient = true
-      reason = 'Vídeo já codificado em AV1 moderno com excelente taxa de compressão.'
+      reason =
+        'Vídeo já codificado em AV1 moderno com excelente taxa de compressão.'
     } else if (
       (sourceCodec === 'hevc' || sourceCodec === 'h265') &&
       !isResolutionReduced &&
@@ -127,9 +150,13 @@ export class OptimizationPlannerService {
     } else if (savingsPercent < minThreshold) {
       isAlreadyEfficient = true
       reason = `Ganho de espaço estimado (${savingsPercent}%) abaixo do limiar de ${minThreshold}%.`
-    } else if (metadata.fileSizeBytes < 15 * 1024 * 1024 && metadata.durationSeconds > 180) {
+    } else if (
+      metadata.fileSizeBytes < 15 * 1024 * 1024 &&
+      metadata.durationSeconds > 180
+    ) {
       isAlreadyEfficient = true
-      reason = 'Arquivo pequeno com bitrate já baixo. Re-codificar não trará ganho perceptível.'
+      reason =
+        'Arquivo pequeno com bitrate já baixo. Re-codificar não trará ganho perceptível.'
     } else {
       reason = `Otimização ${profile.toUpperCase()}: ${sourceCodec.toUpperCase()} (${sourceResolution}) ➔ HEVC (${targetResolution}) com ~${savingsPercent}% de redução de espaço.`
     }
@@ -141,7 +168,9 @@ export class OptimizationPlannerService {
     const targetContainer: 'mp4' | 'mkv' = hasComplexSubtitles ? 'mkv' : 'mp4'
 
     if (options.isSharedFile) {
-      warnings.push(`Este arquivo está associado a múltiplos Vaults (${options.sharedVaultNames?.join(', ') || 'Vários'}). A otimização atualizará todas as bibliotecas.`)
+      warnings.push(
+        `Este arquivo está associado a múltiplos Vaults (${options.sharedVaultNames?.join(', ') || 'Vários'}). A otimização atualizará todas as bibliotecas.`
+      )
     }
 
     return {

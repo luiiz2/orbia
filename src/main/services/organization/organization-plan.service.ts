@@ -3,7 +3,10 @@ import { databaseService, type DatabaseService } from '../database.service'
 import { scannerService, type ScannerService } from '../scanner.service'
 import { normalizeCourseHierarchy } from './hierarchy-normalizer'
 import { resolveLessonIdentities } from './identity-resolver'
-import { resolveSequenceOrdering, extractExplicitNumber } from './title-sequence-resolver'
+import {
+  resolveSequenceOrdering,
+  extractExplicitNumber
+} from './title-sequence-resolver'
 
 export interface OrganizationPlanItem {
   id: string
@@ -48,7 +51,10 @@ export class OrganizationPlanService {
   private readonly db: DatabaseService
   private readonly scanner: ScannerService
 
-  public constructor(db: DatabaseService = databaseService, scanner: ScannerService = scannerService) {
+  public constructor(
+    db: DatabaseService = databaseService,
+    scanner: ScannerService = scannerService
+  ) {
     this.db = db
     this.scanner = scanner
   }
@@ -65,7 +71,9 @@ export class OrganizationPlanService {
 
     const { course, modules } = courseData
     const scannedDir = await this.scanner.scanDirectory(course.rootPath)
-    const proposed = await normalizeCourseHierarchy(scannedDir, { detectCovers: false })
+    const proposed = await normalizeCourseHierarchy(scannedDir, {
+      detectCovers: false
+    })
 
     const planId = `plan-${Date.now()}-${crypto.randomUUID().slice(0, 6)}`
     const safeCorrections: OrganizationPlanItem[] = []
@@ -85,7 +93,11 @@ export class OrganizationPlanService {
     )
 
     // 1. Resolve Identities (Renamed and Moved files)
-    const identities = await resolveLessonIdentities(allScannedMedia, allExistingLessons, courseId)
+    const identities = await resolveLessonIdentities(
+      allScannedMedia,
+      allExistingLessons,
+      courseId
+    )
 
     for (const identity of identities) {
       if (identity.type === 'RENAMED_IN_PLACE' && identity.lessonId) {
@@ -97,7 +109,10 @@ export class OrganizationPlanService {
           targetEntity: 'LESSON',
           entityId: identity.lessonId,
           actionType: 'RELINK_RENAMED_FILE',
-          details: { newFilePath: identity.newFilePath, newFileName: identity.newFileName },
+          details: {
+            newFilePath: identity.newFilePath,
+            newFileName: identity.newFileName
+          },
           approved: true
         })
       } else if (identity.type === 'MOVED_IN_COURSE' && identity.lessonId) {
@@ -109,7 +124,11 @@ export class OrganizationPlanService {
           targetEntity: 'LESSON',
           entityId: identity.lessonId,
           actionType: 'RELINK_MOVED_FILE',
-          details: { newFilePath: identity.newFilePath, newFileName: identity.newFileName, newModuleId: identity.newModuleId },
+          details: {
+            newFilePath: identity.newFilePath,
+            newFileName: identity.newFileName,
+            newModuleId: identity.newModuleId
+          },
           approved: true
         })
       } else if (identity.type === 'MOVED_ACROSS_COURSES') {
@@ -132,13 +151,16 @@ export class OrganizationPlanService {
         rawFileName: l.fileName,
         cleanTitle: l.title,
         filePath: l.filePath,
-        explicitNumber: extractExplicitNumber(l.fileName) ?? extractExplicitNumber(l.title),
+        explicitNumber:
+          extractExplicitNumber(l.fileName) ?? extractExplicitNumber(l.title),
         orderIndex: l.orderIndex,
         displayOrder: l.displayOrder,
         isManual: l.hasManualOrder
       }))
 
-      const seqResult = resolveSequenceOrdering(seqItems, { preserveManualOrder: true })
+      const seqResult = resolveSequenceOrdering(seqItems, {
+        preserveManualOrder: true
+      })
 
       // Check gaps
       for (const gap of seqResult.detectedGaps) {
@@ -213,25 +235,49 @@ export class OrganizationPlanService {
       for (const item of allApprovedItems) {
         switch (item.actionType) {
           case 'RELINK_RENAMED_FILE': {
-            const details = item.details as { newFilePath: string; newFileName: string }
+            const details = item.details as {
+              newFilePath: string
+              newFileName: string
+            }
             if (item.entityId && details) {
-              rawDb.prepare(`
+              rawDb
+                .prepare(
+                  `
                 UPDATE lessons SET file_path = ?, file_name = ? WHERE id = ?
-              `).run(details.newFilePath, details.newFileName, item.entityId)
+              `
+                )
+                .run(details.newFilePath, details.newFileName, item.entityId)
             }
             break
           }
           case 'RELINK_MOVED_FILE': {
-            const details = item.details as { newFilePath: string; newFileName: string; newModuleId?: string }
+            const details = item.details as {
+              newFilePath: string
+              newFileName: string
+              newModuleId?: string
+            }
             if (item.entityId && details) {
               if (details.newModuleId) {
-                rawDb.prepare(`
+                rawDb
+                  .prepare(
+                    `
                   UPDATE lessons SET file_path = ?, file_name = ?, module_id = ? WHERE id = ?
-                `).run(details.newFilePath, details.newFileName, details.newModuleId, item.entityId)
+                `
+                  )
+                  .run(
+                    details.newFilePath,
+                    details.newFileName,
+                    details.newModuleId,
+                    item.entityId
+                  )
               } else {
-                rawDb.prepare(`
+                rawDb
+                  .prepare(
+                    `
                   UPDATE lessons SET file_path = ?, file_name = ? WHERE id = ?
-                `).run(details.newFilePath, details.newFileName, item.entityId)
+                `
+                  )
+                  .run(details.newFilePath, details.newFileName, item.entityId)
               }
             }
             break
@@ -240,11 +286,11 @@ export class OrganizationPlanService {
             const details = item.details as { orderedLessonIds: string[] }
             if (details?.orderedLessonIds) {
               details.orderedLessonIds.forEach((lessonId, idx) => {
-                rawDb.prepare(`UPDATE lessons SET order_index = ?, display_order = ? WHERE id = ?`).run(
-                  idx + 1,
-                  idx + 1,
-                  lessonId
-                )
+                rawDb
+                  .prepare(
+                    `UPDATE lessons SET order_index = ?, display_order = ? WHERE id = ?`
+                  )
+                  .run(idx + 1, idx + 1, lessonId)
               })
             }
             break

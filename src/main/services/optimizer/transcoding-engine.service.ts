@@ -30,7 +30,8 @@ export class TranscodingEngineService {
     const targetCodec = plan.targetCodec || 'hevc'
 
     // Try with best encoder (hardware first)
-    const { encoder, isHardware } = await hardwareCapabilityService.getBestEncoder(targetCodec, true)
+    const { encoder, isHardware } =
+      await hardwareCapabilityService.getBestEncoder(targetCodec, true)
 
     try {
       return await this.runFfmpegTranscode(
@@ -124,7 +125,14 @@ export class TranscodingEngineService {
       } else if (encoder.includes('qsv')) {
         args.push('-global_quality', String(plan.targetCrf + 2))
       } else if (encoder.includes('amf')) {
-        args.push('-quality', 'quality', '-rc', 'cqp', '-qp_p', String(plan.targetCrf))
+        args.push(
+          '-quality',
+          'quality',
+          '-rc',
+          'cqp',
+          '-qp_p',
+          String(plan.targetCrf)
+        )
       } else if (encoder.includes('videotoolbox')) {
         args.push('-q:v', String(Math.max(45, 80 - plan.targetCrf)))
       }
@@ -137,7 +145,11 @@ export class TranscodingEngineService {
     }
 
     // Resolution downscaling if needed
-    if (plan.isResolutionReduced && plan.targetWidth > 0 && plan.targetHeight > 0) {
+    if (
+      plan.isResolutionReduced &&
+      plan.targetWidth > 0 &&
+      plan.targetHeight > 0
+    ) {
       args.push('-vf', `scale=${plan.targetWidth}:${plan.targetHeight}`)
     }
 
@@ -190,26 +202,29 @@ export class TranscodingEngineService {
 
       // Pipe stream if using stream input
       if (!isDirectFile) {
-        input.getInputStream().then((readable) => {
-          if (child.stdin) {
-            readable.pipe(child.stdin)
-            readable.on('error', (err) => {
-              logger.error('[TranscodingEngine] Stream input error:', err)
-              try {
-                child.kill('SIGKILL')
-              } catch {
-                // Ignore
-              }
-            })
-          }
-        }).catch((err) => {
-          try {
-            child.kill('SIGKILL')
-          } catch {
-            // Ignore
-          }
-          reject(err)
-        })
+        input
+          .getInputStream()
+          .then((readable) => {
+            if (child.stdin) {
+              readable.pipe(child.stdin)
+              readable.on('error', (err) => {
+                logger.error('[TranscodingEngine] Stream input error:', err)
+                try {
+                  child.kill('SIGKILL')
+                } catch {
+                  // Ignore
+                }
+              })
+            }
+          })
+          .catch((err) => {
+            try {
+              child.kill('SIGKILL')
+            } catch {
+              // Ignore
+            }
+            reject(err)
+          })
       }
 
       child.stderr?.on('data', (chunk: Buffer) => {
@@ -227,7 +242,10 @@ export class TranscodingEngineService {
           const seconds = parseFloat(timeMatch[3])
           const currentDuration = hours * 3600 + minutes * 60 + seconds
           const rawPercent = (currentDuration / totalDurationSeconds) * 100
-          const percent = Math.min(99.5, Math.max(0, Math.round(rawPercent * 10) / 10))
+          const percent = Math.min(
+            99.5,
+            Math.max(0, Math.round(rawPercent * 10) / 10)
+          )
 
           const fps = fpsMatch ? parseFloat(fpsMatch[1]) : undefined
           const speed = speedMatch ? speedMatch[1] : undefined
@@ -236,7 +254,9 @@ export class TranscodingEngineService {
           if (speed && currentDuration < totalDurationSeconds) {
             const speedVal = parseFloat(speed.replace('x', ''))
             if (speedVal > 0) {
-              etaSeconds = Math.round((totalDurationSeconds - currentDuration) / speedVal)
+              etaSeconds = Math.round(
+                (totalDurationSeconds - currentDuration) / speedVal
+              )
             }
           }
 
@@ -270,7 +290,8 @@ export class TranscodingEngineService {
               return
             }
           }
-          const errMsg = stderr.trim() || `FFmpeg process exited with code ${code}`
+          const errMsg =
+            stderr.trim() || `FFmpeg process exited with code ${code}`
           reject(new Error(errMsg))
         }
       })

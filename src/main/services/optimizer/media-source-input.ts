@@ -76,7 +76,9 @@ export class StreamSourceInput implements MediaSourceInput {
   }
 
   public isDirectFile(): boolean {
-    return Boolean(this.fallbackTempPath && fs.existsSync(this.fallbackTempPath))
+    return Boolean(
+      this.fallbackTempPath && fs.existsSync(this.fallbackTempPath)
+    )
   }
 }
 

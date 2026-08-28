@@ -56,10 +56,14 @@ export class OptimizationWorkerService {
     }
   }
 
-  public subscribeProgress(listener: (item: OptimizationQueueItem) => void): () => void {
+  public subscribeProgress(
+    listener: (item: OptimizationQueueItem) => void
+  ): () => void {
     this.progressListeners.push(listener)
     return () => {
-      this.progressListeners = this.progressListeners.filter((l) => l !== listener)
+      this.progressListeners = this.progressListeners.filter(
+        (l) => l !== listener
+      )
     }
   }
 
@@ -120,31 +124,41 @@ export class OptimizationWorkerService {
 
     try {
       if (job.jobType === 'transcription') {
-        await transcriptionService.processJob(job, this.currentAbortController.signal, (event) => {
-          this.notifyProgress({
-            ...job,
-            jobType: 'transcription',
-            status: event.status,
-            progressPercent: event.progressPercent,
-            errorMessage: event.errorMessage
-          })
-        })
+        await transcriptionService.processJob(
+          job,
+          this.currentAbortController.signal,
+          (event) => {
+            this.notifyProgress({
+              ...job,
+              jobType: 'transcription',
+              status: event.status,
+              progressPercent: event.progressPercent,
+              errorMessage: event.errorMessage
+            })
+          }
+        )
         return
       }
 
       if (job.jobType === 'semantic_index') {
-        await semanticIndexService.processJob(job, this.currentAbortController.signal, {
-          onProgress: (event) => {
-            this.notifyProgress({
-              ...job,
-              jobType: 'semantic_index',
-              status: event.status,
-              progressPercent: event.progressPercent,
-              ...(event.errorMessage ? { errorMessage: event.errorMessage } : {})
-            })
-          },
-          shouldYield: () => !resourceManagerService.canProcessJobs(settings)
-        })
+        await semanticIndexService.processJob(
+          job,
+          this.currentAbortController.signal,
+          {
+            onProgress: (event) => {
+              this.notifyProgress({
+                ...job,
+                jobType: 'semantic_index',
+                status: event.status,
+                progressPercent: event.progressPercent,
+                ...(event.errorMessage
+                  ? { errorMessage: event.errorMessage }
+                  : {})
+              })
+            },
+            shouldYield: () => !resourceManagerService.canProcessJobs(settings)
+          }
+        )
         return
       }
 
@@ -161,13 +175,17 @@ export class OptimizationWorkerService {
       if (job.isSharedFile && !job.sharedConfirmationGiven) {
         optimizationQueueService.updateJob(job.id, {
           status: 'requires_review',
-          errorMessage: 'Arquivo compartilhado entre múltiplos Vaults requer confirmação explícita.'
+          errorMessage:
+            'Arquivo compartilhado entre múltiplos Vaults requer confirmação explícita.'
         })
         return
       }
 
       // 3. Stage: ANALYZING
-      optimizationQueueService.updateJob(job.id, { status: 'analyzing', progressPercent: 0 })
+      optimizationQueueService.updateJob(job.id, {
+        status: 'analyzing',
+        progressPercent: 0
+      })
       this.notifyProgress({ ...job, status: 'analyzing', progressPercent: 0 })
 
       const input = new LocalFileSourceInput(job.sourcePath)
@@ -210,7 +228,8 @@ export class OptimizationWorkerService {
       if (!hasSpace) {
         optimizationQueueService.updateJob(job.id, {
           status: 'waiting_for_resources',
-          errorMessage: 'Espaço em disco insuficiente para arquivo temporário e backup.'
+          errorMessage:
+            'Espaço em disco insuficiente para arquivo temporário e backup.'
         })
         return
       }
@@ -228,7 +247,12 @@ export class OptimizationWorkerService {
         tempOutputPath,
         progressPercent: 0
       })
-      this.notifyProgress({ ...job, status: 'encoding', tempOutputPath, progressPercent: 0 })
+      this.notifyProgress({
+        ...job,
+        status: 'encoding',
+        tempOutputPath,
+        progressPercent: 0
+      })
 
       let lastNotifyTime = 0
       const encodeResult = await transcodingEngineService.transcode(
@@ -263,16 +287,26 @@ export class OptimizationWorkerService {
       }
 
       // 7. Stage: VALIDATING
-      optimizationQueueService.updateJob(job.id, { status: 'validating', progressPercent: 95 })
+      optimizationQueueService.updateJob(job.id, {
+        status: 'validating',
+        progressPercent: 95
+      })
       this.notifyProgress({ ...job, status: 'validating', progressPercent: 95 })
 
-      const validation = await mediaValidatorService.validate(metadata, plan, tempOutputPath)
+      const validation = await mediaValidatorService.validate(
+        metadata,
+        plan,
+        tempOutputPath
+      )
       if (!validation.isValid) {
         throw new Error(`Validação falhou: ${validation.errors.join(' | ')}`)
       }
 
       // 8. Stage: BACKING_UP
-      optimizationQueueService.updateJob(job.id, { status: 'backing_up', progressPercent: 98 })
+      optimizationQueueService.updateJob(job.id, {
+        status: 'backing_up',
+        progressPercent: 98
+      })
       this.notifyProgress({ ...job, status: 'backing_up', progressPercent: 98 })
 
       const backupResult = await mediaBackupService.createBackup(
@@ -310,7 +344,10 @@ export class OptimizationWorkerService {
       }
 
       // 10. Stage: COMPLETED
-      const actualSavings = Math.max(0, plan.sourceSize - encodeResult.outputSize)
+      const actualSavings = Math.max(
+        0,
+        plan.sourceSize - encodeResult.outputSize
+      )
       optimizationQueueService.updateJob(job.id, {
         status: 'completed',
         finalOutputPath: commitResult.finalPath,

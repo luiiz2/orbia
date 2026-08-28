@@ -3244,7 +3244,7 @@ export class DatabaseService {
     const id = bookmark.id || crypto.randomUUID()
     const title =
       bookmark.title?.trim() || `Bookmark ${Math.floor(bookmark.timestamp)}s`
-    const color = bookmark.color || '#f59e0b'
+    const color = bookmark.color || '#d08a52'
 
     this.db!.prepare(
       `

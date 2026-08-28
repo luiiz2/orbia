@@ -4,7 +4,11 @@ import type { LibraryAppearance, StudioEntityType } from '../../../types/studio'
 import { studioHistoryService } from './history.service'
 
 export class LibraryAppearanceService {
-  public listAppearances(db: Database.Database, courseId?: string, includeHidden: boolean = false): LibraryAppearance[] {
+  public listAppearances(
+    db: Database.Database,
+    courseId?: string,
+    includeHidden: boolean = false
+  ): LibraryAppearance[] {
     let sql = `
       SELECT id, entity_type as entityType, entity_id as entityId, root_course_id as rootCourseId,
              parent_appearance_id as parentAppearanceId, section_id as sectionId,
@@ -64,8 +68,14 @@ export class LibraryAppearanceService {
     }))
   }
 
-  public updateAppearance(db: Database.Database, id: string, updates: Partial<LibraryAppearance>): boolean {
-    const existing = db.prepare(`SELECT * FROM library_appearances WHERE id = ?`).get(id) as Record<string, unknown> | undefined
+  public updateAppearance(
+    db: Database.Database,
+    id: string,
+    updates: Partial<LibraryAppearance>
+  ): boolean {
+    const existing = db
+      .prepare(`SELECT * FROM library_appearances WHERE id = ?`)
+      .get(id) as Record<string, unknown> | undefined
     if (!existing) return false
 
     const fields: string[] = []
@@ -104,10 +114,22 @@ export class LibraryAppearanceService {
     fields.push('updated_at = @updatedAt')
 
     return db.transaction(() => {
-      const res = db.prepare(`UPDATE library_appearances SET ${fields.join(', ')} WHERE id = @id`).run(params)
+      const res = db
+        .prepare(
+          `UPDATE library_appearances SET ${fields.join(', ')} WHERE id = @id`
+        )
+        .run(params)
       if (res.changes > 0) {
-        const after = db.prepare(`SELECT * FROM library_appearances WHERE id = ?`).get(id) as Record<string, unknown>
-        studioHistoryService.recordOperation(db, 'update_appearance', `Atualização da aparência ${id}`, { appearances: [existing] }, { appearances: [after] })
+        const after = db
+          .prepare(`SELECT * FROM library_appearances WHERE id = ?`)
+          .get(id) as Record<string, unknown>
+        studioHistoryService.recordOperation(
+          db,
+          'update_appearance',
+          `Atualização da aparência ${id}`,
+          { appearances: [existing] },
+          { appearances: [after] }
+        )
         return true
       }
       return false
@@ -125,11 +147,15 @@ export class LibraryAppearanceService {
     const now = Date.now()
 
     // Get max display order in target container
-    const maxOrderRow = db.prepare(`
+    const maxOrderRow = db
+      .prepare(
+        `
       SELECT COALESCE(MAX(display_order), 0) + 1 as nextOrder
       FROM library_appearances
       WHERE root_course_id = ? AND parent_appearance_id IS ?
-    `).get(targetCourseId, parentAppearanceId || null) as { nextOrder: number }
+    `
+      )
+      .get(targetCourseId, parentAppearanceId || null) as { nextOrder: number }
 
     const nextOrder = maxOrderRow?.nextOrder || 1
 
@@ -151,7 +177,8 @@ export class LibraryAppearanceService {
     }
 
     db.transaction(() => {
-      db.prepare(`
+      db.prepare(
+        `
         INSERT INTO library_appearances (
           id, entity_type, entity_id, root_course_id, parent_appearance_id, section_id,
           custom_title, display_order, is_reference, is_hidden, tags, custom_metadata, created_at, updated_at
@@ -159,20 +186,32 @@ export class LibraryAppearanceService {
           @id, @entityType, @entityId, @rootCourseId, @parentAppearanceId, @sectionId,
           @customTitle, @displayOrder, 1, 0, '[]', '{}', @createdAt, @updatedAt
         )
-      `).run({
+      `
+      ).run({
         ...app,
         tags: '[]',
         customMetadata: '{}'
       })
 
-      studioHistoryService.recordOperation(db, 'create_reference', `Criou atalho de ${entityType} no curso ${targetCourseId}`, { deletedAppearanceIds: [id] }, { appearances: [app] })
+      studioHistoryService.recordOperation(
+        db,
+        'create_reference',
+        `Criou atalho de ${entityType} no curso ${targetCourseId}`,
+        { deletedAppearanceIds: [id] },
+        { appearances: [app] }
+      )
     })()
 
     return app
   }
 
-  public deleteAppearance(db: Database.Database, appearanceId: string): { success: boolean; promotedAppearanceId?: string } {
-    const existing = db.prepare(`SELECT * FROM library_appearances WHERE id = ?`).get(appearanceId) as Record<string, unknown> | undefined
+  public deleteAppearance(
+    db: Database.Database,
+    appearanceId: string
+  ): { success: boolean; promotedAppearanceId?: string } {
+    const existing = db
+      .prepare(`SELECT * FROM library_appearances WHERE id = ?`)
+      .get(appearanceId) as Record<string, unknown> | undefined
     if (!existing) return { success: false }
 
     const isReference = Boolean(existing.is_reference)
@@ -184,22 +223,30 @@ export class LibraryAppearanceService {
 
       // If we are deleting a primary appearance, check if any other appearance (reference) exists for this entity
       if (!isReference) {
-        const otherApp = db.prepare(`
+        const otherApp = db
+          .prepare(
+            `
           SELECT id FROM library_appearances
           WHERE entity_id = ? AND id <> ?
           ORDER BY created_at ASC
           LIMIT 1
-        `).get(entityId, appearanceId) as { id: string } | undefined
+        `
+          )
+          .get(entityId, appearanceId) as { id: string } | undefined
 
         if (otherApp) {
           // Promote the reference to primary appearance
-          db.prepare(`UPDATE library_appearances SET is_reference = 0 WHERE id = ?`).run(otherApp.id)
+          db.prepare(
+            `UPDATE library_appearances SET is_reference = 0 WHERE id = ?`
+          ).run(otherApp.id)
           promotedId = otherApp.id
         }
       }
 
       // Delete the appearance and child appearances cascade
-      db.prepare(`DELETE FROM library_appearances WHERE id = ?`).run(appearanceId)
+      db.prepare(`DELETE FROM library_appearances WHERE id = ?`).run(
+        appearanceId
+      )
 
       studioHistoryService.recordOperation(
         db,
@@ -213,14 +260,24 @@ export class LibraryAppearanceService {
     })()
   }
 
-  public setHidden(db: Database.Database, appearanceIds: string[], isHidden: boolean): boolean {
+  public setHidden(
+    db: Database.Database,
+    appearanceIds: string[],
+    isHidden: boolean
+  ): boolean {
     if (appearanceIds.length === 0) return true
 
     return db.transaction(() => {
       const placeholders = appearanceIds.map(() => '?').join(',')
-      const existing = db.prepare(`SELECT * FROM library_appearances WHERE id IN (${placeholders})`).all(...appearanceIds) as Record<string, unknown>[]
+      const existing = db
+        .prepare(
+          `SELECT * FROM library_appearances WHERE id IN (${placeholders})`
+        )
+        .all(...appearanceIds) as Record<string, unknown>[]
 
-      db.prepare(`UPDATE library_appearances SET is_hidden = ?, updated_at = ? WHERE id IN (${placeholders})`).run(isHidden ? 1 : 0, Date.now(), ...appearanceIds)
+      db.prepare(
+        `UPDATE library_appearances SET is_hidden = ?, updated_at = ? WHERE id IN (${placeholders})`
+      ).run(isHidden ? 1 : 0, Date.now(), ...appearanceIds)
 
       studioHistoryService.recordOperation(
         db,

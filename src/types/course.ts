@@ -2,9 +2,11 @@
  * Content source provider and availability abstractions.
  * Decouples course structure from physical local/cloud storage.
  */
-export type ContentSourceType = 'local-vault' | 'local-ref' | 'google-drive' | 'custom'
+export type ContentSourceType =
+  'local-vault' | 'local-ref' | 'google-drive' | 'custom'
 
-export type AvailabilityState = 'local' | 'remote-only' | 'cached' | 'downloading' | 'offline-ready'
+export type AvailabilityState =
+  'local' | 'remote-only' | 'cached' | 'downloading' | 'offline-ready'
 
 export interface ContentSource {
   id: string
@@ -61,7 +63,15 @@ export interface Module {
 /**
  * Media types supported by Orbia
  */
-export type MediaType = 'video' | 'audio' | 'pdf' | 'document' | 'image' | 'link' | 'archive' | 'other'
+export type MediaType =
+  | 'video'
+  | 'audio'
+  | 'pdf'
+  | 'document'
+  | 'image'
+  | 'link'
+  | 'archive'
+  | 'other'
 
 /**
  * Lesson Entity
@@ -352,4 +362,3 @@ export interface ApplyOrganizationPlanResult {
   conflictsCount: number
   error?: string
 }
-

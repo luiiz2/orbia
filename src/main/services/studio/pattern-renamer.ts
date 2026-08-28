@@ -1,6 +1,14 @@
-import type { BulkRenameOptions, BulkRenamePreviewItem, StudioEntityType } from '../../../types/studio'
+import type {
+  BulkRenameOptions,
+  BulkRenamePreviewItem,
+  StudioEntityType
+} from '../../../types/studio'
 
-export function applyTitleTransformations(title: string, options: BulkRenameOptions, index: number): string {
+export function applyTitleTransformations(
+  title: string,
+  options: BulkRenameOptions,
+  index: number
+): string {
   let result = title
 
   // 1. Remove Prefix / Suffix
@@ -28,10 +36,16 @@ export function applyTitleTransformations(title: string, options: BulkRenameOpti
 
   // 3. Clean Codecs / Tags
   if (options.cleanTags) {
-    result = result.replace(/\[.*?\]|\(.*?\)/g, ' ').replace(/\s+/g, ' ').trim()
+    result = result
+      .replace(/\[.*?\]|\(.*?\)/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
   }
   if (options.cleanCodecs) {
-    result = result.replace(/\b(1080p|720p|4k|2160p|x264|x265|hevc|aac|mp4|mkv)\b/gi, '').replace(/\s+/g, ' ').trim()
+    result = result
+      .replace(/\b(1080p|720p|4k|2160p|x264|x265|hevc|aac|mp4|mkv)\b/gi, '')
+      .replace(/\s+/g, ' ')
+      .trim()
   }
   if (options.replaceUnderscores) {
     result = result.replace(/_/g, ' ')
@@ -43,7 +57,10 @@ export function applyTitleTransformations(title: string, options: BulkRenameOpti
   } else if (options.caseTransform === 'uppercase') {
     result = result.toUpperCase()
   } else if (options.caseTransform === 'titlecase') {
-    result = result.replace(/\w\S*/g, (w) => w.charAt(0).toUpperCase() + w.substring(1).toLowerCase())
+    result = result.replace(
+      /\w\S*/g,
+      (w) => w.charAt(0).toUpperCase() + w.substring(1).toLowerCase()
+    )
   } else if (options.caseTransform === 'sentencecase') {
     result = result.charAt(0).toUpperCase() + result.slice(1).toLowerCase()
   }
@@ -72,7 +89,12 @@ export function applyTitleTransformations(title: string, options: BulkRenameOpti
 }
 
 export function generateRenamePreview(
-  items: Array<{ id: string; appearanceId: string; type: StudioEntityType; title: string }>,
+  items: Array<{
+    id: string
+    appearanceId: string
+    type: StudioEntityType
+    title: string
+  }>,
   options: BulkRenameOptions
 ): BulkRenamePreviewItem[] {
   return items.map((item, idx) => {

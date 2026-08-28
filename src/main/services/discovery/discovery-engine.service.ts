@@ -24,7 +24,10 @@ interface CourseEntityMeta {
 }
 
 export class DiscoveryEngineService {
-  private cache = new Map<string, { timestamp: number; rails: DiscoveryRail[] }>()
+  private cache = new Map<
+    string,
+    { timestamp: number; rails: DiscoveryRail[] }
+  >()
   private cacheTtlMs = 60 * 1000 // 1 minute in-memory cache
 
   public invalidateCache(): void {
@@ -47,8 +50,15 @@ export class DiscoveryEngineService {
       return []
     }
 
-    const feedbackMap = recommendationFeedbackService.getFeedbackForProfile(db, profileId)
-    const recentExposures = recommendationFeedbackService.getRecentExposures(db, profileId, Date.now() - 24 * 3600 * 1000)
+    const feedbackMap = recommendationFeedbackService.getFeedbackForProfile(
+      db,
+      profileId
+    )
+    const recentExposures = recommendationFeedbackService.getRecentExposures(
+      db,
+      profileId,
+      Date.now() - 24 * 3600 * 1000
+    )
 
     const rails: DiscoveryRail[] = []
     const usedCourseIds = new Set<string>()
@@ -61,10 +71,16 @@ export class DiscoveryEngineService {
     }
 
     // 2. Because You Watched...
-    const becauseWatchedRail = this.buildBecauseWatchedRail(db, allCoursesMeta, usedCourseIds, feedbackMap)
+    const becauseWatchedRail = this.buildBecauseWatchedRail(
+      db,
+      allCoursesMeta,
+      usedCourseIds,
+      feedbackMap
+    )
     if (becauseWatchedRail && becauseWatchedRail.items.length > 0) {
       rails.push(becauseWatchedRail)
-      for (const item of becauseWatchedRail.items) usedCourseIds.add(item.course.id)
+      for (const item of becauseWatchedRail.items)
+        usedCourseIds.add(item.course.id)
     }
 
     // 3. For You (Personalized scored rail)
@@ -81,10 +97,14 @@ export class DiscoveryEngineService {
     }
 
     // 4. Almost Finished (Progress >= 70% and not completed)
-    const almostFinishedRail = this.buildAlmostFinishedRail(allCoursesMeta, usedCourseIds)
+    const almostFinishedRail = this.buildAlmostFinishedRail(
+      allCoursesMeta,
+      usedCourseIds
+    )
     if (almostFinishedRail && almostFinishedRail.items.length > 0) {
       rails.push(almostFinishedRail)
-      for (const item of almostFinishedRail.items) usedCourseIds.add(item.course.id)
+      for (const item of almostFinishedRail.items)
+        usedCourseIds.add(item.course.id)
     }
 
     // 5. Quick Wins (Remaining <= 3 hours)
@@ -95,14 +115,20 @@ export class DiscoveryEngineService {
     }
 
     // 6. Rediscover (Added > 45 days ago or started long ago)
-    const rediscoverRail = this.buildRediscoverRail(allCoursesMeta, usedCourseIds)
+    const rediscoverRail = this.buildRediscoverRail(
+      allCoursesMeta,
+      usedCourseIds
+    )
     if (rediscoverRail && rediscoverRail.items.length > 0) {
       rails.push(rediscoverRail)
       for (const item of rediscoverRail.items) usedCourseIds.add(item.course.id)
     }
 
     // 7. Recently Added
-    const recentRail = this.buildRecentlyAddedRail(allCoursesMeta, usedCourseIds)
+    const recentRail = this.buildRecentlyAddedRail(
+      allCoursesMeta,
+      usedCourseIds
+    )
     if (recentRail && recentRail.items.length > 0) {
       rails.push(recentRail)
     }
@@ -120,12 +146,20 @@ export class DiscoveryEngineService {
     return rails
   }
 
-  public getSimilarCourses(db: Database.Database, targetCourseId: string, limit: number = 6): DiscoveryItem[] {
+  public getSimilarCourses(
+    db: Database.Database,
+    targetCourseId: string,
+    limit: number = 6
+  ): DiscoveryItem[] {
     const allCoursesMeta = this.fetchCoursesMetadata(db)
-    const targetMeta = allCoursesMeta.find((c) => c.course.id === targetCourseId)
+    const targetMeta = allCoursesMeta.find(
+      (c) => c.course.id === targetCourseId
+    )
     if (!targetMeta) return []
 
-    const candidates = allCoursesMeta.filter((c) => c.course.id !== targetCourseId)
+    const candidates = allCoursesMeta.filter(
+      (c) => c.course.id !== targetCourseId
+    )
     const scored: DiscoveryItem[] = []
 
     for (const cand of candidates) {
@@ -135,14 +169,25 @@ export class DiscoveryEngineService {
       // Shared tags
       const sharedTags = cand.tags.filter((t) => targetMeta.tags.includes(t))
       if (sharedTags.length > 0) {
-        const overlapRatio = sharedTags.length / Math.max(1, targetMeta.tags.length)
-        score += Math.round(overlapRatio * DEFAULT_DISCOVERY_WEIGHTS.tagOverlapMax)
+        const overlapRatio =
+          sharedTags.length / Math.max(1, targetMeta.tags.length)
+        score += Math.round(
+          overlapRatio * DEFAULT_DISCOVERY_WEIGHTS.tagOverlapMax
+        )
         reasons.push(ReasonGenerator.sharedTags(sharedTags))
       }
 
       // Title keyword overlap
-      const targetWords = new Set(targetMeta.course.title.toLowerCase().split(/\s+/).filter((w) => w.length > 3))
-      const candWords = cand.course.title.toLowerCase().split(/\s+/).filter((w) => w.length > 3)
+      const targetWords = new Set(
+        targetMeta.course.title
+          .toLowerCase()
+          .split(/\s+/)
+          .filter((w) => w.length > 3)
+      )
+      const candWords = cand.course.title
+        .toLowerCase()
+        .split(/\s+/)
+        .filter((w) => w.length > 3)
       const matchingWords = candWords.filter((w) => targetWords.has(w))
       if (matchingWords.length > 0) {
         score += matchingWords.length * 8
@@ -156,7 +201,10 @@ export class DiscoveryEngineService {
         scored.push({
           course: cand.course,
           score,
-          reasons: reasons.length > 0 ? reasons : [ReasonGenerator.becauseWatched(targetMeta.course.title)],
+          reasons:
+            reasons.length > 0
+              ? reasons
+              : [ReasonGenerator.becauseWatched(targetMeta.course.title)],
           progressPercent: cand.progressPercent,
           remainingDurationMinutes: cand.remainingDurationMinutes,
           nextLessonTitle: cand.nextLessonTitle,
@@ -177,7 +225,10 @@ export class DiscoveryEngineService {
     const rawCoursesMeta = this.fetchCoursesMetadata(db)
     if (rawCoursesMeta.length === 0) return null
 
-    const feedbackMap = recommendationFeedbackService.getFeedbackForProfile(db, profileId)
+    const feedbackMap = recommendationFeedbackService.getFeedbackForProfile(
+      db,
+      profileId
+    )
     const allCoursesMeta = rawCoursesMeta.filter((c) => {
       const fb = feedbackMap.get(c.course.id)
       return fb !== 'dislike' && fb !== 'not_interested'
@@ -188,13 +239,17 @@ export class DiscoveryEngineService {
     let headline = 'Que tal continuar seus estudos?'
 
     if (mode === 'continue') {
-      pool = allCoursesMeta.filter((c) => c.progressPercent > 0 && !c.isCompleted)
+      pool = allCoursesMeta.filter(
+        (c) => c.progressPercent > 0 && !c.isCompleted
+      )
       headline = 'Continue de onde você parou!'
     } else if (mode === 'start_new') {
       pool = allCoursesMeta.filter((c) => c.progressPercent === 0)
       headline = 'Comece algo totalmente novo hoje!'
     } else if (mode === 'quick_lesson') {
-      pool = allCoursesMeta.filter((c) => c.remainingDurationMinutes <= 45 && !c.isCompleted)
+      pool = allCoursesMeta.filter(
+        (c) => c.remainingDurationMinutes <= 45 && !c.isCompleted
+      )
       headline = 'Uma aula rápida para o seu momento!'
     }
 
@@ -231,7 +286,10 @@ export class DiscoveryEngineService {
       item: {
         course: chosen.course,
         score: 100,
-        reasons: chosen.progressPercent > 0 ? [ReasonGenerator.almostFinished(chosen.progressPercent)] : [ReasonGenerator.freshAddition()],
+        reasons:
+          chosen.progressPercent > 0
+            ? [ReasonGenerator.almostFinished(chosen.progressPercent)]
+            : [ReasonGenerator.freshAddition()],
         progressPercent: chosen.progressPercent,
         remainingDurationMinutes: chosen.remainingDurationMinutes,
         nextLessonTitle: chosen.nextLessonTitle,
@@ -258,7 +316,10 @@ export class DiscoveryEngineService {
     const result: CategoryDiscoveryData[] = []
     for (const [category, courses] of categoryMap.entries()) {
       if (courses.length > 0) {
-        const totalDuration = courses.reduce((acc, c) => acc + c.totalDuration, 0)
+        const totalDuration = courses.reduce(
+          (acc, c) => acc + c.totalDuration,
+          0
+        )
         result.push({
           category,
           courseCount: courses.length,
@@ -273,9 +334,13 @@ export class DiscoveryEngineService {
   }
 
   private fetchCoursesMetadata(db: Database.Database): CourseEntityMeta[] {
-    const courses = db.prepare(`
+    const courses = db
+      .prepare(
+        `
       SELECT * FROM courses WHERE is_hidden = 0 ORDER BY created_at DESC
-    `).all() as Array<{
+    `
+      )
+      .all() as Array<{
       id: string
       title: string
       slug: string
@@ -292,9 +357,13 @@ export class DiscoveryEngineService {
       updated_at: number
     }>
 
-    const appearances = db.prepare(`
+    const appearances = db
+      .prepare(
+        `
       SELECT entity_id, tags FROM library_appearances WHERE entity_type = 'course' AND is_hidden = 0
-    `).all() as Array<{ entity_id: string; tags: string }>
+    `
+      )
+      .all() as Array<{ entity_id: string; tags: string }>
 
     const tagsMap = new Map<string, string[]>()
     for (const app of appearances) {
@@ -306,7 +375,9 @@ export class DiscoveryEngineService {
     }
 
     // Get progress summaries
-    const progressRows = db.prepare(`
+    const progressRows = db
+      .prepare(
+        `
       SELECT
         c.id as course_id,
         COUNT(l.id) as total_lessons,
@@ -319,7 +390,9 @@ export class DiscoveryEngineService {
       LEFT JOIN lesson_progress lp ON lp.lesson_id = l.id
       WHERE c.is_hidden = 0
       GROUP BY c.id
-    `).all() as Array<{
+    `
+      )
+      .all() as Array<{
       course_id: string
       total_lessons: number
       completed_lessons: number
@@ -328,11 +401,26 @@ export class DiscoveryEngineService {
       last_played: number | null
     }>
 
-    const progressMap = new Map<string, { percent: number; isCompleted: boolean; lastPlayed: number; remainingMinutes: number }>()
+    const progressMap = new Map<
+      string,
+      {
+        percent: number
+        isCompleted: boolean
+        lastPlayed: number
+        remainingMinutes: number
+      }
+    >()
     for (const pr of progressRows) {
-      const percent = pr.total_lessons > 0 ? (pr.completed_lessons / pr.total_lessons) * 100 : 0
-      const isCompleted = pr.total_lessons > 0 && pr.completed_lessons === pr.total_lessons
-      const remainingSeconds = Math.max(0, (pr.total_seconds || 0) - (pr.watched_seconds || 0))
+      const percent =
+        pr.total_lessons > 0
+          ? (pr.completed_lessons / pr.total_lessons) * 100
+          : 0
+      const isCompleted =
+        pr.total_lessons > 0 && pr.completed_lessons === pr.total_lessons
+      const remainingSeconds = Math.max(
+        0,
+        (pr.total_seconds || 0) - (pr.watched_seconds || 0)
+      )
       progressMap.set(pr.course_id, {
         percent: Math.round(percent),
         isCompleted,
@@ -342,7 +430,12 @@ export class DiscoveryEngineService {
     }
 
     return courses.map((c) => {
-      const prog = progressMap.get(c.id) || { percent: 0, isCompleted: false, lastPlayed: 0, remainingMinutes: Math.round(c.total_duration / 60) }
+      const prog = progressMap.get(c.id) || {
+        percent: 0,
+        isCompleted: false,
+        lastPlayed: 0,
+        remainingMinutes: Math.round(c.total_duration / 60)
+      }
       const courseObj: Course = {
         id: c.id,
         title: c.title,
@@ -386,7 +479,11 @@ export class DiscoveryEngineService {
       const sourceMeta = metaMap.get(rel.sourceCourseId)
       const targetMeta = metaMap.get(rel.targetCourseId)
 
-      if (sourceMeta && targetMeta && (sourceMeta.isCompleted || sourceMeta.progressPercent >= 50)) {
+      if (
+        sourceMeta &&
+        targetMeta &&
+        (sourceMeta.isCompleted || sourceMeta.progressPercent >= 50)
+      ) {
         if (!targetMeta.isCompleted) {
           items.push({
             course: targetMeta.course,
@@ -425,8 +522,11 @@ export class DiscoveryEngineService {
 
     if (!recentMeta) return null
 
-    const similar = this.getSimilarCourses(db, recentMeta.course.id, 8)
-      .filter((it) => !usedIds.has(it.course.id) && feedbackMap.get(it.course.id) !== 'not_interested')
+    const similar = this.getSimilarCourses(db, recentMeta.course.id, 8).filter(
+      (it) =>
+        !usedIds.has(it.course.id) &&
+        feedbackMap.get(it.course.id) !== 'not_interested'
+    )
 
     if (similar.length === 0) return null
 
@@ -491,10 +591,14 @@ export class DiscoveryEngineService {
 
       // Category / Tag preferences from Profile
       if (preferences) {
-        const hasExcluded = meta.tags.some((t) => preferences.excludedCategories.includes(t))
+        const hasExcluded = meta.tags.some((t) =>
+          preferences.excludedCategories.includes(t)
+        )
         if (hasExcluded) continue
 
-        const hasPreferred = meta.tags.some((t) => preferences.preferredCategories.includes(t))
+        const hasPreferred = meta.tags.some((t) =>
+          preferences.preferredCategories.includes(t)
+        )
         if (hasPreferred) {
           score += DEFAULT_DISCOVERY_WEIGHTS.categoryMatch
           reasons.push(ReasonGenerator.sharedCategory(meta.tags[0]))
@@ -502,7 +606,8 @@ export class DiscoveryEngineService {
       }
 
       if (reasons.length === 0) {
-        if (meta.tags.length > 0) reasons.push(ReasonGenerator.sharedCategory(meta.tags[0]))
+        if (meta.tags.length > 0)
+          reasons.push(ReasonGenerator.sharedCategory(meta.tags[0]))
         else reasons.push(ReasonGenerator.freshAddition())
       }
 
@@ -531,9 +636,15 @@ export class DiscoveryEngineService {
     }
   }
 
-  private buildAlmostFinishedRail(allMeta: CourseEntityMeta[], usedIds: Set<string>): DiscoveryRail | null {
+  private buildAlmostFinishedRail(
+    allMeta: CourseEntityMeta[],
+    usedIds: Set<string>
+  ): DiscoveryRail | null {
     const candidates = allMeta
-      .filter((m) => !usedIds.has(m.course.id) && m.progressPercent >= 70 && !m.isCompleted)
+      .filter(
+        (m) =>
+          !usedIds.has(m.course.id) && m.progressPercent >= 70 && !m.isCompleted
+      )
       .sort((a, b) => b.progressPercent - a.progressPercent)
 
     if (candidates.length === 0) return null
@@ -558,9 +669,18 @@ export class DiscoveryEngineService {
     }
   }
 
-  private buildQuickWinsRail(allMeta: CourseEntityMeta[], usedIds: Set<string>): DiscoveryRail | null {
+  private buildQuickWinsRail(
+    allMeta: CourseEntityMeta[],
+    usedIds: Set<string>
+  ): DiscoveryRail | null {
     const candidates = allMeta
-      .filter((m) => !usedIds.has(m.course.id) && m.remainingDurationMinutes <= 180 && !m.isCompleted && m.remainingDurationMinutes > 0)
+      .filter(
+        (m) =>
+          !usedIds.has(m.course.id) &&
+          m.remainingDurationMinutes <= 180 &&
+          !m.isCompleted &&
+          m.remainingDurationMinutes > 0
+      )
       .sort((a, b) => a.remainingDurationMinutes - b.remainingDurationMinutes)
 
     if (candidates.length === 0) return null
@@ -585,12 +705,20 @@ export class DiscoveryEngineService {
     }
   }
 
-  private buildRediscoverRail(allMeta: CourseEntityMeta[], usedIds: Set<string>): DiscoveryRail | null {
+  private buildRediscoverRail(
+    allMeta: CourseEntityMeta[],
+    usedIds: Set<string>
+  ): DiscoveryRail | null {
     const now = Date.now()
     const fortyFiveDaysMs = 45 * 24 * 3600 * 1000
 
     const candidates = allMeta
-      .filter((m) => !usedIds.has(m.course.id) && (now - m.course.createdAt >= fortyFiveDaysMs) && (m.lastPlayedAt === 0 || now - m.lastPlayedAt >= fortyFiveDaysMs))
+      .filter(
+        (m) =>
+          !usedIds.has(m.course.id) &&
+          now - m.course.createdAt >= fortyFiveDaysMs &&
+          (m.lastPlayedAt === 0 || now - m.lastPlayedAt >= fortyFiveDaysMs)
+      )
       .sort((a, b) => a.course.createdAt - b.course.createdAt)
 
     if (candidates.length === 0) return null
@@ -618,7 +746,10 @@ export class DiscoveryEngineService {
     }
   }
 
-  private buildRecentlyAddedRail(allMeta: CourseEntityMeta[], usedIds: Set<string>): DiscoveryRail | null {
+  private buildRecentlyAddedRail(
+    allMeta: CourseEntityMeta[],
+    usedIds: Set<string>
+  ): DiscoveryRail | null {
     const candidates = allMeta
       .filter((m) => !usedIds.has(m.course.id))
       .sort((a, b) => b.course.createdAt - a.course.createdAt)

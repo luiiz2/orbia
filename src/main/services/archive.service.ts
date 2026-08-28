@@ -2,7 +2,10 @@ import fs from 'node:fs'
 import path from 'node:path'
 import AdmZip from 'adm-zip'
 import { logger } from './logger.service'
-import { validateMediaFiles, type MediaValidationResult } from './media-validation.service'
+import {
+  validateMediaFiles,
+  type MediaValidationResult
+} from './media-validation.service'
 
 const GIBIBYTE = 1024 * 1024 * 1024
 
@@ -59,7 +62,9 @@ export interface ArchiveServiceDependencies {
 }
 
 export class ArchiveService {
-  public constructor(private readonly dependencies: ArchiveServiceDependencies = {}) {}
+  public constructor(
+    private readonly dependencies: ArchiveServiceDependencies = {}
+  ) {}
 
   /**
    * Check if a file path is a zip archive
@@ -93,7 +98,9 @@ export class ArchiveService {
    * Copies a ZIP into a unique app-owned staging directory, extracts it safely, and
    * verifies every archive file entry. This method never changes the user's source ZIP.
    */
-  public async prepareZip(options: PrepareZipOptions): Promise<PreparedArchive> {
+  public async prepareZip(
+    options: PrepareZipOptions
+  ): Promise<PreparedArchive> {
     const { zipPath, stagingBaseDir, onProgress } = options
 
     if (!fs.existsSync(zipPath)) {
@@ -105,7 +112,9 @@ export class ArchiveService {
       fs.mkdirSync(resolvedStagingBase, { recursive: true })
     }
 
-    const stagingRoot = fs.mkdtempSync(path.join(resolvedStagingBase, 'orbia-import-'))
+    const stagingRoot = fs.mkdtempSync(
+      path.join(resolvedStagingBase, 'orbia-import-')
+    )
     const stagedArchivePath = path.join(stagingRoot, path.basename(zipPath))
     const extractTargetDir = path.join(stagingRoot, 'content')
 
@@ -121,7 +130,9 @@ export class ArchiveService {
 
       const zipBaseName = path.basename(zipPath, path.extname(zipPath))
 
-      logger.info(`[ArchiveService] Preparing ${zipPath} in ${extractTargetDir}`)
+      logger.info(
+        `[ArchiveService] Preparing ${zipPath} in ${extractTargetDir}`
+      )
 
       let zipEntries: AdmZip.IZipEntry[]
       try {
@@ -134,159 +145,197 @@ export class ArchiveService {
       this.assertZipSafetyLimits(zipEntries, resolvedStagingBase)
       const totalEntries = zipEntries.length
 
-    let extractedCount = 0
-    const failedEntries = new Set<string>()
-    const warnings: string[] = []
-    const expectedFiles = new Map<string, number>()
-    const targetRoot = path.resolve(extractTargetDir)
+      let extractedCount = 0
+      const failedEntries = new Set<string>()
+      const warnings: string[] = []
+      const expectedFiles = new Map<string, number>()
+      const targetRoot = path.resolve(extractTargetDir)
 
-    // Extract entries safely one by one
-    for (let i = 0; i < totalEntries; i++) {
-      const entry = zipEntries[i]
+      // Extract entries safely one by one
+      for (let i = 0; i < totalEntries; i++) {
+        const entry = zipEntries[i]
 
-      // Decode entry name: UTF-8 when valid, else latin1 (Windows-created zips)
-      const rawName = entry.rawEntryName
-      let decodedName = rawName.toString('utf8')
-      try {
-        new TextDecoder('utf-8', { fatal: true }).decode(rawName)
-      } catch {
-        decodedName = rawName.toString('latin1')
-      }
-
-      // Normalize and sanitize the relative path.
-      const entryPath = sanitizeRelPath(decodedName)
-
-      // Prevent Zip Slip vulnerability
-      const resolvedDest = path.resolve(extractTargetDir, entryPath)
-      const relative = path.relative(targetRoot, resolvedDest)
-
-      if (!entryPath || relative.startsWith('..') || path.isAbsolute(relative) || entryPath.includes('..')) {
-        failedEntries.add(entryPath || decodedName)
-        warnings.push(`Skipped unsafe path: ${entryPath}`)
-        logger.warn(`[ArchiveService] Skipped unsafe Zip Slip path: ${entryPath}`)
-        this.reportProgress(onProgress, i, totalEntries, entryPath)
-        continue
-      }
-
-      if (entry.isDirectory) {
+        // Decode entry name: UTF-8 when valid, else latin1 (Windows-created zips)
+        const rawName = entry.rawEntryName
+        let decodedName = rawName.toString('utf8')
         try {
-          if (!fs.existsSync(resolvedDest)) {
-            fs.mkdirSync(resolvedDest, { recursive: true })
-          }
-        } catch (err) {
-          failedEntries.add(entryPath)
-          warnings.push(`Failed to create directory: ${entryPath}`)
-          logger.warn(`[ArchiveService] Failed to create dir ${entryPath}:`, err)
+          new TextDecoder('utf-8', { fatal: true }).decode(rawName)
+        } catch {
+          decodedName = rawName.toString('latin1')
         }
-      } else {
-        if (expectedFiles.has(entryPath)) {
-          failedEntries.add(entryPath)
-          warnings.push(`Duplicate destination path in ZIP: ${entryPath}`)
-          logger.warn(`[ArchiveService] Duplicate destination path in ZIP: ${entryPath}`)
+
+        // Normalize and sanitize the relative path.
+        const entryPath = sanitizeRelPath(decodedName)
+
+        // Prevent Zip Slip vulnerability
+        const resolvedDest = path.resolve(extractTargetDir, entryPath)
+        const relative = path.relative(targetRoot, resolvedDest)
+
+        if (
+          !entryPath ||
+          relative.startsWith('..') ||
+          path.isAbsolute(relative) ||
+          entryPath.includes('..')
+        ) {
+          failedEntries.add(entryPath || decodedName)
+          warnings.push(`Skipped unsafe path: ${entryPath}`)
+          logger.warn(
+            `[ArchiveService] Skipped unsafe Zip Slip path: ${entryPath}`
+          )
           this.reportProgress(onProgress, i, totalEntries, entryPath)
           continue
         }
 
-        const expectedSize = entry.header.size
-        expectedFiles.set(entryPath, expectedSize)
-
-        try {
-          const parentDir = path.dirname(resolvedDest)
-          if (!fs.existsSync(parentDir)) {
-            fs.mkdirSync(parentDir, { recursive: true })
-          }
-
-          const data = entry.getData()
-          fs.writeFileSync(resolvedDest, data)
-          extractedCount++
-
-          // Byte-size verification: what we wrote must match the archive record
-          if (data.length !== expectedSize) {
+        if (entry.isDirectory) {
+          try {
+            if (!fs.existsSync(resolvedDest)) {
+              fs.mkdirSync(resolvedDest, { recursive: true })
+            }
+          } catch (err) {
             failedEntries.add(entryPath)
-            warnings.push(`Size mismatch for ${entryPath}: wrote ${data.length}, expected ${expectedSize}`)
+            warnings.push(`Failed to create directory: ${entryPath}`)
             logger.warn(
-              `[ArchiveService] Size mismatch for ${entryPath}: wrote ${data.length}, expected ${expectedSize}`
+              `[ArchiveService] Failed to create dir ${entryPath}:`,
+              err
             )
           }
-        } catch (err) {
+        } else {
+          if (expectedFiles.has(entryPath)) {
+            failedEntries.add(entryPath)
+            warnings.push(`Duplicate destination path in ZIP: ${entryPath}`)
+            logger.warn(
+              `[ArchiveService] Duplicate destination path in ZIP: ${entryPath}`
+            )
+            this.reportProgress(onProgress, i, totalEntries, entryPath)
+            continue
+          }
+
+          const expectedSize = entry.header.size
+          expectedFiles.set(entryPath, expectedSize)
+
+          try {
+            const parentDir = path.dirname(resolvedDest)
+            if (!fs.existsSync(parentDir)) {
+              fs.mkdirSync(parentDir, { recursive: true })
+            }
+
+            const data = entry.getData()
+            fs.writeFileSync(resolvedDest, data)
+            extractedCount++
+
+            // Byte-size verification: what we wrote must match the archive record
+            if (data.length !== expectedSize) {
+              failedEntries.add(entryPath)
+              warnings.push(
+                `Size mismatch for ${entryPath}: wrote ${data.length}, expected ${expectedSize}`
+              )
+              logger.warn(
+                `[ArchiveService] Size mismatch for ${entryPath}: wrote ${data.length}, expected ${expectedSize}`
+              )
+            }
+          } catch (err) {
+            failedEntries.add(entryPath)
+            warnings.push(`Failed to extract: ${entryPath}`)
+            logger.warn(`[ArchiveService] Failed to extract ${entryPath}:`, err)
+          }
+        }
+
+        this.reportProgress(onProgress, i, totalEntries, entryPath)
+      }
+
+      // Verify every expected file path and byte size from a clean staging directory.
+      for (const [entryPath, expectedSize] of expectedFiles) {
+        const resolvedDest = path.resolve(extractTargetDir, entryPath)
+        try {
+          const stat = fs.statSync(resolvedDest)
+          if (!stat.isFile() || stat.size !== expectedSize) {
+            failedEntries.add(entryPath)
+            warnings.push(
+              `Verification mismatch for ${entryPath}: expected ${expectedSize} bytes`
+            )
+          }
+        } catch (error) {
           failedEntries.add(entryPath)
-          warnings.push(`Failed to extract: ${entryPath}`)
-          logger.warn(`[ArchiveService] Failed to extract ${entryPath}:`, err)
+          warnings.push(`Verification missing file: ${entryPath}`)
+          logger.warn(
+            `[ArchiveService] Verification failed for ${entryPath}:`,
+            error
+          )
         }
       }
 
-      this.reportProgress(onProgress, i, totalEntries, entryPath)
-    }
-
-    // Verify every expected file path and byte size from a clean staging directory.
-    for (const [entryPath, expectedSize] of expectedFiles) {
-      const resolvedDest = path.resolve(extractTargetDir, entryPath)
+      const stagedFiles = [...expectedFiles.keys()].map((entryPath) =>
+        path.join(extractTargetDir, entryPath)
+      )
+      let mediaValidationFailed = false
       try {
-        const stat = fs.statSync(resolvedDest)
-        if (!stat.isFile() || stat.size !== expectedSize) {
-          failedEntries.add(entryPath)
-          warnings.push(`Verification mismatch for ${entryPath}: expected ${expectedSize} bytes`)
+        const mediaValidation = await (
+          this.dependencies.validateMedia ?? validateMediaFiles
+        )(stagedFiles)
+        mediaValidationFailed = !mediaValidation.valid
+        for (const failedFile of mediaValidation.failedFiles) {
+          const relativePath = path
+            .relative(extractTargetDir, failedFile)
+            .split(path.sep)
+            .join('/')
+          failedEntries.add(relativePath || failedFile)
         }
+        warnings.push(...mediaValidation.warnings)
       } catch (error) {
-        failedEntries.add(entryPath)
-        warnings.push(`Verification missing file: ${entryPath}`)
-        logger.warn(`[ArchiveService] Verification failed for ${entryPath}:`, error)
+        mediaValidationFailed = true
+        const mediaFiles = stagedFiles.filter((filePath) =>
+          /\.(?:mp4|mkv|webm|mov|avi|m4v|ts|wmv|flv|mp3|m4a|wav|ogg|flac|aac|wma)$/i.test(
+            filePath
+          )
+        )
+        for (const filePath of mediaFiles) {
+          failedEntries.add(
+            path.relative(extractTargetDir, filePath).split(path.sep).join('/')
+          )
+        }
+        warnings.push(
+          `Media validation could not run: ${error instanceof Error ? error.message : String(error)}`
+        )
       }
-    }
 
-    const stagedFiles = [...expectedFiles.keys()].map((entryPath) => path.join(extractTargetDir, entryPath))
-    let mediaValidationFailed = false
-    try {
-      const mediaValidation = await (this.dependencies.validateMedia ?? validateMediaFiles)(stagedFiles)
-      mediaValidationFailed = !mediaValidation.valid
-      for (const failedFile of mediaValidation.failedFiles) {
-        const relativePath = path.relative(extractTargetDir, failedFile).split(path.sep).join('/')
-        failedEntries.add(relativePath || failedFile)
+      const filesOnDisk = countFilesRecursive(extractTargetDir)
+      const verificationOk =
+        !mediaValidationFailed &&
+        failedEntries.size === 0 &&
+        filesOnDisk === expectedFiles.size
+      if (filesOnDisk !== expectedFiles.size) {
+        warnings.push(
+          `Verification mismatch: ${filesOnDisk} files on disk, ${expectedFiles.size} expected (${totalEntries} entries in ZIP)`
+        )
       }
-      warnings.push(...mediaValidation.warnings)
-    } catch (error) {
-      mediaValidationFailed = true
-      const mediaFiles = stagedFiles.filter((filePath) => /\.(?:mp4|mkv|webm|mov|avi|m4v|ts|wmv|flv|mp3|m4a|wav|ogg|flac|aac|wma)$/i.test(filePath))
-      for (const filePath of mediaFiles) {
-        failedEntries.add(path.relative(extractTargetDir, filePath).split(path.sep).join('/'))
-      }
-      warnings.push(
-        `Media validation could not run: ${error instanceof Error ? error.message : String(error)}`
+
+      logger.info(
+        `[ArchiveService] Extraction completed. Extracted ${extractedCount} files from ${totalEntries} entries. Verified: ${verificationOk}`
       )
-    }
 
-    const filesOnDisk = countFilesRecursive(extractTargetDir)
-    const verificationOk = !mediaValidationFailed && failedEntries.size === 0 && filesOnDisk === expectedFiles.size
-    if (filesOnDisk !== expectedFiles.size) {
-      warnings.push(
-        `Verification mismatch: ${filesOnDisk} files on disk, ${expectedFiles.size} expected (${totalEntries} entries in ZIP)`
-      )
-    }
+      // Inspect if the extracted directory has a single top-level root folder
+      const finalRoot = this.detectInnerCourseRoot(extractTargetDir)
 
-    logger.info(
-      `[ArchiveService] Extraction completed. Extracted ${extractedCount} files from ${totalEntries} entries. Verified: ${verificationOk}`
-    )
-
-    // Inspect if the extracted directory has a single top-level root folder
-    const finalRoot = this.detectInnerCourseRoot(extractTargetDir)
-
-    return {
-      sourcePath: path.resolve(zipPath),
-      extractedPath: finalRoot,
-      totalEntries,
-      totalExtractedFiles: extractedCount,
-      suggestedCourseName: zipBaseName,
-      failedEntries: [...failedEntries],
-      warnings,
-      verificationOk,
-      stagingRoot,
-      stagedArchivePath
-    }
+      return {
+        sourcePath: path.resolve(zipPath),
+        extractedPath: finalRoot,
+        totalEntries,
+        totalExtractedFiles: extractedCount,
+        suggestedCourseName: zipBaseName,
+        failedEntries: [...failedEntries],
+        warnings,
+        verificationOk,
+        stagingRoot,
+        stagedArchivePath
+      }
     } catch (error) {
       try {
         this.discardPreparedArchive(stagingRoot, resolvedStagingBase)
       } catch (cleanupError) {
-        logger.error('[ArchiveService] Failed to clean incomplete ZIP staging:', cleanupError)
+        logger.error(
+          '[ArchiveService] Failed to clean incomplete ZIP staging:',
+          cleanupError
+        )
       }
       throw error
     }
@@ -296,7 +345,10 @@ export class ArchiveService {
    * Removes an app-owned staging directory. The resolved target must be a direct
    * descendant of the configured staging base, never a user-provided source path.
    */
-  public discardPreparedArchive(stagingRoot: string, stagingBaseDir: string): void {
+  public discardPreparedArchive(
+    stagingRoot: string,
+    stagingBaseDir: string
+  ): void {
     const resolvedBase = path.resolve(stagingBaseDir)
     const resolvedStaging = path.resolve(stagingRoot)
     const relative = path.relative(resolvedBase, resolvedStaging)
@@ -310,9 +362,14 @@ export class ArchiveService {
   }
 
   /** Rejects ZIP bomb metadata before entry data is read or written. */
-  private assertZipSafetyLimits(entries: AdmZip.IZipEntry[], stagingBaseDir: string): void {
+  private assertZipSafetyLimits(
+    entries: AdmZip.IZipEntry[],
+    stagingBaseDir: string
+  ): void {
     if (entries.length > MAX_ZIP_ENTRIES) {
-      throw new Error(`ZIP archive has too many entries (maximum ${MAX_ZIP_ENTRIES}).`)
+      throw new Error(
+        `ZIP archive has too many entries (maximum ${MAX_ZIP_ENTRIES}).`
+      )
     }
 
     let totalUncompressedBytes = 0n
@@ -324,7 +381,10 @@ export class ArchiveService {
 
       const uncompressedSize = zipEntrySize(entry.header.size)
       const compressedSize = zipEntrySize(entry.header.compressedSize)
-      if (uncompressedSize > 0n && (compressedSize === 0n || uncompressedSize > compressedSize * maxRatio)) {
+      if (
+        uncompressedSize > 0n &&
+        (compressedSize === 0n || uncompressedSize > compressedSize * maxRatio)
+      ) {
         throw new Error(
           `ZIP archive contains an entry with a suspicious compression ratio (maximum ${MAX_ZIP_ENTRY_COMPRESSION_RATIO}:1).`
         )
@@ -340,7 +400,9 @@ export class ArchiveService {
 
     const availableBytes = this.availableStagingBytes(stagingBaseDir)
     if (availableBytes === undefined) {
-      throw new Error('Could not verify available staging space. ZIP extraction was not started.')
+      throw new Error(
+        'Could not verify available staging space. ZIP extraction was not started.'
+      )
     }
 
     const percentageMargin =
@@ -350,7 +412,9 @@ export class ArchiveService {
         ? percentageMargin
         : BigInt(STAGING_FREE_SPACE_MARGIN_BYTES)
     if (totalUncompressedBytes + requiredMargin > availableBytes) {
-      throw new Error('ZIP archive does not fit in the staging volume with the required safety margin.')
+      throw new Error(
+        'ZIP archive does not fit in the staging volume with the required safety margin.'
+      )
     }
   }
 
@@ -361,10 +425,14 @@ export class ArchiveService {
 
     try {
       const stats = statfsSync(stagingBaseDir, { bigint: true })
-      if (typeof stats.bavail !== 'bigint' || typeof stats.bsize !== 'bigint') return undefined
+      if (typeof stats.bavail !== 'bigint' || typeof stats.bsize !== 'bigint')
+        return undefined
       return stats.bavail * stats.bsize
     } catch (error) {
-      logger.warn('[ArchiveService] Could not inspect staging free space:', error)
+      logger.warn(
+        '[ArchiveService] Could not inspect staging free space:',
+        error
+      )
       return undefined
     }
   }
@@ -397,7 +465,9 @@ export class ArchiveService {
 
       if (visibleItems.length === 1 && visibleItems[0].isDirectory()) {
         const innerPath = path.join(targetDir, visibleItems[0].name)
-        logger.info(`[ArchiveService] Detected single inner folder: ${innerPath}`)
+        logger.info(
+          `[ArchiveService] Detected single inner folder: ${innerPath}`
+        )
         return innerPath
       }
     } catch (err) {

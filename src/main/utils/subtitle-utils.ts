@@ -50,7 +50,8 @@ export function convertSrtToVtt(srtContent: string): string {
       const normalizedEnd = formatTime(end)
       const paddedStartMs = startMs.padEnd(3, '0')
       const paddedEndMs = endMs.padEnd(3, '0')
-      const settings = cueSettings && cueSettings.trim() ? ` ${cueSettings.trim()}` : ''
+      const settings =
+        cueSettings && cueSettings.trim() ? ` ${cueSettings.trim()}` : ''
 
       return `${normalizedStart}.${paddedStartMs} --> ${normalizedEnd}.${paddedEndMs}${settings}`
     }

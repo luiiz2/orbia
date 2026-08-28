@@ -59,7 +59,8 @@ export interface TranscriptionEnqueueResult {
   jobId?: string
   lessonId: string
   skipped: boolean
-  reason?: 'already_current' | 'active_job' | 'unsupported_media' | 'missing_lesson'
+  reason?:
+    'already_current' | 'active_job' | 'unsupported_media' | 'missing_lesson'
 }
 
 export interface TranscriptionBatchResult {

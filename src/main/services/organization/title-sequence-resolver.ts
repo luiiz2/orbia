@@ -1,4 +1,8 @@
-import { cleanTitle, cleanLessonTitle, isGenericMediaTitle } from '../../utils/title-cleaner'
+import {
+  cleanTitle,
+  cleanLessonTitle,
+  isGenericMediaTitle
+} from '../../utils/title-cleaner'
 import { naturalCompare } from '../../utils/natural-sort'
 
 export interface SequenceItem {
@@ -87,7 +91,11 @@ export function resolveSequenceOrdering<T extends SequenceItem>(
   }
 
   // 1. If all or some items have manual order overrides and we should preserve it
-  const hasManualOrdering = options.preserveManualOrder && items.some((i) => i.isManual || (i.displayOrder !== undefined && i.displayOrder > 0))
+  const hasManualOrdering =
+    options.preserveManualOrder &&
+    items.some(
+      (i) => i.isManual || (i.displayOrder !== undefined && i.displayOrder > 0)
+    )
 
   let sortedItems: T[]
   if (hasManualOrdering) {
@@ -99,34 +107,51 @@ export function resolveSequenceOrdering<T extends SequenceItem>(
   } else {
     // Sort naturally: by explicit number first if both have numbers, else natural string compare
     sortedItems = [...items].sort((a, b) => {
-      const numA = a.explicitNumber ?? extractExplicitNumber(a.rawFileName) ?? extractExplicitNumber(a.cleanTitle)
-      const numB = b.explicitNumber ?? extractExplicitNumber(b.rawFileName) ?? extractExplicitNumber(b.cleanTitle)
+      const numA =
+        a.explicitNumber ??
+        extractExplicitNumber(a.rawFileName) ??
+        extractExplicitNumber(a.cleanTitle)
+      const numB =
+        b.explicitNumber ??
+        extractExplicitNumber(b.rawFileName) ??
+        extractExplicitNumber(b.cleanTitle)
 
       if (numA !== null && numB !== null && numA !== numB) {
         return numA - numB
       }
 
-      return naturalCompare(a.cleanTitle || a.rawFileName, b.cleanTitle || b.rawFileName)
+      return naturalCompare(
+        a.cleanTitle || a.rawFileName,
+        b.cleanTitle || b.rawFileName
+      )
     })
   }
 
   // 2. Check for duplicate explicit numbers with different content
   const numberOccurrences = new Map<number, number>()
   for (const item of sortedItems) {
-    const num = item.explicitNumber ?? extractExplicitNumber(item.rawFileName) ?? extractExplicitNumber(item.cleanTitle)
+    const num =
+      item.explicitNumber ??
+      extractExplicitNumber(item.rawFileName) ??
+      extractExplicitNumber(item.cleanTitle)
     if (num !== null) {
       numberOccurrences.set(num, (numberOccurrences.get(num) || 0) + 1)
     }
   }
 
-  const hasDuplicateNumbers = Array.from(numberOccurrences.values()).some((cnt) => cnt > 1)
+  const hasDuplicateNumbers = Array.from(numberOccurrences.values()).some(
+    (cnt) => cnt > 1
+  )
 
   // 3. Detect sequence gaps in strictly increasing integer sequences (e.g. 1, 2, 4, 5 -> missing 3)
   const detectedGaps: Array<{ afterIndex: number; expectedNumber: number }> = []
   const integerNumbers: Array<{ num: number; index: number }> = []
 
   sortedItems.forEach((item, idx) => {
-    const num = item.explicitNumber ?? extractExplicitNumber(item.rawFileName) ?? extractExplicitNumber(item.cleanTitle)
+    const num =
+      item.explicitNumber ??
+      extractExplicitNumber(item.rawFileName) ??
+      extractExplicitNumber(item.cleanTitle)
     if (num !== null && Number.isInteger(num)) {
       integerNumbers.push({ num, index: idx })
     }
@@ -138,7 +163,10 @@ export function resolveSequenceOrdering<T extends SequenceItem>(
     if (next.num > current.num + 1 && next.num <= current.num + 10) {
       // Gap detected (limit to max 10 to avoid false positives on arbitrary large jump)
       for (let missing = current.num + 1; missing < next.num; missing++) {
-        detectedGaps.push({ afterIndex: current.index, expectedNumber: missing })
+        detectedGaps.push({
+          afterIndex: current.index,
+          expectedNumber: missing
+        })
       }
     }
   }
@@ -148,7 +176,8 @@ export function resolveSequenceOrdering<T extends SequenceItem>(
     return {
       ...item,
       orderIndex: idx + 1,
-      displayOrder: item.isManual && item.displayOrder ? item.displayOrder : idx + 1
+      displayOrder:
+        item.isManual && item.displayOrder ? item.displayOrder : idx + 1
     }
   })
 

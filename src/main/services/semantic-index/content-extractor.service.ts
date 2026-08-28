@@ -10,7 +10,10 @@ import type {
   SemanticSourceKind
 } from '../../../types/semantic-index'
 import { CODE_EXTENSIONS } from '../../utils/file-utils'
-import { transcriptRepository, type TranscriptRepository } from '../transcription/transcript-repository.service'
+import {
+  transcriptRepository,
+  type TranscriptRepository
+} from '../transcription/transcript-repository.service'
 import { databaseService, type DatabaseService } from '../database.service'
 
 export interface PdfTextPage {
@@ -18,7 +21,10 @@ export interface PdfTextPage {
   text: string
 }
 
-export type PdfTextExtractor = (content: Buffer, fileName: string) => Promise<PdfTextPage[]>
+export type PdfTextExtractor = (
+  content: Buffer,
+  fileName: string
+) => Promise<PdfTextPage[]>
 
 export interface ContentExtractorDependencies {
   databaseService?: DatabaseService
@@ -76,11 +82,15 @@ export class ContentExtractorService {
 
   public constructor(dependencies: ContentExtractorDependencies = {}) {
     this.databaseService = dependencies.databaseService ?? databaseService
-    this.transcriptRepository = dependencies.transcriptRepository ?? transcriptRepository
+    this.transcriptRepository =
+      dependencies.transcriptRepository ?? transcriptRepository
     this.pdfExtractor = dependencies.pdfExtractor ?? extractPdfText
   }
 
-  public listSources(scope: SemanticIndexScope, includeNotes: boolean): SemanticSourceDescriptor[] {
+  public listSources(
+    scope: SemanticIndexScope,
+    includeNotes: boolean
+  ): SemanticSourceDescriptor[] {
     const db = this.requireDatabase()
     const sources: SemanticSourceDescriptor[] = []
     const seen = new Set<string>()
@@ -98,7 +108,10 @@ export class ContentExtractorService {
     for (const lesson of lessons) {
       addMetadata(add, lesson)
       const currentTranscript = this.transcriptRepository.getCurrent(lesson.id)
-      if (currentTranscript?.status === 'completed' && currentTranscript.segments.length > 0) {
+      if (
+        currentTranscript?.status === 'completed' &&
+        currentTranscript.segments.length > 0
+      ) {
         add({
           sourceKind: 'transcript',
           sourceId: `lesson:${lesson.id}:transcript`,
@@ -111,11 +124,18 @@ export class ContentExtractorService {
           sourceRevision: currentTranscript.sourceRevision,
           contentRevision: `transcript:${currentTranscript.id}:v${currentTranscript.version}`,
           segments: currentTranscript.segments,
-          text: currentTranscript.segments.map((segment) => segment.text).join(' '),
-          locator: { transcriptId: currentTranscript.id, language: currentTranscript.language }
+          text: currentTranscript.segments
+            .map((segment) => segment.text)
+            .join(' '),
+          locator: {
+            transcriptId: currentTranscript.id,
+            language: currentTranscript.language
+          }
         })
       } else {
-        const subtitle = this.transcriptRepository.getSubtitleCandidate(lesson.id)
+        const subtitle = this.transcriptRepository.getSubtitleCandidate(
+          lesson.id
+        )
         if (subtitle) {
           selectedSubtitleResourceIds.add(subtitle.resourceId)
           add({
@@ -168,7 +188,11 @@ export class ContentExtractorService {
           sourceRevision: `note:${note.id}:${note.updated_at}`,
           contentRevision: `note:${note.id}:${note.updated_at}:${hashText(note.content)}`,
           text: note.content,
-          locator: { noteId: note.id, startTime: note.timestamp_seconds, endTime: note.timestamp_seconds }
+          locator: {
+            noteId: note.id,
+            startTime: note.timestamp_seconds,
+            endTime: note.timestamp_seconds
+          }
         })
       }
     }
@@ -177,9 +201,15 @@ export class ContentExtractorService {
     return sources
   }
 
-  public async extractSource(source: SemanticSourceDescriptor): Promise<ExtractedSemanticDocument[]> {
+  public async extractSource(
+    source: SemanticSourceDescriptor
+  ): Promise<ExtractedSemanticDocument[]> {
     if (source.segments && source.segments.length > 0) {
-      const text = source.segments.map((segment) => segment.text.trim()).filter(Boolean).join(' ').trim()
+      const text = source.segments
+        .map((segment) => segment.text.trim())
+        .filter(Boolean)
+        .join(' ')
+        .trim()
       if (!text) throw new Error('Source contains no usable text')
       let sourceRevision = source.sourceRevision
       let contentRevision = source.contentRevision
@@ -189,23 +219,35 @@ export class ContentExtractorService {
         sourceRevision = `sha256:${digest}`
         contentRevision = `subtitle:${source.resourceId ?? source.sourceId}:${digest}`
       }
-      if (!sourceRevision || !contentRevision) throw new Error('Source provenance is incomplete')
-      return [{
-        ...source,
-        filePath: undefined,
-        sourceRevision,
-        contentRevision,
-        text
-      }]
+      if (!sourceRevision || !contentRevision)
+        throw new Error('Source provenance is incomplete')
+      return [
+        {
+          ...source,
+          filePath: undefined,
+          sourceRevision,
+          contentRevision,
+          text
+        }
+      ]
     }
 
     if (source.text !== undefined && !source.filePath) {
       const text = source.text.trim()
       if (!text) throw new Error('Source contains no usable text')
-      if (!source.sourceRevision || !source.contentRevision) throw new Error('Source provenance is incomplete')
+      if (!source.sourceRevision || !source.contentRevision)
+        throw new Error('Source provenance is incomplete')
       const sourceRevision = source.sourceRevision
       const contentRevision = source.contentRevision
-      return [{ ...source, filePath: undefined, sourceRevision, contentRevision, text }]
+      return [
+        {
+          ...source,
+          filePath: undefined,
+          sourceRevision,
+          contentRevision,
+          text
+        }
+      ]
     }
 
     if (!source.filePath) throw new Error('Source is unavailable')
@@ -213,7 +255,10 @@ export class ContentExtractorService {
     const digest = hashBuffer(content)
     const sourceRevision = `sha256:${digest}`
     if (source.sourceKind === 'pdf') {
-      const pages = await this.pdfExtractor(content, source.fileName ?? path.basename(source.filePath))
+      const pages = await this.pdfExtractor(
+        content,
+        source.fileName ?? path.basename(source.filePath)
+      )
       return pages
         .map((page) => ({
           ...source,
@@ -228,18 +273,25 @@ export class ContentExtractorService {
 
     const text = content.toString('utf8').replaceAll('\u0000', '').trim()
     if (!text) throw new Error('Source contains no usable text')
-    return [{
-      ...source,
-      filePath: undefined,
-      sourceRevision,
-      contentRevision: `${source.sourceKind}:${digest}`,
-      text
-    }]
+    return [
+      {
+        ...source,
+        filePath: undefined,
+        sourceRevision,
+        contentRevision: `${source.sourceKind}:${digest}`,
+        text
+      }
+    ]
   }
 
-  private listLessons(db: Database.Database, scope: SemanticIndexScope): LessonRow[] {
+  private listLessons(
+    db: Database.Database,
+    scope: SemanticIndexScope
+  ): LessonRow[] {
     const { where, params } = lessonScopeWhere(scope)
-    return db.prepare(`
+    return db
+      .prepare(
+        `
       SELECT l.id, l.course_id, l.module_id, c.title AS course_title,
              m.title AS module_title, l.title AS lesson_title, l.file_path,
              l.file_name, l.file_extension, l.media_type
@@ -248,10 +300,16 @@ export class ContentExtractorService {
       JOIN modules m ON m.id = l.module_id
       WHERE ${where}
       ORDER BY l.course_id, l.module_id, l.order_index, l.id
-    `).all(...params) as LessonRow[]
+    `
+      )
+      .all(...params) as LessonRow[]
   }
 
-  private listResources(db: Database.Database, scope: SemanticIndexScope, selectedLessonIds: Set<string>): ResourceRow[] {
+  private listResources(
+    db: Database.Database,
+    scope: SemanticIndexScope,
+    selectedLessonIds: Set<string>
+  ): ResourceRow[] {
     const conditions: string[] = []
     const params: unknown[] = []
     if (scope.type === 'vault') {
@@ -260,11 +318,14 @@ export class ContentExtractorService {
       conditions.push('r.course_id = ?')
       params.push(scope.courseId)
     } else if (scope.type === 'lesson') {
-      const lesson = db.prepare(`SELECT module_id FROM lessons WHERE id = ?`).get(scope.lessonId) as { module_id: string } | undefined
+      const lesson = db
+        .prepare(`SELECT module_id FROM lessons WHERE id = ?`)
+        .get(scope.lessonId) as { module_id: string } | undefined
       conditions.push('r.lesson_id = ?')
       params.push(scope.lessonId)
       if (lesson) {
-        conditions[0] = '(r.lesson_id = ? OR (r.lesson_id IS NULL AND r.module_id = ?))'
+        conditions[0] =
+          '(r.lesson_id = ? OR (r.lesson_id IS NULL AND r.module_id = ?))'
         params.push(lesson.module_id)
       }
     } else {
@@ -275,13 +336,17 @@ export class ContentExtractorService {
         params.push(...resourceIds)
       }
       if (selectedLessons.length > 0) {
-        conditions.push(`r.lesson_id IN (${selectedLessons.map(() => '?').join(', ')})`)
+        conditions.push(
+          `r.lesson_id IN (${selectedLessons.map(() => '?').join(', ')})`
+        )
         params.push(...selectedLessons)
       }
       if (conditions.length === 0) return []
     }
 
-    return db.prepare(`
+    return db
+      .prepare(
+        `
       SELECT r.id, r.course_id, r.module_id, r.lesson_id, r.role, r.name,
              r.file_path, r.file_extension, r.resource_type, r.language, r.label,
              c.title AS course_title, m.title AS module_title, l.title AS lesson_title
@@ -291,10 +356,16 @@ export class ContentExtractorService {
       LEFT JOIN lessons l ON l.id = r.lesson_id
       WHERE ${conditions.join(' OR ')}
       ORDER BY r.course_id, r.module_id, r.lesson_id, r.id
-    `).all(...params) as ResourceRow[]
+    `
+      )
+      .all(...params) as ResourceRow[]
   }
 
-  private listNotes(db: Database.Database, scope: SemanticIndexScope, selectedLessonIds: Set<string>): NoteRow[] {
+  private listNotes(
+    db: Database.Database,
+    scope: SemanticIndexScope,
+    selectedLessonIds: Set<string>
+  ): NoteRow[] {
     const conditions: string[] = []
     const params: unknown[] = []
     if (scope.type === 'vault') {
@@ -319,7 +390,9 @@ export class ContentExtractorService {
       }
     }
 
-    return db.prepare(`
+    return db
+      .prepare(
+        `
       SELECT n.id, n.lesson_id, n.course_id, n.timestamp_seconds, n.content,
              n.updated_at, c.title AS course_title, m.id AS module_id,
              m.title AS module_title, l.title AS lesson_title
@@ -329,10 +402,14 @@ export class ContentExtractorService {
       JOIN modules m ON m.id = l.module_id
       WHERE ${conditions.join(' OR ')}
       ORDER BY n.course_id, n.lesson_id, n.timestamp_seconds, n.id
-    `).all(...params) as NoteRow[]
+    `
+      )
+      .all(...params) as NoteRow[]
   }
 
-  private fileSourceFromLesson(lesson: LessonRow): SemanticSourceDescriptor | null {
+  private fileSourceFromLesson(
+    lesson: LessonRow
+  ): SemanticSourceDescriptor | null {
     const sourceKind = classifyFile(lesson.file_extension, lesson.media_type)
     if (!sourceKind) return null
     return {
@@ -345,12 +422,22 @@ export class ContentExtractorService {
       filePath: lesson.file_path,
       fileName: lesson.file_name,
       fileExtension: lesson.file_extension,
-      locator: { fileName: lesson.file_name, ...(sourceKind === 'code' ? { language: languageForExtension(lesson.file_extension) } : {}) }
+      locator: {
+        fileName: lesson.file_name,
+        ...(sourceKind === 'code'
+          ? { language: languageForExtension(lesson.file_extension) }
+          : {})
+      }
     }
   }
 
-  private fileSourceFromResource(resource: ResourceRow): SemanticSourceDescriptor | null {
-    const sourceKind = classifyFile(resource.file_extension, resource.resource_type)
+  private fileSourceFromResource(
+    resource: ResourceRow
+  ): SemanticSourceDescriptor | null {
+    const sourceKind = classifyFile(
+      resource.file_extension,
+      resource.resource_type
+    )
     if (!sourceKind) return null
     return {
       sourceKind,
@@ -365,7 +452,9 @@ export class ContentExtractorService {
       fileExtension: resource.file_extension,
       locator: {
         fileName: resource.name,
-        ...(sourceKind === 'code' ? { language: languageForExtension(resource.file_extension) } : {})
+        ...(sourceKind === 'code'
+          ? { language: languageForExtension(resource.file_extension) }
+          : {})
       }
     }
   }
@@ -387,7 +476,10 @@ export class ContentExtractorService {
   }
 }
 
-function addMetadata(add: (source: SemanticSourceDescriptor) => void, context: LessonRow | ResourceRow): void {
+function addMetadata(
+  add: (source: SemanticSourceDescriptor) => void,
+  context: LessonRow | ResourceRow
+): void {
   const courseId = context.course_id
   const courseTitle = context.course_title
   add({
@@ -433,27 +525,39 @@ function addMetadata(add: (source: SemanticSourceDescriptor) => void, context: L
   }
 }
 
-function lessonScopeWhere(scope: SemanticIndexScope): { where: string; params: string[] } {
+function lessonScopeWhere(scope: SemanticIndexScope): {
+  where: string
+  params: string[]
+} {
   if (scope.type === 'vault') return { where: '1 = 1', params: [] }
-  if (scope.type === 'lesson') return { where: 'l.id = ?', params: [scope.lessonId] }
-  if (scope.type === 'course') return { where: 'l.course_id = ?', params: [scope.courseId] }
+  if (scope.type === 'lesson')
+    return { where: 'l.id = ?', params: [scope.lessonId] }
+  if (scope.type === 'course')
+    return { where: 'l.course_id = ?', params: [scope.courseId] }
   const ids = scope.lessonIds ?? []
   if (ids.length === 0) return { where: '1 = 0', params: [] }
   return { where: `l.id IN (${ids.map(() => '?').join(', ')})`, params: ids }
 }
 
-function classifyFile(extension: string, type: string): SemanticSourceKind | null {
-  const normalized = extension.toLowerCase().startsWith('.') ? extension.toLowerCase() : `.${extension.toLowerCase()}`
+function classifyFile(
+  extension: string,
+  type: string
+): SemanticSourceKind | null {
+  const normalized = extension.toLowerCase().startsWith('.')
+    ? extension.toLowerCase()
+    : `.${extension.toLowerCase()}`
   if (normalized === '.pdf' || type === 'pdf') return 'pdf'
   if (normalized === '.md' || normalized === '.markdown') return 'markdown'
-  if (normalized === '.txt' || normalized === '.text' || normalized === '.csv') return 'text'
+  if (normalized === '.txt' || normalized === '.text' || normalized === '.csv')
+    return 'text'
   if (type === 'code' || CODE_EXTENSIONS.has(normalized)) return 'code'
   return null
 }
 
 function dataTypeForSourceKind(sourceKind: SemanticSourceKind): AiDataType {
   if (sourceKind === 'pdf') return 'pdf'
-  if (sourceKind === 'transcript' || sourceKind === 'subtitle') return 'transcript'
+  if (sourceKind === 'transcript' || sourceKind === 'subtitle')
+    return 'transcript'
   if (sourceKind === 'note') return 'notes'
   if (sourceKind === 'metadata') return 'course_name'
   return 'materials'

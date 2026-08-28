@@ -14,7 +14,18 @@ export const TEMP_COVERS_DIR = path.join(os.tmpdir(), 'orbia-covers')
 
 /** Cover patterns searched inside a course/module root in prioritized order. */
 const COURSE_COVER_NAMES = [
-  'backdrop', 'fanart', 'poster', 'cover', 'capa', 'banner', 'folder', 'front', 'thumb', 'thumbnail', 'landscape', 'background'
+  'backdrop',
+  'fanart',
+  'poster',
+  'cover',
+  'capa',
+  'banner',
+  'folder',
+  'front',
+  'thumb',
+  'thumbnail',
+  'landscape',
+  'background'
 ]
 const IMAGE_EXTS = ['.jpg', '.jpeg', '.png', '.webp']
 
@@ -61,29 +72,19 @@ export async function generateTextCover(
   const escaped = xmlEscape(title || 'Course')
   const maxChars = Math.max(16, Math.floor(width / 14))
   const display =
-    escaped.length > maxChars ? escaped.substring(0, maxChars - 1) + '&#8230;' : escaped
+    escaped.length > maxChars
+      ? escaped.substring(0, maxChars - 1) + '&#8230;'
+      : escaped
   const fontSize = Math.min(width, height) * 0.085
 
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#14100c"/>
-      <stop offset="55%" stop-color="#0a0a0c"/>
-      <stop offset="100%" stop-color="#1a130b"/>
-    </linearGradient>
-    <radialGradient id="glow" cx="0.85" cy="0.12" r="0.55">
-      <stop offset="0%" stop-color="#f97316" stop-opacity="0.35"/>
-      <stop offset="100%" stop-color="#f97316" stop-opacity="0"/>
-    </radialGradient>
-  </defs>
-  <rect width="100%" height="100%" fill="url(#bg)"/>
-  <rect width="100%" height="100%" fill="url(#glow)"/>
-  <rect x="0" y="0" width="100%" height="6" fill="#f97316"/>
+  <rect width="100%" height="100%" fill="#101312"/>
+  <rect x="0" y="0" width="100%" height="6" fill="#d08a52"/>
   <text x="50%" y="46%" dominant-baseline="middle" text-anchor="middle"
-    fill="#f5f5f4" font-family="system-ui, sans-serif" font-size="${fontSize}" font-weight="700">${display}</text>
-  <rect x="${width / 2 - 24}" y="58%" width="48" height="3" rx="1.5" fill="#f97316"/>
+    fill="#f3eee5" font-family="system-ui, sans-serif" font-size="${fontSize}" font-weight="700">${display}</text>
+  <rect x="${width / 2 - 24}" y="58%" width="48" height="3" rx="1.5" fill="#d08a52"/>
   <text x="50%" y="66%" dominant-baseline="middle" text-anchor="middle"
-    fill="#a8a29e" font-family="system-ui, sans-serif" font-size="${fontSize * 0.38}" font-weight="600" letter-spacing="4">ORBIA · CURSO</text>
+    fill="#9ca49e" font-family="system-ui, sans-serif" font-size="${fontSize * 0.38}" font-weight="600" letter-spacing="4">ORBIA · CURSO</text>
 </svg>`
 
   const filePath = path.join(outputDir, uniqueName('cover', '.svg'))
@@ -105,7 +106,9 @@ export async function generateVideoFrameCover(
     return null
   }
   if (!ffmpegStatic) {
-    console.warn('[CoverGenerator] ffmpeg-static binary unavailable, skipping frame extraction')
+    console.warn(
+      '[CoverGenerator] ffmpeg-static binary unavailable, skipping frame extraction'
+    )
     return null
   }
 
@@ -145,7 +148,9 @@ export async function generateVideoFrameCover(
               resolve(null)
             })
         } else {
-          console.warn(`[CoverGenerator] Frame extraction failed for ${videoPath}: ${err.message}`)
+          console.warn(
+            `[CoverGenerator] Frame extraction failed for ${videoPath}: ${err.message}`
+          )
           resolve(null)
         }
       })
@@ -247,7 +252,11 @@ export async function ensureCourseCover(
   if (existing) return existing
 
   if (firstVideoPath && isVideoFile(firstVideoPath)) {
-    const videoFrame = await generateVideoFrameCover(firstVideoPath, outputDir, 3)
+    const videoFrame = await generateVideoFrameCover(
+      firstVideoPath,
+      outputDir,
+      3
+    )
     if (videoFrame) return videoFrame
   }
 

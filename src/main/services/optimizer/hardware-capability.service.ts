@@ -132,23 +132,33 @@ export class HardwareCapabilityService {
         if (works) {
           verifiedEncoders.push(enc)
         } else {
-          logger.info(`[HardwareCapability] Hardware encoder ${enc.ffmpegEncoderName} failed live probe. Skipping.`)
+          logger.info(
+            `[HardwareCapability] Hardware encoder ${enc.ffmpegEncoderName} failed live probe. Skipping.`
+          )
         }
       }
     }
 
     // Determine preferred encoder for each codec
     const preferredHevc =
-      verifiedEncoders.find((e) => e.codec === 'hevc' && e.type !== 'software')?.ffmpegEncoderName ||
-      (verifiedEncoders.some((e) => e.ffmpegEncoderName === 'libx265') ? 'libx265' : 'hevc')
+      verifiedEncoders.find((e) => e.codec === 'hevc' && e.type !== 'software')
+        ?.ffmpegEncoderName ||
+      (verifiedEncoders.some((e) => e.ffmpegEncoderName === 'libx265')
+        ? 'libx265'
+        : 'hevc')
 
     const preferredH264 =
-      verifiedEncoders.find((e) => e.codec === 'h264' && e.type !== 'software')?.ffmpegEncoderName ||
-      (verifiedEncoders.some((e) => e.ffmpegEncoderName === 'libx264') ? 'libx264' : 'h264')
+      verifiedEncoders.find((e) => e.codec === 'h264' && e.type !== 'software')
+        ?.ffmpegEncoderName ||
+      (verifiedEncoders.some((e) => e.ffmpegEncoderName === 'libx264')
+        ? 'libx264'
+        : 'h264')
 
     const preferredAv1 =
-      verifiedEncoders.find((e) => e.codec === 'av1' && e.type !== 'software')?.ffmpegEncoderName ||
-      verifiedEncoders.find((e) => e.ffmpegEncoderName === 'libsvtav1')?.ffmpegEncoderName
+      verifiedEncoders.find((e) => e.codec === 'av1' && e.type !== 'software')
+        ?.ffmpegEncoderName ||
+      verifiedEncoders.find((e) => e.ffmpegEncoderName === 'libsvtav1')
+        ?.ffmpegEncoderName
 
     const hasHw = verifiedEncoders.some((e) => e.type !== 'software')
 
@@ -174,7 +184,9 @@ export class HardwareCapabilityService {
     const caps = await this.getCapabilities()
 
     if (preferHardware && caps.hardwareAccelerationAvailable) {
-      const hw = caps.availableEncoders.find((e) => e.codec === codec && e.type !== 'software')
+      const hw = caps.availableEncoders.find(
+        (e) => e.codec === codec && e.type !== 'software'
+      )
       if (hw) {
         return { encoder: hw.ffmpegEncoderName, isHardware: true }
       }
@@ -182,7 +194,9 @@ export class HardwareCapabilityService {
 
     if (codec === 'hevc') {
       return {
-        encoder: caps.availableEncoders.some((e) => e.ffmpegEncoderName === 'libx265')
+        encoder: caps.availableEncoders.some(
+          (e) => e.ffmpegEncoderName === 'libx265'
+        )
           ? 'libx265'
           : caps.preferredHevcEncoder,
         isHardware: false
@@ -195,7 +209,9 @@ export class HardwareCapabilityService {
       }
     }
     return {
-      encoder: caps.availableEncoders.some((e) => e.ffmpegEncoderName === 'libx264')
+      encoder: caps.availableEncoders.some(
+        (e) => e.ffmpegEncoderName === 'libx264'
+      )
         ? 'libx264'
         : caps.preferredH264Encoder,
       isHardware: false

@@ -4,7 +4,10 @@ import type { LibrarySection } from '../../../types/studio'
 import { studioHistoryService } from './history.service'
 
 export class LibrarySectionService {
-  public listSections(db: Database.Database, courseId: string): LibrarySection[] {
+  public listSections(
+    db: Database.Database,
+    courseId: string
+  ): LibrarySection[] {
     const stmt = db.prepare(`
       SELECT id, course_id as courseId, module_id as moduleId, title, display_order as displayOrder, created_at as createdAt
       FROM library_sections
@@ -14,15 +17,24 @@ export class LibrarySectionService {
     return stmt.all(courseId) as LibrarySection[]
   }
 
-  public createSection(db: Database.Database, courseId: string, title: string, moduleId?: string | null): LibrarySection {
+  public createSection(
+    db: Database.Database,
+    courseId: string,
+    title: string,
+    moduleId?: string | null
+  ): LibrarySection {
     const id = `sec_${crypto.randomUUID()}`
     const now = Date.now()
 
-    const maxOrderRow = db.prepare(`
+    const maxOrderRow = db
+      .prepare(
+        `
       SELECT COALESCE(MAX(display_order), 0) + 1 as nextOrder
       FROM library_sections
       WHERE course_id = ? AND module_id IS ?
-    `).get(courseId, moduleId || null) as { nextOrder: number }
+    `
+      )
+      .get(courseId, moduleId || null) as { nextOrder: number }
 
     const displayOrder = maxOrderRow?.nextOrder || 1
 
@@ -36,10 +48,12 @@ export class LibrarySectionService {
     }
 
     db.transaction(() => {
-      db.prepare(`
+      db.prepare(
+        `
         INSERT INTO library_sections (id, course_id, module_id, title, display_order, created_at)
         VALUES (@id, @courseId, @moduleId, @title, @displayOrder, @createdAt)
-      `).run(section)
+      `
+      ).run(section)
 
       studioHistoryService.recordOperation(
         db,
@@ -53,8 +67,14 @@ export class LibrarySectionService {
     return section
   }
 
-  public updateSection(db: Database.Database, id: string, updates: Partial<LibrarySection>): boolean {
-    const existing = db.prepare(`SELECT * FROM library_sections WHERE id = ?`).get(id) as Record<string, unknown> | undefined
+  public updateSection(
+    db: Database.Database,
+    id: string,
+    updates: Partial<LibrarySection>
+  ): boolean {
+    const existing = db
+      .prepare(`SELECT * FROM library_sections WHERE id = ?`)
+      .get(id) as Record<string, unknown> | undefined
     if (!existing) return false
 
     const fields: string[] = []
@@ -76,9 +96,15 @@ export class LibrarySectionService {
     if (fields.length === 0) return true
 
     return db.transaction(() => {
-      const res = db.prepare(`UPDATE library_sections SET ${fields.join(', ')} WHERE id = @id`).run(params)
+      const res = db
+        .prepare(
+          `UPDATE library_sections SET ${fields.join(', ')} WHERE id = @id`
+        )
+        .run(params)
       if (res.changes > 0) {
-        const after = db.prepare(`SELECT * FROM library_sections WHERE id = ?`).get(id) as Record<string, unknown>
+        const after = db
+          .prepare(`SELECT * FROM library_sections WHERE id = ?`)
+          .get(id) as Record<string, unknown>
         studioHistoryService.recordOperation(
           db,
           'update_section',
@@ -93,13 +119,19 @@ export class LibrarySectionService {
   }
 
   public deleteSection(db: Database.Database, id: string): boolean {
-    const existing = db.prepare(`SELECT * FROM library_sections WHERE id = ?`).get(id) as Record<string, unknown> | undefined
+    const existing = db
+      .prepare(`SELECT * FROM library_sections WHERE id = ?`)
+      .get(id) as Record<string, unknown> | undefined
     if (!existing) return false
 
     return db.transaction(() => {
       // Unlink any appearances attached to this section
-      db.prepare(`UPDATE library_appearances SET section_id = NULL WHERE section_id = ?`).run(id)
-      const res = db.prepare(`DELETE FROM library_sections WHERE id = ?`).run(id)
+      db.prepare(
+        `UPDATE library_appearances SET section_id = NULL WHERE section_id = ?`
+      ).run(id)
+      const res = db
+        .prepare(`DELETE FROM library_sections WHERE id = ?`)
+        .run(id)
 
       studioHistoryService.recordOperation(
         db,

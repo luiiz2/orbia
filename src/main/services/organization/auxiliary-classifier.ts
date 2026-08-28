@@ -10,7 +10,8 @@ const AUXILIARY_SECTION_PATTERNS = [
   /[-_\s](?:bonus|bônus|extras|materiais|materials|downloads|anexos|recursos)$/i
 ]
 
-export type FolderClassification = 'standard' | 'backup_temp' | 'auxiliary_section'
+export type FolderClassification =
+  'standard' | 'backup_temp' | 'auxiliary_section'
 
 /**
  * Classifies a folder name based on domain heuristics.
@@ -40,7 +41,10 @@ export function classifyFolderName(folderName: string): FolderClassification {
 /**
  * Checks if a path is inside a known backup/temp directory.
  */
-export function isInsideBackupFolder(filePath: string, rootPath: string): boolean {
+export function isInsideBackupFolder(
+  filePath: string,
+  rootPath: string
+): boolean {
   const rel = path.relative(path.resolve(rootPath), path.resolve(filePath))
   const segments = rel.split(/[\\/]/)
 

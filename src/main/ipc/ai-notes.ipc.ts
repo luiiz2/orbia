@@ -30,11 +30,19 @@ function readAiNoteRequest(value: unknown): AiNoteRequest {
     action,
     lessonId: raw.lessonId.trim(),
     courseId: raw.courseId.trim(),
-    timestampSeconds: typeof raw.timestampSeconds === 'number' ? raw.timestampSeconds : undefined,
-    selectedText: typeof raw.selectedText === 'string' ? raw.selectedText.trim() : undefined,
+    timestampSeconds:
+      typeof raw.timestampSeconds === 'number'
+        ? raw.timestampSeconds
+        : undefined,
+    selectedText:
+      typeof raw.selectedText === 'string'
+        ? raw.selectedText.trim()
+        : undefined,
     noteId: typeof raw.noteId === 'string' ? raw.noteId.trim() : undefined,
-    existingContent: typeof raw.existingContent === 'string' ? raw.existingContent : undefined,
-    instruction: typeof raw.instruction === 'string' ? raw.instruction.trim() : undefined,
+    existingContent:
+      typeof raw.existingContent === 'string' ? raw.existingContent : undefined,
+    instruction:
+      typeof raw.instruction === 'string' ? raw.instruction.trim() : undefined,
     cloudConsent: raw.cloudConsent === true
   }
 }

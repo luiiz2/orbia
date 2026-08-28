@@ -1,6 +1,9 @@
 import type Database from 'better-sqlite3'
 import crypto from 'node:crypto'
-import type { CustomFieldDefinition, CustomFieldType } from '../../../types/studio'
+import type {
+  CustomFieldDefinition,
+  CustomFieldType
+} from '../../../types/studio'
 
 export class CustomFieldsService {
   public listDefinitions(db: Database.Database): CustomFieldDefinition[] {
@@ -9,7 +12,13 @@ export class CustomFieldsService {
       FROM custom_field_definitions
       ORDER BY name ASC
     `)
-    const rows = stmt.all() as { id: string; name: string; fieldType: CustomFieldType; options?: string; createdAt: number }[]
+    const rows = stmt.all() as {
+      id: string
+      name: string
+      fieldType: CustomFieldType
+      options?: string
+      createdAt: number
+    }[]
     return rows.map((r) => ({
       id: r.id,
       name: r.name,
@@ -29,10 +38,12 @@ export class CustomFieldsService {
     const now = Date.now()
     const optionsJson = options ? JSON.stringify(options) : null
 
-    db.prepare(`
+    db.prepare(
+      `
       INSERT INTO custom_field_definitions (id, name, field_type, options, created_at)
       VALUES (?, ?, ?, ?, ?)
-    `).run(id, name, fieldType, optionsJson, now)
+    `
+    ).run(id, name, fieldType, optionsJson, now)
 
     return {
       id,
@@ -44,11 +55,16 @@ export class CustomFieldsService {
   }
 
   public deleteDefinition(db: Database.Database, id: string): boolean {
-    const res = db.prepare(`DELETE FROM custom_field_definitions WHERE id = ?`).run(id)
+    const res = db
+      .prepare(`DELETE FROM custom_field_definitions WHERE id = ?`)
+      .run(id)
     return res.changes > 0
   }
 
-  public getValues(db: Database.Database, entityId: string): Record<string, string> {
+  public getValues(
+    db: Database.Database,
+    entityId: string
+  ): Record<string, string> {
     const stmt = db.prepare(`
       SELECT cf.name, cfv.value
       FROM custom_field_values cfv
@@ -63,7 +79,12 @@ export class CustomFieldsService {
     return map
   }
 
-  public setValue(db: Database.Database, entityId: string, fieldId: string, value: string): boolean {
+  public setValue(
+    db: Database.Database,
+    entityId: string,
+    fieldId: string,
+    value: string
+  ): boolean {
     const stmt = db.prepare(`
       INSERT INTO custom_field_values (entity_id, field_id, value)
       VALUES (?, ?, ?)

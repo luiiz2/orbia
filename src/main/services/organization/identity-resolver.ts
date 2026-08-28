@@ -1,9 +1,18 @@
 import path from 'node:path'
 import type { Lesson } from '../../../types'
-import { verifyMediaEquality, type MediaIdentityDescriptor } from './duplicate-detector'
+import {
+  verifyMediaEquality,
+  type MediaIdentityDescriptor
+} from './duplicate-detector'
 
 export interface ResolvedFileIdentity {
-  type: 'UNCHANGED' | 'RENAMED_IN_PLACE' | 'MOVED_IN_COURSE' | 'MOVED_ACROSS_COURSES' | 'NEW_LESSON' | 'MISSING'
+  type:
+    | 'UNCHANGED'
+    | 'RENAMED_IN_PLACE'
+    | 'MOVED_IN_COURSE'
+    | 'MOVED_ACROSS_COURSES'
+    | 'NEW_LESSON'
+    | 'MISSING'
   lessonId?: string
   originalLesson?: Lesson
   newFilePath: string
@@ -17,7 +26,14 @@ export interface ResolvedFileIdentity {
  * Preserves user metadata (progress, notes, history, favorites) across external file renames and moves.
  */
 export async function resolveLessonIdentities(
-  scannedFiles: Array<{ filePath: string; fileName: string; sizeBytes: number; duration?: number; moduleId?: string; fingerprint?: string }>,
+  scannedFiles: Array<{
+    filePath: string
+    fileName: string
+    sizeBytes: number
+    duration?: number
+    moduleId?: string
+    fingerprint?: string
+  }>,
   existingLessons: (Lesson & { contentHash?: string })[],
   currentCourseId: string
 ): Promise<ResolvedFileIdentity[]> {
@@ -81,7 +97,10 @@ export async function resolveLessonIdentities(
       const equality = await verifyMediaEquality(candidateDesc, fileDesc)
       if (equality.isDuplicate) {
         matchedLesson = candidate
-        matchConfidence = equality.confidence === 'CONFIRMED_HASH' ? 'MATCHED_HASH' : 'HIGH_SIZE_DURATION'
+        matchConfidence =
+          equality.confidence === 'CONFIRMED_HASH'
+            ? 'MATCHED_HASH'
+            : 'HIGH_SIZE_DURATION'
         break
       }
     }

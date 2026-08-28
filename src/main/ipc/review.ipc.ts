@@ -100,50 +100,70 @@ export function registerReviewIpc(): void {
   ipcMain.handle('backup:select-backup-file', async () => {
     const res = await dialog.showOpenDialog({
       title: 'Selecionar arquivo de backup do Orbia',
-      filters: [{ name: 'Orbia Backup (*.orbia, *.zip)', extensions: ['orbia', 'zip'] }],
+      filters: [
+        { name: 'Orbia Backup (*.orbia, *.zip)', extensions: ['orbia', 'zip'] }
+      ],
       properties: ['openFile']
     })
     if (res.canceled || res.filePaths.length === 0) return null
     return res.filePaths[0]
   })
 
-  ipcMain.handle('backup:select-save-path', async (_event, defaultName?: string) => {
-    const defaultFileName = defaultName || `OrbiaBackup-${new Date().toISOString().split('T')[0]}.orbia`
-    const res = await dialog.showSaveDialog({
-      title: 'Salvar backup do Orbia',
-      defaultPath: defaultFileName,
-      filters: [{ name: 'Orbia Backup (*.orbia)', extensions: ['orbia'] }]
-    })
-    if (res.canceled || !res.filePath) return null
-    return res.filePath
-  })
-
-  ipcMain.handle('backup:create', async (_event, { targetFilePath, vaultName }) => {
-    const vault = vaultService.getCurrentVault()
-    if (!vault) {
-      return { success: false, filePath: '', fileSizeBytes: 0, error: 'No vault is currently open.' }
-    }
-
-    let dest = targetFilePath
-    if (!dest) {
-      const defaultFileName = `OrbiaBackup-${new Date().toISOString().split('T')[0]}.orbia`
-      const saveRes = await dialog.showSaveDialog({
+  ipcMain.handle(
+    'backup:select-save-path',
+    async (_event, defaultName?: string) => {
+      const defaultFileName =
+        defaultName ||
+        `OrbiaBackup-${new Date().toISOString().split('T')[0]}.orbia`
+      const res = await dialog.showSaveDialog({
         title: 'Salvar backup do Orbia',
         defaultPath: defaultFileName,
         filters: [{ name: 'Orbia Backup (*.orbia)', extensions: ['orbia'] }]
       })
-      if (saveRes.canceled || !saveRes.filePath) {
-        return { success: false, filePath: '', fileSizeBytes: 0, error: 'Backup cancelled by user.' }
-      }
-      dest = saveRes.filePath
+      if (res.canceled || !res.filePath) return null
+      return res.filePath
     }
+  )
 
-    return backupService.createBackup({
-      vaultPath: vault.path,
-      targetFilePath: dest,
-      vaultName: vaultName || vault.name
-    })
-  })
+  ipcMain.handle(
+    'backup:create',
+    async (_event, { targetFilePath, vaultName }) => {
+      const vault = vaultService.getCurrentVault()
+      if (!vault) {
+        return {
+          success: false,
+          filePath: '',
+          fileSizeBytes: 0,
+          error: 'No vault is currently open.'
+        }
+      }
+
+      let dest = targetFilePath
+      if (!dest) {
+        const defaultFileName = `OrbiaBackup-${new Date().toISOString().split('T')[0]}.orbia`
+        const saveRes = await dialog.showSaveDialog({
+          title: 'Salvar backup do Orbia',
+          defaultPath: defaultFileName,
+          filters: [{ name: 'Orbia Backup (*.orbia)', extensions: ['orbia'] }]
+        })
+        if (saveRes.canceled || !saveRes.filePath) {
+          return {
+            success: false,
+            filePath: '',
+            fileSizeBytes: 0,
+            error: 'Backup cancelled by user.'
+          }
+        }
+        dest = saveRes.filePath
+      }
+
+      return backupService.createBackup({
+        vaultPath: vault.path,
+        targetFilePath: dest,
+        vaultName: vaultName || vault.name
+      })
+    }
+  )
 
   ipcMain.handle('backup:inspect', async (_event, backupFilePath) => {
     return backupService.inspectBackup(backupFilePath)
@@ -152,7 +172,11 @@ export function registerReviewIpc(): void {
   ipcMain.handle('backup:restore', async (_event, backupFilePath) => {
     const vault = vaultService.getCurrentVault()
     if (!vault) {
-      return { success: false, restoredCoursesCount: 0, error: 'No vault is currently open.' }
+      return {
+        success: false,
+        restoredCoursesCount: 0,
+        error: 'No vault is currently open.'
+      }
     }
     return backupService.restoreBackup({
       vaultPath: vault.path,
@@ -177,21 +201,31 @@ export function registerReviewIpc(): void {
     return exportService.exportFlashcardsMarkdown(courseId)
   })
 
-  ipcMain.handle('exports:save-file', async (_event, { defaultFileName, content }) => {
-    const ext = path.extname(defaultFileName).replace(/^\./, '')
-    const res = await dialog.showSaveDialog({
-      title: 'Exportar arquivo',
-      defaultPath: defaultFileName,
-      filters: ext ? [{ name: `${ext.toUpperCase()} Files (*.${ext})`, extensions: [ext] }] : undefined
-    })
+  ipcMain.handle(
+    'exports:save-file',
+    async (_event, { defaultFileName, content }) => {
+      const ext = path.extname(defaultFileName).replace(/^\./, '')
+      const res = await dialog.showSaveDialog({
+        title: 'Exportar arquivo',
+        defaultPath: defaultFileName,
+        filters: ext
+          ? [
+              {
+                name: `${ext.toUpperCase()} Files (*.${ext})`,
+                extensions: [ext]
+              }
+            ]
+          : undefined
+      })
 
-    if (res.canceled || !res.filePath) {
-      return { success: false }
+      if (res.canceled || !res.filePath) {
+        return { success: false }
+      }
+
+      fs.writeFileSync(res.filePath, content, 'utf-8')
+      return { success: true, filePath: res.filePath }
     }
-
-    fs.writeFileSync(res.filePath, content, 'utf-8')
-    return { success: true, filePath: res.filePath }
-  })
+  )
 
   // --- Study Sessions IPC ---
   ipcMain.handle('sessions:start', async (_event, { courseId, source }) => {

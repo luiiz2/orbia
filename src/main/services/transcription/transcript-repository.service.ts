@@ -9,7 +9,10 @@ import type {
 } from '../../../types/transcription'
 import type { MediaType } from '../../../types/course'
 import { databaseService, type DatabaseService } from '../database.service'
-import { parseSubtitleSegments, validateTranscriptSegments } from './transcript-utils'
+import {
+  parseSubtitleSegments,
+  validateTranscriptSegments
+} from './transcript-utils'
 
 interface TranscriptRow {
   id: string
@@ -78,7 +81,9 @@ export class TranscriptRepository {
   private readonly now: () => number
   private readonly createId: () => string
 
-  public constructor(dependencies: TranscriptRepositoryDependencies | DatabaseService = {}) {
+  public constructor(
+    dependencies: TranscriptRepositoryDependencies | DatabaseService = {}
+  ) {
     if (isDatabaseService(dependencies)) {
       this.databaseService = dependencies
       this.now = Date.now
@@ -92,43 +97,64 @@ export class TranscriptRepository {
 
   public getLessonSource(lessonId: string): LessonTranscriptionSource | null {
     const db = this.requireDatabase()
-    const row = db.prepare(`
+    const row = db
+      .prepare(
+        `
       SELECT id, course_id, module_id, file_path, file_name, file_size, duration, media_type,
              content_hash, fingerprint_signature, created_at
       FROM lessons
       WHERE id = ?
-    `).get(lessonId) as {
-      id: string
-      course_id: string
-      module_id: string
-      file_path: string
-      file_name: string
-      file_size: number
-      duration: number
-      media_type: MediaType
-      content_hash: string | null
-      fingerprint_signature: string | null
-      created_at: number
-    } | undefined
+    `
+      )
+      .get(lessonId) as
+      | {
+          id: string
+          course_id: string
+          module_id: string
+          file_path: string
+          file_name: string
+          file_size: number
+          duration: number
+          media_type: MediaType
+          content_hash: string | null
+          fingerprint_signature: string | null
+          created_at: number
+        }
+      | undefined
 
     if (!row) return null
 
     let sourceRevision: string | null = null
     try {
-      const sourceRow = db.prepare(`
+      const sourceRow = db
+        .prepare(
+          `
         SELECT source_items.revision, source_items.checksum, source_items.fingerprint
         FROM source_items
         JOIN canonical_source_links ON canonical_source_links.source_item_id = source_items.id
         WHERE canonical_source_links.lesson_id = ?
         ORDER BY canonical_source_links.is_preferred DESC, source_items.updated_at DESC
         LIMIT 1
-      `).get(lessonId) as { revision: string | null; checksum: string | null; fingerprint: string | null } | undefined
-      sourceRevision = sourceRow?.revision ?? sourceRow?.checksum ?? sourceRow?.fingerprint ?? null
+      `
+        )
+        .get(lessonId) as
+        | {
+            revision: string | null
+            checksum: string | null
+            fingerprint: string | null
+          }
+        | undefined
+      sourceRevision =
+        sourceRow?.revision ??
+        sourceRow?.checksum ??
+        sourceRow?.fingerprint ??
+        null
     } catch {
       // Connected-library tables are unavailable only for pre-v0.8 databases.
     }
 
-    if (!sourceRevision) sourceRevision = row.content_hash ?? row.fingerprint_signature ?? null
+    if (!sourceRevision)
+      sourceRevision = row.content_hash ?? row.fingerprint_signature ?? null
     if (!sourceRevision) {
       try {
         const stat = fs.statSync(row.file_path)
@@ -152,32 +178,50 @@ export class TranscriptRepository {
   }
 
   public listLessonIdsForModule(moduleId: string): string[] {
-    return (this.requireDatabase().prepare(`
+    return (
+      this.requireDatabase()
+        .prepare(
+          `
       SELECT id FROM lessons WHERE module_id = ? ORDER BY order_index, id
-    `).all(moduleId) as Array<{ id: string }>).map((row) => row.id)
+    `
+        )
+        .all(moduleId) as Array<{ id: string }>
+    ).map((row) => row.id)
   }
 
   public listLessonIdsForCourse(courseId: string): string[] {
-    return (this.requireDatabase().prepare(`
+    return (
+      this.requireDatabase()
+        .prepare(
+          `
       SELECT id FROM lessons WHERE course_id = ? ORDER BY module_id, order_index, id
-    `).all(courseId) as Array<{ id: string }>).map((row) => row.id)
+    `
+        )
+        .all(courseId) as Array<{ id: string }>
+    ).map((row) => row.id)
   }
 
   public getCurrent(lessonId: string): Transcript | null {
     const db = this.requireDatabase()
-    const row = db.prepare(`
+    const row = db
+      .prepare(
+        `
       SELECT id, lesson_id, version, language, provider, model, created_at,
              source_revision, settings_json, status, is_current, error_message
       FROM transcripts
       WHERE lesson_id = ? AND is_current = 1
       LIMIT 1
-    `).get(lessonId) as TranscriptRow | undefined
+    `
+      )
+      .get(lessonId) as TranscriptRow | undefined
     return row ? this.mapTranscript(db, row) : null
   }
 
   public listVersions(lessonId: string): TranscriptSummary[] {
     const db = this.requireDatabase()
-    const rows = db.prepare(`
+    const rows = db
+      .prepare(
+        `
       SELECT t.id, t.lesson_id, t.version, t.language, t.provider, t.model, t.created_at,
              t.source_revision, t.settings_json, t.status, t.is_current, t.error_message,
              COUNT(s.id) AS segment_count
@@ -186,8 +230,13 @@ export class TranscriptRepository {
       WHERE t.lesson_id = ?
       GROUP BY t.id
       ORDER BY t.version DESC
-    `).all(lessonId) as Array<TranscriptRow & { segment_count: number }>
-    return rows.map((row) => ({ ...this.mapTranscriptWithoutSegments(row), segmentCount: row.segment_count }))
+    `
+      )
+      .all(lessonId) as Array<TranscriptRow & { segment_count: number }>
+    return rows.map((row) => ({
+      ...this.mapTranscriptWithoutSegments(row),
+      segmentCount: row.segment_count
+    }))
   }
 
   public saveCompleted(input: SaveTranscriptInput): Transcript {
@@ -195,17 +244,25 @@ export class TranscriptRepository {
     const db = this.requireDatabase()
     const createdAt = input.createdAt ?? this.now()
     const transcriptId = this.createId()
-    const versionRow = db.prepare(`SELECT COALESCE(MAX(version), 0) + 1 AS version FROM transcripts WHERE lesson_id = ?`).get(input.lessonId) as { version: number }
+    const versionRow = db
+      .prepare(
+        `SELECT COALESCE(MAX(version), 0) + 1 AS version FROM transcripts WHERE lesson_id = ?`
+      )
+      .get(input.lessonId) as { version: number }
     const version = versionRow.version
 
     const transaction = db.transaction(() => {
-      db.prepare(`UPDATE transcripts SET is_current = 0 WHERE lesson_id = ? AND is_current = 1`).run(input.lessonId)
-      db.prepare(`
+      db.prepare(
+        `UPDATE transcripts SET is_current = 0 WHERE lesson_id = ? AND is_current = 1`
+      ).run(input.lessonId)
+      db.prepare(
+        `
         INSERT INTO transcripts (
           id, lesson_id, version, language, provider, model, created_at,
           source_revision, settings_json, status, is_current, error_message
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'completed', 1, NULL)
-      `).run(
+      `
+      ).run(
         transcriptId,
         input.lessonId,
         version,
@@ -239,22 +296,33 @@ export class TranscriptRepository {
 
   public getById(transcriptId: string): Transcript | null {
     const db = this.requireDatabase()
-    const row = db.prepare(`
+    const row = db
+      .prepare(
+        `
       SELECT id, lesson_id, version, language, provider, model, created_at,
              source_revision, settings_json, status, is_current, error_message
       FROM transcripts WHERE id = ?
-    `).get(transcriptId) as TranscriptRow | undefined
+    `
+      )
+      .get(transcriptId) as TranscriptRow | undefined
     return row ? this.mapTranscript(db, row) : null
   }
 
-  public getSubtitleCandidate(lessonId: string, language?: string): SubtitleCandidate | null {
+  public getSubtitleCandidate(
+    lessonId: string,
+    language?: string
+  ): SubtitleCandidate | null {
     const db = this.requireDatabase()
-    const rows = db.prepare(`
+    const rows = db
+      .prepare(
+        `
       SELECT id, file_path, language, label, file_size, created_at
       FROM content_resources
       WHERE lesson_id = ? AND role = 'subtitle'
       ORDER BY CASE WHEN ? IS NOT NULL AND language = ? THEN 0 ELSE 1 END, id
-    `).all(lessonId, language ?? null, language ?? null) as Array<{
+    `
+      )
+      .all(lessonId, language ?? null, language ?? null) as Array<{
       id: string
       file_path: string
       language: string | null
@@ -268,7 +336,9 @@ export class TranscriptRepository {
     for (const row of rows) {
       try {
         if (!fs.existsSync(row.file_path)) continue
-        const segments = parseSubtitleSegments(fs.readFileSync(row.file_path, 'utf8'))
+        const segments = parseSubtitleSegments(
+          fs.readFileSync(row.file_path, 'utf8')
+        )
         if (segments.length === 0) continue
         return {
           resourceId: row.id,
@@ -286,39 +356,56 @@ export class TranscriptRepository {
   }
 
   public getSettings(): TranscriptionSettings {
-    const row = this.requireDatabase().prepare(`
+    const row = this.requireDatabase()
+      .prepare(
+        `
       SELECT auto_transcribe_new_lessons FROM transcription_settings WHERE id = 1
-    `).get() as { auto_transcribe_new_lessons: number } | undefined
+    `
+      )
+      .get() as { auto_transcribe_new_lessons: number } | undefined
     return { autoTranscribeNewLessons: row?.auto_transcribe_new_lessons === 1 }
   }
 
   public setSettings(updates: Partial<TranscriptionSettings>): boolean {
     const db = this.requireDatabase()
     const current = this.getSettings()
-    const next = updates.autoTranscribeNewLessons ?? current.autoTranscribeNewLessons
-    db.prepare(`
+    const next =
+      updates.autoTranscribeNewLessons ?? current.autoTranscribeNewLessons
+    db.prepare(
+      `
       INSERT INTO transcription_settings (id, auto_transcribe_new_lessons)
       VALUES (1, ?)
       ON CONFLICT(id) DO UPDATE SET auto_transcribe_new_lessons = excluded.auto_transcribe_new_lessons
-    `).run(next ? 1 : 0)
+    `
+    ).run(next ? 1 : 0)
     return true
   }
 
   public getCourseAutoTranscribe(courseId: string): boolean {
-    const row = this.requireDatabase().prepare(`SELECT auto_transcribe FROM courses WHERE id = ?`).get(courseId) as { auto_transcribe: number } | undefined
+    const row = this.requireDatabase()
+      .prepare(`SELECT auto_transcribe FROM courses WHERE id = ?`)
+      .get(courseId) as { auto_transcribe: number } | undefined
     return row?.auto_transcribe === 1
   }
 
   public setCourseAutoTranscribe(courseId: string, enabled: boolean): boolean {
-    const result = this.requireDatabase().prepare(`UPDATE courses SET auto_transcribe = ?, updated_at = ? WHERE id = ?`).run(enabled ? 1 : 0, this.now(), courseId)
+    const result = this.requireDatabase()
+      .prepare(
+        `UPDATE courses SET auto_transcribe = ?, updated_at = ? WHERE id = ?`
+      )
+      .run(enabled ? 1 : 0, this.now(), courseId)
     return result.changes > 0
   }
 
   private mapTranscript(db: Database.Database, row: TranscriptRow): Transcript {
-    const segments = db.prepare(`
+    const segments = db
+      .prepare(
+        `
       SELECT id, transcript_id, sequence, start_time, end_time, text
       FROM transcript_segments WHERE transcript_id = ? ORDER BY sequence
-    `).all(row.id) as TranscriptSegmentRow[]
+    `
+      )
+      .all(row.id) as TranscriptSegmentRow[]
     return {
       ...this.mapTranscriptWithoutSegments(row),
       segments: segments.map((segment) => ({
@@ -330,11 +417,14 @@ export class TranscriptRepository {
     }
   }
 
-  private mapTranscriptWithoutSegments(row: TranscriptRow): Omit<Transcript, 'segments'> {
+  private mapTranscriptWithoutSegments(
+    row: TranscriptRow
+  ): Omit<Transcript, 'segments'> {
     let settings: Record<string, unknown> = {}
     try {
       const parsed: unknown = JSON.parse(row.settings_json)
-      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) settings = parsed as Record<string, unknown>
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed))
+        settings = parsed as Record<string, unknown>
     } catch {
       // Keep malformed legacy settings private and harmless.
     }
@@ -363,6 +453,12 @@ export class TranscriptRepository {
 
 export const transcriptRepository = new TranscriptRepository(databaseService)
 
-function isDatabaseService(value: TranscriptRepositoryDependencies | DatabaseService): value is DatabaseService {
-  return Boolean(value && typeof value === 'object' && typeof (value as { getDatabase?: unknown }).getDatabase === 'function')
+function isDatabaseService(
+  value: TranscriptRepositoryDependencies | DatabaseService
+): value is DatabaseService {
+  return Boolean(
+    value &&
+    typeof value === 'object' &&
+    typeof (value as { getDatabase?: unknown }).getDatabase === 'function'
+  )
 }

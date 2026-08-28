@@ -47,10 +47,13 @@ function readSaveRequest(value: unknown): SaveChaptersRequest {
     throw new Error('Invalid chapters list')
   }
   const chapters = raw.chapters.map((item) => {
-    if (!item || typeof item !== 'object') throw new Error('Invalid chapter item')
+    if (!item || typeof item !== 'object')
+      throw new Error('Invalid chapter item')
     const ch = item as Record<string, unknown>
-    if (typeof ch.title !== 'string' || !ch.title.trim()) throw new Error('Chapter title is required')
-    if (typeof ch.timestampSeconds !== 'number' || ch.timestampSeconds < 0) throw new Error('Valid timestamp is required')
+    if (typeof ch.title !== 'string' || !ch.title.trim())
+      throw new Error('Chapter title is required')
+    if (typeof ch.timestampSeconds !== 'number' || ch.timestampSeconds < 0)
+      throw new Error('Valid timestamp is required')
     return {
       id: typeof ch.id === 'string' ? ch.id : undefined,
       title: ch.title.trim(),
@@ -70,16 +73,22 @@ function readUpdateRequest(value: unknown): UpdateChapterRequest {
     throw new Error('Invalid update chapter request')
   }
   const raw = value as Record<string, unknown>
-  if (typeof raw.id !== 'string' || !raw.id.trim()) throw new Error('Invalid chapter id')
-  if (typeof raw.lessonId !== 'string' || !raw.lessonId.trim()) throw new Error('Invalid lessonId')
-  if (typeof raw.courseId !== 'string' || !raw.courseId.trim()) throw new Error('Invalid courseId')
+  if (typeof raw.id !== 'string' || !raw.id.trim())
+    throw new Error('Invalid chapter id')
+  if (typeof raw.lessonId !== 'string' || !raw.lessonId.trim())
+    throw new Error('Invalid lessonId')
+  if (typeof raw.courseId !== 'string' || !raw.courseId.trim())
+    throw new Error('Invalid courseId')
 
   return {
     id: raw.id.trim(),
     lessonId: raw.lessonId.trim(),
     courseId: raw.courseId.trim(),
     title: typeof raw.title === 'string' ? raw.title.trim() : undefined,
-    timestampSeconds: typeof raw.timestampSeconds === 'number' ? raw.timestampSeconds : undefined
+    timestampSeconds:
+      typeof raw.timestampSeconds === 'number'
+        ? raw.timestampSeconds
+        : undefined
   }
 }
 
@@ -88,9 +97,12 @@ function readDeleteRequest(value: unknown): DeleteChapterRequest {
     throw new Error('Invalid delete chapter request')
   }
   const raw = value as Record<string, unknown>
-  if (typeof raw.id !== 'string' || !raw.id.trim()) throw new Error('Invalid chapter id')
-  if (typeof raw.lessonId !== 'string' || !raw.lessonId.trim()) throw new Error('Invalid lessonId')
-  if (typeof raw.courseId !== 'string' || !raw.courseId.trim()) throw new Error('Invalid courseId')
+  if (typeof raw.id !== 'string' || !raw.id.trim())
+    throw new Error('Invalid chapter id')
+  if (typeof raw.lessonId !== 'string' || !raw.lessonId.trim())
+    throw new Error('Invalid lessonId')
+  if (typeof raw.courseId !== 'string' || !raw.courseId.trim())
+    throw new Error('Invalid courseId')
 
   return {
     id: raw.id.trim(),

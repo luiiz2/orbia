@@ -7,13 +7,30 @@ import type {
   ProposedContentResource
 } from '../../../types'
 import type { ScannedDirectory, ScannedFile } from '../scanner.service'
-import { isMediaFile, isPreservableContentFile, isImageFile, isSubtitleFile, getMediaType, toResourceType } from '../../utils/file-utils'
-import { cleanCourseTitle, cleanModuleTitle, cleanTitle } from '../../utils/title-cleaner'
+import {
+  isMediaFile,
+  isPreservableContentFile,
+  isImageFile,
+  isSubtitleFile,
+  getMediaType,
+  toResourceType
+} from '../../utils/file-utils'
+import {
+  cleanCourseTitle,
+  cleanModuleTitle,
+  cleanTitle
+} from '../../utils/title-cleaner'
 import { naturalCompare } from '../../utils/natural-sort'
 import { classifyFolderName } from './auxiliary-classifier'
 import { groupMultipartLessons } from './multipart-detector'
-import { resolveSequenceOrdering, extractExplicitNumber } from './title-sequence-resolver'
-import { ensureCourseCover, ensureLessonCover } from '../../utils/cover-generator'
+import {
+  resolveSequenceOrdering,
+  extractExplicitNumber
+} from './title-sequence-resolver'
+import {
+  ensureCourseCover,
+  ensureLessonCover
+} from '../../utils/cover-generator'
 import { probeMediaDurationsBatch } from '../../utils/media-probe'
 
 export interface NormalizedHierarchyOptions {
@@ -35,18 +52,30 @@ export async function normalizeCourseHierarchy(
   // 1. Find course cover
   let coverPath: string | undefined
   if (options.detectCovers) {
-    const coverFile = scannedDir.files.find((f) => isImageFile(f.fullPath) && /^(?:cover|capa|poster|banner|thumb)$/i.test(path.basename(f.name, path.extname(f.name))))
+    const coverFile = scannedDir.files.find(
+      (f) =>
+        isImageFile(f.fullPath) &&
+        /^(?:cover|capa|poster|banner|thumb)$/i.test(
+          path.basename(f.name, path.extname(f.name))
+        )
+    )
     if (coverFile) {
       coverPath = coverFile.fullPath
     } else {
       const allFiles = collectAllFiles(scannedDir)
       const firstVideo = allFiles.find((f) => isMediaFile(f.fullPath))
-      coverPath = await ensureCourseCover(rootPath, suggestedTitle, firstVideo?.fullPath)
+      coverPath = await ensureCourseCover(
+        rootPath,
+        suggestedTitle,
+        firstVideo?.fullPath
+      )
     }
   }
 
   // 2. Identify root-level files vs subdirectory modules
-  const rootPreserved = scannedDir.files.filter((f) => !f.isDirectory && isPreservableContentFile(f.fullPath))
+  const rootPreserved = scannedDir.files.filter(
+    (f) => !f.isDirectory && isPreservableContentFile(f.fullPath)
+  )
   const rootMedia = rootPreserved.filter((f) => isMediaFile(f.fullPath))
   const rootNonMedia = rootPreserved.filter((f) => !isMediaFile(f.fullPath))
 
@@ -66,7 +95,10 @@ export async function normalizeCourseHierarchy(
       lessons: rootLessons,
       resources: rootResources
     })
-  } else if (rootNonMedia.length > 0 && scannedDir.subDirectories.length === 0) {
+  } else if (
+    rootNonMedia.length > 0 &&
+    scannedDir.subDirectories.length === 0
+  ) {
     // Single flat course with materials only
     const rootResources = buildResourcesFromFiles(rootNonMedia)
     proposedModules.push({
@@ -80,7 +112,9 @@ export async function normalizeCourseHierarchy(
   }
 
   // 3. Process subdirectories as Modules / Sections
-  const sortedSubDirs = [...scannedDir.subDirectories].sort((a, b) => naturalCompare(a.name, b.name))
+  const sortedSubDirs = [...scannedDir.subDirectories].sort((a, b) =>
+    naturalCompare(a.name, b.name)
+  )
 
   for (const subDir of sortedSubDirs) {
     const folderClass = classifyFolderName(subDir.name)
@@ -113,17 +147,30 @@ export async function normalizeCourseHierarchy(
   }
 
   // Attach root non-media materials if not already attached
-  if (rootNonMedia.length > 0 && rootMedia.length === 0 && proposedModules.length > 0) {
+  if (
+    rootNonMedia.length > 0 &&
+    rootMedia.length === 0 &&
+    proposedModules.length > 0
+  ) {
     const rootResources = buildResourcesFromFiles(rootNonMedia)
     if (proposedModules[0].resources) {
-      proposedModules[0].resources = [...rootResources, ...proposedModules[0].resources]
+      proposedModules[0].resources = [
+        ...rootResources,
+        ...proposedModules[0].resources
+      ]
     } else {
       proposedModules[0].resources = rootResources
     }
   }
 
-  const totalLessons = proposedModules.reduce((sum, m) => sum + m.lessons.length, 0)
-  const totalDuration = proposedModules.reduce((sum, m) => sum + (m.duration || 0), 0)
+  const totalLessons = proposedModules.reduce(
+    (sum, m) => sum + m.lessons.length,
+    0
+  )
+  const totalDuration = proposedModules.reduce(
+    (sum, m) => sum + (m.duration || 0),
+    0
+  )
   const totalFilesCount = countTotalFiles(scannedDir)
 
   return {
@@ -142,7 +189,10 @@ interface FlattenedFile {
   sectionPath: string[] // e.g. ["Unit 01", "Part 02"]
 }
 
-function collectPreservedFilesWithSections(dir: ScannedDirectory, parentSections: string[] = []): FlattenedFile[] {
+function collectPreservedFilesWithSections(
+  dir: ScannedDirectory,
+  parentSections: string[] = []
+): FlattenedFile[] {
   const results: FlattenedFile[] = []
 
   for (const f of dir.files) {
@@ -152,7 +202,9 @@ function collectPreservedFilesWithSections(dir: ScannedDirectory, parentSections
   }
 
   for (const sub of dir.subDirectories) {
-    results.push(...collectPreservedFilesWithSections(sub, [...parentSections, sub.name]))
+    results.push(
+      ...collectPreservedFilesWithSections(sub, [...parentSections, sub.name])
+    )
   }
 
   return results
@@ -161,7 +213,9 @@ function collectPreservedFilesWithSections(dir: ScannedDirectory, parentSections
 async function buildLessonsFromFlattened(
   mediaFiles: FlattenedFile[]
 ): Promise<ProposedLesson[]> {
-  const durations = await probeMediaDurationsBatch(mediaFiles.map((m) => m.file.fullPath))
+  const durations = await probeMediaDurationsBatch(
+    mediaFiles.map((m) => m.file.fullPath)
+  )
 
   // Map to raw items for multipart detection
   const rawItems = mediaFiles.map((m) => {
@@ -173,7 +227,10 @@ async function buildLessonsFromFlattened(
       duration: durations.get(m.file.fullPath) || 0,
       fileSize: m.file.sizeBytes,
       fingerprint: m.file.fingerprint,
-      sectionLabel: m.sectionPath.length > 0 ? m.sectionPath.map(cleanTitle).filter(Boolean).join(' · ') : undefined
+      sectionLabel:
+        m.sectionPath.length > 0
+          ? m.sectionPath.map(cleanTitle).filter(Boolean).join(' · ')
+          : undefined
     }
   })
 
@@ -214,7 +271,9 @@ async function buildLessonsFromFlattened(
       rawFileName: l.originalFileName,
       cleanTitle: l.title,
       filePath: l.filePath,
-      explicitNumber: extractExplicitNumber(l.originalFileName) ?? extractExplicitNumber(l.title),
+      explicitNumber:
+        extractExplicitNumber(l.originalFileName) ??
+        extractExplicitNumber(l.title),
       orderIndex: l.orderIndex,
       displayOrder: l.orderIndex
     }))

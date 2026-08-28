@@ -24,7 +24,11 @@ function getAppUserDataPath(): string {
     // Dynamic require so non-Electron test runtimes don't crash
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const electron = require('electron')
-    if (electron && electron.app && typeof electron.app.getPath === 'function') {
+    if (
+      electron &&
+      electron.app &&
+      typeof electron.app.getPath === 'function'
+    ) {
       return electron.app.getPath('userData')
     }
   } catch {
@@ -135,13 +139,17 @@ export class AppConfigService {
   }
 
   private seedDefaultProfile(): void {
-    const count = this.db!.prepare(`SELECT count(*) as cnt FROM local_profiles`).get() as { cnt: number }
+    const count = this.db!.prepare(
+      `SELECT count(*) as cnt FROM local_profiles`
+    ).get() as { cnt: number }
     if (count.cnt === 0) {
       const now = Date.now()
-      this.db!.prepare(`
+      this.db!.prepare(
+        `
         INSERT INTO local_profiles (id, name, avatar_path, default_vault_path, created_at, updated_at)
         VALUES ('default_profile', 'Principal', NULL, NULL, ?, ?)
-      `).run(now, now)
+      `
+      ).run(now, now)
     }
   }
 
@@ -154,15 +162,15 @@ export class AppConfigService {
         config: {
           name: 'Streaming',
           colorTokens: {
-            background: '#07090e',
-            foreground: '#f8fafc',
-            primary: '#f97316',
-            primaryForeground: '#ffffff',
-            secondary: '#1e293b',
-            secondaryForeground: '#f8fafc',
-            accent: '#ea580c',
-            card: '#0f172a',
-            border: '#1e293b'
+            background: '#101312',
+            foreground: '#f3eee5',
+            primary: '#d08a52',
+            primaryForeground: '#24170f',
+            secondary: '#202623',
+            secondaryForeground: '#f3eee5',
+            accent: '#a8b6aa',
+            card: '#171b19',
+            border: '#2b322e'
           },
           cardStyle: {
             aspectRatio: '16:9',
@@ -189,15 +197,15 @@ export class AppConfigService {
         config: {
           name: 'Cinema',
           colorTokens: {
-            background: '#030712',
-            foreground: '#f9fafb',
-            primary: '#eab308',
-            primaryForeground: '#000000',
-            secondary: '#111827',
-            secondaryForeground: '#f9fafb',
-            accent: '#ca8a04',
-            card: '#0b0f19',
-            border: '#1f2937'
+            background: '#0c100e',
+            foreground: '#f3eee5',
+            primary: '#d08a52',
+            primaryForeground: '#24170f',
+            secondary: '#1b211d',
+            secondaryForeground: '#f3eee5',
+            accent: '#a8b6aa',
+            card: '#131816',
+            border: '#2b322e'
           },
           cardStyle: {
             aspectRatio: '2:3',
@@ -214,7 +222,10 @@ export class AppConfigService {
             myList: { mode: 'poster_wall' },
             library: { mode: 'grid' }
           },
-          typography: { fontFamily: 'Cinzel, Georgia, serif', fontSizeScale: 1.05 }
+          typography: {
+            fontFamily: 'Cinzel, Georgia, serif',
+            fontSizeScale: 1.05
+          }
         }
       },
       {
@@ -224,15 +235,15 @@ export class AppConfigService {
         config: {
           name: 'Compact',
           colorTokens: {
-            background: '#090d16',
-            foreground: '#e2e8f0',
-            primary: '#3b82f6',
-            primaryForeground: '#ffffff',
-            secondary: '#1e293b',
-            secondaryForeground: '#e2e8f0',
-            accent: '#2563eb',
-            card: '#0f172a',
-            border: '#334155'
+            background: '#121715',
+            foreground: '#edf1ea',
+            primary: '#c27b45',
+            primaryForeground: '#25180f',
+            secondary: '#202823',
+            secondaryForeground: '#edf1ea',
+            accent: '#9eafa2',
+            card: '#19201c',
+            border: '#303a33'
           },
           cardStyle: {
             aspectRatio: 'compact',
@@ -249,7 +260,10 @@ export class AppConfigService {
             myList: { mode: 'list' },
             library: { mode: 'list' }
           },
-          typography: { fontFamily: 'system-ui, sans-serif', fontSizeScale: 0.95 }
+          typography: {
+            fontFamily: 'system-ui, sans-serif',
+            fontSizeScale: 0.95
+          }
         }
       },
       {
@@ -259,15 +273,15 @@ export class AppConfigService {
         config: {
           name: 'Minimal',
           colorTokens: {
-            background: '#0a0a0a',
-            foreground: '#ededed',
-            primary: '#ffffff',
-            primaryForeground: '#000000',
-            secondary: '#171717',
-            secondaryForeground: '#ededed',
-            accent: '#737373',
-            card: '#121212',
-            border: '#262626'
+            background: '#101312',
+            foreground: '#f3eee5',
+            primary: '#d08a52',
+            primaryForeground: '#24170f',
+            secondary: '#191d1b',
+            secondaryForeground: '#f3eee5',
+            accent: '#84998b',
+            card: '#151a17',
+            border: '#2b322e'
           },
           cardStyle: {
             aspectRatio: '16:9',
@@ -284,14 +298,24 @@ export class AppConfigService {
             myList: { mode: 'grid' },
             library: { mode: 'grid' }
           },
-          typography: { fontFamily: 'system-ui, sans-serif', fontSizeScale: 1.0 }
+          typography: {
+            fontFamily: 'system-ui, sans-serif',
+            fontSizeScale: 1.0
+          }
         }
       }
     ]
 
+    // Built-in presets are application-owned; keep their palette current on upgrades
+    // while leaving imported/user-created presets untouched.
     const insert = this.db!.prepare(`
-      INSERT OR IGNORE INTO theme_presets (id, name, is_builtin, config_json, created_at)
+      INSERT INTO theme_presets (id, name, is_builtin, config_json, created_at)
       VALUES (?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        name = excluded.name,
+        is_builtin = excluded.is_builtin,
+        config_json = excluded.config_json
+      WHERE theme_presets.is_builtin = 1
     `)
 
     const now = Date.now()
@@ -335,7 +359,13 @@ export class AppConfigService {
       FROM vaults
       ORDER BY last_opened DESC
     `)
-    const rows = stmt.all() as { id: string; name: string; path: string; createdAt: number; lastOpened: number }[]
+    const rows = stmt.all() as {
+      id: string
+      name: string
+      path: string
+      createdAt: number
+      lastOpened: number
+    }[]
     return rows.map((r) => ({
       id: r.id,
       name: r.name,
@@ -352,7 +382,15 @@ export class AppConfigService {
       FROM vaults
       WHERE path = ?
     `)
-    const row = stmt.get(vaultPath) as { id: string; name: string; path: string; createdAt: number; lastOpened: number } | undefined
+    const row = stmt.get(vaultPath) as
+      | {
+          id: string
+          name: string
+          path: string
+          createdAt: number
+          lastOpened: number
+        }
+      | undefined
     if (!row) return null
 
     return {
@@ -377,7 +415,7 @@ export class AppConfigService {
       theme: 'dark',
       defaultPlaybackSpeed: 1.0,
       autoPlayNext: true,
-      completionThreshold: 0.90,
+      completionThreshold: 0.9,
       deleteSourceZipAfterImport: false,
       dailyStudyGoalMinutes: 30,
       weeklyLessonsGoal: 10
@@ -399,7 +437,10 @@ export class AppConfigService {
     return settings as unknown as AppSettings
   }
 
-  public setSetting<K extends keyof AppSettings>(key: K, value: AppSettings[K]): void {
+  public setSetting<K extends keyof AppSettings>(
+    key: K,
+    value: AppSettings[K]
+  ): void {
     this.ensureInitialized()
     const serialized = JSON.stringify(value)
     const stmt = this.db!.prepare(`
@@ -415,9 +456,9 @@ export class AppConfigService {
   public getAiSettings(): AiSettingsSnapshot {
     this.ensureInitialized()
     const defaults = createDefaultAiSettings()
-    const row = this.db!.prepare(`SELECT value FROM app_settings WHERE key = 'ai.config'`).get() as
-      | { value: string }
-      | undefined
+    const row = this.db!.prepare(
+      `SELECT value FROM app_settings WHERE key = 'ai.config'`
+    ).get() as { value: string } | undefined
 
     let stored: Record<string, unknown> = {}
     if (row) {
@@ -432,24 +473,44 @@ export class AppConfigService {
     }
 
     const providers = { ...defaults.providers }
-    if (stored.providers && typeof stored.providers === 'object' && !Array.isArray(stored.providers)) {
+    if (
+      stored.providers &&
+      typeof stored.providers === 'object' &&
+      !Array.isArray(stored.providers)
+    ) {
       const savedProviders = stored.providers as Record<string, unknown>
       for (const providerId of AI_PROVIDER_IDS) {
         const saved = savedProviders[providerId]
-        if (!saved || typeof saved !== 'object' || Array.isArray(saved)) continue
+        if (!saved || typeof saved !== 'object' || Array.isArray(saved))
+          continue
         const value = saved as Record<string, unknown>
-        const baseUrl = typeof value.baseUrl === 'string' ? value.baseUrl : providers[providerId].baseUrl
-        const enabled = typeof value.enabled === 'boolean' ? value.enabled : providers[providerId].enabled
+        const baseUrl =
+          typeof value.baseUrl === 'string'
+            ? value.baseUrl
+            : providers[providerId].baseUrl
+        const enabled =
+          typeof value.enabled === 'boolean'
+            ? value.enabled
+            : providers[providerId].enabled
         providers[providerId] = { ...providers[providerId], baseUrl, enabled }
       }
     }
 
     const routes = { ...defaults.routes }
-    if (stored.routes && typeof stored.routes === 'object' && !Array.isArray(stored.routes)) {
+    if (
+      stored.routes &&
+      typeof stored.routes === 'object' &&
+      !Array.isArray(stored.routes)
+    ) {
       const savedRoutes = stored.routes as Record<string, unknown>
       for (const task of AI_TASKS) {
         const savedRoute = savedRoutes[task]
-        if (!savedRoute || typeof savedRoute !== 'object' || Array.isArray(savedRoute)) continue
+        if (
+          !savedRoute ||
+          typeof savedRoute !== 'object' ||
+          Array.isArray(savedRoute)
+        )
+          continue
         const value = savedRoute as Record<string, unknown>
         routes[task] = {
           primary: this.parseAiAssignment(value.primary),
@@ -458,36 +519,57 @@ export class AppConfigService {
       }
     }
 
-    const privacyMode = AI_PRIVACY_MODES.includes(stored.privacyMode as AiPrivacyMode)
+    const privacyMode = AI_PRIVACY_MODES.includes(
+      stored.privacyMode as AiPrivacyMode
+    )
       ? (stored.privacyMode as AiPrivacyMode)
       : defaults.privacyMode
     const configured = new Set(
-      (this.db!.prepare(`SELECT provider_id FROM ai_credentials`).all() as { provider_id: string }[]).map(
-        (credential) => credential.provider_id
-      )
+      (
+        this.db!.prepare(`SELECT provider_id FROM ai_credentials`).all() as {
+          provider_id: string
+        }[]
+      ).map((credential) => credential.provider_id)
     )
 
     return {
       privacyMode,
       allowedCloudDataTypes: Array.isArray(stored.allowedCloudDataTypes)
-        ? [...new Set(stored.allowedCloudDataTypes.filter((value): value is AiDataType =>
-            typeof value === 'string' && AI_DATA_TYPES.includes(value as AiDataType)
-          ))]
+        ? [
+            ...new Set(
+              stored.allowedCloudDataTypes.filter(
+                (value): value is AiDataType =>
+                  typeof value === 'string' &&
+                  AI_DATA_TYPES.includes(value as AiDataType)
+              )
+            )
+          ]
         : [],
       providers: Object.fromEntries(
         AI_PROVIDER_IDS.map((providerId) => [
           providerId,
-          { ...providers[providerId], apiKeyConfigured: configured.has(providerId) }
+          {
+            ...providers[providerId],
+            apiKeyConfigured: configured.has(providerId)
+          }
         ])
       ) as AiSettingsSnapshot['providers'],
       routes
     }
   }
 
-  public updateAiProvider(input: { providerId: AiProviderId; baseUrl: string; enabled: boolean }): AiSettingsSnapshot {
+  public updateAiProvider(input: {
+    providerId: AiProviderId
+    baseUrl: string
+    enabled: boolean
+  }): AiSettingsSnapshot {
     this.ensureInitialized()
-    if (!AI_PROVIDER_IDS.includes(input.providerId)) throw new Error('Unknown AI provider')
-    if (typeof input.baseUrl !== 'string' || typeof input.enabled !== 'boolean') {
+    if (!AI_PROVIDER_IDS.includes(input.providerId))
+      throw new Error('Unknown AI provider')
+    if (
+      typeof input.baseUrl !== 'string' ||
+      typeof input.enabled !== 'boolean'
+    ) {
       throw new Error('Invalid AI provider configuration')
     }
 
@@ -515,16 +597,22 @@ export class AppConfigService {
 
   public setAiPrivacyMode(privacyMode: AiPrivacyMode): AiSettingsSnapshot {
     this.ensureInitialized()
-    if (!AI_PRIVACY_MODES.includes(privacyMode)) throw new Error('Unknown AI privacy mode')
+    if (!AI_PRIVACY_MODES.includes(privacyMode))
+      throw new Error('Unknown AI privacy mode')
     const settings = this.getAiSettings()
     settings.privacyMode = privacyMode
     this.saveAiSettings(settings)
     return this.getAiSettings()
   }
 
-  public setAiAllowedCloudDataTypes(dataTypes: readonly AiDataType[]): AiSettingsSnapshot {
+  public setAiAllowedCloudDataTypes(
+    dataTypes: readonly AiDataType[]
+  ): AiSettingsSnapshot {
     this.ensureInitialized()
-    if (!Array.isArray(dataTypes) || dataTypes.some((value) => !AI_DATA_TYPES.includes(value))) {
+    if (
+      !Array.isArray(dataTypes) ||
+      dataTypes.some((value) => !AI_DATA_TYPES.includes(value))
+    ) {
       throw new Error('Invalid AI cloud data permissions')
     }
     const settings = this.getAiSettings()
@@ -535,35 +623,47 @@ export class AppConfigService {
 
   public getEncryptedAiCredential(providerId: AiProviderId): string | null {
     this.ensureInitialized()
-    const row = this.db!.prepare(`SELECT encrypted_secret FROM ai_credentials WHERE provider_id = ?`).get(providerId) as
-      | { encrypted_secret: string }
-      | undefined
+    const row = this.db!.prepare(
+      `SELECT encrypted_secret FROM ai_credentials WHERE provider_id = ?`
+    ).get(providerId) as { encrypted_secret: string } | undefined
     return row?.encrypted_secret ?? null
   }
 
-  public setEncryptedAiCredential(providerId: AiProviderId, encryptedSecret: string): void {
+  public setEncryptedAiCredential(
+    providerId: AiProviderId,
+    encryptedSecret: string
+  ): void {
     this.ensureInitialized()
-    if (!AI_PROVIDER_IDS.includes(providerId)) throw new Error('Unknown AI provider')
-    if (typeof encryptedSecret !== 'string' || !encryptedSecret) throw new Error('Encrypted credential is required')
-    this.db!.prepare(`
+    if (!AI_PROVIDER_IDS.includes(providerId))
+      throw new Error('Unknown AI provider')
+    if (typeof encryptedSecret !== 'string' || !encryptedSecret)
+      throw new Error('Encrypted credential is required')
+    this.db!.prepare(
+      `
       INSERT INTO ai_credentials (provider_id, encrypted_secret, updated_at)
       VALUES (?, ?, ?)
       ON CONFLICT(provider_id) DO UPDATE SET
         encrypted_secret = excluded.encrypted_secret,
         updated_at = excluded.updated_at
-    `).run(providerId, encryptedSecret, Date.now())
+    `
+    ).run(providerId, encryptedSecret, Date.now())
   }
 
   public clearAiCredential(providerId: AiProviderId): void {
     this.ensureInitialized()
-    this.db!.prepare(`DELETE FROM ai_credentials WHERE provider_id = ?`).run(providerId)
+    this.db!.prepare(`DELETE FROM ai_credentials WHERE provider_id = ?`).run(
+      providerId
+    )
   }
 
   private saveAiSettings(settings: AiSettingsSnapshot): void {
     const providers = Object.fromEntries(
       AI_PROVIDER_IDS.map((providerId) => {
         const provider = settings.providers[providerId]
-        return [providerId, { baseUrl: provider.baseUrl, enabled: provider.enabled }]
+        return [
+          providerId,
+          { baseUrl: provider.baseUrl, enabled: provider.enabled }
+        ]
       })
     )
     const routes = Object.fromEntries(
@@ -575,22 +675,27 @@ export class AppConfigService {
       providers,
       routes
     })
-    this.db!.prepare(`
+    this.db!.prepare(
+      `
       INSERT INTO app_settings (key, value)
       VALUES ('ai.config', ?)
       ON CONFLICT(key) DO UPDATE SET value = excluded.value
-    `).run(value)
+    `
+    ).run(value)
   }
 
   private parseAiAssignment(value: unknown): AiModelAssignment | null {
     if (!value || typeof value !== 'object' || Array.isArray(value)) return null
     const assignment = value as Record<string, unknown>
-    if (!AI_PROVIDER_IDS.includes(assignment.providerId as AiProviderId)) return null
-    if (typeof assignment.modelId !== 'string' || !assignment.modelId.trim()) return null
+    if (!AI_PROVIDER_IDS.includes(assignment.providerId as AiProviderId))
+      return null
+    if (typeof assignment.modelId !== 'string' || !assignment.modelId.trim())
+      return null
 
     const capabilities = Array.isArray(assignment.capabilities)
-      ? assignment.capabilities.filter((capability): capability is AiCapability =>
-          AI_CAPABILITIES.includes(capability as AiCapability)
+      ? assignment.capabilities.filter(
+          (capability): capability is AiCapability =>
+            AI_CAPABILITIES.includes(capability as AiCapability)
         )
       : undefined
     return {
@@ -613,7 +718,10 @@ export class AppConfigService {
     return stmt.all() as import('../../types/theme').LocalProfile[]
   }
 
-  public createProfile(name: string, avatarPath?: string): import('../../types/theme').LocalProfile {
+  public createProfile(
+    name: string,
+    avatarPath?: string
+  ): import('../../types/theme').LocalProfile {
     this.ensureInitialized()
     const now = Date.now()
     const id = `profile_${crypto.randomUUID()}`
@@ -625,14 +733,19 @@ export class AppConfigService {
       createdAt: now,
       updatedAt: now
     }
-    this.db!.prepare(`
+    this.db!.prepare(
+      `
       INSERT INTO local_profiles (id, name, avatar_path, default_vault_path, created_at, updated_at)
       VALUES (@id, @name, @avatarPath, @defaultVaultPath, @createdAt, @updatedAt)
-    `).run(profile)
+    `
+    ).run(profile)
     return profile
   }
 
-  public updateProfile(id: string, updates: Partial<import('../../types/theme').LocalProfile>): boolean {
+  public updateProfile(
+    id: string,
+    updates: Partial<import('../../types/theme').LocalProfile>
+  ): boolean {
     this.ensureInitialized()
     const fields: string[] = []
     const params: Record<string, unknown> = { id, updatedAt: Date.now() }
@@ -653,16 +766,22 @@ export class AppConfigService {
     if (fields.length === 0) return true
     fields.push('updated_at = @updatedAt')
 
-    const res = this.db!.prepare(`UPDATE local_profiles SET ${fields.join(', ')} WHERE id = @id`).run(params)
+    const res = this.db!.prepare(
+      `UPDATE local_profiles SET ${fields.join(', ')} WHERE id = @id`
+    ).run(params)
     return res.changes > 0
   }
 
   public deleteProfile(id: string): boolean {
     this.ensureInitialized()
     // Do not delete if only 1 profile exists
-    const count = this.db!.prepare(`SELECT count(*) as cnt FROM local_profiles`).get() as { cnt: number }
+    const count = this.db!.prepare(
+      `SELECT count(*) as cnt FROM local_profiles`
+    ).get() as { cnt: number }
     if (count.cnt <= 1) return false
-    const res = this.db!.prepare(`DELETE FROM local_profiles WHERE id = ?`).run(id)
+    const res = this.db!.prepare(`DELETE FROM local_profiles WHERE id = ?`).run(
+      id
+    )
     return res.changes > 0
   }
 
@@ -675,7 +794,13 @@ export class AppConfigService {
       FROM theme_presets
       ORDER BY is_builtin DESC, name ASC
     `)
-    const rows = stmt.all() as { id: string; name: string; isBuiltin: number; configJson: string; createdAt: number }[]
+    const rows = stmt.all() as {
+      id: string
+      name: string
+      isBuiltin: number
+      configJson: string
+      createdAt: number
+    }[]
     return rows.map((r) => ({
       id: r.id,
       name: r.name,
@@ -685,17 +810,30 @@ export class AppConfigService {
     }))
   }
 
-  public saveThemePreset(preset: Omit<import('../../types/theme').ThemePreset, 'id' | 'createdAt'> & { id?: string }): import('../../types/theme').ThemePreset {
+  public saveThemePreset(
+    preset: Omit<
+      import('../../types/theme').ThemePreset,
+      'id' | 'createdAt'
+    > & { id?: string }
+  ): import('../../types/theme').ThemePreset {
     this.ensureInitialized()
     const now = Date.now()
     const id = preset.id || `preset_${crypto.randomUUID()}`
-    this.db!.prepare(`
+    this.db!.prepare(
+      `
       INSERT INTO theme_presets (id, name, is_builtin, config_json, created_at)
       VALUES (?, ?, ?, ?, ?)
       ON CONFLICT(id) DO UPDATE SET
         name = excluded.name,
         config_json = excluded.config_json
-    `).run(id, preset.name, preset.isBuiltin ? 1 : 0, JSON.stringify(preset.config), now)
+    `
+    ).run(
+      id,
+      preset.name,
+      preset.isBuiltin ? 1 : 0,
+      JSON.stringify(preset.config),
+      now
+    )
 
     return {
       id,
@@ -724,24 +862,40 @@ export class AppConfigService {
         overrides_json = excluded.overrides_json,
         updated_at = excluded.updated_at
     `)
-    const res = stmt.run(scopeType, scopeId, presetId || null, JSON.stringify(overrides), now)
+    const res = stmt.run(
+      scopeType,
+      scopeId,
+      presetId || null,
+      JSON.stringify(overrides),
+      now
+    )
     return res.changes > 0
   }
 
-  public resetAppearanceOverride(scopeType: import('../../types/theme').ThemeScope, scopeId: string, category?: string): boolean {
+  public resetAppearanceOverride(
+    scopeType: import('../../types/theme').ThemeScope,
+    scopeId: string,
+    category?: string
+  ): boolean {
     this.ensureInitialized()
     if (!category) {
-      const res = this.db!.prepare(`DELETE FROM appearance_overrides WHERE scope_type = ? AND scope_id = ?`).run(scopeType, scopeId)
+      const res = this.db!.prepare(
+        `DELETE FROM appearance_overrides WHERE scope_type = ? AND scope_id = ?`
+      ).run(scopeType, scopeId)
       return res.changes > 0
     }
 
-    const row = this.db!.prepare(`SELECT overrides_json FROM appearance_overrides WHERE scope_type = ? AND scope_id = ?`).get(scopeType, scopeId) as { overrides_json: string } | undefined
+    const row = this.db!.prepare(
+      `SELECT overrides_json FROM appearance_overrides WHERE scope_type = ? AND scope_id = ?`
+    ).get(scopeType, scopeId) as { overrides_json: string } | undefined
     if (!row) return true
 
     try {
       const current = JSON.parse(row.overrides_json)
       delete current[category]
-      this.db!.prepare(`UPDATE appearance_overrides SET overrides_json = ?, updated_at = ? WHERE scope_type = ? AND scope_id = ?`).run(JSON.stringify(current), Date.now(), scopeType, scopeId)
+      this.db!.prepare(
+        `UPDATE appearance_overrides SET overrides_json = ?, updated_at = ? WHERE scope_type = ? AND scope_id = ?`
+      ).run(JSON.stringify(current), Date.now(), scopeType, scopeId)
       return true
     } catch {
       return false
@@ -756,18 +910,20 @@ export class AppConfigService {
   ): import('../../types/theme').ResolvedTheme {
     this.ensureInitialized()
 
-    const defaultTheme = this.listThemePresets().find((p) => p.id === 'preset_streaming')?.config || {
+    const defaultTheme = this.listThemePresets().find(
+      (p) => p.id === 'preset_streaming'
+    )?.config || {
       name: 'Default',
       colorTokens: {
-        background: '#07090e',
-        foreground: '#f8fafc',
-        primary: '#f97316',
-        primaryForeground: '#ffffff',
-        secondary: '#1e293b',
-        secondaryForeground: '#f8fafc',
-        accent: '#ea580c',
-        card: '#0f172a',
-        border: '#1e293b'
+        background: '#101312',
+        foreground: '#f3eee5',
+        primary: '#d08a52',
+        primaryForeground: '#24170f',
+        secondary: '#202623',
+        secondaryForeground: '#f3eee5',
+        accent: '#a8b6aa',
+        card: '#171b19',
+        border: '#2b322e'
       },
       cardStyle: {
         aspectRatio: '16:9',
@@ -783,7 +939,10 @@ export class AppConfigService {
       typography: { fontFamily: 'Inter, sans-serif', fontSizeScale: 1.0 }
     }
 
-    const scopes: { scopeType: import('../../types/theme').ThemeScope; scopeId?: string }[] = [
+    const scopes: {
+      scopeType: import('../../types/theme').ThemeScope
+      scopeId?: string
+    }[] = [
       { scopeType: 'profile', scopeId: profileId },
       { scopeType: 'vault', scopeId: vaultPath },
       { scopeType: 'course', scopeId: courseId },
@@ -801,30 +960,52 @@ export class AppConfigService {
 
     for (const s of scopes) {
       if (!s.scopeId) continue
-      const row = this.db!.prepare(`
+      const row = this.db!.prepare(
+        `
         SELECT theme_preset_id, overrides_json
         FROM appearance_overrides
         WHERE scope_type = ? AND scope_id = ?
-      `).get(s.scopeType, s.scopeId) as { theme_preset_id?: string; overrides_json: string } | undefined
+      `
+      ).get(s.scopeType, s.scopeId) as
+        { theme_preset_id?: string; overrides_json: string } | undefined
 
       if (row) {
         if (row.theme_preset_id) {
-          const preset = this.listThemePresets().find((p) => p.id === row.theme_preset_id)
+          const preset = this.listThemePresets().find(
+            (p) => p.id === row.theme_preset_id
+          )
           if (preset) {
             resolvedColor = { ...resolvedColor, ...preset.config.colorTokens }
             resolvedCard = { ...resolvedCard, ...preset.config.cardStyle }
-            resolvedSections = { ...resolvedSections, ...preset.config.sections }
-            if (preset.config.wallpaper) resolvedWallpaper = preset.config.wallpaper
-            if (preset.config.typography) resolvedTypography = { ...resolvedTypography, ...preset.config.typography }
+            resolvedSections = {
+              ...resolvedSections,
+              ...preset.config.sections
+            }
+            if (preset.config.wallpaper)
+              resolvedWallpaper = preset.config.wallpaper
+            if (preset.config.typography)
+              resolvedTypography = {
+                ...resolvedTypography,
+                ...preset.config.typography
+              }
           }
         }
         try {
-          const overrides = JSON.parse(row.overrides_json) as Partial<import('../../types/theme').ThemeConfig>
-          if (overrides.colorTokens) resolvedColor = { ...resolvedColor, ...overrides.colorTokens }
-          if (overrides.cardStyle) resolvedCard = { ...resolvedCard, ...overrides.cardStyle }
-          if (overrides.sections) resolvedSections = { ...resolvedSections, ...overrides.sections }
+          const overrides = JSON.parse(row.overrides_json) as Partial<
+            import('../../types/theme').ThemeConfig
+          >
+          if (overrides.colorTokens)
+            resolvedColor = { ...resolvedColor, ...overrides.colorTokens }
+          if (overrides.cardStyle)
+            resolvedCard = { ...resolvedCard, ...overrides.cardStyle }
+          if (overrides.sections)
+            resolvedSections = { ...resolvedSections, ...overrides.sections }
           if (overrides.wallpaper) resolvedWallpaper = overrides.wallpaper
-          if (overrides.typography) resolvedTypography = { ...resolvedTypography, ...overrides.typography }
+          if (overrides.typography)
+            resolvedTypography = {
+              ...resolvedTypography,
+              ...overrides.typography
+            }
         } catch {
           // Ignored
         }
@@ -833,21 +1014,21 @@ export class AppConfigService {
 
     return {
       colorTokens: {
-        background: resolvedColor.background || '#07090e',
-        foreground: resolvedColor.foreground || '#f8fafc',
-        primary: resolvedColor.primary || '#f97316',
-        primaryForeground: resolvedColor.primaryForeground || '#ffffff',
-        secondary: resolvedColor.secondary || '#1e293b',
-        secondaryForeground: resolvedColor.secondaryForeground || '#f8fafc',
-        accent: resolvedColor.accent || '#ea580c',
-        muted: resolvedColor.muted || '#334155',
-        mutedForeground: resolvedColor.mutedForeground || '#94a3b8',
-        border: resolvedColor.border || '#1e293b',
-        card: resolvedColor.card || '#0f172a',
-        cardForeground: resolvedColor.cardForeground || '#f8fafc',
-        cardBorder: resolvedColor.cardBorder || '#1e293b',
+        background: resolvedColor.background || '#101312',
+        foreground: resolvedColor.foreground || '#f3eee5',
+        primary: resolvedColor.primary || '#d08a52',
+        primaryForeground: resolvedColor.primaryForeground || '#24170f',
+        secondary: resolvedColor.secondary || '#202623',
+        secondaryForeground: resolvedColor.secondaryForeground || '#f3eee5',
+        accent: resolvedColor.accent || '#a8b6aa',
+        muted: resolvedColor.muted || '#191d1b',
+        mutedForeground: resolvedColor.mutedForeground || '#9ca49e',
+        border: resolvedColor.border || '#2b322e',
+        card: resolvedColor.card || '#171b19',
+        cardForeground: resolvedColor.cardForeground || '#f3eee5',
+        cardBorder: resolvedColor.cardBorder || '#2b322e',
         playerBackground: resolvedColor.playerBackground || '#000000',
-        progressBarColor: resolvedColor.progressBarColor || '#f97316'
+        progressBarColor: resolvedColor.progressBarColor || '#d08a52'
       },
       cardStyle: resolvedCard as import('../../types/theme').CardStyleConfig,
       sections: resolvedSections,
@@ -856,21 +1037,27 @@ export class AppConfigService {
     }
   }
 
-  public getProfileDiscoveryPreferences(profileId: string): import('../../types/discovery').ProfileDiscoveryPreferences {
+  public getProfileDiscoveryPreferences(
+    profileId: string
+  ): import('../../types/discovery').ProfileDiscoveryPreferences {
     this.ensureInitialized()
-    const row = this.db!.prepare(`
+    const row = this.db!.prepare(
+      `
       SELECT profile_id, preferred_categories, excluded_categories, preferred_tags, discovery_mode, prefer_short_content, updated_at
       FROM profile_discovery_preferences
       WHERE profile_id = ?
-    `).get(profileId) as {
-      profile_id: string
-      preferred_categories: string
-      excluded_categories: string
-      preferred_tags: string
-      discovery_mode: string
-      prefer_short_content: number
-      updated_at: number
-    } | undefined
+    `
+    ).get(profileId) as
+      | {
+          profile_id: string
+          preferred_categories: string
+          excluded_categories: string
+          preferred_tags: string
+          discovery_mode: string
+          prefer_short_content: number
+          updated_at: number
+        }
+      | undefined
 
     if (!row) {
       return {
@@ -908,16 +1095,21 @@ export class AppConfigService {
       preferredCategories,
       excludedCategories,
       preferredTags,
-      discoveryMode: (row.discovery_mode as import('../../types/discovery').DiscoveryBalanceMode) || 'balanced',
+      discoveryMode:
+        (row.discovery_mode as import('../../types/discovery').DiscoveryBalanceMode) ||
+        'balanced',
       preferShortContent: row.prefer_short_content === 1,
       updatedAt: row.updated_at
     }
   }
 
-  public saveProfileDiscoveryPreferences(prefs: import('../../types/discovery').ProfileDiscoveryPreferences): boolean {
+  public saveProfileDiscoveryPreferences(
+    prefs: import('../../types/discovery').ProfileDiscoveryPreferences
+  ): boolean {
     this.ensureInitialized()
     const now = Date.now()
-    this.db!.prepare(`
+    this.db!.prepare(
+      `
       INSERT INTO profile_discovery_preferences (
         profile_id, preferred_categories, excluded_categories, preferred_tags, discovery_mode, prefer_short_content, updated_at
       ) VALUES (
@@ -930,7 +1122,8 @@ export class AppConfigService {
         discovery_mode = excluded.discovery_mode,
         prefer_short_content = excluded.prefer_short_content,
         updated_at = excluded.updated_at
-    `).run({
+    `
+    ).run({
       profileId: prefs.profileId,
       preferredCategories: JSON.stringify(prefs.preferredCategories || []),
       excludedCategories: JSON.stringify(prefs.excludedCategories || []),
@@ -944,20 +1137,23 @@ export class AppConfigService {
 
   public getOptimizationSettings(): import('../../types/optimizer').OptimizationSettings {
     this.ensureInitialized()
-    const defaultSettings: import('../../types/optimizer').OptimizationSettings = {
-      autoOptimizeNewMedia: false,
-      autoOptimizeMinSavingsPercent: 20,
-      defaultProfile: 'balanced',
-      resourceMode: 'automatic',
-      maxConcurrentJobs: 1,
-      pauseWhileWatching: true,
-      pauseOnBattery: true,
-      continueWhenWindowClosed: true,
-      backupRetentionDays: 7,
-      customBackupDirectory: undefined
-    }
+    const defaultSettings: import('../../types/optimizer').OptimizationSettings =
+      {
+        autoOptimizeNewMedia: false,
+        autoOptimizeMinSavingsPercent: 20,
+        defaultProfile: 'balanced',
+        resourceMode: 'automatic',
+        maxConcurrentJobs: 1,
+        pauseWhileWatching: true,
+        pauseOnBattery: true,
+        continueWhenWindowClosed: true,
+        backupRetentionDays: 7,
+        customBackupDirectory: undefined
+      }
 
-    const stmt = this.db!.prepare(`SELECT key, value FROM app_settings WHERE key LIKE 'opt_%'`)
+    const stmt = this.db!.prepare(
+      `SELECT key, value FROM app_settings WHERE key LIKE 'opt_%'`
+    )
     const rows = stmt.all() as { key: string; value: string }[]
 
     const res = { ...defaultSettings }
@@ -977,7 +1173,9 @@ export class AppConfigService {
     return res
   }
 
-  public updateOptimizationSettings(updates: Partial<import('../../types/optimizer').OptimizationSettings>): boolean {
+  public updateOptimizationSettings(
+    updates: Partial<import('../../types/optimizer').OptimizationSettings>
+  ): boolean {
     this.ensureInitialized()
     const tx = this.db!.transaction((entries: [string, unknown][]) => {
       const upsert = this.db!.prepare(`

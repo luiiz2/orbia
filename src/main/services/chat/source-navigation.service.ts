@@ -44,33 +44,55 @@ export class SourceNavigationService {
   }
 
   public resolve(input: SourceNavigationRequest): SourceNavigationResult {
-    if (!input || !isIdentifier(input.sourceId)) return unavailable('Source record ID is invalid')
+    if (!input || !isIdentifier(input.sourceId))
+      return unavailable('Source record ID is invalid')
     const source = this.chatRepository.getMessageSource(input.sourceId)
     if (!source) return unavailable('Source record is unavailable')
 
     const db = this.requireDatabase()
-    if (!db.prepare(`SELECT id FROM courses WHERE id = ?`).get(source.courseId)) {
+    if (
+      !db.prepare(`SELECT id FROM courses WHERE id = ?`).get(source.courseId)
+    ) {
       return unavailable('Course is unavailable')
     }
-    if (source.moduleId && !db.prepare(`SELECT id FROM modules WHERE id = ? AND course_id = ?`).get(source.moduleId, source.courseId)) {
+    if (
+      source.moduleId &&
+      !db
+        .prepare(`SELECT id FROM modules WHERE id = ? AND course_id = ?`)
+        .get(source.moduleId, source.courseId)
+    ) {
       return unavailable('Module ownership is invalid')
     }
 
     const lesson = this.resolveLesson(db, source)
-    if (source.lessonId && !lesson) return unavailable('Lesson ownership is invalid')
-    if (source.transcriptId && !this.hasTranscript(db, source.transcriptId, source.lessonId)) {
+    if (source.lessonId && !lesson)
+      return unavailable('Lesson ownership is invalid')
+    if (
+      source.transcriptId &&
+      !this.hasTranscript(db, source.transcriptId, source.lessonId)
+    ) {
       return unavailable('Transcript ownership is invalid')
     }
-    if (source.noteId && !this.hasNote(db, source.noteId, source.lessonId, source.courseId)) {
+    if (
+      source.noteId &&
+      !this.hasNote(db, source.noteId, source.lessonId, source.courseId)
+    ) {
       return unavailable('Note ownership is invalid')
     }
 
     const resource = this.resolveResource(db, source)
-    if (source.resourceId && !resource) return unavailable('Resource ownership is invalid')
+    if (source.resourceId && !resource)
+      return unavailable('Resource ownership is invalid')
 
-    if ((source.sourceKind === 'transcript' || source.sourceKind === 'subtitle' || source.sourceKind === 'note') && lesson) {
+    if (
+      (source.sourceKind === 'transcript' ||
+        source.sourceKind === 'subtitle' ||
+        source.sourceKind === 'note') &&
+      lesson
+    ) {
       const timestampSeconds = boundedTimestamp(source, lesson.duration)
-      if (timestampSeconds === null) return unavailable('Transcript locator is invalid')
+      if (timestampSeconds === null)
+        return unavailable('Transcript locator is invalid')
       return {
         status: 'ok',
         target: {
@@ -82,7 +104,11 @@ export class SourceNavigationService {
       }
     }
 
-    if (resource && source.sourceKind !== 'note' && source.sourceKind !== 'metadata') {
+    if (
+      resource &&
+      source.sourceKind !== 'note' &&
+      source.sourceKind !== 'metadata'
+    ) {
       const target = {
         type: 'resource' as const,
         courseId: resource.course_id,
@@ -100,37 +126,74 @@ export class SourceNavigationService {
     return unavailable('Source navigation is unsupported')
   }
 
-  private resolveLesson(db: Database.Database, source: ChatMessageSource): LessonRow | null {
+  private resolveLesson(
+    db: Database.Database,
+    source: ChatMessageSource
+  ): LessonRow | null {
     if (!source.lessonId) return null
-    const row = db.prepare(`
+    const row = db
+      .prepare(
+        `
       SELECT course_id, module_id, duration
       FROM lessons
       WHERE id = ? AND course_id = ?
-    `).get(source.lessonId, source.courseId) as LessonRow | undefined
-    if (!row || (source.moduleId && row.module_id !== source.moduleId)) return null
+    `
+      )
+      .get(source.lessonId, source.courseId) as LessonRow | undefined
+    if (!row || (source.moduleId && row.module_id !== source.moduleId))
+      return null
     return row
   }
 
-  private resolveResource(db: Database.Database, source: ChatMessageSource): ResourceRow | null {
+  private resolveResource(
+    db: Database.Database,
+    source: ChatMessageSource
+  ): ResourceRow | null {
     if (!source.resourceId) return null
-    const row = db.prepare(`
+    const row = db
+      .prepare(
+        `
       SELECT course_id, module_id, lesson_id, role, resource_type
       FROM content_resources
       WHERE id = ? AND course_id = ?
-    `).get(source.resourceId, source.courseId) as ResourceRow | undefined
-    const expectedRole = source.sourceKind === 'subtitle' ? 'subtitle' : 'resource'
+    `
+      )
+      .get(source.resourceId, source.courseId) as ResourceRow | undefined
+    const expectedRole =
+      source.sourceKind === 'subtitle' ? 'subtitle' : 'resource'
     if (!row || row.role !== expectedRole) return null
     if (source.moduleId && row.module_id !== source.moduleId) return null
     if (source.lessonId && row.lesson_id !== source.lessonId) return null
     return row
   }
 
-  private hasTranscript(db: Database.Database, transcriptId: string, lessonId: string | undefined): boolean {
-    return Boolean(lessonId && db.prepare(`SELECT id FROM transcripts WHERE id = ? AND lesson_id = ?`).get(transcriptId, lessonId))
+  private hasTranscript(
+    db: Database.Database,
+    transcriptId: string,
+    lessonId: string | undefined
+  ): boolean {
+    return Boolean(
+      lessonId &&
+      db
+        .prepare(`SELECT id FROM transcripts WHERE id = ? AND lesson_id = ?`)
+        .get(transcriptId, lessonId)
+    )
   }
 
-  private hasNote(db: Database.Database, noteId: string, lessonId: string | undefined, courseId: string): boolean {
-    return Boolean(lessonId && db.prepare(`SELECT id FROM lesson_notes WHERE id = ? AND lesson_id = ? AND course_id = ?`).get(noteId, lessonId, courseId))
+  private hasNote(
+    db: Database.Database,
+    noteId: string,
+    lessonId: string | undefined,
+    courseId: string
+  ): boolean {
+    return Boolean(
+      lessonId &&
+      db
+        .prepare(
+          `SELECT id FROM lesson_notes WHERE id = ? AND lesson_id = ? AND course_id = ?`
+        )
+        .get(noteId, lessonId, courseId)
+    )
   }
 
   private requireDatabase(): Database.Database {
@@ -140,11 +203,23 @@ export class SourceNavigationService {
   }
 }
 
-export const sourceNavigationService = new SourceNavigationService({ databaseService, chatRepository })
+export const sourceNavigationService = new SourceNavigationService({
+  databaseService,
+  chatRepository
+})
 
-function boundedTimestamp(source: ChatMessageSource, duration: number): number | null {
+function boundedTimestamp(
+  source: ChatMessageSource,
+  duration: number
+): number | null {
   const { startTime, endTime } = source.locator
-  if (!Number.isFinite(startTime) || !Number.isFinite(endTime) || startTime! < 0 || endTime! < startTime!) return null
+  if (
+    !Number.isFinite(startTime) ||
+    !Number.isFinite(endTime) ||
+    startTime! < 0 ||
+    endTime! < startTime!
+  )
+    return null
   if (!Number.isFinite(duration) || duration < 0) return null
   const lowerBound = Math.max(0, startTime!)
   const upperBound = Math.min(endTime!, duration)
@@ -152,7 +227,9 @@ function boundedTimestamp(source: ChatMessageSource, duration: number): number |
 }
 
 function positivePage(value: unknown): number | null {
-  return typeof value === 'number' && Number.isInteger(value) && value > 0 ? value : null
+  return typeof value === 'number' && Number.isInteger(value) && value > 0
+    ? value
+    : null
 }
 
 function unavailable(reason: string): SourceNavigationResult {
@@ -163,6 +240,12 @@ function isIdentifier(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0
 }
 
-function isDatabaseService(value: SourceNavigationServiceDependencies | DatabaseService): value is DatabaseService {
-  return Boolean(value && typeof value === 'object' && typeof (value as { getDatabase?: unknown }).getDatabase === 'function')
+function isDatabaseService(
+  value: SourceNavigationServiceDependencies | DatabaseService
+): value is DatabaseService {
+  return Boolean(
+    value &&
+    typeof value === 'object' &&
+    typeof (value as { getDatabase?: unknown }).getDatabase === 'function'
+  )
 }

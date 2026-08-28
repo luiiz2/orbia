@@ -42,7 +42,10 @@ export class ResourceManagerService {
 
     if (settings.pauseOnBattery) {
       try {
-        if (powerMonitor && typeof powerMonitor.isOnBatteryPower === 'function') {
+        if (
+          powerMonitor &&
+          typeof powerMonitor.isOnBatteryPower === 'function'
+        ) {
           if (powerMonitor.isOnBatteryPower()) {
             return false
           }

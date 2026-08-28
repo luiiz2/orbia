@@ -2,7 +2,10 @@ import fs from 'node:fs'
 import path from 'node:path'
 import crypto from 'node:crypto'
 import Database from 'better-sqlite3'
-import type { OptimizationPlan, OptimizationRecord } from '../../../types/optimizer'
+import type {
+  OptimizationPlan,
+  OptimizationRecord
+} from '../../../types/optimizer'
 import { databaseService } from '../database.service'
 import { appConfigService } from '../app-config.service'
 import { logger } from '../logger.service'
@@ -37,12 +40,19 @@ export class OptimizationJournalService {
     } = options
 
     if (!fs.existsSync(tempOptimizedFilePath)) {
-      return { success: false, finalPath: '', error: 'Temporary optimized file not found.' }
+      return {
+        success: false,
+        finalPath: '',
+        error: 'Temporary optimized file not found.'
+      }
     }
 
     const sourcePath = plan.sourcePath
     const sourceDir = path.dirname(sourcePath)
-    const baseNameWithoutExt = path.basename(sourcePath, path.extname(sourcePath))
+    const baseNameWithoutExt = path.basename(
+      sourcePath,
+      path.extname(sourcePath)
+    )
     const finalExt = `.${plan.targetContainer}`
     const finalPath = path.join(sourceDir, `${baseNameWithoutExt}${finalExt}`)
     const newFileName = `${baseNameWithoutExt}${finalExt}`
@@ -65,7 +75,10 @@ export class OptimizationJournalService {
         isReversible: true
       })
     } catch (journalErr) {
-      logger.warn('[OptimizationJournal] Could not record journal entry:', journalErr)
+      logger.warn(
+        '[OptimizationJournal] Could not record journal entry:',
+        journalErr
+      )
     }
 
     try {
@@ -93,22 +106,32 @@ export class OptimizationJournalService {
       // 3. Atomically update database in active Vault
       const db = databaseService.getDatabase()
       if (db) {
-        db.prepare(`
+        db.prepare(
+          `
           UPDATE lessons
           SET file_path = ?, file_name = ?, file_extension = ?, file_size = ?
           WHERE id = ?
-        `).run(finalPath, newFileName, finalExt, outputSizeBytes, lessonId)
+        `
+        ).run(finalPath, newFileName, finalExt, outputSizeBytes, lessonId)
 
         // Also update watch history and content_resources if referencing old path
-        db.prepare(`
+        db.prepare(
+          `
           UPDATE content_resources
           SET file_path = ?, file_extension = ?, file_size = ?
           WHERE file_path = ?
-        `).run(finalPath, finalExt, outputSizeBytes, sourcePath)
+        `
+        ).run(finalPath, finalExt, outputSizeBytes, sourcePath)
       }
 
       // 4. Multi-Vault Shared File Protection: Update other referencing vaults if shared
-      await this.updateOtherReferencingVaults(sourcePath, finalPath, newFileName, finalExt, outputSizeBytes)
+      await this.updateOtherReferencingVaults(
+        sourcePath,
+        finalPath,
+        newFileName,
+        finalExt,
+        outputSizeBytes
+      )
 
       // 5. Record Provenance
       this.recordOptimizationProvenance({
@@ -143,10 +166,16 @@ export class OptimizationJournalService {
       )
 
       // Attempt rollback from backup if target file was corrupted
-      if (!fs.existsSync(finalPath) && !fs.existsSync(sourcePath) && fs.existsSync(backupPath)) {
+      if (
+        !fs.existsSync(finalPath) &&
+        !fs.existsSync(sourcePath) &&
+        fs.existsSync(backupPath)
+      ) {
         try {
           fs.copyFileSync(backupPath, sourcePath)
-          logger.info('[OptimizationJournal] Restored source from backup during rollback.')
+          logger.info(
+            '[OptimizationJournal] Restored source from backup during rollback.'
+          )
         } catch {
           // Ignore
         }
@@ -168,7 +197,8 @@ export class OptimizationJournalService {
     if (!db) return
 
     try {
-      db.prepare(`
+      db.prepare(
+        `
         INSERT INTO optimization_records (
           id, lesson_id, original_path, original_size, original_codec,
           original_resolution, original_bitrate, original_fingerprint,
@@ -180,16 +210,22 @@ export class OptimizationJournalService {
           @optimizedPath, @optimizedSize, @optimizedCodec, @optimizedResolution,
           @backupPath, @profileUsed, @actualSavingsBytes, @createdAt
         )
-      `).run(record)
+      `
+      ).run(record)
     } catch (err) {
-      logger.warn('[OptimizationJournal] Failed to record optimization provenance:', err)
+      logger.warn(
+        '[OptimizationJournal] Failed to record optimization provenance:',
+        err
+      )
     }
   }
 
   /**
    * Queries all registered vaults in config.db to check if a physical file is shared across multiple vaults.
    */
-  public async getSharedVaults(physicalFilePath: string): Promise<{ isShared: boolean; vaultNames: string[] }> {
+  public async getSharedVaults(
+    physicalFilePath: string
+  ): Promise<{ isShared: boolean; vaultNames: string[] }> {
     const vaults = appConfigService.getRecentVaults()
     const activeVaultPath = databaseService.getCurrentVaultPath()
     const matchedVaultNames: string[] = []
@@ -201,17 +237,28 @@ export class OptimizationJournalService {
       try {
         // If it's the currently open vault, query directly
         if (activeVaultPath === v.path && databaseService.getDatabase()) {
-          const count = (
-            databaseService.getDatabase()!.prepare(`SELECT count(*) as cnt FROM lessons WHERE file_path = ?`).get(physicalFilePath) as { cnt: number }
-          )?.cnt || 0
+          const count =
+            (
+              databaseService
+                .getDatabase()!
+                .prepare(
+                  `SELECT count(*) as cnt FROM lessons WHERE file_path = ?`
+                )
+                .get(physicalFilePath) as { cnt: number }
+            )?.cnt || 0
           if (count > 0) matchedVaultNames.push(v.name)
         } else {
           // Read-only query on other vault database
           const otherDb = new Database(vDbPath, { readonly: true })
           try {
-            const count = (
-              otherDb.prepare(`SELECT count(*) as cnt FROM lessons WHERE file_path = ?`).get(physicalFilePath) as { cnt: number }
-            )?.cnt || 0
+            const count =
+              (
+                otherDb
+                  .prepare(
+                    `SELECT count(*) as cnt FROM lessons WHERE file_path = ?`
+                  )
+                  .get(physicalFilePath) as { cnt: number }
+              )?.cnt || 0
             if (count > 0) matchedVaultNames.push(v.name)
           } finally {
             otherDb.close()
@@ -251,22 +298,33 @@ export class OptimizationJournalService {
         const otherDb = new Database(vDbPath)
         try {
           otherDb.pragma('journal_mode = WAL')
-          otherDb.prepare(`
+          otherDb
+            .prepare(
+              `
             UPDATE lessons
             SET file_path = ?, file_name = ?, file_extension = ?, file_size = ?
             WHERE file_path = ?
-          `).run(newPath, newFileName, newExt, newSize, oldPath)
+          `
+            )
+            .run(newPath, newFileName, newExt, newSize, oldPath)
 
-          otherDb.prepare(`
+          otherDb
+            .prepare(
+              `
             UPDATE content_resources
             SET file_path = ?, file_extension = ?, file_size = ?
             WHERE file_path = ?
-          `).run(newPath, newExt, newSize, oldPath)
+          `
+            )
+            .run(newPath, newExt, newSize, oldPath)
         } finally {
           otherDb.close()
         }
       } catch (err) {
-        logger.warn(`[OptimizationJournal] Failed to update secondary vault at ${v.path}:`, err)
+        logger.warn(
+          `[OptimizationJournal] Failed to update secondary vault at ${v.path}:`,
+          err
+        )
       }
     }
   }

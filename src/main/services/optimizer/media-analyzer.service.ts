@@ -48,7 +48,10 @@ interface RawFfprobeOutput {
 }
 
 export class MediaAnalyzerService {
-  private static metadataCache = new Map<string, { mtimeMs: number; metadata: MediaMetadata }>()
+  private static metadataCache = new Map<
+    string,
+    { mtimeMs: number; metadata: MediaMetadata }
+  >()
 
   /**
    * Deeply analyzes a media file extracting full stream topology:
@@ -153,7 +156,11 @@ export class MediaAnalyzerService {
           finished = true
           clearTimeout(timeout)
           if (code !== 0 && !stdout.trim()) {
-            reject(new Error(stderr.trim() || `FFmpeg probe failed with exit code ${code}`))
+            reject(
+              new Error(
+                stderr.trim() || `FFmpeg probe failed with exit code ${code}`
+              )
+            )
             return
           }
           try {
@@ -165,7 +172,11 @@ export class MediaAnalyzerService {
             if (fallback) {
               resolve(fallback)
             } else {
-              reject(new Error(`Failed to parse media probe output: ${String(parseError)}`))
+              reject(
+                new Error(
+                  `Failed to parse media probe output: ${String(parseError)}`
+                )
+              )
             }
           }
         }
@@ -183,8 +194,8 @@ export class MediaAnalyzerService {
     const overallBitrate = format.bit_rate
       ? parseInt(format.bit_rate, 10)
       : durationSeconds > 0
-      ? Math.round((fileSizeBytes * 8) / durationSeconds)
-      : 0
+        ? Math.round((fileSizeBytes * 8) / durationSeconds)
+        : 0
 
     let videoStream: VideoStreamInfo | undefined
     const audioStreams: AudioStreamInfo[] = []
@@ -198,7 +209,8 @@ export class MediaAnalyzerService {
         // Take the primary video stream
         const fpsStr = stream.avg_frame_rate || stream.r_frame_rate || '0/1'
         const [num, den] = fpsStr.split('/').map(Number)
-        const frameRate = den && den > 0 ? Math.round((num / den) * 100) / 100 : 0
+        const frameRate =
+          den && den > 0 ? Math.round((num / den) * 100) / 100 : 0
         const streamBitrate = stream.bit_rate
           ? parseInt(stream.bit_rate, 10)
           : Math.max(0, overallBitrate - 128000)
@@ -213,14 +225,18 @@ export class MediaAnalyzerService {
           bitRate: streamBitrate,
           pixelFormat: stream.pix_fmt || 'yuv420p',
           colorSpace: stream.color_space,
-          duration: stream.duration ? parseFloat(stream.duration) : durationSeconds
+          duration: stream.duration
+            ? parseFloat(stream.duration)
+            : durationSeconds
         }
       } else if (type === 'audio') {
         audioStreams.push({
           index: stream.index ?? audioStreams.length,
           codecName: (stream.codec_name || 'unknown').toLowerCase(),
           channels: stream.channels || 2,
-          sampleRate: stream.sample_rate ? parseInt(stream.sample_rate, 10) : 44100,
+          sampleRate: stream.sample_rate
+            ? parseInt(stream.sample_rate, 10)
+            : 44100,
           bitRate: stream.bit_rate ? parseInt(stream.bit_rate, 10) : 128000,
           language: stream.tags?.language || stream.tags?.LANGUAGE,
           title: stream.tags?.title || stream.tags?.TITLE
@@ -249,7 +265,9 @@ export class MediaAnalyzerService {
 
     return {
       filePath,
-      container: (format.format_name || path.extname(filePath).replace('.', '')).toLowerCase(),
+      container: (
+        format.format_name || path.extname(filePath).replace('.', '')
+      ).toLowerCase(),
       fileSizeBytes,
       durationSeconds,
       overallBitrate,
@@ -260,7 +278,10 @@ export class MediaAnalyzerService {
     }
   }
 
-  private fallbackParseFromStderr(stderr: string, filePath: string): RawFfprobeOutput | null {
+  private fallbackParseFromStderr(
+    stderr: string,
+    filePath: string
+  ): RawFfprobeOutput | null {
     if (!stderr) return null
 
     // Look for Duration: 00:01:23.45, bitrate: 1234 kb/s
@@ -278,7 +299,9 @@ export class MediaAnalyzerService {
     const bitrate = brMatch ? parseInt(brMatch[1], 10) * 1000 : 0
 
     // Video stream match: Stream #0:0: Video: h264 (...), 1920x1080
-    const videoMatch = stderr.match(/Video:\s*([a-zA-Z0-9_-]+)[^,]*,\s*([a-zA-Z0-9]+)?[^,]*,\s*(\d{2,5})x(\d{2,5})/i)
+    const videoMatch = stderr.match(
+      /Video:\s*([a-zA-Z0-9_-]+)[^,]*,\s*([a-zA-Z0-9]+)?[^,]*,\s*(\d{2,5})x(\d{2,5})/i
+    )
     const streams: RawFfprobeStream[] = []
 
     if (videoMatch) {

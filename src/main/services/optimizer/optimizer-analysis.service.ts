@@ -20,7 +20,9 @@ export class OptimizerAnalysisService {
    * calculating expected savings and per-video recommendations.
    * INVARIANT: NEVER modifies any physical media or database record.
    */
-  public async analyzeVault(profile?: OptimizationProfile): Promise<VaultOptimizationAnalysis> {
+  public async analyzeVault(
+    profile?: OptimizationProfile
+  ): Promise<VaultOptimizationAnalysis> {
     const db = databaseService.getDatabase()
     const vaultPath = databaseService.getCurrentVaultPath()
     if (!db || !vaultPath) {
@@ -30,7 +32,9 @@ export class OptimizerAnalysisService {
     const settings = appConfigService.getOptimizationSettings()
     const selectedProfile = profile || settings.defaultProfile || 'balanced'
 
-    const lessons = db.prepare(`
+    const lessons = db
+      .prepare(
+        `
       SELECT l.id, l.title as lessonTitle, l.course_id as courseId, l.module_id as moduleId,
              l.file_path as filePath, l.file_size as fileSize, l.media_type as mediaType,
              c.title as courseTitle
@@ -38,7 +42,9 @@ export class OptimizerAnalysisService {
       JOIN courses c ON c.id = l.course_id
       WHERE l.media_type = 'video'
       ORDER BY c.title ASC, l.order_index ASC
-    `).all() as {
+    `
+      )
+      .all() as {
       id: string
       lessonTitle: string
       courseId: string
@@ -80,7 +86,9 @@ export class OptimizerAnalysisService {
         const metadata = await mediaAnalyzerService.analyze(lesson.filePath)
 
         // Check if shared across vaults
-        const sharedInfo = await optimizationJournalService.getSharedVaults(lesson.filePath)
+        const sharedInfo = await optimizationJournalService.getSharedVaults(
+          lesson.filePath
+        )
         if (sharedInfo.isShared) {
           sharedFilesCount++
         }
@@ -98,7 +106,8 @@ export class OptimizerAnalysisService {
 
         if (isExcluded) {
           plan.isAlreadyEfficient = true
-          plan.reason = 'Arquivo excluído da otimização por regra personalizada.'
+          plan.reason =
+            'Arquivo excluído da otimização por regra personalizada.'
           plan.estimatedSavingsBytes = 0
           plan.estimatedSavingsPercent = 0
         }
@@ -115,13 +124,21 @@ export class OptimizerAnalysisService {
           estimatedFinalSizeBytes += plan.estimatedTargetSize
         }
       } catch (err) {
-        logger.warn(`[OptimizerAnalysis] Error analyzing lesson ${lesson.id}:`, err)
+        logger.warn(
+          `[OptimizerAnalysis] Error analyzing lesson ${lesson.id}:`,
+          err
+        )
       }
     }
 
-    const estimatedTotalSavingsBytes = Math.max(0, totalSizeBytes - estimatedFinalSizeBytes)
+    const estimatedTotalSavingsBytes = Math.max(
+      0,
+      totalSizeBytes - estimatedFinalSizeBytes
+    )
     const estimatedTotalSavingsPercent =
-      totalSizeBytes > 0 ? Math.round((estimatedTotalSavingsBytes / totalSizeBytes) * 100) : 0
+      totalSizeBytes > 0
+        ? Math.round((estimatedTotalSavingsBytes / totalSizeBytes) * 100)
+        : 0
 
     return {
       vaultPath,
@@ -161,18 +178,28 @@ export class OptimizerAnalysisService {
       }
     }
 
-    const videoStats = db.prepare(`
+    const videoStats = db
+      .prepare(
+        `
       SELECT count(*) as count, coalesce(sum(file_size), 0) as totalSize
       FROM lessons
       WHERE media_type = 'video'
-    `).get() as { count: number; totalSize: number }
+    `
+      )
+      .get() as { count: number; totalSize: number }
 
-    const recordStats = db.prepare(`
+    const recordStats = db
+      .prepare(
+        `
       SELECT count(*) as count, coalesce(sum(actual_savings_bytes), 0) as totalSaved
       FROM optimization_records
-    `).get() as { count: number; totalSaved: number }
+    `
+      )
+      .get() as { count: number; totalSaved: number }
 
-    const queueStats = db.prepare(`
+    const queueStats = db
+      .prepare(
+        `
       SELECT
         count(CASE WHEN status IN ('queued', 'ready') THEN 1 END) as pendingCount,
         count(CASE WHEN status IN ('encoding', 'validating', 'backing_up', 'replacing', 'analyzing') THEN 1 END) as activeCount,
@@ -180,7 +207,9 @@ export class OptimizerAnalysisService {
         count(CASE WHEN status = 'requires_review' THEN 1 END) as reviewCount,
         coalesce(sum(CASE WHEN status IN ('queued', 'ready', 'encoding') THEN estimated_savings ELSE 0 END), 0) as potentialSavings
       FROM optimization_queue
-    `).get() as {
+    `
+      )
+      .get() as {
       pendingCount: number
       activeCount: number
       failedCount: number

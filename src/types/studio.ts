@@ -1,4 +1,5 @@
-export type StudioEntityType = 'course' | 'module' | 'section' | 'lesson' | 'resource'
+export type StudioEntityType =
+  'course' | 'module' | 'section' | 'lesson' | 'resource'
 
 export interface LibraryAppearance {
   id: string
@@ -79,12 +80,20 @@ export interface StudioHistoryEntry {
   isUndone: boolean
 }
 
-export type AutomationTrigger = 'onProgressUpdate' | 'onItemAdded' | 'onManualTrigger'
+export type AutomationTrigger =
+  'onProgressUpdate' | 'onItemAdded' | 'onManualTrigger'
 export type AutomationExecutionMode = 'automatic' | 'manual'
 
 export interface AutomationCondition {
   field: string
-  operator: 'equals' | 'not_equals' | 'greater_than' | 'less_than' | 'contains' | 'in' | 'is_empty'
+  operator:
+    | 'equals'
+    | 'not_equals'
+    | 'greater_than'
+    | 'less_than'
+    | 'contains'
+    | 'in'
+    | 'is_empty'
   value: unknown
 }
 
@@ -126,7 +135,8 @@ export interface BulkRenameOptions {
   removeSuffix?: string
   addPrefix?: string
   addSuffix?: string
-  caseTransform?: 'none' | 'lowercase' | 'uppercase' | 'titlecase' | 'sentencecase'
+  caseTransform?:
+    'none' | 'lowercase' | 'uppercase' | 'titlecase' | 'sentencecase'
   cleanTags?: boolean
   cleanCodecs?: boolean
   replaceUnderscores?: boolean
@@ -147,7 +157,14 @@ export interface SpreadsheetDraftChange {
   appearanceId: string
   entityId: string
   entityType: StudioEntityType
-  field: 'customTitle' | 'displayOrder' | 'sectionId' | 'parentAppearanceId' | 'tags' | 'customMetadata' | 'isHidden'
+  field:
+    | 'customTitle'
+    | 'displayOrder'
+    | 'sectionId'
+    | 'parentAppearanceId'
+    | 'tags'
+    | 'customMetadata'
+    | 'isHidden'
   oldValue: unknown
   newValue: unknown
 }

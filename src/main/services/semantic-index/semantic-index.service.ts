@@ -11,7 +11,10 @@ import type {
   SemanticIndexSettings,
   SemanticSourceSelection
 } from '../../../types/semantic-index'
-import { normalizeSemanticScope, chunkSemanticDocument } from './semantic-chunker'
+import {
+  normalizeSemanticScope,
+  chunkSemanticDocument
+} from './semantic-chunker'
 import {
   SemanticIndexRepository,
   semanticIndexRepository
@@ -80,12 +83,15 @@ export class SemanticIndexService {
     return this.queue.enqueueSemanticIndex({
       scope,
       rebuild: input.rebuild === true,
-      includeNotes: input.includeNotes ?? this.repository.getSettings().includeNotes,
+      includeNotes:
+        input.includeNotes ?? this.repository.getSettings().includeNotes,
       cloudConsent: input.cloudConsent === true
     })
   }
 
-  public enqueueRebuild(input: Omit<SemanticIndexEnqueueInput, 'rebuild'>): OptimizationQueueItem {
+  public enqueueRebuild(
+    input: Omit<SemanticIndexEnqueueInput, 'rebuild'>
+  ): OptimizationQueueItem {
     return this.enqueue({ ...input, rebuild: true })
   }
 
@@ -102,22 +108,51 @@ export class SemanticIndexService {
     if (!generation) return false
     const source = singleSelection(selection)
     if (source.kind === 'note') {
-      return this.repository.deleteSource(generation.id, 'note', `note:${source.id}`)
+      return this.repository.deleteSource(
+        generation.id,
+        'note',
+        `note:${source.id}`
+      )
     }
     if (source.kind === 'resource') {
       let deleted = false
       for (const sourceKind of ['pdf', 'markdown', 'text', 'code'] as const) {
-        deleted = this.repository.deleteSource(generation.id, sourceKind, `resource:${source.id}`) || deleted
+        deleted =
+          this.repository.deleteSource(
+            generation.id,
+            sourceKind,
+            `resource:${source.id}`
+          ) || deleted
       }
       return deleted
     }
 
     let deleted = false
-    deleted = this.repository.deleteSource(generation.id, 'transcript', `lesson:${source.id}:transcript`) || deleted
-    deleted = this.repository.deleteSource(generation.id, 'subtitle', `lesson:${source.id}:subtitle`) || deleted
-    deleted = this.repository.deleteSource(generation.id, 'metadata', `metadata:lesson:${source.id}`) || deleted
+    deleted =
+      this.repository.deleteSource(
+        generation.id,
+        'transcript',
+        `lesson:${source.id}:transcript`
+      ) || deleted
+    deleted =
+      this.repository.deleteSource(
+        generation.id,
+        'subtitle',
+        `lesson:${source.id}:subtitle`
+      ) || deleted
+    deleted =
+      this.repository.deleteSource(
+        generation.id,
+        'metadata',
+        `metadata:lesson:${source.id}`
+      ) || deleted
     for (const sourceKind of ['pdf', 'markdown', 'text', 'code'] as const) {
-      deleted = this.repository.deleteSource(generation.id, sourceKind, `lesson-file:${source.id}`) || deleted
+      deleted =
+        this.repository.deleteSource(
+          generation.id,
+          sourceKind,
+          `lesson-file:${source.id}`
+        ) || deleted
     }
     return deleted
   }
@@ -159,7 +194,8 @@ export class SemanticIndexService {
     let generation: SemanticIndexGeneration | null = null
     let ownsGeneration = false
     try {
-      const includeNotes = job.semanticIncludeNotes ?? this.repository.getSettings().includeNotes
+      const includeNotes =
+        job.semanticIncludeNotes ?? this.repository.getSettings().includeNotes
       const sources = this.extractor.listSources(scope, includeNotes)
       const current = this.repository.getCurrent()
       const needsNewGeneration = job.semanticRebuild === true || !current
@@ -175,7 +211,9 @@ export class SemanticIndexService {
             discoveredSources: sources.length
           })
         } else {
-          generation = this.repository.createGeneration({ totalSources: sources.length })
+          generation = this.repository.createGeneration({
+            totalSources: sources.length
+          })
           ownsGeneration = true
           this.queue.updateJob(job.id, { semanticGenerationId: generation.id })
         }
@@ -183,26 +221,42 @@ export class SemanticIndexService {
         generation = current
       }
 
-      if (!generation) throw new Error('Semantic index generation could not be created')
+      if (!generation)
+        throw new Error('Semantic index generation could not be created')
       this.repository.updateProgress(generation.id, {
-        totalSources: needsNewGeneration ? sources.length : generation.totalSources,
-        discoveredSources: needsNewGeneration ? sources.length : generation.discoveredSources
+        totalSources: needsNewGeneration
+          ? sources.length
+          : generation.totalSources,
+        discoveredSources: needsNewGeneration
+          ? sources.length
+          : generation.discoveredSources
       })
       this.queue.updateJob(job.id, { status: 'indexing', progressPercent: 0 })
       emit({ status: 'indexing', progressPercent: 0 })
 
       const totalSources = sources.length
       let processedSources = 0
-      let failedSources = needsNewGeneration ? generation.failedSources : generation.failedSources
+      let failedSources = needsNewGeneration
+        ? generation.failedSources
+        : generation.failedSources
       let firstFailure: string | undefined
 
       for (const source of sources) {
         if (this.isCancelled(job.id, signal)) {
-          this.finishCancelled(job, generation, ownsGeneration, emit, progressPercent(processedSources, totalSources))
+          this.finishCancelled(
+            job,
+            generation,
+            ownsGeneration,
+            emit,
+            progressPercent(processedSources, totalSources)
+          )
           return
         }
         if (this.queue.isPaused(job.id)) {
-          emit({ status: 'queued', progressPercent: progressPercent(processedSources, totalSources) })
+          emit({
+            status: 'queued',
+            progressPercent: progressPercent(processedSources, totalSources)
+          })
           return
         }
         if (options.shouldYield?.()) {
@@ -210,22 +264,45 @@ export class SemanticIndexService {
             status: 'queued',
             progressPercent: progressPercent(processedSources, totalSources)
           })
-          emit({ status: 'queued', progressPercent: progressPercent(processedSources, totalSources) })
+          emit({
+            status: 'queued',
+            progressPercent: progressPercent(processedSources, totalSources)
+          })
           return
         }
 
         try {
           const documents = await this.extractor.extractSource(source)
-          const chunks = documents.flatMap((document) => chunkSemanticDocument(document))
+          const chunks = documents.flatMap((document) =>
+            chunkSemanticDocument(document)
+          )
           if (chunks.length === 0) {
-            this.repository.deleteSource(generation.id, source.sourceKind, source.sourceId)
+            this.repository.deleteSource(
+              generation.id,
+              source.sourceKind,
+              source.sourceId
+            )
           } else {
-            const embeddings = await this.embedChunks(chunks, generation.id, job)
-            this.repository.insertSourceChunks(generation.id, chunks, embeddings)
+            const embeddings = await this.embedChunks(
+              chunks,
+              generation.id,
+              job
+            )
+            this.repository.insertSourceChunks(
+              generation.id,
+              chunks,
+              embeddings
+            )
           }
         } catch (error) {
           if (this.isCancelled(job.id, signal)) {
-            this.finishCancelled(job, generation, ownsGeneration, emit, progressPercent(processedSources, totalSources))
+            this.finishCancelled(
+              job,
+              generation,
+              ownsGeneration,
+              emit,
+              progressPercent(processedSources, totalSources)
+            )
             return
           }
           failedSources += 1
@@ -238,24 +315,49 @@ export class SemanticIndexService {
           ...(needsNewGeneration ? { discoveredSources: totalSources } : {})
         })
         const progress = progressPercent(processedSources, totalSources)
-        this.queue.updateJob(job.id, { status: 'indexing', progressPercent: progress })
-        emit({ status: 'indexing', progressPercent: progress, ...(firstFailure ? { errorMessage: firstFailure } : {}) })
+        this.queue.updateJob(job.id, {
+          status: 'indexing',
+          progressPercent: progress
+        })
+        emit({
+          status: 'indexing',
+          progressPercent: progress,
+          ...(firstFailure ? { errorMessage: firstFailure } : {})
+        })
       }
 
       const status = failedSources > 0 ? 'partial' : 'completed'
       const makeCurrent = needsNewGeneration ? status === 'completed' : true
-      this.repository.finalizeGeneration(generation.id, status, makeCurrent, firstFailure)
+      this.repository.finalizeGeneration(
+        generation.id,
+        status,
+        makeCurrent,
+        firstFailure
+      )
       this.queue.updateJob(job.id, {
         status,
         progressPercent: 100,
         ...(firstFailure ? { errorMessage: firstFailure } : {})
       })
-      emit({ status, progressPercent: 100, ...(firstFailure ? { errorMessage: firstFailure } : {}) })
+      emit({
+        status,
+        progressPercent: 100,
+        ...(firstFailure ? { errorMessage: firstFailure } : {})
+      })
     } catch (error) {
       const message = errorMessage(error)
-      if (generation && ownsGeneration) this.repository.finalizeGeneration(generation.id, 'failed', false, message)
+      if (generation && ownsGeneration)
+        this.repository.finalizeGeneration(
+          generation.id,
+          'failed',
+          false,
+          message
+        )
       if (this.isCancelled(job.id, signal)) {
-        this.queue.updateJob(job.id, { status: 'cancelled', errorMessage: message })
+        this.queue.updateJob(job.id, {
+          status: 'cancelled',
+          errorMessage: message
+        })
         emit({ status: 'cancelled', progressPercent: 0, errorMessage: message })
         return
       }
@@ -276,9 +378,15 @@ export class SemanticIndexService {
     job: OptimizationQueueItem
   ): Promise<number[][]> {
     const vectors: number[][] = []
-    for (let offset = 0; offset < chunks.length; offset += EMBEDDING_BATCH_SIZE) {
+    for (
+      let offset = 0;
+      offset < chunks.length;
+      offset += EMBEDDING_BATCH_SIZE
+    ) {
       const batch = chunks.slice(offset, offset + EMBEDDING_BATCH_SIZE)
-      const dataTypes = [...new Set(batch.map((chunk) => chunk.dataType))] as AiDataType[]
+      const dataTypes = [
+        ...new Set(batch.map((chunk) => chunk.dataType))
+      ] as AiDataType[]
       const response = await this.aiCore.embed({
         input: batch.map((chunk) => chunk.text),
         dataTypes,
@@ -307,36 +415,77 @@ export class SemanticIndexService {
     emit: (event: SemanticIndexProgress) => void,
     progress: number
   ): void {
-    if (ownsGeneration) this.repository.finalizeGeneration(generation.id, 'cancelled', false, 'Indexing cancelled')
-    this.queue.updateJob(job.id, { status: 'cancelled', progressPercent: progress, errorMessage: 'Indexing cancelled' })
-    emit({ status: 'cancelled', progressPercent: progress, errorMessage: 'Indexing cancelled' })
+    if (ownsGeneration)
+      this.repository.finalizeGeneration(
+        generation.id,
+        'cancelled',
+        false,
+        'Indexing cancelled'
+      )
+    this.queue.updateJob(job.id, {
+      status: 'cancelled',
+      progressPercent: progress,
+      errorMessage: 'Indexing cancelled'
+    })
+    emit({
+      status: 'cancelled',
+      progressPercent: progress,
+      errorMessage: 'Indexing cancelled'
+    })
   }
 }
 
-function scopeForSelection(selection: SemanticSourceSelection): SemanticIndexScope {
+function scopeForSelection(
+  selection: SemanticSourceSelection
+): SemanticIndexScope {
   const source = singleSelection(selection)
   if (source.kind === 'lesson') return { type: 'lesson', lessonId: source.id }
-  if (source.kind === 'resource') return { type: 'selected', resourceIds: [source.id] }
+  if (source.kind === 'resource')
+    return { type: 'selected', resourceIds: [source.id] }
   return { type: 'selected', noteIds: [source.id] }
 }
 
-function singleSelection(selection: SemanticSourceSelection): { kind: 'lesson' | 'resource' | 'note'; id: string } {
+function singleSelection(selection: SemanticSourceSelection): {
+  kind: 'lesson' | 'resource' | 'note'
+  id: string
+} {
   const entries = [
-    ...(selection.lessonId?.trim() ? [{ kind: 'lesson' as const, id: selection.lessonId.trim() }] : []),
-    ...(selection.resourceId?.trim() ? [{ kind: 'resource' as const, id: selection.resourceId.trim() }] : []),
-    ...(selection.noteId?.trim() ? [{ kind: 'note' as const, id: selection.noteId.trim() }] : [])
+    ...(selection.lessonId?.trim()
+      ? [{ kind: 'lesson' as const, id: selection.lessonId.trim() }]
+      : []),
+    ...(selection.resourceId?.trim()
+      ? [{ kind: 'resource' as const, id: selection.resourceId.trim() }]
+      : []),
+    ...(selection.noteId?.trim()
+      ? [{ kind: 'note' as const, id: selection.noteId.trim() }]
+      : [])
   ]
-  if (entries.length !== 1) throw new Error('Select exactly one semantic source')
+  if (entries.length !== 1)
+    throw new Error('Select exactly one semantic source')
   return entries[0]
 }
 
-function validateEmbeddingResponse(response: AiEmbeddingResponse, expectedCount: number): void {
-  if (!response || response.embeddings.length !== expectedCount || response.embeddings.length === 0) {
+function validateEmbeddingResponse(
+  response: AiEmbeddingResponse,
+  expectedCount: number
+): void {
+  if (
+    !response ||
+    response.embeddings.length !== expectedCount ||
+    response.embeddings.length === 0
+  ) {
     throw new Error('Embedding result count does not match chunk count')
   }
   const dimensions = response.embeddings[0].length
-  if (!Number.isInteger(dimensions) || dimensions <= 0) throw new Error('Embedding vector has incompatible dimensions')
-  if (response.embeddings.some((vector) => vector.length !== dimensions || !vector.every((value) => Number.isFinite(value)))) {
+  if (!Number.isInteger(dimensions) || dimensions <= 0)
+    throw new Error('Embedding vector has incompatible dimensions')
+  if (
+    response.embeddings.some(
+      (vector) =>
+        vector.length !== dimensions ||
+        !vector.every((value) => Number.isFinite(value))
+    )
+  ) {
     throw new Error('Embedding vector has incompatible dimensions')
   }
 }
@@ -346,7 +495,9 @@ function errorMessage(error: unknown): string {
 }
 
 function progressPercent(processed: number, total: number): number {
-  return total === 0 ? 100 : Math.min(100, Math.round((processed / total) * 100))
+  return total === 0
+    ? 100
+    : Math.min(100, Math.round((processed / total) * 100))
 }
 
 export const semanticIndexService = new SemanticIndexService()

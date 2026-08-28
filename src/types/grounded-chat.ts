@@ -8,10 +8,7 @@ import type {
 } from './retrieval'
 
 export type GroundedChatStatus =
-  | 'answered'
-  | 'insufficient_evidence'
-  | 'failed'
-  | 'cancelled'
+  'answered' | 'insufficient_evidence' | 'failed' | 'cancelled'
 
 export interface GroundedChatRequest {
   /** Renderer-generated ID, bounded and validated by Main IPC before use. */

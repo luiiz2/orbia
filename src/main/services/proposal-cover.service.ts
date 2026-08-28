@@ -21,7 +21,13 @@ export async function materializeProposalCovers(
   options: MaterializeProposalCoversOptions = {}
 ): Promise<ProposedCourseStructure> {
   const persistOptions = { beforeCopy: options.beforeCopy }
-  const courseCover = await persistCover(proposal.coverPath, courseId, vaultPath, 'course', persistOptions)
+  const courseCover = await persistCover(
+    proposal.coverPath,
+    courseId,
+    vaultPath,
+    'course',
+    persistOptions
+  )
 
   const modules = await Promise.all(
     proposal.modules.map(async (mod) => {
@@ -31,10 +37,19 @@ export async function materializeProposalCovers(
             return { ...lesson, coverPath: lesson.coverPath }
           }
 
-          const realCover = await ensureLessonCover(lesson.filePath, lesson.title)
+          const realCover = await ensureLessonCover(
+            lesson.filePath,
+            lesson.title
+          )
           return {
             ...lesson,
-            coverPath: await persistCover(realCover ?? lesson.coverPath, courseId, vaultPath, 'lesson', persistOptions)
+            coverPath: await persistCover(
+              realCover ?? lesson.coverPath,
+              courseId,
+              vaultPath,
+              'lesson',
+              persistOptions
+            )
           }
         })
       )

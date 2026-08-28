@@ -33,7 +33,9 @@ const PART_SUFFIX_PATTERNS = [
 /**
  * Extracts part number and cleans the base title for multipart detection.
  */
-export function extractPartInfo(fileName: string): { baseStem: string; partNumber: number; partLabel: string } | null {
+export function extractPartInfo(
+  fileName: string
+): { baseStem: string; partNumber: number; partLabel: string } | null {
   const stem = path.basename(fileName, path.extname(fileName))
 
   for (const pattern of PART_SUFFIX_PATTERNS) {
@@ -41,8 +43,14 @@ export function extractPartInfo(fileName: string): { baseStem: string; partNumbe
     if (match) {
       const partNumber = parseInt(match[1], 10)
       if (!isNaN(partNumber) && partNumber > 0) {
-        const baseStem = stem.replace(pattern, '').replace(/[-_\s]+$/, '').trim()
-        const partLabel = match[0].replace(/^[-_\s([{]+/, '').replace(/[)\]}]+$/, '').trim()
+        const baseStem = stem
+          .replace(pattern, '')
+          .replace(/[-_\s]+$/, '')
+          .trim()
+        const partLabel = match[0]
+          .replace(/^[-_\s([{]+/, '')
+          .replace(/[)\]}]+$/, '')
+          .trim()
         return {
           baseStem: baseStem || stem,
           partNumber,
@@ -58,10 +66,15 @@ export function extractPartInfo(fileName: string): { baseStem: string; partNumbe
 /**
  * Groups a collection of media files in a module into single or multipart lessons.
  */
-export function groupMultipartLessons<T extends RawMediaItem>(items: T[]): MultipartLessonGroup<T>[] {
+export function groupMultipartLessons<T extends RawMediaItem>(
+  items: T[]
+): MultipartLessonGroup<T>[] {
   if (items.length === 0) return []
 
-  const groups = new Map<string, Array<{ item: T; partNumber: number; partLabel: string }>>()
+  const groups = new Map<
+    string,
+    Array<{ item: T; partNumber: number; partLabel: string }>
+  >()
   const singleItems: T[] = []
 
   for (const item of items) {
@@ -86,12 +99,23 @@ export function groupMultipartLessons<T extends RawMediaItem>(items: T[]): Multi
   // Add multipart groups that have at least 2 parts (or a single part explicitly numbered "Part 1")
   for (const [, partEntries] of groups.entries()) {
     if (partEntries.length >= 2) {
-      partEntries.sort((a, b) => a.partNumber - b.partNumber || naturalCompare(a.item.fileName, b.item.fileName))
+      partEntries.sort(
+        (a, b) =>
+          a.partNumber - b.partNumber ||
+          naturalCompare(a.item.fileName, b.item.fileName)
+      )
       const first = partEntries[0]
-      const baseStem = extractPartInfo(first.item.fileName)?.baseStem || first.item.fileName
+      const baseStem =
+        extractPartInfo(first.item.fileName)?.baseStem || first.item.fileName
       const compositeTitle = cleanTitle(baseStem) || baseStem
-      const totalDuration = partEntries.reduce((sum, p) => sum + (p.item.duration || 0), 0)
-      const totalFileSize = partEntries.reduce((sum, p) => sum + p.item.fileSize, 0)
+      const totalDuration = partEntries.reduce(
+        (sum, p) => sum + (p.item.duration || 0),
+        0
+      )
+      const totalFileSize = partEntries.reduce(
+        (sum, p) => sum + p.item.fileSize,
+        0
+      )
 
       result.push({
         id: first.item.id,
@@ -119,14 +143,18 @@ export function groupMultipartLessons<T extends RawMediaItem>(items: T[]): Multi
       isMultipart: false,
       totalDuration: item.duration || 0,
       totalFileSize: item.fileSize,
-      parts: [{
-        ...item,
-        partNumber: 1,
-        partLabel: ''
-      }]
+      parts: [
+        {
+          ...item,
+          partNumber: 1,
+          partLabel: ''
+        }
+      ]
     })
   }
 
   // Sort groups naturally by composite title
-  return result.sort((a, b) => naturalCompare(a.compositeTitle, b.compositeTitle))
+  return result.sort((a, b) =>
+    naturalCompare(a.compositeTitle, b.compositeTitle)
+  )
 }

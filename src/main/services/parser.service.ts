@@ -7,7 +7,13 @@ import type {
   ProposedLesson,
   ProposedModule
 } from '../../types'
-import { cleanCourseTitle, cleanLessonTitle, cleanModuleTitle, cleanTitle, normalizeModuleKey } from '../utils/title-cleaner'
+import {
+  cleanCourseTitle,
+  cleanLessonTitle,
+  cleanModuleTitle,
+  cleanTitle,
+  normalizeModuleKey
+} from '../utils/title-cleaner'
 import { naturalCompare } from '../utils/natural-sort'
 import {
   getMediaType,
@@ -44,7 +50,9 @@ export class ParserService {
    * Transforms a ScannedDirectory into a ProposedCourseStructure.
    * Every course receives an explicit root cover image or an SVG fallback.
    */
-  public async parseCourseHierarchy(scannedDir: ScannedDirectory): Promise<ProposedCourseStructure> {
+  public async parseCourseHierarchy(
+    scannedDir: ScannedDirectory
+  ): Promise<ProposedCourseStructure> {
     const suggestedTitle = cleanCourseTitle(scannedDir.name)
     const rootPath = scannedDir.fullPath
 
@@ -53,13 +61,20 @@ export class ParserService {
     if (!coverPath) {
       const allFiles = this.collectAllFilesRecursive(scannedDir)
       const firstVideo = allFiles.find((f) => isVideoFile(f.fullPath))
-      coverPath = await ensureCourseCover(rootPath, suggestedTitle, firstVideo?.fullPath)
+      coverPath = await ensureCourseCover(
+        rootPath,
+        suggestedTitle,
+        firstVideo?.fullPath
+      )
     }
 
     // 2. Identify modules, playable lessons, and all other preserved content.
     const proposedModules: ProposedModule[] = []
     let totalFilesCount = scannedDir.files.length
-    const rootContent = await this.parseModuleContent(scannedDir.files, rootPath)
+    const rootContent = await this.parseModuleContent(
+      scannedDir.files,
+      rootPath
+    )
 
     // Sort subdirectories naturally
     const sortedSubDirs = [...scannedDir.subDirectories].sort((a, b) =>
@@ -68,7 +83,8 @@ export class ParserService {
 
     let moduleOrderIndex = 1
 
-    const hasRootContent = rootContent.lessons.length > 0 || rootContent.resources.length > 0
+    const hasRootContent =
+      rootContent.lessons.length > 0 || rootContent.resources.length > 0
     const hasRootContentBeyondCourseCover =
       rootContent.lessons.length > 0 ||
       rootContent.resources.some((resource) => resource.filePath !== coverPath)
@@ -95,7 +111,10 @@ export class ParserService {
       totalFilesCount += this.countFiles(subDir)
 
       // A module with just files to read, images, or sidecars is still meaningful.
-      if (moduleContent.lessons.length > 0 || moduleContent.resources.length > 0) {
+      if (
+        moduleContent.lessons.length > 0 ||
+        moduleContent.resources.length > 0
+      ) {
         proposedModules.push({
           id: crypto.randomUUID(),
           title: cleanModuleTitle(subDir.name, moduleOrderIndex),
@@ -109,7 +128,11 @@ export class ParserService {
 
     // Content resources require a module owner. Preserve a root-only cover with
     // the first real module instead of creating a module solely for that image.
-    if (!hasRootContentBeyondCourseCover && rootContent.resources.length > 0 && proposedModules[0]) {
+    if (
+      !hasRootContentBeyondCourseCover &&
+      rootContent.resources.length > 0 &&
+      proposedModules[0]
+    ) {
       proposedModules[0].resources = [
         ...rootContent.resources,
         ...(proposedModules[0].resources || [])
@@ -137,7 +160,10 @@ export class ParserService {
       const existing = moduleMap.get(normalizedKey)
       if (existing) {
         existing.lessons = [...(existing.lessons || []), ...(mod.lessons || [])]
-        existing.resources = [...(existing.resources || []), ...(mod.resources || [])]
+        existing.resources = [
+          ...(existing.resources || []),
+          ...(mod.resources || [])
+        ]
       } else {
         moduleMap.set(normalizedKey, mod)
         mergedModules.push(mod)
@@ -151,7 +177,10 @@ export class ParserService {
       mod.lessons.forEach((les, lIdx) => {
         les.orderIndex = lIdx + 1
       })
-      mod.duration = mod.lessons.reduce((sum, les) => sum + (les.duration || 0), 0)
+      mod.duration = mod.lessons.reduce(
+        (sum, les) => sum + (les.duration || 0),
+        0
+      )
     })
 
     // 3. Detect duplicate candidates, but never silently omit or renumber content.
@@ -162,7 +191,10 @@ export class ParserService {
       rootPath,
       coverPath,
       modules: mergedModules,
-      totalLessons: mergedModules.reduce((acc, module) => acc + module.lessons.length, 0),
+      totalLessons: mergedModules.reduce(
+        (acc, module) => acc + module.lessons.length,
+        0
+      ),
       totalFilesScanned: totalFilesCount,
       duplicates: duplicates.length > 0 ? duplicates : undefined
     }
@@ -257,18 +289,29 @@ export class ParserService {
    * Sorts playable files naturally and maps them to ProposedLesson items.
    * Companion images are retained as resources while also serving as the lesson cover.
    */
-  private async buildLessons(mediaFiles: ScannedFile[], allFiles: ScannedFile[]): Promise<ProposedLesson[]> {
-    const sortedFiles = [...mediaFiles].sort((a, b) => naturalCompare(a.name, b.name))
+  private async buildLessons(
+    mediaFiles: ScannedFile[],
+    allFiles: ScannedFile[]
+  ): Promise<ProposedLesson[]> {
+    const sortedFiles = [...mediaFiles].sort((a, b) =>
+      naturalCompare(a.name, b.name)
+    )
     const imageFiles = allFiles.filter((file) => isImageFile(file.fullPath))
-    const durations = await probeMediaDurationsBatch(sortedFiles.map((file) => file.fullPath))
+    const durations = await probeMediaDurationsBatch(
+      sortedFiles.map((file) => file.fullPath)
+    )
 
     const lessons: ProposedLesson[] = []
 
     for (const [index, file] of sortedFiles.entries()) {
       const parentDirName = path.basename(path.dirname(file.fullPath))
       const title = cleanLessonTitle(file.name, parentDirName)
-      const companionImg = imageFiles.find((image) => this.isCompanionImageForLesson(image, file))
-      const coverPath = companionImg ? companionImg.fullPath : await ensureLessonCover(file.fullPath, title)
+      const companionImg = imageFiles.find((image) =>
+        this.isCompanionImageForLesson(image, file)
+      )
+      const coverPath = companionImg
+        ? companionImg.fullPath
+        : await ensureLessonCover(file.fullPath, title)
       const duration = durations.get(file.fullPath) || 0
 
       lessons.push({
@@ -325,9 +368,13 @@ export class ParserService {
     for (const file of resourceFiles) {
       const matchingLesson = isImageFile(file.fullPath)
         ? this.findLessonForCompanionImage(file, lessons)
-          : this.findLessonForAssociatedResource(file, lessons, moduleRootPath)
-      const isLessonSubtitle = isSubtitleFile(file.fullPath) && matchingLesson !== undefined
-      const resource = this.createProposedResource(file, isLessonSubtitle ? 'subtitle' : 'resource')
+        : this.findLessonForAssociatedResource(file, lessons, moduleRootPath)
+      const isLessonSubtitle =
+        isSubtitleFile(file.fullPath) && matchingLesson !== undefined
+      const resource = this.createProposedResource(
+        file,
+        isLessonSubtitle ? 'subtitle' : 'resource'
+      )
 
       if (matchingLesson) {
         matchingLesson.contentResources!.push(resource)
@@ -376,14 +423,19 @@ export class ParserService {
     moduleRootPath: string
   ): ProposedLesson | undefined {
     const resourceStem = this.fileStem(resource.name)
-    const exactLesson = lessons.find((lesson) => this.fileStem(lesson.originalFileName) === resourceStem)
+    const exactLesson = lessons.find(
+      (lesson) => this.fileStem(lesson.originalFileName) === resourceStem
+    )
     if (exactLesson) return exactLesson
 
     const stemMatch = lessons
-      .filter((lesson) => this.isStemVariant(resourceStem, this.fileStem(lesson.originalFileName)))
+      .filter((lesson) =>
+        this.isStemVariant(resourceStem, this.fileStem(lesson.originalFileName))
+      )
       .sort(
         (a, b) =>
-          this.fileStem(b.originalFileName).length - this.fileStem(a.originalFileName).length
+          this.fileStem(b.originalFileName).length -
+          this.fileStem(a.originalFileName).length
       )[0]
     if (stemMatch) return stemMatch
 
@@ -391,16 +443,21 @@ export class ParserService {
     if (resourceDirectory === path.normalize(moduleRootPath)) return undefined
 
     const lessonsInSameDirectory = lessons.filter(
-      (lesson) => path.normalize(path.dirname(lesson.filePath)) === resourceDirectory
+      (lesson) =>
+        path.normalize(path.dirname(lesson.filePath)) === resourceDirectory
     )
-    return lessonsInSameDirectory.length === 1 ? lessonsInSameDirectory[0] : undefined
+    return lessonsInSameDirectory.length === 1
+      ? lessonsInSameDirectory[0]
+      : undefined
   }
 
   private findLessonForCompanionImage(
     image: ScannedFile,
     lessons: ProposedLesson[]
   ): ProposedLesson | undefined {
-    return lessons.find((lesson) => this.isCompanionImageForLesson(image, lesson))
+    return lessons.find((lesson) =>
+      this.isCompanionImageForLesson(image, lesson)
+    )
   }
 
   private isCompanionImageForLesson(
@@ -408,9 +465,13 @@ export class ParserService {
     lesson: ScannedFile | ProposedLesson
   ): boolean {
     const imageStem = this.fileStem(image.name)
-    const lessonFileName = 'originalFileName' in lesson ? lesson.originalFileName : lesson.name
+    const lessonFileName =
+      'originalFileName' in lesson ? lesson.originalFileName : lesson.name
     const lessonStem = this.fileStem(lessonFileName)
-    return imageStem === lessonStem || this.stripCompanionSuffix(imageStem) === lessonStem
+    return (
+      imageStem === lessonStem ||
+      this.stripCompanionSuffix(imageStem) === lessonStem
+    )
   }
 
   private isStemVariant(stem: string, lessonStem: string): boolean {
@@ -424,7 +485,10 @@ export class ParserService {
   }
 
   private stripCompanionSuffix(stem: string): string {
-    return stem.replace(/[-_\s](?:cover|thumb|thumbnail|poster|folder|front|capa|banner)$/i, '')
+    return stem.replace(
+      /[-_\s](?:cover|thumb|thumbnail|poster|folder|front|capa|banner)$/i,
+      ''
+    )
   }
 
   private fileStem(fileName: string): string {

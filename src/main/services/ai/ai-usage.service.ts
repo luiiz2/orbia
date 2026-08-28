@@ -55,7 +55,9 @@ export class AiUsageService {
       this.ensureTable()
       const now = Date.now()
 
-      rawDb.prepare(`
+      rawDb
+        .prepare(
+          `
         UPDATE ai_local_usage
         SET
           total_requests = total_requests + 1,
@@ -65,13 +67,15 @@ export class AiUsageService {
           total_embedded_chunks = total_embedded_chunks + ?,
           last_activity_at = ?
         WHERE id = 1
-      `).run(
-        metrics.promptTokens || 0,
-        metrics.completionTokens || 0,
-        metrics.transcriptionSeconds || 0,
-        metrics.embeddedChunks || 0,
-        now
-      )
+      `
+        )
+        .run(
+          metrics.promptTokens || 0,
+          metrics.completionTokens || 0,
+          metrics.transcriptionSeconds || 0,
+          metrics.embeddedChunks || 0,
+          now
+        )
     } catch {
       // ignore
     }
@@ -91,7 +95,9 @@ export class AiUsageService {
 
     try {
       this.ensureTable()
-      const row = rawDb.prepare(`SELECT * FROM ai_local_usage WHERE id = 1`).get() as UsageRow | undefined
+      const row = rawDb
+        .prepare(`SELECT * FROM ai_local_usage WHERE id = 1`)
+        .get() as UsageRow | undefined
       if (!row) {
         return {
           totalRequests: 0,
@@ -127,7 +133,9 @@ export class AiUsageService {
 
     try {
       this.ensureTable()
-      rawDb.prepare(`
+      rawDb
+        .prepare(
+          `
         UPDATE ai_local_usage
         SET
           total_requests = 0,
@@ -137,7 +145,9 @@ export class AiUsageService {
           total_embedded_chunks = 0,
           last_activity_at = NULL
         WHERE id = 1
-      `).run()
+      `
+        )
+        .run()
       return true
     } catch {
       return false

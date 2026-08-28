@@ -1,8 +1,14 @@
 import type Database from 'better-sqlite3'
-import type { CourseRelationship, CourseRelationshipType } from '../../../types/discovery'
+import type {
+  CourseRelationship,
+  CourseRelationshipType
+} from '../../../types/discovery'
 
 export class CourseRelationshipsService {
-  public listRelationships(db: Database.Database, courseId?: string): CourseRelationship[] {
+  public listRelationships(
+    db: Database.Database,
+    courseId?: string
+  ): CourseRelationship[] {
     let query = `
       SELECT id, source_course_id, target_course_id, relationship_type, display_order, created_at
       FROM course_relationships
@@ -44,18 +50,31 @@ export class CourseRelationshipsService {
     const id = `rel_${crypto.randomUUID()}`
     const now = Date.now()
 
-    const maxOrderRow = db.prepare(`
+    const maxOrderRow = db
+      .prepare(
+        `
       SELECT COALESCE(MAX(display_order), 0) + 1 as nextOrder
       FROM course_relationships
       WHERE source_course_id = ?
-    `).get(sourceCourseId) as { nextOrder: number }
+    `
+      )
+      .get(sourceCourseId) as { nextOrder: number }
     const displayOrder = maxOrderRow?.nextOrder || 1
 
-    db.prepare(`
+    db.prepare(
+      `
       INSERT INTO course_relationships (
         id, source_course_id, target_course_id, relationship_type, display_order, created_at
       ) VALUES (?, ?, ?, ?, ?, ?)
-    `).run(id, sourceCourseId, targetCourseId, relationshipType, displayOrder, now)
+    `
+    ).run(
+      id,
+      sourceCourseId,
+      targetCourseId,
+      relationshipType,
+      displayOrder,
+      now
+    )
 
     return {
       id,
@@ -68,7 +87,9 @@ export class CourseRelationshipsService {
   }
 
   public deleteRelationship(db: Database.Database, id: string): boolean {
-    const res = db.prepare(`DELETE FROM course_relationships WHERE id = ?`).run(id)
+    const res = db
+      .prepare(`DELETE FROM course_relationships WHERE id = ?`)
+      .run(id)
     return res.changes > 0
   }
 }

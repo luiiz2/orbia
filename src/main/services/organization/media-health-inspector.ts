@@ -25,7 +25,9 @@ export interface MediaHealthAssessment {
  *
  * A broken 1080p copy must NEVER replace a healthy 720p copy!
  */
-export async function assessMediaHealth(filePath: string): Promise<MediaHealthAssessment> {
+export async function assessMediaHealth(
+  filePath: string
+): Promise<MediaHealthAssessment> {
   let exists = false
   let sizeBytes = 0
 

@@ -155,7 +155,9 @@ export class ExportService {
       return `"${escaped}"`
     }
 
-    const lines: string[] = ['"Question","Answer","Course","Lesson","Timestamp"']
+    const lines: string[] = [
+      '"Question","Answer","Course","Lesson","Timestamp"'
+    ]
 
     for (const r of rows) {
       const timeStr = r.timestamp !== null ? formatTime(r.timestamp) : ''
@@ -217,7 +219,8 @@ export class ExportService {
       const metaParts: string[] = []
       if (r.courseTitle) metaParts.push(`Curso: ${r.courseTitle}`)
       if (r.lessonTitle) metaParts.push(`Aula: ${r.lessonTitle}`)
-      if (r.timestamp !== null) metaParts.push(`Timestamp: ${formatTime(r.timestamp)}`)
+      if (r.timestamp !== null)
+        metaParts.push(`Timestamp: ${formatTime(r.timestamp)}`)
       metaParts.push(`Estado: ${r.state} (${r.successCount} acertos)`)
 
       md += `*${metaParts.join(' · ')}*\n\n---\n\n`

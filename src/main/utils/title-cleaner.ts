@@ -19,7 +19,8 @@ const QUALITY_METADATA_PATTERNS = [
   /\((?:19|20)\d{2}\)|\{(?:19|20)\d{2}\}|(?<![\d-])\[?\b(?:19|20)\d{2}\b\]?(?![\d-])/g
 ]
 
-const KEYWORD_PREFIXES = 'aula|lesson|capitulo|capítulo|secao|seção|modulo|módulo|parte|part|licao|lição|section'
+const KEYWORD_PREFIXES =
+  'aula|lesson|capitulo|capítulo|secao|seção|modulo|módulo|parte|part|licao|lição|section'
 
 /**
  * Platform junk: Telegram handles and @handles only.
@@ -157,15 +158,21 @@ export function isGenericMediaTitle(name: string): boolean {
   const base = stripFileExtension(name).toLowerCase().trim()
   const clean = cleanTitle(base).toLowerCase().trim()
   if (!clean || /^\d+$/.test(clean)) return true
-  if (GENERIC_MEDIA_NAMES.has(base) || GENERIC_MEDIA_NAMES.has(clean)) return true
-  return /^(?:video|vídeo|aula|lesson|track|clip|part|parte)[\s_\-–—]*\d*$/i.test(clean)
+  if (GENERIC_MEDIA_NAMES.has(base) || GENERIC_MEDIA_NAMES.has(clean))
+    return true
+  return /^(?:video|vídeo|aula|lesson|track|clip|part|parte)[\s_\-–—]*\d*$/i.test(
+    clean
+  )
 }
 
 /**
  * Cleans a lesson title specifically. If the filename is generic (e.g. "video.mp4" or "aula.mp4")
  * and parent folder name is descriptive, the parent folder name is used.
  */
-export function cleanLessonTitle(fileName: string, parentFolderName?: string): string {
+export function cleanLessonTitle(
+  fileName: string,
+  parentFolderName?: string
+): string {
   const cleanedFile = cleanTitle(fileName)
   if (parentFolderName && isGenericMediaTitle(fileName)) {
     const cleanedParent = cleanTitle(parentFolderName)
@@ -180,14 +187,23 @@ export function cleanLessonTitle(fileName: string, parentFolderName?: string): s
  * Cleans a course title specifically (e.g. from folder name)
  */
 export function cleanCourseTitle(rawFolderName: string): string {
-  if (!rawFolderName || typeof rawFolderName !== 'string' || !rawFolderName.trim()) {
+  if (
+    !rawFolderName ||
+    typeof rawFolderName !== 'string' ||
+    !rawFolderName.trim()
+  ) {
     return 'Untitled Course'
   }
 
   let title = cleanTitle(rawFolderName)
 
   // Remove leading numbers commonly found in organized folders (e.g. "01. Python Masterclass" -> "Python Masterclass")
-  title = title.replace(/^([^\w\s]*\s*)\d+(?:\.\d+)?[a-zA-Z]?(?:\s*[-–—:_]\s*|\s*\.\s+|\s+)/, '$1').trim()
+  title = title
+    .replace(
+      /^([^\w\s]*\s*)\d+(?:\.\d+)?[a-zA-Z]?(?:\s*[-–—:_]\s*|\s*\.\s+|\s+)/,
+      '$1'
+    )
+    .trim()
 
   return title || rawFolderName.trim() || 'Untitled Course'
 }
@@ -195,8 +211,15 @@ export function cleanCourseTitle(rawFolderName: string): string {
 /**
  * Cleans a module title specifically
  */
-export function cleanModuleTitle(rawModuleName: string, defaultIndex: number): string {
-  if (!rawModuleName || typeof rawModuleName !== 'string' || !rawModuleName.trim()) {
+export function cleanModuleTitle(
+  rawModuleName: string,
+  defaultIndex: number
+): string {
+  if (
+    !rawModuleName ||
+    typeof rawModuleName !== 'string' ||
+    !rawModuleName.trim()
+  ) {
     return `Module ${String(defaultIndex).padStart(2, '0')}`
   }
 
@@ -205,7 +228,11 @@ export function cleanModuleTitle(rawModuleName: string, defaultIndex: number): s
 
   // A source folder is the user's actual organization. Preserve it when cleaning
   // would reduce it to a number instead of inventing a generic module name.
-  if (!title || /^[\d.a-zA-Z\s_-]+$/.test(title) && /^\d+(?:\.\d+)?[a-zA-Z]?$/.test(title.trim())) {
+  if (
+    !title ||
+    (/^[\d.a-zA-Z\s_-]+$/.test(title) &&
+      /^\d+(?:\.\d+)?[a-zA-Z]?$/.test(title.trim()))
+  ) {
     return sourceName
   }
 
@@ -224,7 +251,10 @@ export function normalizeModuleKey(rawTitle: string): string {
   let key = rawTitle.toLowerCase().trim()
 
   // Remove keywords like "modulo", "module", "secao", "capitulo"
-  key = key.replace(/\b(?:modulo|módulo|module|secao|seção|section|parte|part|capitulo|capítulo)\b/gi, ' ')
+  key = key.replace(
+    /\b(?:modulo|módulo|module|secao|seção|section|parte|part|capitulo|capítulo)\b/gi,
+    ' '
+  )
 
   // Strip punctuation
   key = key.replace(/[-–—:_.]+/g, ' ')
@@ -241,7 +271,10 @@ export function normalizeModuleKey(rawTitle: string): string {
   return key
 }
 
-export function areModuleTitlesEquivalent(titleA: string, titleB: string): boolean {
+export function areModuleTitlesEquivalent(
+  titleA: string,
+  titleB: string
+): boolean {
   if (titleA === titleB) return true
   if (titleA.trim().toLowerCase() === titleB.trim().toLowerCase()) return true
   const keyA = normalizeModuleKey(titleA)

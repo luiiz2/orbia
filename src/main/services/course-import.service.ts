@@ -30,7 +30,10 @@ import {
   type MaterializeProposalCoversOptions
 } from './proposal-cover.service'
 import { vaultService } from './vault.service'
-import { optimizationQueueService, provenanceAndExclusionsService } from './optimizer'
+import {
+  optimizationQueueService,
+  provenanceAndExclusionsService
+} from './optimizer'
 import { transcriptionService } from './transcription/transcription.service'
 import { normalizeModuleKey } from '../utils/title-cleaner'
 import { naturalCompare } from '../utils/natural-sort'
@@ -55,7 +58,9 @@ interface DatabaseGateway {
     status: FileOperationStatus,
     errorDetails?: string | null
   ): void
-  recordImportHistory(entry: Omit<ImportHistoryEntry, 'id' | 'createdAt'>): ImportHistoryEntry
+  recordImportHistory(
+    entry: Omit<ImportHistoryEntry, 'id' | 'createdAt'>
+  ): ImportHistoryEntry
   updateCourseCover(courseId: string, coverPath: string): void
   updateLessonCover(lessonId: string, coverPath: string): void
 }
@@ -101,12 +106,15 @@ export class CourseImportService {
     this.vault = dependencies.vault ?? vaultService
     this.database = dependencies.database ?? databaseService
     this.settings = dependencies.settings ?? appConfigService
-    this.materializeProposal = dependencies.materializeProposal ?? materializeProposalCovers
+    this.materializeProposal =
+      dependencies.materializeProposal ?? materializeProposalCovers
     this.createId = dependencies.createId ?? crypto.randomUUID
     this.now = dependencies.now ?? Date.now
   }
 
-  public async commitSession(input: unknown): Promise<CommitImportSessionResult> {
+  public async commitSession(
+    input: unknown
+  ): Promise<CommitImportSessionResult> {
     const commitInput = readCommitInput(input)
     let session: ImportSession | undefined
     let moved = false
@@ -128,7 +136,10 @@ export class CourseImportService {
         throw new Error('ZIP imports must be stored in the managed vault.')
       }
 
-      const trustedProposal = applyTitleEdits(session.proposal!, commitInput.titleEdits)
+      const trustedProposal = applyTitleEdits(
+        session.proposal!,
+        commitInput.titleEdits
+      )
       const courseId = this.createId()
       const operationGroupId = this.createId()
       const now = this.now()
@@ -146,13 +157,24 @@ export class CourseImportService {
         hierarchySaved = true
         this.completeSessionSafely(session, false, warnings)
         this.recordCompletedImportSafely(session, course, warnings)
-        await this.materializeCoversSafely(trustedProposal, course, modules, currentVault.path, operationGroupId, warnings)
+        await this.materializeCoversSafely(
+          trustedProposal,
+          course,
+          modules,
+          currentVault.path,
+          operationGroupId,
+          warnings
+        )
         this.triggerAutoOptimization(course.id)
         this.triggerAutoTranscription(course.id)
         return { course, warnings }
       }
 
-      destinationRoot = this.reserveManagedDestination(currentVault.path, trustedProposal.suggestedTitle, courseId)
+      destinationRoot = this.reserveManagedDestination(
+        currentVault.path,
+        trustedProposal.suggestedTitle,
+        courseId
+      )
       this.assertManagedSourceCanMove(session.sourceRoot, currentVault.path)
       moveOperationId = this.createId()
       this.database.recordFileOperation({
@@ -171,7 +193,11 @@ export class CourseImportService {
 
       await moveDirectory(session.sourceRoot, destinationRoot, moveOperationId)
       moved = true
-      const rebasedProposal = rebaseProposalPaths(trustedProposal, session.sourceRoot, destinationRoot)
+      const rebasedProposal = rebaseProposalPaths(
+        trustedProposal,
+        session.sourceRoot,
+        destinationRoot
+      )
       const { course, modules } = buildCourseHierarchy(rebasedProposal, {
         courseId,
         sourceType: 'local-vault',
@@ -183,11 +209,26 @@ export class CourseImportService {
       hierarchySaved = true
 
       this.updateJournalSafely(moveOperationId, 'completed', warnings)
-      this.completeSessionSafely(session, session.sourceKind === 'zip', warnings)
+      this.completeSessionSafely(
+        session,
+        session.sourceKind === 'zip',
+        warnings
+      )
       this.recordCompletedImportSafely(session, course, warnings)
-      await this.materializeCoversSafely(rebasedProposal, course, modules, currentVault.path, operationGroupId, warnings)
+      await this.materializeCoversSafely(
+        rebasedProposal,
+        course,
+        modules,
+        currentVault.path,
+        operationGroupId,
+        warnings
+      )
       if (session.sourceKind === 'zip') {
-        await this.deleteSourceZipAfterCommit(session, operationGroupId, warnings)
+        await this.deleteSourceZipAfterCommit(
+          session,
+          operationGroupId,
+          warnings
+        )
       }
 
       this.triggerAutoOptimization(course.id)
@@ -197,9 +238,18 @@ export class CourseImportService {
       const details = errorMessage(error)
       if (session && !hierarchySaved && moved && destinationRoot) {
         try {
-          await moveDirectory(destinationRoot, session.sourceRoot, `${moveOperationId ?? 'import'}-rollback`)
+          await moveDirectory(
+            destinationRoot,
+            session.sourceRoot,
+            `${moveOperationId ?? 'import'}-rollback`
+          )
           if (moveJournaled && moveOperationId) {
-            this.updateJournalSafely(moveOperationId, 'rolled_back', [], details)
+            this.updateJournalSafely(
+              moveOperationId,
+              'rolled_back',
+              [],
+              details
+            )
           }
         } catch (rollbackError) {
           if (moveJournaled && moveOperationId) {
@@ -222,21 +272,36 @@ export class CourseImportService {
     }
   }
 
-  private reserveManagedDestination(vaultPath: string, title: string, courseId: string): string {
+  private reserveManagedDestination(
+    vaultPath: string,
+    title: string,
+    courseId: string
+  ): string {
     const coursesPath = path.resolve(vaultPath, 'Courses')
     const slug = generateSlug(title) || 'course'
-    const destinationRoot = path.resolve(coursesPath, `${slug}-${courseId.slice(0, 6)}`)
-    if (!isPathWithin(coursesPath, destinationRoot) || destinationRoot === coursesPath) {
+    const destinationRoot = path.resolve(
+      coursesPath,
+      `${slug}-${courseId.slice(0, 6)}`
+    )
+    if (
+      !isPathWithin(coursesPath, destinationRoot) ||
+      destinationRoot === coursesPath
+    ) {
       throw new Error('The managed course destination is outside the vault.')
     }
     if (fs.existsSync(destinationRoot)) {
-      throw new Error(`A managed course directory already exists at "${destinationRoot}".`)
+      throw new Error(
+        `A managed course directory already exists at "${destinationRoot}".`
+      )
     }
     fs.mkdirSync(coursesPath, { recursive: true })
     return destinationRoot
   }
 
-  private assertManagedSourceCanMove(sourceRoot: string, vaultPath: string): void {
+  private assertManagedSourceCanMove(
+    sourceRoot: string,
+    vaultPath: string
+  ): void {
     const resolvedSource = path.resolve(sourceRoot)
     const resolvedVault = path.resolve(vaultPath)
     const managedCourses = path.resolve(resolvedVault, 'Courses')
@@ -246,22 +311,35 @@ export class CourseImportService {
     if (!sourceStat.isDirectory()) {
       throw new Error('The approved import source is no longer a directory.')
     }
-    if (samePath(resolvedSource, resolvedVault) || isPathWithin(managedCourses, resolvedSource)) {
-      throw new Error('The selected source is already a managed vault directory and cannot be moved again.')
+    if (
+      samePath(resolvedSource, resolvedVault) ||
+      isPathWithin(managedCourses, resolvedSource)
+    ) {
+      throw new Error(
+        'The selected source is already a managed vault directory and cannot be moved again.'
+      )
     }
     if (isPathWithin(vaultMetadata, resolvedSource)) {
       throw new Error('Vault metadata cannot be used as an import source.')
     }
     if (isPathWithin(resolvedSource, resolvedVault)) {
-      throw new Error('The vault cannot be placed inside the selected import source.')
+      throw new Error(
+        'The vault cannot be placed inside the selected import source.'
+      )
     }
   }
 
-  private completeSessionSafely(session: ImportSession, discardStaging: boolean, warnings: string[]): void {
+  private completeSessionSafely(
+    session: ImportSession,
+    discardStaging: boolean,
+    warnings: string[]
+  ): void {
     try {
       this.sessions.complete(session.id, { discardStaging })
     } catch (error) {
-      warnings.push(`Imported course safely, but temporary files could not be cleaned: ${errorMessage(error)}`)
+      warnings.push(
+        `Imported course safely, but temporary files could not be cleaned: ${errorMessage(error)}`
+      )
     }
   }
 
@@ -280,13 +358,23 @@ export class CourseImportService {
     errorDetails?: string
   ): void {
     try {
-      this.database.updateFileOperationStatus(operationId, status, errorDetails ?? null)
+      this.database.updateFileOperationStatus(
+        operationId,
+        status,
+        errorDetails ?? null
+      )
     } catch (error) {
-      warnings.push(`The operation journal could not be updated: ${errorMessage(error)}`)
+      warnings.push(
+        `The operation journal could not be updated: ${errorMessage(error)}`
+      )
     }
   }
 
-  private recordCompletedImportSafely(session: ImportSession, course: Course, warnings: string[]): void {
+  private recordCompletedImportSafely(
+    session: ImportSession,
+    course: Course,
+    warnings: string[]
+  ): void {
     try {
       this.database.recordImportHistory({
         fileName: path.basename(session.sourcePath),
@@ -298,7 +386,9 @@ export class CourseImportService {
         extractedFiles: session.validation.extractedFiles
       })
     } catch (error) {
-      warnings.push(`Import history could not be recorded: ${errorMessage(error)}`)
+      warnings.push(
+        `Import history could not be recorded: ${errorMessage(error)}`
+      )
     }
   }
 
@@ -309,15 +399,22 @@ export class CourseImportService {
   ): Promise<void> {
     let shouldDelete: boolean
     try {
-      shouldDelete = Boolean(this.settings.getSettings().deleteSourceZipAfterImport)
+      shouldDelete = Boolean(
+        this.settings.getSettings().deleteSourceZipAfterImport
+      )
     } catch (error) {
-      warnings.push(`The original ZIP was kept because its preference could not be read: ${errorMessage(error)}`)
+      warnings.push(
+        `The original ZIP was kept because its preference could not be read: ${errorMessage(error)}`
+      )
       return
     }
     if (!shouldDelete) {
       return
     }
-    if (!session.sourceSignature || !matchesSignature(session.sourcePath, session.sourceSignature)) {
+    if (
+      !session.sourceSignature ||
+      !matchesSignature(session.sourcePath, session.sourceSignature)
+    ) {
       warnings.push('The original ZIP changed after validation and was kept.')
       return
     }
@@ -337,7 +434,9 @@ export class CourseImportService {
         isReversible: false
       })
     } catch (error) {
-      warnings.push(`The original ZIP was kept because its deletion could not be journaled: ${errorMessage(error)}`)
+      warnings.push(
+        `The original ZIP was kept because its deletion could not be journaled: ${errorMessage(error)}`
+      )
       return
     }
 
@@ -346,14 +445,18 @@ export class CourseImportService {
     } catch (error) {
       const details = errorMessage(error)
       this.updateJournalSafely(deleteOperationId, 'failed', warnings, details)
-      warnings.push(`The course was imported, but the original ZIP was kept: ${details}`)
+      warnings.push(
+        `The course was imported, but the original ZIP was kept: ${details}`
+      )
       return
     }
 
     try {
       this.database.updateFileOperationStatus(deleteOperationId, 'completed')
     } catch (error) {
-      warnings.push(`The original ZIP was deleted, but its journal could not be updated: ${errorMessage(error)}`)
+      warnings.push(
+        `The original ZIP was deleted, but its journal could not be updated: ${errorMessage(error)}`
+      )
     }
   }
 
@@ -370,25 +473,33 @@ export class CourseImportService {
     let databaseCoverUpdated = false
 
     try {
-      const materialized = await this.materializeProposal(proposal, course.id, vaultPath, {
-        beforeCopy: ({ sourcePath, destinationPath }) => {
-          const operationId = this.createId()
-          this.database.recordFileOperation({
-            operationId,
-            groupId: operationGroupId,
-            type: 'copy',
-            sourcePath,
-            destinationPath,
-            originalFileName: path.basename(sourcePath),
-            newFileName: path.basename(destinationPath),
-            timestamp: this.now(),
-            status: 'pending',
-            isReversible: true
-          })
-          coverCopyOperationIds.push(operationId)
+      const materialized = await this.materializeProposal(
+        proposal,
+        course.id,
+        vaultPath,
+        {
+          beforeCopy: ({ sourcePath, destinationPath }) => {
+            const operationId = this.createId()
+            this.database.recordFileOperation({
+              operationId,
+              groupId: operationGroupId,
+              type: 'copy',
+              sourcePath,
+              destinationPath,
+              originalFileName: path.basename(sourcePath),
+              newFileName: path.basename(destinationPath),
+              timestamp: this.now(),
+              status: 'pending',
+              isReversible: true
+            })
+            coverCopyOperationIds.push(operationId)
+          }
         }
-      })
-      if (materialized.coverPath && materialized.coverPath !== course.coverPath) {
+      )
+      if (
+        materialized.coverPath &&
+        materialized.coverPath !== course.coverPath
+      ) {
         this.database.updateCourseCover(course.id, materialized.coverPath)
         course.coverPath = materialized.coverPath
         databaseCoverUpdated = true
@@ -399,11 +510,22 @@ export class CourseImportService {
         const materializedModule = materialized.modules[moduleIndex]
         if (!materializedModule) continue
 
-        for (let lessonIndex = 0; lessonIndex < persistedModule.lessons.length; lessonIndex++) {
+        for (
+          let lessonIndex = 0;
+          lessonIndex < persistedModule.lessons.length;
+          lessonIndex++
+        ) {
           const persistedLesson = persistedModule.lessons[lessonIndex]
           const materializedLesson = materializedModule.lessons[lessonIndex]
-          if (!materializedLesson?.coverPath || materializedLesson.coverPath === persistedLesson.coverPath) continue
-          this.database.updateLessonCover(persistedLesson.id, materializedLesson.coverPath)
+          if (
+            !materializedLesson?.coverPath ||
+            materializedLesson.coverPath === persistedLesson.coverPath
+          )
+            continue
+          this.database.updateLessonCover(
+            persistedLesson.id,
+            materializedLesson.coverPath
+          )
           persistedLesson.coverPath = materializedLesson.coverPath
           databaseCoverUpdated = true
         }
@@ -418,10 +540,15 @@ export class CourseImportService {
         this.updateJournalSafely(operationId, 'failed', warnings, details)
       }
       if (!databaseCoverUpdated) {
-        const cleanupWarnings = await removeNewManagedCovers(vaultPath, existingCovers)
+        const cleanupWarnings = await removeNewManagedCovers(
+          vaultPath,
+          existingCovers
+        )
         warnings.push(...cleanupWarnings)
       }
-      warnings.push(`Course imported, but covers could not be finalized: ${details}`)
+      warnings.push(
+        `Course imported, but covers could not be finalized: ${details}`
+      )
     }
   }
 
@@ -433,12 +560,22 @@ export class CourseImportService {
       const db = databaseService.getDatabase()
       if (!db) return
 
-      const lessons = db.prepare(`
+      const lessons = db
+        .prepare(
+          `
         SELECT id, file_path as filePath FROM lessons WHERE course_id = ? AND media_type = 'video'
-      `).all(courseId) as { id: string; filePath: string }[]
+      `
+        )
+        .all(courseId) as { id: string; filePath: string }[]
 
       for (const l of lessons) {
-        if (provenanceAndExclusionsService.isExcluded({ lessonId: l.id, courseId })) continue
+        if (
+          provenanceAndExclusionsService.isExcluded({
+            lessonId: l.id,
+            courseId
+          })
+        )
+          continue
         optimizationQueueService.enqueue({
           lessonId: l.id,
           courseId,
@@ -460,7 +597,9 @@ export class CourseImportService {
   }
 }
 
-function consolidateProposedModules(modules: ProposedModule[]): ProposedModule[] {
+function consolidateProposedModules(
+  modules: ProposedModule[]
+): ProposedModule[] {
   const merged: ProposedModule[] = []
   const map = new Map<string, ProposedModule>()
 
@@ -491,7 +630,9 @@ function consolidateProposedModules(modules: ProposedModule[]): ProposedModule[]
   // Re-index modules and lessons naturally
   merged.forEach((mod, mIdx) => {
     mod.orderIndex = mIdx + 1
-    mod.lessons.sort((a, b) => (a.orderIndex - b.orderIndex) || naturalCompare(a.title, b.title))
+    mod.lessons.sort(
+      (a, b) => a.orderIndex - b.orderIndex || naturalCompare(a.title, b.title)
+    )
     mod.lessons.forEach((les, lIdx) => {
       les.orderIndex = lIdx + 1
     })
@@ -504,35 +645,52 @@ function applyTitleEdits(
   trustedProposal: ProposedCourseStructure,
   titleEdits: ImportSessionTitleEdits | undefined
 ): ProposedCourseStructure {
-  const submittedModuleTitles = new Map((titleEdits?.modules || []).map((module) => [module.id, module.title]))
-  const submittedLessonTitles = new Map((titleEdits?.lessons || []).map((lesson) => [lesson.id, lesson.title]))
+  const submittedModuleTitles = new Map(
+    (titleEdits?.modules || []).map((module) => [module.id, module.title])
+  )
+  const submittedLessonTitles = new Map(
+    (titleEdits?.lessons || []).map((lesson) => [lesson.id, lesson.title])
+  )
 
-  const updatedModules: ProposedModule[] = trustedProposal.modules.map((trustedModule) => {
-    return {
-      ...trustedModule,
-      title: editableTitle(submittedModuleTitles.get(trustedModule.id)) ?? trustedModule.title,
-      lessons: trustedModule.lessons.map((trustedLesson) => {
-        return {
-          ...trustedLesson,
-          title: editableTitle(submittedLessonTitles.get(trustedLesson.id)) ?? trustedLesson.title
-        }
-      })
+  const updatedModules: ProposedModule[] = trustedProposal.modules.map(
+    (trustedModule) => {
+      return {
+        ...trustedModule,
+        title:
+          editableTitle(submittedModuleTitles.get(trustedModule.id)) ??
+          trustedModule.title,
+        lessons: trustedModule.lessons.map((trustedLesson) => {
+          return {
+            ...trustedLesson,
+            title:
+              editableTitle(submittedLessonTitles.get(trustedLesson.id)) ??
+              trustedLesson.title
+          }
+        })
+      }
     }
-  })
+  )
 
   const mergedModules = consolidateProposedModules(updatedModules)
 
   return {
     ...trustedProposal,
-    suggestedTitle: editableTitle(titleEdits?.courseTitle) ?? trustedProposal.suggestedTitle,
+    suggestedTitle:
+      editableTitle(titleEdits?.courseTitle) ?? trustedProposal.suggestedTitle,
     modules: mergedModules,
-    totalLessons: mergedModules.reduce((acc, mod) => acc + mod.lessons.length, 0)
+    totalLessons: mergedModules.reduce(
+      (acc, mod) => acc + mod.lessons.length,
+      0
+    )
   }
 }
 
-
 function readCommitInput(input: unknown): CommitImportSessionInput {
-  if (!isRecord(input) || typeof input.sessionId !== 'string' || typeof input.isExternal !== 'boolean') {
+  if (
+    !isRecord(input) ||
+    typeof input.sessionId !== 'string' ||
+    typeof input.isExternal !== 'boolean'
+  ) {
     throw new Error('A valid import session is required.')
   }
 
@@ -553,10 +711,12 @@ function readCommitInput(input: unknown): CommitImportSessionInput {
 function readTitleEdits(value: unknown): ImportSessionTitleEdits | undefined {
   if (!isRecord(value)) return undefined
 
-  const courseTitle = typeof value.courseTitle === 'string' ? value.courseTitle : undefined
+  const courseTitle =
+    typeof value.courseTitle === 'string' ? value.courseTitle : undefined
   const modules = readTitleEditEntries(value.modules)
   const lessons = readTitleEditEntries(value.lessons)
-  if (courseTitle === undefined && modules.length === 0 && lessons.length === 0) return undefined
+  if (courseTitle === undefined && modules.length === 0 && lessons.length === 0)
+    return undefined
 
   return {
     ...(courseTitle === undefined ? {} : { courseTitle }),
@@ -565,10 +725,17 @@ function readTitleEdits(value: unknown): ImportSessionTitleEdits | undefined {
   }
 }
 
-function readTitleEditEntries(value: unknown): NonNullable<ImportSessionTitleEdits['modules']> {
+function readTitleEditEntries(
+  value: unknown
+): NonNullable<ImportSessionTitleEdits['modules']> {
   if (!Array.isArray(value)) return []
   return value.flatMap((entry) => {
-    if (!isRecord(entry) || typeof entry.id !== 'string' || typeof entry.title !== 'string') return []
+    if (
+      !isRecord(entry) ||
+      typeof entry.id !== 'string' ||
+      typeof entry.title !== 'string'
+    )
+      return []
     return [{ id: entry.id, title: entry.title }]
   })
 }
@@ -597,26 +764,39 @@ function rebaseProposalPaths(
       folderPath: rebasePath(mod.folderPath, sourceRoot, destinationRoot),
       resources: mod.resources?.map((resource) => ({
         ...resource,
-        filePath: rebasePath(resource.filePath, sourceRoot, destinationRoot) ?? resource.filePath
+        filePath:
+          rebasePath(resource.filePath, sourceRoot, destinationRoot) ??
+          resource.filePath
       })),
       lessons: mod.lessons.map((lesson) => ({
         ...lesson,
-        filePath: rebasePath(lesson.filePath, sourceRoot, destinationRoot) ?? lesson.filePath,
+        filePath:
+          rebasePath(lesson.filePath, sourceRoot, destinationRoot) ??
+          lesson.filePath,
         coverPath: rebasePath(lesson.coverPath, sourceRoot, destinationRoot),
         contentResources: lesson.contentResources?.map((resource) => ({
           ...resource,
-          filePath: rebasePath(resource.filePath, sourceRoot, destinationRoot) ?? resource.filePath
+          filePath:
+            rebasePath(resource.filePath, sourceRoot, destinationRoot) ??
+            resource.filePath
         }))
       }))
     }))
   }
 }
 
-function rebasePath(value: string | undefined, sourceRoot: string, destinationRoot: string): string | undefined {
+function rebasePath(
+  value: string | undefined,
+  sourceRoot: string,
+  destinationRoot: string
+): string | undefined {
   if (!value) return undefined
   const candidate = path.resolve(value)
   if (!isPathWithin(sourceRoot, candidate)) return value
-  return path.join(destinationRoot, path.relative(path.resolve(sourceRoot), candidate))
+  return path.join(
+    destinationRoot,
+    path.relative(path.resolve(sourceRoot), candidate)
+  )
 }
 
 export function buildCourseHierarchy(
@@ -682,7 +862,9 @@ export function buildCourseHierarchy(
     }
   })
 
-  const totalDuration = proposal.totalDuration ?? modules.reduce((sum, mod) => sum + mod.duration, 0)
+  const totalDuration =
+    proposal.totalDuration ??
+    modules.reduce((sum, mod) => sum + mod.duration, 0)
   const course: Course = {
     id: options.courseId,
     title,
@@ -728,7 +910,11 @@ function materializeContentResources(
   }))
 }
 
-async function moveDirectory(sourcePath: string, destinationPath: string, operationId: string): Promise<void> {
+async function moveDirectory(
+  sourcePath: string,
+  destinationPath: string,
+  operationId: string
+): Promise<void> {
   if (fs.existsSync(destinationPath)) {
     throw new Error(`Destination already exists: "${destinationPath}"`)
   }
@@ -776,10 +962,17 @@ async function moveDirectory(sourcePath: string, destinationPath: string, operat
   }
 }
 
-function createTransferPath(destinationPath: string, operationId: string): string {
+function createTransferPath(
+  destinationPath: string,
+  operationId: string
+): string {
   const parentPath = path.dirname(destinationPath)
-  const safeOperationId = operationId.replace(/[^a-zA-Z0-9-]/g, '') || 'operation'
-  const transferPath = path.join(parentPath, `.orbia-transfer-${safeOperationId}-${path.basename(destinationPath)}`)
+  const safeOperationId =
+    operationId.replace(/[^a-zA-Z0-9-]/g, '') || 'operation'
+  const transferPath = path.join(
+    parentPath,
+    `.orbia-transfer-${safeOperationId}-${path.basename(destinationPath)}`
+  )
   if (!isPathWithin(parentPath, transferPath) || fs.existsSync(transferPath)) {
     throw new Error('A temporary import transfer path is unavailable.')
   }
@@ -788,8 +981,13 @@ function createTransferPath(destinationPath: string, operationId: string): strin
 
 async function discardTransferPath(transferPath: string): Promise<void> {
   const parentPath = path.dirname(transferPath)
-  if (!isPathWithin(parentPath, transferPath) || !path.basename(transferPath).startsWith('.orbia-transfer-')) {
-    throw new Error('Refusing to remove a path outside an owned import transfer.')
+  if (
+    !isPathWithin(parentPath, transferPath) ||
+    !path.basename(transferPath).startsWith('.orbia-transfer-')
+  ) {
+    throw new Error(
+      'Refusing to remove a path outside an owned import transfer.'
+    )
   }
   if (fs.existsSync(transferPath)) {
     await fs.promises.rm(transferPath, { recursive: true, force: false })
@@ -800,7 +998,8 @@ function listManagedCoverFiles(vaultPath: string): Set<string> {
   const coversPath = path.resolve(vaultPath, '.orbia', 'covers')
   try {
     return new Set(
-      fs.readdirSync(coversPath, { withFileTypes: true })
+      fs
+        .readdirSync(coversPath, { withFileTypes: true })
         .filter((entry) => entry.isFile())
         .map((entry) => path.join(coversPath, entry.name))
     )
@@ -809,24 +1008,36 @@ function listManagedCoverFiles(vaultPath: string): Set<string> {
   }
 }
 
-async function removeNewManagedCovers(vaultPath: string, existingCovers: Set<string>): Promise<string[]> {
+async function removeNewManagedCovers(
+  vaultPath: string,
+  existingCovers: Set<string>
+): Promise<string[]> {
   const coversPath = path.resolve(vaultPath, '.orbia', 'covers')
   const warnings: string[] = []
   for (const coverPath of listManagedCoverFiles(vaultPath)) {
-    if (existingCovers.has(coverPath) || !isPathWithin(coversPath, coverPath)) continue
+    if (existingCovers.has(coverPath) || !isPathWithin(coversPath, coverPath))
+      continue
     try {
       await fs.promises.rm(coverPath, { force: false })
     } catch (error) {
-      warnings.push(`A generated cover could not be cleaned: ${errorMessage(error)}`)
+      warnings.push(
+        `A generated cover could not be cleaned: ${errorMessage(error)}`
+      )
     }
   }
   return warnings
 }
 
-function matchesSignature(sourcePath: string, signature: ImportSourceSignature): boolean {
+function matchesSignature(
+  sourcePath: string,
+  signature: ImportSourceSignature
+): boolean {
   try {
     const stat = fs.statSync(sourcePath)
-    return stat.size === signature.sizeBytes && stat.mtimeMs === signature.modifiedAtMs
+    return (
+      stat.size === signature.sizeBytes &&
+      stat.mtimeMs === signature.modifiedAtMs
+    )
   } catch {
     return false
   }
@@ -836,13 +1047,20 @@ function isPathWithin(parentPath: string, candidatePath: string): boolean {
   const parent = path.resolve(parentPath)
   const candidate = path.resolve(candidatePath)
   const relative = path.relative(parent, candidate)
-  return relative === '' || (!relative.startsWith(`..${path.sep}`) && relative !== '..' && !path.isAbsolute(relative))
+  return (
+    relative === '' ||
+    (!relative.startsWith(`..${path.sep}`) &&
+      relative !== '..' &&
+      !path.isAbsolute(relative))
+  )
 }
 
 function samePath(firstPath: string, secondPath: string): boolean {
   const first = path.resolve(firstPath)
   const second = path.resolve(secondPath)
-  return process.platform === 'win32' ? first.toLowerCase() === second.toLowerCase() : first === second
+  return process.platform === 'win32'
+    ? first.toLowerCase() === second.toLowerCase()
+    : first === second
 }
 
 function generateSlug(title: string): string {

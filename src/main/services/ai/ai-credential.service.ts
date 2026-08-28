@@ -35,7 +35,12 @@ export class ElectronAiCredentialStore {
   private readonly safeStorage: AiSafeStorage
 
   constructor(
-    private readonly config: Pick<AppConfigService, 'getEncryptedAiCredential' | 'setEncryptedAiCredential' | 'clearAiCredential'>,
+    private readonly config: Pick<
+      AppConfigService,
+      | 'getEncryptedAiCredential'
+      | 'setEncryptedAiCredential'
+      | 'clearAiCredential'
+    >,
     safeStorage?: AiSafeStorage
   ) {
     this.safeStorage = safeStorage ?? getElectronSafeStorage()
@@ -56,7 +61,8 @@ export class ElectronAiCredentialStore {
 
   public set(providerId: AiProviderId, secret: string): void {
     this.assertProvider(providerId)
-    if (typeof secret !== 'string') throw new Error('AI credential must be a string')
+    if (typeof secret !== 'string')
+      throw new Error('AI credential must be a string')
     if (!secret) {
       this.clear(providerId)
       return
@@ -72,12 +78,17 @@ export class ElectronAiCredentialStore {
   }
 
   private assertProvider(providerId: AiProviderId): void {
-    if (!AI_PROVIDER_IDS.includes(providerId)) throw new Error('Unknown AI provider')
+    if (!AI_PROVIDER_IDS.includes(providerId))
+      throw new Error('Unknown AI provider')
   }
 
   private assertEncryptionAvailable(): void {
     const backend = this.safeStorage.getSelectedStorageBackend?.()
-    if (!this.safeStorage.isEncryptionAvailable() || backend === 'basic_text' || backend === 'unknown') {
+    if (
+      !this.safeStorage.isEncryptionAvailable() ||
+      backend === 'basic_text' ||
+      backend === 'unknown'
+    ) {
       throw new Error('Secure credential storage unavailable')
     }
   }

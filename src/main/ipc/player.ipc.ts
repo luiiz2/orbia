@@ -5,9 +5,12 @@ import { logger } from '../services/logger.service'
 import { resourceManagerService } from '../services/optimizer/resource-manager.service'
 
 export function registerPlayerIpc(): void {
-  ipcMain.handle('player:set-active', async (_event, payload: { active?: unknown }) => {
-    resourceManagerService.setPlayerActive(Boolean(payload?.active))
-  })
+  ipcMain.handle(
+    'player:set-active',
+    async (_event, payload: { active?: unknown }) => {
+      resourceManagerService.setPlayerActive(Boolean(payload?.active))
+    }
+  )
 
   ipcMain.handle(
     'player:save-progress',
@@ -32,11 +35,15 @@ export function registerPlayerIpc(): void {
           return
         }
         const currentTime =
-          typeof payload.currentTime === 'number' && Number.isFinite(payload.currentTime) && payload.currentTime >= 0
+          typeof payload.currentTime === 'number' &&
+          Number.isFinite(payload.currentTime) &&
+          payload.currentTime >= 0
             ? payload.currentTime
             : 0
         const duration =
-          typeof payload.duration === 'number' && Number.isFinite(payload.duration) && payload.duration >= 0
+          typeof payload.duration === 'number' &&
+          Number.isFinite(payload.duration) &&
+          payload.duration >= 0
             ? payload.duration
             : 0
         const completed = Boolean(payload.completed)
@@ -54,26 +61,39 @@ export function registerPlayerIpc(): void {
     }
   )
 
-  ipcMain.handle('player:get-progress', async (_event, payload: { lessonId: string }) => {
-    try {
-      if (!payload || typeof payload.lessonId !== 'string' || !payload.lessonId.trim()) {
+  ipcMain.handle(
+    'player:get-progress',
+    async (_event, payload: { lessonId: string }) => {
+      try {
+        if (
+          !payload ||
+          typeof payload.lessonId !== 'string' ||
+          !payload.lessonId.trim()
+        ) {
+          return null
+        }
+        return databaseService.getLessonProgress(payload.lessonId.trim())
+      } catch (err) {
+        logger.error('[IPC] player:get-progress error:', err)
         return null
       }
-      return databaseService.getLessonProgress(payload.lessonId.trim())
-    } catch (err) {
-      logger.error('[IPC] player:get-progress error:', err)
-      return null
     }
-  })
+  )
 
   ipcMain.handle(
     'player:get-lessons-progress',
     async (_event, payload: { courseId: string }) => {
       try {
-        if (!payload || typeof payload.courseId !== 'string' || !payload.courseId.trim()) {
+        if (
+          !payload ||
+          typeof payload.courseId !== 'string' ||
+          !payload.courseId.trim()
+        ) {
           return []
         }
-        return databaseService.getLessonProgressByCourse(payload.courseId.trim())
+        return databaseService.getLessonProgressByCourse(
+          payload.courseId.trim()
+        )
       } catch (err) {
         logger.error('[IPC] player:get-lessons-progress error:', err)
         return []
@@ -85,7 +105,11 @@ export function registerPlayerIpc(): void {
     'player:get-course-progress',
     async (_event, payload: { courseId: string }) => {
       try {
-        if (!payload || typeof payload.courseId !== 'string' || !payload.courseId.trim()) {
+        if (
+          !payload ||
+          typeof payload.courseId !== 'string' ||
+          !payload.courseId.trim()
+        ) {
           return null
         }
         return databaseService.getCourseProgressSummary(payload.courseId.trim())
@@ -118,7 +142,10 @@ export function registerPlayerIpc(): void {
         ) {
           return false
         }
-        return databaseService.toggleLessonCompletion(payload.lessonId.trim(), payload.courseId.trim())
+        return databaseService.toggleLessonCompletion(
+          payload.lessonId.trim(),
+          payload.courseId.trim()
+        )
       } catch (err) {
         logger.error('[IPC] player:toggle-lesson-completion error:', err)
         return false
@@ -126,17 +153,24 @@ export function registerPlayerIpc(): void {
     }
   )
 
-  ipcMain.handle('player:get-watch-history', async (_event, payload?: { limit?: number }) => {
-    try {
-      const rawLimit =
-        payload && typeof payload.limit === 'number' && Number.isFinite(payload.limit) ? payload.limit : 50
-      const limit = Math.max(1, Math.min(Math.floor(rawLimit), 500))
-      return databaseService.getWatchHistory(limit)
-    } catch (err) {
-      logger.error('[IPC] player:get-watch-history error:', err)
-      return []
+  ipcMain.handle(
+    'player:get-watch-history',
+    async (_event, payload?: { limit?: number }) => {
+      try {
+        const rawLimit =
+          payload &&
+          typeof payload.limit === 'number' &&
+          Number.isFinite(payload.limit)
+            ? payload.limit
+            : 50
+        const limit = Math.max(1, Math.min(Math.floor(rawLimit), 500))
+        return databaseService.getWatchHistory(limit)
+      } catch (err) {
+        logger.error('[IPC] player:get-watch-history error:', err)
+        return []
+      }
     }
-  })
+  )
 
   ipcMain.handle(
     'player:add-watch-history',
@@ -163,20 +197,33 @@ export function registerPlayerIpc(): void {
           return
         }
         const duration =
-          typeof payload.duration === 'number' && Number.isFinite(payload.duration) && payload.duration >= 0
+          typeof payload.duration === 'number' &&
+          Number.isFinite(payload.duration) &&
+          payload.duration >= 0
             ? payload.duration
             : 0
         const currentTime =
-          typeof payload.currentTime === 'number' && Number.isFinite(payload.currentTime) && payload.currentTime >= 0
+          typeof payload.currentTime === 'number' &&
+          Number.isFinite(payload.currentTime) &&
+          payload.currentTime >= 0
             ? payload.currentTime
             : 0
 
         databaseService.addWatchHistory({
           lessonId: payload.lessonId.trim(),
           courseId: payload.courseId.trim(),
-          lessonTitle: typeof payload.lessonTitle === 'string' ? payload.lessonTitle.trim() : '',
-          courseTitle: typeof payload.courseTitle === 'string' ? payload.courseTitle.trim() : '',
-          coverPath: typeof payload.coverPath === 'string' ? payload.coverPath.trim() : undefined,
+          lessonTitle:
+            typeof payload.lessonTitle === 'string'
+              ? payload.lessonTitle.trim()
+              : '',
+          courseTitle:
+            typeof payload.courseTitle === 'string'
+              ? payload.courseTitle.trim()
+              : '',
+          coverPath:
+            typeof payload.coverPath === 'string'
+              ? payload.coverPath.trim()
+              : undefined,
           duration,
           currentTime
         })
@@ -186,17 +233,24 @@ export function registerPlayerIpc(): void {
     }
   )
 
-  ipcMain.handle('player:get-lesson-notes', async (_event, payload: { lessonId: string }) => {
-    try {
-      if (!payload || typeof payload.lessonId !== 'string' || !payload.lessonId.trim()) {
+  ipcMain.handle(
+    'player:get-lesson-notes',
+    async (_event, payload: { lessonId: string }) => {
+      try {
+        if (
+          !payload ||
+          typeof payload.lessonId !== 'string' ||
+          !payload.lessonId.trim()
+        ) {
+          return []
+        }
+        return databaseService.getLessonNotes(payload.lessonId.trim())
+      } catch (err) {
+        logger.error('[IPC] player:get-lesson-notes error:', err)
         return []
       }
-      return databaseService.getLessonNotes(payload.lessonId.trim())
-    } catch (err) {
-      logger.error('[IPC] player:get-lesson-notes error:', err)
-      return []
     }
-  })
+  )
 
   ipcMain.handle(
     'player:add-lesson-note',
@@ -219,7 +273,9 @@ export function registerPlayerIpc(): void {
           typeof payload.content !== 'string' ||
           !payload.content.trim()
         ) {
-          throw new Error('lessonId, courseId and non-empty content are required')
+          throw new Error(
+            'lessonId, courseId and non-empty content are required'
+          )
         }
         const timestampSeconds =
           typeof payload.timestampSeconds === 'number' &&
@@ -254,7 +310,10 @@ export function registerPlayerIpc(): void {
         ) {
           return false
         }
-        databaseService.updateLessonNote(payload.id.trim(), payload.content.trim())
+        databaseService.updateLessonNote(
+          payload.id.trim(),
+          payload.content.trim()
+        )
         return true
       } catch (err) {
         logger.error('[IPC] player:update-lesson-note error:', err)
@@ -263,86 +322,103 @@ export function registerPlayerIpc(): void {
     }
   )
 
-  ipcMain.handle('player:delete-lesson-note', async (_event, payload: { id: string }) => {
-    try {
-      if (!payload || typeof payload.id !== 'string' || !payload.id.trim()) {
+  ipcMain.handle(
+    'player:delete-lesson-note',
+    async (_event, payload: { id: string }) => {
+      try {
+        if (!payload || typeof payload.id !== 'string' || !payload.id.trim()) {
+          return false
+        }
+        databaseService.deleteLessonNote(payload.id.trim())
+        return true
+      } catch (err) {
+        logger.error('[IPC] player:delete-lesson-note error:', err)
         return false
       }
-      databaseService.deleteLessonNote(payload.id.trim())
-      return true
-    } catch (err) {
-      logger.error('[IPC] player:delete-lesson-note error:', err)
-      return false
     }
-  })
+  )
 
-  ipcMain.handle('player:export-course-notes', async (_event, payload: { courseId: string }) => {
-    try {
-      if (!payload || typeof payload.courseId !== 'string' || !payload.courseId.trim()) {
-        return ''
-      }
-      const trimmedCourseId = payload.courseId.trim()
-      const courseData = databaseService.getCourseById(trimmedCourseId)
-      const notes = databaseService.getCourseNotes(trimmedCourseId)
-      const courseTitle = courseData?.course.title || 'Course Notes'
+  ipcMain.handle(
+    'player:export-course-notes',
+    async (_event, payload: { courseId: string }) => {
+      try {
+        if (
+          !payload ||
+          typeof payload.courseId !== 'string' ||
+          !payload.courseId.trim()
+        ) {
+          return ''
+        }
+        const trimmedCourseId = payload.courseId.trim()
+        const courseData = databaseService.getCourseById(trimmedCourseId)
+        const notes = databaseService.getCourseNotes(trimmedCourseId)
+        const courseTitle = courseData?.course.title || 'Course Notes'
 
-      let markdown = `# Notes: ${courseTitle}\n\n`
-      markdown += `*Exported on ${new Date().toISOString()}*\n\n---\n\n`
+        let markdown = `# Notes: ${courseTitle}\n\n`
+        markdown += `*Exported on ${new Date().toISOString()}*\n\n---\n\n`
 
-      if (notes.length === 0) {
-        markdown += `*No notes recorded for this course.*\n`
-        return markdown
-      }
+        if (notes.length === 0) {
+          markdown += `*No notes recorded for this course.*\n`
+          return markdown
+        }
 
-      const lessonMap = new Map<string, string>()
-      if (courseData?.modules) {
-        for (const mod of courseData.modules) {
-          for (const lesson of mod.lessons) {
-            lessonMap.set(lesson.id, `${mod.title} > ${lesson.title}`)
+        const lessonMap = new Map<string, string>()
+        if (courseData?.modules) {
+          for (const mod of courseData.modules) {
+            for (const lesson of mod.lessons) {
+              lessonMap.set(lesson.id, `${mod.title} > ${lesson.title}`)
+            }
           }
         }
-      }
 
-      for (const note of notes) {
-        const lessonName = lessonMap.get(note.lessonId) || `Lesson (${note.lessonId})`
-        const minutes = Math.floor(note.timestampSeconds / 60)
-        const seconds = Math.floor(note.timestampSeconds % 60)
-        const timestamp = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+        for (const note of notes) {
+          const lessonName =
+            lessonMap.get(note.lessonId) || `Lesson (${note.lessonId})`
+          const minutes = Math.floor(note.timestampSeconds / 60)
+          const seconds = Math.floor(note.timestampSeconds % 60)
+          const timestamp = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
 
-        markdown += `### ${lessonName} [${timestamp}]\n\n`
-        markdown += `${note.content}\n\n`
-        markdown += `*Created: ${new Date(note.createdAt).toISOString()}*\n\n---\n\n`
-      }
+          markdown += `### ${lessonName} [${timestamp}]\n\n`
+          markdown += `${note.content}\n\n`
+          markdown += `*Created: ${new Date(note.createdAt).toISOString()}*\n\n---\n\n`
+        }
 
-      return markdown
-    } catch (err) {
-      logger.error('[IPC] player:export-course-notes error:', err)
-      return ''
-    }
-  })
-
-  ipcMain.handle('player:get-study-analytics', async (_event, payload?: { dailyGoalMinutes?: number }) => {
-    try {
-      const configuredGoal = appConfigService.getSettings().dailyStudyGoalMinutes || 30
-      const dailyGoal =
-        typeof payload?.dailyGoalMinutes === 'number' && Number.isFinite(payload.dailyGoalMinutes) && payload.dailyGoalMinutes > 0
-          ? payload.dailyGoalMinutes
-          : configuredGoal
-      return databaseService.getStudyAnalytics(dailyGoal)
-    } catch (err) {
-      logger.error('[IPC] player:get-study-analytics error:', err)
-      const fallbackGoal = appConfigService.getSettings().dailyStudyGoalMinutes || 30
-      return {
-        currentStreakDays: 0,
-        longestStreakDays: 0,
-        totalSecondsWatched: 0,
-        totalLessonsCompleted: 0,
-        dailyGoalMinutes: fallbackGoal,
-        todaySecondsWatched: 0,
-        dailyHistory: [],
-        topCourses: []
+        return markdown
+      } catch (err) {
+        logger.error('[IPC] player:export-course-notes error:', err)
+        return ''
       }
     }
-  })
+  )
+
+  ipcMain.handle(
+    'player:get-study-analytics',
+    async (_event, payload?: { dailyGoalMinutes?: number }) => {
+      try {
+        const configuredGoal =
+          appConfigService.getSettings().dailyStudyGoalMinutes || 30
+        const dailyGoal =
+          typeof payload?.dailyGoalMinutes === 'number' &&
+          Number.isFinite(payload.dailyGoalMinutes) &&
+          payload.dailyGoalMinutes > 0
+            ? payload.dailyGoalMinutes
+            : configuredGoal
+        return databaseService.getStudyAnalytics(dailyGoal)
+      } catch (err) {
+        logger.error('[IPC] player:get-study-analytics error:', err)
+        const fallbackGoal =
+          appConfigService.getSettings().dailyStudyGoalMinutes || 30
+        return {
+          currentStreakDays: 0,
+          longestStreakDays: 0,
+          totalSecondsWatched: 0,
+          totalLessonsCompleted: 0,
+          dailyGoalMinutes: fallbackGoal,
+          todaySecondsWatched: 0,
+          dailyHistory: [],
+          topCourses: []
+        }
+      }
+    }
+  )
 }
-

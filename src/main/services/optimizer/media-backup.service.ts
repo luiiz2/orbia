@@ -13,18 +13,26 @@ export class MediaBackupService {
     customBackupDir?: string
   ): Promise<{ success: boolean; backupPath: string; error?: string }> {
     if (!fs.existsSync(sourceFilePath)) {
-      return { success: false, backupPath: '', error: `Source file does not exist: ${sourceFilePath}` }
+      return {
+        success: false,
+        backupPath: '',
+        error: `Source file does not exist: ${sourceFilePath}`
+      }
     }
 
     try {
-      const backupBaseDir = customBackupDir || path.join(vaultPath, '.orbia', 'backups', 'media')
+      const backupBaseDir =
+        customBackupDir || path.join(vaultPath, '.orbia', 'backups', 'media')
       if (!fs.existsSync(backupBaseDir)) {
         fs.mkdirSync(backupBaseDir, { recursive: true })
       }
 
       const hash = crypto.randomBytes(6).toString('hex')
       const fileName = path.basename(sourceFilePath)
-      const backupPath = path.join(backupBaseDir, `${Date.now()}_${hash}_${fileName}`)
+      const backupPath = path.join(
+        backupBaseDir,
+        `${Date.now()}_${hash}_${fileName}`
+      )
 
       // Copy source file to backup location
       fs.copyFileSync(sourceFilePath, backupPath)
@@ -48,7 +56,10 @@ export class MediaBackupService {
     targetOriginalPath: string
   ): Promise<{ success: boolean; error?: string }> {
     if (!fs.existsSync(backupPath)) {
-      return { success: false, error: `Backup file not found at: ${backupPath}` }
+      return {
+        success: false,
+        error: `Backup file not found at: ${backupPath}`
+      }
     }
 
     try {
@@ -78,7 +89,8 @@ export class MediaBackupService {
     _isTargetStillActiveAndValid?: (targetPath: string) => boolean,
     customBackupDir?: string
   ): Promise<{ cleanedCount: number; freedBytes: number }> {
-    const backupBaseDir = customBackupDir || path.join(vaultPath, '.orbia', 'backups', 'media')
+    const backupBaseDir =
+      customBackupDir || path.join(vaultPath, '.orbia', 'backups', 'media')
     if (!fs.existsSync(backupBaseDir)) {
       return { cleanedCount: 0, freedBytes: 0 }
     }
@@ -125,7 +137,8 @@ export class MediaBackupService {
     try {
       if (!fs.existsSync(sourceFilePath)) return false
       const sourceStat = fs.statSync(sourceFilePath)
-      const requiredHeadroom = sourceStat.size + estimatedOutputSizeBytes + 500 * 1024 * 1024 // +500MB safety margin
+      const requiredHeadroom =
+        sourceStat.size + estimatedOutputSizeBytes + 500 * 1024 * 1024 // +500MB safety margin
 
       // Node statfs or fallback: check free space
       const checkDir = customBackupDir || path.dirname(sourceFilePath)
@@ -144,8 +157,12 @@ export class MediaBackupService {
   /**
    * Calculates total disk size consumed by media backups in a vault.
    */
-  public getTotalBackupsSizeBytes(vaultPath: string, customBackupDir?: string): number {
-    const backupBaseDir = customBackupDir || path.join(vaultPath, '.orbia', 'backups', 'media')
+  public getTotalBackupsSizeBytes(
+    vaultPath: string,
+    customBackupDir?: string
+  ): number {
+    const backupBaseDir =
+      customBackupDir || path.join(vaultPath, '.orbia', 'backups', 'media')
     if (!fs.existsSync(backupBaseDir)) return 0
 
     let total = 0

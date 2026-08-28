@@ -2,9 +2,11 @@
  * File operation journal and architectural undo types.
  * Every physical mutation generates an immutable journal record.
  */
-export type FileOperationType = 'rename' | 'move' | 'copy' | 'delete' | 'create_dir' | 'optimize_media'
+export type FileOperationType =
+  'rename' | 'move' | 'copy' | 'delete' | 'create_dir' | 'optimize_media'
 
-export type FileOperationStatus = 'pending' | 'completed' | 'failed' | 'rolled_back'
+export type FileOperationStatus =
+  'pending' | 'completed' | 'failed' | 'rolled_back'
 
 export interface FileOperationRecord {
   operationId: string // UUID

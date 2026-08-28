@@ -16,7 +16,15 @@ export const VIDEO_EXTENSIONS = new Set([
   '.ogv'
 ])
 
-export const AUDIO_EXTENSIONS = new Set(['.mp3', '.m4a', '.wav', '.ogg', '.flac', '.aac', '.wma'])
+export const AUDIO_EXTENSIONS = new Set([
+  '.mp3',
+  '.m4a',
+  '.wav',
+  '.ogg',
+  '.flac',
+  '.aac',
+  '.wma'
+])
 
 export const DOCUMENT_EXTENSIONS = new Set([
   '.pdf',
@@ -85,13 +93,32 @@ export const CODE_EXTENSIONS = new Set([
   '.dart'
 ])
 
-export const ARCHIVE_EXTENSIONS = new Set(['.zip', '.rar', '.7z', '.tar', '.gz'])
+export const ARCHIVE_EXTENSIONS = new Set([
+  '.zip',
+  '.rar',
+  '.7z',
+  '.tar',
+  '.gz'
+])
 
 export const SUBTITLE_EXTENSIONS = new Set(['.srt', '.vtt', '.sub', '.ass'])
 
-export const IMAGE_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp'])
+export const IMAGE_EXTENSIONS = new Set([
+  '.jpg',
+  '.jpeg',
+  '.png',
+  '.webp',
+  '.gif',
+  '.bmp'
+])
 
-export const LINK_EXTENSIONS = new Set(['.url', '.lnk', '.html', '.htm', '.webloc'])
+export const LINK_EXTENSIONS = new Set([
+  '.url',
+  '.lnk',
+  '.html',
+  '.htm',
+  '.webloc'
+])
 
 export const IGNORED_NAMES = new Set([
   '.git',
@@ -128,11 +155,14 @@ export function getMediaType(filePath: string): MediaType {
   if (IMAGE_EXTENSIONS.has(ext)) return 'image'
   if (LINK_EXTENSIONS.has(ext)) return 'link'
   if (ARCHIVE_EXTENSIONS.has(ext)) return 'archive'
-  if (DOCUMENT_EXTENSIONS.has(ext) || CODE_EXTENSIONS.has(ext)) return 'document'
+  if (DOCUMENT_EXTENSIONS.has(ext) || CODE_EXTENSIONS.has(ext))
+    return 'document'
   return 'other'
 }
 
-export function toResourceType(filePath: string): 'pdf' | 'document' | 'image' | 'archive' | 'code' | 'other' {
+export function toResourceType(
+  filePath: string
+): 'pdf' | 'document' | 'image' | 'archive' | 'code' | 'other' {
   const ext = path.extname(filePath).toLowerCase()
   if (ext === '.pdf') return 'pdf'
   if (IMAGE_EXTENSIONS.has(ext)) return 'image'
@@ -226,7 +256,9 @@ export function isCoverImage(filePath: string): boolean {
   // Exact cover names ("cover.jpg") or companion suffixes ("01 - Intro_thumb.jpg")
   return (
     /^(?:cover|thumb|thumbnail|poster|folder|front|capa|banner)$/i.test(name) ||
-    /[-_\s](?:cover|thumb|thumbnail|poster|folder|front|capa|banner)$/i.test(name)
+    /[-_\s](?:cover|thumb|thumbnail|poster|folder|front|capa|banner)$/i.test(
+      name
+    )
   )
 }
 
@@ -234,7 +266,8 @@ export function isCoverImage(filePath: string): boolean {
  * Formats duration in seconds to "HH:MM:SS" or "MM:SS"
  */
 export function formatDuration(seconds: number): string {
-  if (!seconds || isNaN(seconds) || seconds <= 0 || !isFinite(seconds)) return '00:00'
+  if (!seconds || isNaN(seconds) || seconds <= 0 || !isFinite(seconds))
+    return '00:00'
   const total = Math.floor(seconds)
   const h = Math.floor(total / 3600)
   const m = Math.floor((total % 3600) / 60)
@@ -254,6 +287,9 @@ export function formatBytes(bytes: number, decimals = 1): string {
   const k = 1024
   const dm = decimals < 0 ? 0 : decimals
   const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']
-  const i = Math.min(Math.floor(Math.log(bytes) / Math.log(k)), sizes.length - 1)
+  const i = Math.min(
+    Math.floor(Math.log(bytes) / Math.log(k)),
+    sizes.length - 1
+  )
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`
 }

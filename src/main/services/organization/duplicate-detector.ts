@@ -16,7 +16,8 @@ export interface MediaIdentityDescriptor {
   mtimeMs?: number
 }
 
-export type DuplicateScope = 'SAME_MODULE' | 'CROSS_MODULE' | 'CROSS_COURSE' | 'BACKUP_FOLDER'
+export type DuplicateScope =
+  'SAME_MODULE' | 'CROSS_MODULE' | 'CROSS_COURSE' | 'BACKUP_FOLDER'
 
 export interface ConfirmedDuplicateMatch {
   source: MediaIdentityDescriptor
@@ -33,7 +34,11 @@ const SAMPLE_SIZE = 64 * 1024
  * Computes or retrieves cached staged fingerprint hash for a file.
  * Cache key: filePath + size + mtimeMs
  */
-export async function getStagedFileHash(filePath: string, sizeBytes?: number, mtimeMs?: number): Promise<string> {
+export async function getStagedFileHash(
+  filePath: string,
+  sizeBytes?: number,
+  mtimeMs?: number
+): Promise<string> {
   try {
     let stat: fs.Stats | undefined
     if (sizeBytes === undefined || mtimeMs === undefined) {
@@ -84,14 +89,23 @@ export async function getStagedFileHash(filePath: string, sizeBytes?: number, mt
 export async function verifyMediaEquality(
   a: MediaIdentityDescriptor,
   b: MediaIdentityDescriptor
-): Promise<{ isDuplicate: boolean; confidence?: ConfirmedDuplicateMatch['confidence']; reason?: string }> {
+): Promise<{
+  isDuplicate: boolean
+  confidence?: ConfirmedDuplicateMatch['confidence']
+  reason?: string
+}> {
   // Different sizes -> definitely not duplicates
   if (a.sizeBytes > 0 && b.sizeBytes > 0 && a.sizeBytes !== b.sizeBytes) {
     return { isDuplicate: false }
   }
 
   // Exact same path -> duplicate
-  if (a.filePath && b.filePath && path.resolve(a.filePath).toLowerCase() === path.resolve(b.filePath).toLowerCase()) {
+  if (
+    a.filePath &&
+    b.filePath &&
+    path.resolve(a.filePath).toLowerCase() ===
+      path.resolve(b.filePath).toLowerCase()
+  ) {
     return {
       isDuplicate: true,
       confidence: 'CONFIRMED_HASH',
@@ -117,8 +131,12 @@ export async function verifyMediaEquality(
 
   // If size is identical and both exist on disk, compute staged hashes
   if (a.sizeBytes > 0 && a.sizeBytes === b.sizeBytes) {
-    const hashA = hashKnownA || (await getStagedFileHash(a.filePath, a.sizeBytes, a.mtimeMs))
-    const hashB = hashKnownB || (await getStagedFileHash(b.filePath, b.sizeBytes, b.mtimeMs))
+    const hashA =
+      hashKnownA ||
+      (await getStagedFileHash(a.filePath, a.sizeBytes, a.mtimeMs))
+    const hashB =
+      hashKnownB ||
+      (await getStagedFileHash(b.filePath, b.sizeBytes, b.mtimeMs))
 
     // If content hash was known for A (or B) and other file is computed on disk
     if (hashA && hashB && hashA === hashB) {
@@ -133,7 +151,9 @@ export async function verifyMediaEquality(
     // Match if durations match (or if durations are unprobed / <= 0)
     if (!hashA || !hashB) {
       const durationsMatch =
-        (a.duration && b.duration && Math.abs(a.duration - b.duration) <= 1.0) ||
+        (a.duration &&
+          b.duration &&
+          Math.abs(a.duration - b.duration) <= 1.0) ||
         !a.duration ||
         !b.duration ||
         a.duration === 0 ||
@@ -161,17 +181,28 @@ export function classifyDuplicateScope(
   courseRootPath: string
 ): DuplicateScope {
   // Check if either file is inside a backup folder
-  if (isInsideBackupFolder(source.filePath, courseRootPath) || isInsideBackupFolder(target.filePath, courseRootPath)) {
+  if (
+    isInsideBackupFolder(source.filePath, courseRootPath) ||
+    isInsideBackupFolder(target.filePath, courseRootPath)
+  ) {
     return 'BACKUP_FOLDER'
   }
 
   // Check if they belong to different courses
-  if (source.courseId && target.courseId && source.courseId !== target.courseId) {
+  if (
+    source.courseId &&
+    target.courseId &&
+    source.courseId !== target.courseId
+  ) {
     return 'CROSS_COURSE'
   }
 
   // Check if they belong to the same module
-  if (source.moduleId && target.moduleId && source.moduleId === target.moduleId) {
+  if (
+    source.moduleId &&
+    target.moduleId &&
+    source.moduleId === target.moduleId
+  ) {
     return 'SAME_MODULE'
   }
 

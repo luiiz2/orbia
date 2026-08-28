@@ -182,7 +182,10 @@ export function createMainMediaPathAuthorizer(
       if (isPathInside(targetPath, temporaryCoversPath)) return true
 
       const vaultPath = source.getCurrentVaultPath()
-      return Boolean(vaultPath && isPathInside(targetPath, path.join(vaultPath, '.orbia', 'covers')))
+      return Boolean(
+        vaultPath &&
+        isPathInside(targetPath, path.join(vaultPath, '.orbia', 'covers'))
+      )
     }
   }
 }
@@ -195,14 +198,24 @@ const denyAllMediaPathAuthorizer: MediaPathAuthorizer = {
  * Validates, normalizes, and extracts the target absolute file path from a media:// URL.
  * Prevents directory traversal, null-byte injections, and unauthorized file extensions.
  */
-export function extractAndValidateMediaPath(requestUrl: string): MediaPathValidationResult {
+export function extractAndValidateMediaPath(
+  requestUrl: string
+): MediaPathValidationResult {
   if (!requestUrl || typeof requestUrl !== 'string') {
-    return { valid: false, error: 'Empty or invalid media URL', statusCode: 400 }
+    return {
+      valid: false,
+      error: 'Empty or invalid media URL',
+      statusCode: 400
+    }
   }
 
   // Null byte injection defense
   if (requestUrl.includes('\0') || requestUrl.includes('%00')) {
-    return { valid: false, error: 'Null bytes are not permitted', statusCode: 400 }
+    return {
+      valid: false,
+      error: 'Null bytes are not permitted',
+      statusCode: 400
+    }
   }
 
   let url: URL
@@ -213,7 +226,11 @@ export function extractAndValidateMediaPath(requestUrl: string): MediaPathValida
   }
 
   if (url.protocol !== `${MEDIA_SCHEME}:`) {
-    return { valid: false, error: `Invalid protocol scheme: ${url.protocol}`, statusCode: 400 }
+    return {
+      valid: false,
+      error: `Invalid protocol scheme: ${url.protocol}`,
+      statusCode: 400
+    }
   }
 
   // Decode file path from URL
@@ -230,7 +247,11 @@ export function extractAndValidateMediaPath(requestUrl: string): MediaPathValida
     try {
       decodedHost = decodeURIComponent(url.host)
     } catch {
-      return { valid: false, error: 'Malformed URL host encoding', statusCode: 400 }
+      return {
+        valid: false,
+        error: 'Malformed URL host encoding',
+        statusCode: 400
+      }
     }
     const full = `${decodedHost}${url.pathname}`
     if (/^[a-zA-Z]:/.test(full)) {
@@ -243,7 +264,11 @@ export function extractAndValidateMediaPath(requestUrl: string): MediaPathValida
 
   // Verify that the path is absolute
   if (!path.isAbsolute(normalized)) {
-    return { valid: false, error: 'Relative file paths are prohibited', statusCode: 403 }
+    return {
+      valid: false,
+      error: 'Relative file paths are prohibited',
+      statusCode: 403
+    }
   }
 
   // Extension Whitelisting
@@ -296,8 +321,12 @@ export function setupMediaProtocol(
     try {
       const validation = extractAndValidateMediaPath(request.url)
       if (!validation.valid || !validation.filePath) {
-        logger.warn(`[Protocol] Rejected media request: ${request.url} - ${validation.error}`)
-        return new Response(validation.error || 'Access denied', { status: validation.statusCode })
+        logger.warn(
+          `[Protocol] Rejected media request: ${request.url} - ${validation.error}`
+        )
+        return new Response(validation.error || 'Access denied', {
+          status: validation.statusCode
+        })
       }
 
       const targetPath = validation.filePath
@@ -306,14 +335,23 @@ export function setupMediaProtocol(
       try {
         isAuthorized = await authorizer.isPathAuthorized(targetPath)
       } catch (error) {
-        logger.error('[Protocol] Media path authorization failed:', targetPath, error)
+        logger.error(
+          '[Protocol] Media path authorization failed:',
+          targetPath,
+          error
+        )
       }
 
       if (!isAuthorized) {
-        logger.warn(`[Protocol] Rejected unregistered media request: ${request.url}`)
-        return new Response('Access denied: requested file is not registered in the active library', {
-          status: 403
-        })
+        logger.warn(
+          `[Protocol] Rejected unregistered media request: ${request.url}`
+        )
+        return new Response(
+          'Access denied: requested file is not registered in the active library',
+          {
+            status: 403
+          }
+        )
       }
 
       // Check file existence and verify it is a regular file
@@ -321,7 +359,9 @@ export function setupMediaProtocol(
       try {
         stat = await fs.promises.stat(targetPath)
         if (!stat.isFile()) {
-          return new Response('Requested resource is not a regular file', { status: 404 })
+          return new Response('Requested resource is not a regular file', {
+            status: 404
+          })
         }
       } catch {
         return new Response('File not found on disk', { status: 404 })
@@ -382,7 +422,9 @@ export function setupMediaProtocol(
       })
     } catch (err) {
       logger.error('[Protocol] Error handling media request:', request.url, err)
-      return new Response('Internal error handling media request', { status: 500 })
+      return new Response('Internal error handling media request', {
+        status: 500
+      })
     }
   })
 }
@@ -403,5 +445,10 @@ function isPathInside(filePath: string, parentPath: string): boolean {
   if (!normalizedParent) return false
 
   const relative = path.relative(normalizedParent, filePath)
-  return Boolean(relative) && relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative)
+  return (
+    Boolean(relative) &&
+    relative !== '..' &&
+    !relative.startsWith(`..${path.sep}`) &&
+    !path.isAbsolute(relative)
+  )
 }

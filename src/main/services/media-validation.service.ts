@@ -68,7 +68,11 @@ function isLikelyMpegTransportStream(filePath: string): boolean {
     const descriptor = fs.openSync(filePath, 'r')
     try {
       const bytesRead = fs.readSync(descriptor, sample, 0, sample.length, 0)
-      return bytesRead >= packetSize && sample[0] === 0x47 && (bytesRead < packetSize * 2 || sample[packetSize] === 0x47)
+      return (
+        bytesRead >= packetSize &&
+        sample[0] === 0x47 &&
+        (bytesRead < packetSize * 2 || sample[packetSize] === 0x47)
+      )
     } finally {
       fs.closeSync(descriptor)
     }
@@ -86,7 +90,19 @@ export function decodeWithBundledFfmpeg(filePath: string): Promise<void> {
   return new Promise((resolve, reject) => {
     const child = spawn(
       executablePath,
-      ['-v', 'error', '-i', filePath, '-map', '0:v?', '-map', '0:a?', '-f', 'null', '-'],
+      [
+        '-v',
+        'error',
+        '-i',
+        filePath,
+        '-map',
+        '0:v?',
+        '-map',
+        '0:a?',
+        '-f',
+        'null',
+        '-'
+      ],
       { windowsHide: true, stdio: ['ignore', 'ignore', 'pipe'] }
     ) as ChildProcess
     let stderr = ''
@@ -100,7 +116,11 @@ export function decodeWithBundledFfmpeg(filePath: string): Promise<void> {
         resolve()
         return
       }
-      reject(new Error(stderr.trim() || `FFmpeg exited with code ${code ?? 'unknown'}`))
+      reject(
+        new Error(
+          stderr.trim() || `FFmpeg exited with code ${code ?? 'unknown'}`
+        )
+      )
     })
   })
 }

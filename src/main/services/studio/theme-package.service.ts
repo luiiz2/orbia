@@ -9,7 +9,10 @@ export class ThemePackageService {
    * Exports a theme preset into a portable JSON representation (.orbia-theme).
    * Strips all user private data (only theme configuration is saved).
    */
-  public async exportTheme(presetId: string, targetPath?: string): Promise<{ success: boolean; filePath?: string; error?: string }> {
+  public async exportTheme(
+    presetId: string,
+    targetPath?: string
+  ): Promise<{ success: boolean; filePath?: string; error?: string }> {
     try {
       const presets = appConfigService.listThemePresets()
       const preset = presets.find((p) => p.id === presetId)
@@ -36,7 +39,13 @@ export class ThemePackageService {
         2
       )
 
-      const outputPath = targetPath || path.join(os.homedir(), 'Downloads', `${preset.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}.orbia-theme`)
+      const outputPath =
+        targetPath ||
+        path.join(
+          os.homedir(),
+          'Downloads',
+          `${preset.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}.orbia-theme`
+        )
       await fs.promises.writeFile(outputPath, packageContent, 'utf-8')
 
       return { success: true, filePath: outputPath }
@@ -49,7 +58,9 @@ export class ThemePackageService {
   /**
    * Imports and validates a .orbia-theme package, falling back safely on unsupported properties.
    */
-  public async importTheme(filePath: string): Promise<{ success: boolean; preset?: ThemePreset; error?: string }> {
+  public async importTheme(
+    filePath: string
+  ): Promise<{ success: boolean; preset?: ThemePreset; error?: string }> {
     try {
       if (!fs.existsSync(filePath)) {
         return { success: false, error: 'Arquivo de tema não encontrado' }
@@ -58,11 +69,17 @@ export class ThemePackageService {
       const raw = await fs.promises.readFile(filePath, 'utf-8')
       const parsed = JSON.parse(raw) as {
         manifest?: ThemePackageManifest
-        preset?: { name: string; config: import('../../../types/theme').ThemeConfig }
+        preset?: {
+          name: string
+          config: import('../../../types/theme').ThemeConfig
+        }
       }
 
       if (!parsed.preset || !parsed.preset.name || !parsed.preset.config) {
-        return { success: false, error: 'Formato de tema inválido ou corrompido' }
+        return {
+          success: false,
+          error: 'Formato de tema inválido ou corrompido'
+        }
       }
 
       // Sanitize and save preset

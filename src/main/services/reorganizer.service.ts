@@ -3,7 +3,11 @@ import path from 'node:path'
 import crypto from 'node:crypto'
 import { databaseService } from './database.service'
 import { logger } from './logger.service'
-import type { OperationPlan, ProposedFileMutation, FileOperationRecord } from '../../types/journal'
+import type {
+  OperationPlan,
+  ProposedFileMutation,
+  FileOperationRecord
+} from '../../types/journal'
 
 function sanitizeName(name: string): string {
   return name
@@ -12,13 +16,20 @@ function sanitizeName(name: string): string {
     .trim()
 }
 
-function findFileInDir(dir: string, fileName: string, maxDepth = 4): string | null {
+function findFileInDir(
+  dir: string,
+  fileName: string,
+  maxDepth = 4
+): string | null {
   if (!fs.existsSync(dir)) return null
   try {
     const entries = fs.readdirSync(dir, { withFileTypes: true })
     for (const entry of entries) {
       const fullPath = path.join(dir, entry.name)
-      if (entry.isFile() && entry.name.toLowerCase() === fileName.toLowerCase()) {
+      if (
+        entry.isFile() &&
+        entry.name.toLowerCase() === fileName.toLowerCase()
+      ) {
         return fullPath
       }
       if (entry.isDirectory() && maxDepth > 0 && !entry.name.startsWith('.')) {
@@ -49,7 +60,8 @@ function resolveActualSourcePath(
   }
 
   // 3. Search under course root if available
-  const targetFileName = fileName || (sourcePath ? path.basename(sourcePath) : '')
+  const targetFileName =
+    fileName || (sourcePath ? path.basename(sourcePath) : '')
   if (courseRoot && targetFileName && fs.existsSync(courseRoot)) {
     // Check direct child
     const directPath = path.join(courseRoot, targetFileName)
@@ -84,12 +96,20 @@ function safeMoveFile(sourcePath: string, destPath: string): void {
     fs.renameSync(sourcePath, destPath)
   } catch (err: unknown) {
     const nodeErr = err as NodeJS.ErrnoException
-    if (nodeErr.code === 'EXDEV' || nodeErr.code === 'EPERM' || nodeErr.code === 'EBUSY' || nodeErr.code === 'EACCES') {
+    if (
+      nodeErr.code === 'EXDEV' ||
+      nodeErr.code === 'EPERM' ||
+      nodeErr.code === 'EBUSY' ||
+      nodeErr.code === 'EACCES'
+    ) {
       fs.copyFileSync(sourcePath, destPath)
       try {
         fs.unlinkSync(sourcePath)
       } catch (unlinkErr) {
-        logger.warn(`[Reorganizer] Could not delete source after copy: ${sourcePath}`, unlinkErr)
+        logger.warn(
+          `[Reorganizer] Could not delete source after copy: ${sourcePath}`,
+          unlinkErr
+        )
       }
     } else {
       throw err
@@ -114,13 +134,17 @@ export class ReorganizerService {
     const conflictDetails: string[] = []
 
     for (const mod of modules) {
-      const padModIndex = String(mod.orderIndex > 0 ? mod.orderIndex : mod.orderIndex + 1).padStart(2, '0')
+      const padModIndex = String(
+        mod.orderIndex > 0 ? mod.orderIndex : mod.orderIndex + 1
+      ).padStart(2, '0')
       const cleanModTitle = sanitizeName(mod.title)
       const cleanModFolder = `${padModIndex} - ${cleanModTitle}`
       const targetModPath = path.join(course.rootPath, cleanModFolder)
 
       for (const lesson of mod.lessons) {
-        const padLesIndex = String(lesson.orderIndex > 0 ? lesson.orderIndex : lesson.orderIndex + 1).padStart(2, '0')
+        const padLesIndex = String(
+          lesson.orderIndex > 0 ? lesson.orderIndex : lesson.orderIndex + 1
+        ).padStart(2, '0')
         const cleanLesTitle = sanitizeName(lesson.title)
         const ext = lesson.fileExtension.startsWith('.')
           ? lesson.fileExtension
@@ -138,7 +162,9 @@ export class ReorganizerService {
         )
 
         if (!resolvedSource) {
-          conflictDetails.push(`Arquivo não encontrado no disco (ignorado): ${lesson.fileName || path.basename(lesson.filePath)}`)
+          conflictDetails.push(
+            `Arquivo não encontrado no disco (ignorado): ${lesson.fileName || path.basename(lesson.filePath)}`
+          )
           continue
         }
 
@@ -147,7 +173,9 @@ export class ReorganizerService {
 
         if (normSource !== normTarget) {
           if (fs.existsSync(targetFilePath) && normSource !== normTarget) {
-            conflictDetails.push(`Arquivo de destino já existe: ${cleanFileName}`)
+            conflictDetails.push(
+              `Arquivo de destino já existe: ${cleanFileName}`
+            )
           }
 
           proposedMutations.push({
@@ -158,8 +186,14 @@ export class ReorganizerService {
             newFileName: cleanFileName,
             isReversible: true
           })
-        } else if (path.normalize(lesson.filePath).toLowerCase() !== normTarget) {
-          databaseService.updateLessonFilePath(lesson.id, targetFilePath, cleanFileName)
+        } else if (
+          path.normalize(lesson.filePath).toLowerCase() !== normTarget
+        ) {
+          databaseService.updateLessonFilePath(
+            lesson.id,
+            targetFilePath,
+            cleanFileName
+          )
         }
       }
     }
@@ -214,7 +248,11 @@ export class ReorganizerService {
         )
 
         if (!resolvedSource) {
-          databaseService.updateFileOperationStatus(operationId, 'failed', 'Source file not found on disk')
+          databaseService.updateFileOperationStatus(
+            operationId,
+            'failed',
+            'Source file not found on disk'
+          )
           continue
         }
 
@@ -222,9 +260,15 @@ export class ReorganizerService {
         const normDest = path.normalize(mutation.destinationPath).toLowerCase()
 
         if (normResolved === normDest) {
-          const lesson = databaseService.findLessonByFilePath(mutation.sourcePath) || databaseService.findLessonByFilePath(resolvedSource)
+          const lesson =
+            databaseService.findLessonByFilePath(mutation.sourcePath) ||
+            databaseService.findLessonByFilePath(resolvedSource)
           if (lesson) {
-            databaseService.updateLessonFilePath(lesson.id, mutation.destinationPath, mutation.newFileName)
+            databaseService.updateLessonFilePath(
+              lesson.id,
+              mutation.destinationPath,
+              mutation.newFileName
+            )
           }
           databaseService.updateFileOperationStatus(operationId, 'completed')
           appliedCount++
@@ -233,17 +277,30 @@ export class ReorganizerService {
 
         safeMoveFile(resolvedSource, mutation.destinationPath)
 
-        const lesson = databaseService.findLessonByFilePath(mutation.sourcePath) || databaseService.findLessonByFilePath(resolvedSource)
+        const lesson =
+          databaseService.findLessonByFilePath(mutation.sourcePath) ||
+          databaseService.findLessonByFilePath(resolvedSource)
         if (lesson) {
-          databaseService.updateLessonFilePath(lesson.id, mutation.destinationPath, mutation.newFileName)
+          databaseService.updateLessonFilePath(
+            lesson.id,
+            mutation.destinationPath,
+            mutation.newFileName
+          )
         }
 
         databaseService.updateFileOperationStatus(operationId, 'completed')
         appliedCount++
       } catch (err: unknown) {
         const errorMsg = err instanceof Error ? err.message : String(err)
-        logger.error(`[ReorganizerService] Failed to move file: ${mutation.sourcePath}`, err)
-        databaseService.updateFileOperationStatus(operationId, 'failed', errorMsg)
+        logger.error(
+          `[ReorganizerService] Failed to move file: ${mutation.sourcePath}`,
+          err
+        )
+        databaseService.updateFileOperationStatus(
+          operationId,
+          'failed',
+          errorMsg
+        )
         return {
           success: false,
           appliedCount,
@@ -265,7 +322,11 @@ export class ReorganizerService {
   /**
    * Undoes a previously applied reorganization plan by group ID in reverse LIFO order.
    */
-  public undoReorganizePlan(groupId: string): { success: boolean; revertedCount: number; error?: string } {
+  public undoReorganizePlan(groupId: string): {
+    success: boolean
+    revertedCount: number
+    error?: string
+  } {
     const operations = databaseService.getFileOperationsByGroup(groupId)
     const completedOps = operations.filter((op) => op.status === 'completed')
 
@@ -283,17 +344,29 @@ export class ReorganizerService {
         if (fs.existsSync(op.destinationPath)) {
           safeMoveFile(op.destinationPath, op.sourcePath)
 
-          const lesson = databaseService.findLessonByFilePath(op.destinationPath)
+          const lesson = databaseService.findLessonByFilePath(
+            op.destinationPath
+          )
           if (lesson) {
-            databaseService.updateLessonFilePath(lesson.id, op.sourcePath, op.originalFileName)
+            databaseService.updateLessonFilePath(
+              lesson.id,
+              op.sourcePath,
+              op.originalFileName
+            )
           }
 
-          databaseService.updateFileOperationStatus(op.operationId, 'rolled_back')
+          databaseService.updateFileOperationStatus(
+            op.operationId,
+            'rolled_back'
+          )
           revertedCount++
         }
       } catch (err: unknown) {
         const errorMsg = err instanceof Error ? err.message : String(err)
-        logger.error(`[ReorganizerService] Failed to rollback operation: ${op.operationId}`, err)
+        logger.error(
+          `[ReorganizerService] Failed to rollback operation: ${op.operationId}`,
+          err
+        )
         return {
           success: false,
           revertedCount,

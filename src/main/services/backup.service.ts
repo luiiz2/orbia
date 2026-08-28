@@ -27,7 +27,12 @@ export class BackupService {
    * Creates a lightweight portable .orbia backup archive containing manifest, SQLite database, and covers.
    * INVARIANT: Never copies heavy video files by default.
    */
-  public async createBackup(options: CreateBackupOptions): Promise<{ success: boolean; filePath: string; fileSizeBytes: number; error?: string }> {
+  public async createBackup(options: CreateBackupOptions): Promise<{
+    success: boolean
+    filePath: string
+    fileSizeBytes: number
+    error?: string
+  }> {
     try {
       const dbPath = path.join(options.vaultPath, '.orbia', 'library.db')
       if (!fs.existsSync(dbPath)) {
@@ -35,7 +40,9 @@ export class BackupService {
       }
 
       // Checkpoint WAL if connected
-      const rawDb = (this.db as unknown as { db: import('better-sqlite3').Database | null }).db
+      const rawDb = (
+        this.db as unknown as { db: import('better-sqlite3').Database | null }
+      ).db
       if (rawDb) {
         try {
           rawDb.pragma('wal_checkpoint(TRUNCATE)')
@@ -55,10 +62,31 @@ export class BackupService {
 
       if (rawDb) {
         try {
-          courseCount = (rawDb.prepare('SELECT count(*) as cnt FROM courses WHERE merged_into_course_id IS NULL').get() as { cnt: number } | undefined)?.cnt || 0
-          notesCount = (rawDb.prepare('SELECT count(*) as cnt FROM lesson_notes').get() as { cnt: number } | undefined)?.cnt || 0
-          flashcardsCount = (rawDb.prepare('SELECT count(*) as cnt FROM flashcards').get() as { cnt: number } | undefined)?.cnt || 0
-          bookmarksCount = (rawDb.prepare('SELECT count(*) as cnt FROM video_bookmarks').get() as { cnt: number } | undefined)?.cnt || 0
+          courseCount =
+            (
+              rawDb
+                .prepare(
+                  'SELECT count(*) as cnt FROM courses WHERE merged_into_course_id IS NULL'
+                )
+                .get() as { cnt: number } | undefined
+            )?.cnt || 0
+          notesCount =
+            (
+              rawDb
+                .prepare('SELECT count(*) as cnt FROM lesson_notes')
+                .get() as { cnt: number } | undefined
+            )?.cnt || 0
+          flashcardsCount =
+            (
+              rawDb.prepare('SELECT count(*) as cnt FROM flashcards').get() as
+                { cnt: number } | undefined
+            )?.cnt || 0
+          bookmarksCount =
+            (
+              rawDb
+                .prepare('SELECT count(*) as cnt FROM video_bookmarks')
+                .get() as { cnt: number } | undefined
+            )?.cnt || 0
         } catch {
           // Ignored
         }
@@ -78,7 +106,10 @@ export class BackupService {
       }
 
       // Add manifest
-      zip.addFile('manifest.json', Buffer.from(JSON.stringify(manifest, null, 2), 'utf-8'))
+      zip.addFile(
+        'manifest.json',
+        Buffer.from(JSON.stringify(manifest, null, 2), 'utf-8')
+      )
 
       // Add library.db
       const dbBuffer = fs.readFileSync(dbPath)
@@ -128,7 +159,12 @@ export class BackupService {
   public async inspectBackup(backupFilePath: string): Promise<BackupPreview> {
     try {
       if (!fs.existsSync(backupFilePath)) {
-        return { valid: false, filePath: backupFilePath, fileSizeBytes: 0, error: 'Backup file does not exist.' }
+        return {
+          valid: false,
+          filePath: backupFilePath,
+          fileSizeBytes: 0,
+          error: 'Backup file does not exist.'
+        }
       }
 
       const stats = fs.statSync(backupFilePath)
@@ -211,10 +247,18 @@ export class BackupService {
   /**
    * Restores a vault from a .orbia backup archive with safety rollback.
    */
-  public async restoreBackup(options: RestoreBackupOptions): Promise<{ success: boolean; restoredCoursesCount: number; error?: string }> {
+  public async restoreBackup(options: RestoreBackupOptions): Promise<{
+    success: boolean
+    restoredCoursesCount: number
+    error?: string
+  }> {
     const preview = await this.inspectBackup(options.backupFilePath)
     if (!preview.valid || !preview.manifest) {
-      return { success: false, restoredCoursesCount: 0, error: preview.error || 'Invalid backup file.' }
+      return {
+        success: false,
+        restoredCoursesCount: 0,
+        error: preview.error || 'Invalid backup file.'
+      }
     }
 
     const orbiaDir = path.join(options.vaultPath, '.orbia')
@@ -251,19 +295,27 @@ export class BackupService {
           const relativeName = entry.entryName.replace(/^covers\//, '')
           if (relativeName && !entry.isDirectory) {
             const coversDir = path.join(orbiaDir, 'covers')
-            if (!fs.existsSync(coversDir)) fs.mkdirSync(coversDir, { recursive: true })
-            fs.writeFileSync(path.join(coversDir, relativeName), entry.getData())
+            if (!fs.existsSync(coversDir))
+              fs.mkdirSync(coversDir, { recursive: true })
+            fs.writeFileSync(
+              path.join(coversDir, relativeName),
+              entry.getData()
+            )
           }
         }
       }
 
       // Step 4: Reconnect SQLite and verify integrity
       this.db.connect(options.vaultPath)
-      const rawDb = (this.db as unknown as { db: import('better-sqlite3').Database | null }).db
+      const rawDb = (
+        this.db as unknown as { db: import('better-sqlite3').Database | null }
+      ).db
       if (rawDb) {
         const integrity = rawDb.pragma('integrity_check', { simple: true })
         if (integrity !== 'ok') {
-          throw new Error(`Restored database failed integrity check: ${integrity}`)
+          throw new Error(
+            `Restored database failed integrity check: ${integrity}`
+          )
         }
       }
 

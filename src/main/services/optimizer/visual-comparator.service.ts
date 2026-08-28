@@ -25,12 +25,24 @@ export class VisualComparatorService {
     const db = databaseService.getDatabase()
     if (!db) throw new Error('Database is not connected.')
 
-    const lesson = db.prepare(`
+    const lesson = db
+      .prepare(
+        `
       SELECT l.id, l.title as lessonTitle, l.course_id as courseId, l.file_path as filePath, c.title as courseTitle
       FROM lessons l
       JOIN courses c ON c.id = l.course_id
       WHERE l.id = ?
-    `).get(lessonId) as { id: string; lessonTitle: string; courseId: string; filePath: string; courseTitle: string } | undefined
+    `
+      )
+      .get(lessonId) as
+      | {
+          id: string
+          lessonTitle: string
+          courseId: string
+          filePath: string
+          courseTitle: string
+        }
+      | undefined
 
     if (!lesson || !fs.existsSync(lesson.filePath)) {
       throw new Error(`Lesson file not found on disk: ${lesson?.filePath}`)
@@ -45,8 +57,15 @@ export class VisualComparatorService {
       profile
     })
 
-    const vaultPath = databaseService.getCurrentVaultPath() || path.dirname(lesson.filePath)
-    const previewDir = path.join(vaultPath, '.orbia', 'temp', 'preview', lesson.id)
+    const vaultPath =
+      databaseService.getCurrentVaultPath() || path.dirname(lesson.filePath)
+    const previewDir = path.join(
+      vaultPath,
+      '.orbia',
+      'temp',
+      'preview',
+      lesson.id
+    )
     if (!fs.existsSync(previewDir)) {
       fs.mkdirSync(previewDir, { recursive: true })
     }
@@ -59,7 +78,10 @@ export class VisualComparatorService {
       Math.floor(duration * 0.8)
     ]
 
-    const { encoder } = await hardwareCapabilityService.getBestEncoder(plan.targetCodec, false)
+    const { encoder } = await hardwareCapabilityService.getBestEncoder(
+      plan.targetCodec,
+      false
+    )
 
     const samples: VisualComparisonSample[] = []
     const sampleDurationSec = 4
@@ -71,7 +93,13 @@ export class VisualComparatorService {
       const optSamplePath = path.join(previewDir, `${sampleId}_opt.mp4`)
 
       // Extract original 4s sample
-      await this.extractClip(lesson.filePath, timestampSec, sampleDurationSec, origSamplePath, false)
+      await this.extractClip(
+        lesson.filePath,
+        timestampSec,
+        sampleDurationSec,
+        origSamplePath,
+        false
+      )
 
       // Extract & transcode planned 4s sample
       await this.extractAndTranscodeClip(
@@ -83,8 +111,12 @@ export class VisualComparatorService {
         plan
       )
 
-      const origStat = fs.existsSync(origSamplePath) ? fs.statSync(origSamplePath).size : 0
-      const optStat = fs.existsSync(optSamplePath) ? fs.statSync(optSamplePath).size : 0
+      const origStat = fs.existsSync(origSamplePath)
+        ? fs.statSync(origSamplePath).size
+        : 0
+      const optStat = fs.existsSync(optSamplePath)
+        ? fs.statSync(optSamplePath).size
+        : 0
 
       samples.push({
         id: sampleId,
@@ -146,11 +178,19 @@ export class VisualComparatorService {
         } else {
           // If copy failed due to keyframe, fallback with quick transcode
           if (!reencode) {
-            this.extractClip(inputPath, startSeconds, durationSeconds, outputPath, true)
+            this.extractClip(
+              inputPath,
+              startSeconds,
+              durationSeconds,
+              outputPath,
+              true
+            )
               .then(resolve)
               .catch(reject)
           } else {
-            reject(new Error(`Failed to extract sample clip at ${startSeconds}s`))
+            reject(
+              new Error(`Failed to extract sample clip at ${startSeconds}s`)
+            )
           }
         }
       })
@@ -192,7 +232,11 @@ export class VisualComparatorService {
         '+faststart'
       ]
 
-      if (plan.isResolutionReduced && plan.targetWidth > 0 && plan.targetHeight > 0) {
+      if (
+        plan.isResolutionReduced &&
+        plan.targetWidth > 0 &&
+        plan.targetHeight > 0
+      ) {
         args.push('-vf', `scale=${plan.targetWidth}:${plan.targetHeight}`)
       }
 
@@ -207,7 +251,9 @@ export class VisualComparatorService {
         if (code === 0 && fs.existsSync(outputPath)) {
           resolve()
         } else {
-          reject(new Error(`Failed to transcode sample clip at ${startSeconds}s`))
+          reject(
+            new Error(`Failed to transcode sample clip at ${startSeconds}s`)
+          )
         }
       })
 

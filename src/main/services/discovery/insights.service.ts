@@ -4,7 +4,9 @@ import type { LibraryInsights } from '../../../types/discovery'
 export class LibraryInsightsService {
   public getInsights(db: Database.Database): LibraryInsights {
     // 1. Total Courses & Lessons
-    const totalsRow = db.prepare(`
+    const totalsRow = db
+      .prepare(
+        `
       SELECT
         COUNT(DISTINCT c.id) as total_courses,
         COUNT(DISTINCT l.id) as total_lessons,
@@ -12,7 +14,9 @@ export class LibraryInsightsService {
       FROM courses c
       LEFT JOIN lessons l ON l.course_id = c.id AND l.is_hidden = 0
       WHERE c.is_hidden = 0
-    `).get() as {
+    `
+      )
+      .get() as {
       total_courses: number
       total_lessons: number
       total_duration_seconds: number
@@ -20,26 +24,40 @@ export class LibraryInsightsService {
 
     // 2. Watched Hours this month
     const now = new Date()
-    const startOfMonthTimestamp = new Date(now.getFullYear(), now.getMonth(), 1).getTime()
+    const startOfMonthTimestamp = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      1
+    ).getTime()
 
-    const watchMonthRow = db.prepare(`
+    const watchMonthRow = db
+      .prepare(
+        `
       SELECT COALESCE(SUM(wh.current_time), 0) as month_seconds
       FROM watch_history wh
       WHERE wh.watched_at >= ?
-    `).get(startOfMonthTimestamp) as { month_seconds: number }
+    `
+      )
+      .get(startOfMonthTimestamp) as { month_seconds: number }
 
     // 3. Courses started and completed
-    const progressRow = db.prepare(`
+    const progressRow = db
+      .prepare(
+        `
       SELECT
         COUNT(DISTINCT CASE WHEN lp.current_time > 0 OR lp.completed = 1 THEN lp.course_id END) as started_courses,
         COUNT(DISTINCT c.id) as all_courses
       FROM courses c
       LEFT JOIN lesson_progress lp ON lp.course_id = c.id
       WHERE c.is_hidden = 0
-    `).get() as { started_courses: number; all_courses: number }
+    `
+      )
+      .get() as { started_courses: number; all_courses: number }
 
     // Completed courses count (where all lessons in course are completed)
-    const completedCoursesRow = db.prepare(`
+    const completedCoursesRow = db
+      .prepare(
+        `
       SELECT COUNT(*) as completed_count FROM (
         SELECT c.id
         FROM courses c
@@ -49,22 +67,32 @@ export class LibraryInsightsService {
         GROUP BY c.id
         HAVING COUNT(l.id) > 0 AND COUNT(CASE WHEN COALESCE(lp.completed, 0) = 1 THEN 1 END) = COUNT(l.id)
       )
-    `).get() as { completed_count: number }
+    `
+      )
+      .get() as { completed_count: number }
 
     // 4. Most watched course
-    const mostWatchedCourseRow = db.prepare(`
+    const mostWatchedCourseRow = db
+      .prepare(
+        `
       SELECT c.title, SUM(wh.current_time) as total_watched
       FROM watch_history wh
       JOIN courses c ON c.id = wh.course_id
       GROUP BY wh.course_id
       ORDER BY total_watched DESC
       LIMIT 1
-    `).get() as { title: string } | undefined
+    `
+      )
+      .get() as { title: string } | undefined
 
     // 5. Top tags
-    const appearanceTagsRows = db.prepare(`
+    const appearanceTagsRows = db
+      .prepare(
+        `
       SELECT tags FROM library_appearances WHERE is_hidden = 0 AND tags <> '[]'
-    `).all() as Array<{ tags: string }>
+    `
+      )
+      .all() as Array<{ tags: string }>
 
     const tagCounts: Record<string, number> = {}
     for (const r of appearanceTagsRows) {
@@ -88,8 +116,10 @@ export class LibraryInsightsService {
     return {
       totalCourses: totalsRow.total_courses || 0,
       totalLessons: totalsRow.total_lessons || 0,
-      totalDurationHours: Math.round(((totalsRow.total_duration_seconds || 0) / 3600) * 10) / 10,
-      watchedHoursThisMonth: Math.round(((watchMonthRow.month_seconds || 0) / 3600) * 10) / 10,
+      totalDurationHours:
+        Math.round(((totalsRow.total_duration_seconds || 0) / 3600) * 10) / 10,
+      watchedHoursThisMonth:
+        Math.round(((watchMonthRow.month_seconds || 0) / 3600) * 10) / 10,
       coursesStartedCount: progressRow.started_courses || 0,
       coursesCompletedCount: completedCoursesRow.completed_count || 0,
       mostWatchedCourseTitle: mostWatchedCourseRow?.title || undefined,

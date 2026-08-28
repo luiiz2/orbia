@@ -36,11 +36,10 @@ export function probeMediaDuration(filePath: string): Promise<number> {
 
   return new Promise((resolve) => {
     // -i without output outputs file metadata to stderr immediately without decoding full video
-    const child = spawn(
-      executablePath,
-      ['-i', filePath],
-      { windowsHide: true, stdio: ['ignore', 'ignore', 'pipe'] }
-    ) as ChildProcess
+    const child = spawn(executablePath, ['-i', filePath], {
+      windowsHide: true,
+      stdio: ['ignore', 'ignore', 'pipe']
+    }) as ChildProcess
 
     let stderr = ''
     let resolved = false
@@ -106,18 +105,21 @@ export async function probeMediaDurationsBatch(
   const results = new Map<string, number>()
   const queue = [...filePaths]
 
-  const workers = Array.from({ length: Math.min(concurrency, queue.length) }, async () => {
-    while (queue.length > 0) {
-      const filePath = queue.shift()
-      if (!filePath) break
-      try {
-        const duration = await probeMediaDuration(filePath)
-        results.set(filePath, duration)
-      } catch {
-        results.set(filePath, 0)
+  const workers = Array.from(
+    { length: Math.min(concurrency, queue.length) },
+    async () => {
+      while (queue.length > 0) {
+        const filePath = queue.shift()
+        if (!filePath) break
+        try {
+          const duration = await probeMediaDuration(filePath)
+          results.set(filePath, duration)
+        } catch {
+          results.set(filePath, 0)
+        }
       }
     }
-  })
+  )
 
   await Promise.all(workers)
   return results

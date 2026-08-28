@@ -1,6 +1,11 @@
 import type Database from 'better-sqlite3'
 import crypto from 'node:crypto'
-import type { AutomationRule, AutomationTrigger, AutomationCondition, AutomationAction } from '../../../types/studio'
+import type {
+  AutomationRule,
+  AutomationTrigger,
+  AutomationCondition,
+  AutomationAction
+} from '../../../types/studio'
 import { studioHistoryService } from './history.service'
 
 export class AutomationEngine {
@@ -41,12 +46,15 @@ export class AutomationEngine {
 
   public saveRule(
     db: Database.Database,
-    rule: Omit<AutomationRule, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }
+    rule: Omit<AutomationRule, 'id' | 'createdAt' | 'updatedAt'> & {
+      id?: string
+    }
   ): AutomationRule {
     const now = Date.now()
     const id = rule.id || `rule_${crypto.randomUUID()}`
 
-    db.prepare(`
+    db.prepare(
+      `
       INSERT INTO automation_rules (
         id, name, priority, is_active, execution_mode, trigger_event,
         conditions_json, actions_json, created_at, updated_at
@@ -60,7 +68,8 @@ export class AutomationEngine {
         conditions_json = excluded.conditions_json,
         actions_json = excluded.actions_json,
         updated_at = excluded.updated_at
-    `).run(
+    `
+    ).run(
       id,
       rule.name,
       rule.priority,
@@ -95,17 +104,28 @@ export class AutomationEngine {
   /**
    * Executes an automation rule against all matching appearances.
    */
-  public executeRule(db: Database.Database, ruleId: string): { success: boolean; affectedCount: number } {
-    const ruleRow = db.prepare(`SELECT * FROM automation_rules WHERE id = ?`).get(ruleId) as Record<string, unknown> | undefined
+  public executeRule(
+    db: Database.Database,
+    ruleId: string
+  ): { success: boolean; affectedCount: number } {
+    const ruleRow = db
+      .prepare(`SELECT * FROM automation_rules WHERE id = ?`)
+      .get(ruleId) as Record<string, unknown> | undefined
     if (!ruleRow) {
       return { success: false, affectedCount: 0 }
     }
 
-    const conditions = JSON.parse(ruleRow.conditions_json as string || '[]') as AutomationCondition[]
-    const actions = JSON.parse(ruleRow.actions_json as string || '[]') as AutomationAction[]
+    const conditions = JSON.parse(
+      (ruleRow.conditions_json as string) || '[]'
+    ) as AutomationCondition[]
+    const actions = JSON.parse(
+      (ruleRow.actions_json as string) || '[]'
+    ) as AutomationAction[]
 
     return db.transaction(() => {
-      const appearances = db.prepare(`SELECT * FROM library_appearances`).all() as Record<string, unknown>[]
+      const appearances = db
+        .prepare(`SELECT * FROM library_appearances`)
+        .all() as Record<string, unknown>[]
       let affectedCount = 0
 
       for (const app of appearances) {
@@ -127,7 +147,10 @@ export class AutomationEngine {
     })()
   }
 
-  private evaluateConditions(app: Record<string, unknown>, conditions: AutomationCondition[]): boolean {
+  private evaluateConditions(
+    app: Record<string, unknown>,
+    conditions: AutomationCondition[]
+  ): boolean {
     if (conditions.length === 0) return true
 
     for (const cond of conditions) {
@@ -146,7 +169,8 @@ export class AutomationEngine {
           if (Number(val) >= Number(cond.value)) return false
           break
         case 'contains':
-          if (typeof val === 'string' && !val.includes(String(cond.value))) return false
+          if (typeof val === 'string' && !val.includes(String(cond.value)))
+            return false
           break
         case 'is_empty':
           if (val !== null && val !== undefined && val !== '') return false
@@ -156,7 +180,11 @@ export class AutomationEngine {
     return true
   }
 
-  private applyActions(db: Database.Database, app: Record<string, unknown>, actions: AutomationAction[]): void {
+  private applyActions(
+    db: Database.Database,
+    app: Record<string, unknown>,
+    actions: AutomationAction[]
+  ): void {
     const now = Date.now()
     for (const action of actions) {
       if (action.actionType === 'add_tag') {
@@ -164,12 +192,18 @@ export class AutomationEngine {
         const currentTags: string[] = JSON.parse((app.tags as string) || '[]')
         if (tagToAdd && !currentTags.includes(tagToAdd)) {
           currentTags.push(tagToAdd)
-          db.prepare(`UPDATE library_appearances SET tags = ?, updated_at = ? WHERE id = ?`).run(JSON.stringify(currentTags), now, app.id)
+          db.prepare(
+            `UPDATE library_appearances SET tags = ?, updated_at = ? WHERE id = ?`
+          ).run(JSON.stringify(currentTags), now, app.id)
         }
       } else if (action.actionType === 'hide') {
-        db.prepare(`UPDATE library_appearances SET is_hidden = 1, updated_at = ? WHERE id = ?`).run(now, app.id)
+        db.prepare(
+          `UPDATE library_appearances SET is_hidden = 1, updated_at = ? WHERE id = ?`
+        ).run(now, app.id)
       } else if (action.actionType === 'unhide') {
-        db.prepare(`UPDATE library_appearances SET is_hidden = 0, updated_at = ? WHERE id = ?`).run(now, app.id)
+        db.prepare(
+          `UPDATE library_appearances SET is_hidden = 0, updated_at = ? WHERE id = ?`
+        ).run(now, app.id)
       }
     }
   }

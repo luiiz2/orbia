@@ -66,4 +66,3 @@ export interface StudyAnalytics {
 }
 
 export type { LessonNote } from './notes'
-

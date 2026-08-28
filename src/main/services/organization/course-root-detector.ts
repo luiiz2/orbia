@@ -9,7 +9,9 @@ export type RootDetectionResult =
  * Determines whether a scanned directory is a single course or a parent container of multiple courses.
  * INVARIANT: Never combines multiple distinct courses into one monster course.
  */
-export function detectCourseRoots(scannedDir: ScannedDirectory): RootDetectionResult {
+export function detectCourseRoots(
+  scannedDir: ScannedDirectory
+): RootDetectionResult {
   // If the directory has direct media files, it's definitely a single course root
   const hasDirectMedia = scannedDir.files.some((f) => isMediaFile(f.fullPath))
   if (hasDirectMedia) {
@@ -29,8 +31,10 @@ export function detectCourseRoots(scannedDir: ScannedDirectory): RootDetectionRe
 
   for (const subDir of scannedDir.subDirectories) {
     const subHasDirectMedia = subDir.files.some((f) => isMediaFile(f.fullPath))
-    const subHasSubDirsWithMedia = subDir.subDirectories.some((nested) =>
-      nested.files.some((f) => isMediaFile(f.fullPath)) || nested.subDirectories.length > 0
+    const subHasSubDirsWithMedia = subDir.subDirectories.some(
+      (nested) =>
+        nested.files.some((f) => isMediaFile(f.fullPath)) ||
+        nested.subDirectories.length > 0
     )
 
     if (subHasDirectMedia && !subHasSubDirsWithMedia) {
@@ -42,7 +46,10 @@ export function detectCourseRoots(scannedDir: ScannedDirectory): RootDetectionRe
 
   // If the majority of subdirectories look like courses (they have their own modules/subdirectories),
   // then this is a multi-course container!
-  if (childrenWithNestedModules >= 2 && childrenWithNestedModules >= childrenWithDirectMedia) {
+  if (
+    childrenWithNestedModules >= 2 &&
+    childrenWithNestedModules >= childrenWithDirectMedia
+  ) {
     const courseRoots = scannedDir.subDirectories.filter((subDir) => {
       const hasFiles = subDir.files.length > 0
       const hasSubDirs = subDir.subDirectories.length > 0

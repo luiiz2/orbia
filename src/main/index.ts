@@ -37,7 +37,9 @@ registerMediaScheme()
 const gotTheLock = app.requestSingleInstanceLock()
 
 if (!gotTheLock) {
-  logger.info('[Main] Another instance is already running. Quitting secondary process.')
+  logger.info(
+    '[Main] Another instance is already running. Quitting secondary process.'
+  )
   app.quit()
 } else {
   app.on('second-instance', () => {
@@ -61,7 +63,7 @@ if (!gotTheLock) {
       center: true,
       autoHideMenuBar: true,
       title: 'Orbia',
-      backgroundColor: '#080b11',
+      backgroundColor: '#101312',
       icon,
       webPreferences: {
         preload: join(__dirname, '../preload/index.js'),
@@ -84,16 +86,31 @@ if (!gotTheLock) {
       win.focus()
     })
 
-    win.webContents.on('console-message', (_event, level, message, line, sourceId) => {
-      logger.info(`[Renderer] [${level}] ${message} (${sourceId}:${line})`)
-    })
+    win.webContents.on(
+      'console-message',
+      (_event, level, message, line, sourceId) => {
+        logger.info(`[Renderer] [${level}] ${message} (${sourceId}:${line})`)
+      }
+    )
 
-    win.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
-      logger.error('[Main] Renderer failed to load:', errorCode, errorDescription, validatedURL)
-    })
+    win.webContents.on(
+      'did-fail-load',
+      (_event, errorCode, errorDescription, validatedURL) => {
+        logger.error(
+          '[Main] Renderer failed to load:',
+          errorCode,
+          errorDescription,
+          validatedURL
+        )
+      }
+    )
 
     win.webContents.on('render-process-gone', (_event, details) => {
-      logger.error('[Main] Render process gone:', details.reason, details.exitCode)
+      logger.error(
+        '[Main] Render process gone:',
+        details.reason,
+        details.exitCode
+      )
     })
 
     win.webContents.setWindowOpenHandler((details) => {
@@ -102,7 +119,10 @@ if (!gotTheLock) {
     })
 
     if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-      logger.info('[Main] Loading dev URL:', process.env['ELECTRON_RENDERER_URL'])
+      logger.info(
+        '[Main] Loading dev URL:',
+        process.env['ELECTRON_RENDERER_URL']
+      )
       win.loadURL(process.env['ELECTRON_RENDERER_URL'])
     } else {
       const htmlPath = join(__dirname, '../renderer/index.html')
@@ -125,8 +145,11 @@ if (!gotTheLock) {
     try {
       setupMediaProtocol({
         authorizer: createMainMediaPathAuthorizer({
-          getRegisteredMediaPaths: () => databaseService.getRegisteredMediaPaths(),
-          getCurrentVaultPath: () => vaultService.getCurrentVault()?.path ?? databaseService.getCurrentVaultPath()
+          getRegisteredMediaPaths: () =>
+            databaseService.getRegisteredMediaPaths(),
+          getCurrentVaultPath: () =>
+            vaultService.getCurrentVault()?.path ??
+            databaseService.getCurrentVaultPath()
         })
       })
       logger.info('[Main] Media protocol initialized')
@@ -157,7 +180,10 @@ if (!gotTheLock) {
     try {
       const settings = appConfigService.getSettings()
       if (settings.lastVaultPath) {
-        logger.info('[Main] Auto-opening last vault in background:', settings.lastVaultPath)
+        logger.info(
+          '[Main] Auto-opening last vault in background:',
+          settings.lastVaultPath
+        )
         await vaultService.openVault(settings.lastVaultPath)
       }
     } catch (err) {

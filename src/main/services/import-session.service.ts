@@ -94,7 +94,9 @@ interface ScannerGateway {
 }
 
 interface ParserGateway {
-  parseCourseHierarchy(scannedDir: ScannedDirectory): Promise<ProposedCourseStructure>
+  parseCourseHierarchy(
+    scannedDir: ScannedDirectory
+  ): Promise<ProposedCourseStructure>
 }
 
 export interface ImportSessionServiceDependencies {
@@ -138,7 +140,10 @@ export class ImportSessionService {
     const preparedArchive = await this.archive.prepareZip(options)
     const sourceChangedDuringPreparation =
       sourceBeforePreparation !== undefined &&
-      !sameSourceSignature(sourceBeforePreparation, sourceSignature(preparedArchive.sourcePath))
+      !sameSourceSignature(
+        sourceBeforePreparation,
+        sourceSignature(preparedArchive.sourcePath)
+      )
     const session = this.createZipSession(
       preparedArchive,
       options.stagingBaseDir,
@@ -152,7 +157,9 @@ export class ImportSessionService {
     }
 
     try {
-      const scanned = await this.scanner.scanDirectory(preparedArchive.extractedPath)
+      const scanned = await this.scanner.scanDirectory(
+        preparedArchive.extractedPath
+      )
       session.proposal = await this.parser.parseCourseHierarchy(scanned)
       return this.toPreparationResult(session)
     } catch (error) {
@@ -161,7 +168,9 @@ export class ImportSessionService {
     }
   }
 
-  public async prepareFolderImport(folderPath: string): Promise<ImportPreparationResult> {
+  public async prepareFolderImport(
+    folderPath: string
+  ): Promise<ImportPreparationResult> {
     const resolvedFolderPath = folderPath.trim()
     if (!resolvedFolderPath) {
       throw new Error(`Directory does not exist: "${folderPath}"`)
@@ -182,7 +191,10 @@ export class ImportSessionService {
       sourcePath: resolvedFolderPath,
       sourceRoot: resolvedFolderPath,
       sourceSignature: sourceSignature(resolvedFolderPath),
-      folderSourceSnapshot: createFolderSourceSnapshot(scanned, resolvedFolderPath),
+      folderSourceSnapshot: createFolderSourceSnapshot(
+        scanned,
+        resolvedFolderPath
+      ),
       folderMoveManifest,
       folderMoveManifestError,
       proposal,
@@ -225,14 +237,18 @@ export class ImportSessionService {
       throw new Error('This import session is already being committed.')
     }
     if (!session.validation.verificationOk || !session.proposal) {
-      throw new Error('The import session did not pass validation and cannot be committed.')
+      throw new Error(
+        'The import session did not pass validation and cannot be committed.'
+      )
     }
 
     session.state = 'committing'
     try {
       if (session.sourceKind === 'folder') {
         if (!session.folderSourceSnapshot) {
-          throw new Error('The selected folder has no integrity snapshot. Review the import again.')
+          throw new Error(
+            'The selected folder has no integrity snapshot. Review the import again.'
+          )
         }
         const sourceIsUnchanged = await validateFolderSourceIntegrity(
           session.sourceRoot,
@@ -240,7 +256,9 @@ export class ImportSessionService {
           (folderPath) => this.scanner.scanDirectory(folderPath)
         )
         if (!sourceIsUnchanged) {
-          throw new Error('The selected folder changed after preview. Review the import again before moving it.')
+          throw new Error(
+            'The selected folder changed after preview. Review the import again before moving it.'
+          )
         }
         if (mode === 'managed') {
           if (!session.folderMoveManifest) {
@@ -254,7 +272,9 @@ export class ImportSessionService {
             session.folderMoveManifest
           )
           if (!moveManifestIsUnchanged) {
-            throw new Error('The selected folder changed after preview. Review the import again before moving it.')
+            throw new Error(
+              'The selected folder changed after preview. Review the import again before moving it.'
+            )
           }
         }
       }
@@ -277,11 +297,21 @@ export class ImportSessionService {
    * Finalizes a successful commit. Unlike cancel, this may discard ZIP staging
    * while the session is claimed so no concurrent cancellation can intervene.
    */
-  public complete(sessionId: string, options: CompleteImportSessionOptions = {}): void {
+  public complete(
+    sessionId: string,
+    options: CompleteImportSessionOptions = {}
+  ): void {
     const session = this.getSession(sessionId)
     try {
-      if (options.discardStaging && session.preparedArchive && session.stagingBaseDir) {
-        this.archive.discardPreparedArchive(session.preparedArchive.stagingRoot, session.stagingBaseDir)
+      if (
+        options.discardStaging &&
+        session.preparedArchive &&
+        session.stagingBaseDir
+      ) {
+        this.archive.discardPreparedArchive(
+          session.preparedArchive.stagingRoot,
+          session.stagingBaseDir
+        )
       }
     } finally {
       this.sessions.delete(sessionId)
@@ -292,12 +322,17 @@ export class ImportSessionService {
     const session = this.sessions.get(sessionId)
     if (!session) return
     if (session.state === 'committing') {
-      throw new Error('This import session cannot be cancelled while it is committing.')
+      throw new Error(
+        'This import session cannot be cancelled while it is committing.'
+      )
     }
 
     this.sessions.delete(sessionId)
     if (session.preparedArchive && session.stagingBaseDir) {
-      this.archive.discardPreparedArchive(session.preparedArchive.stagingRoot, session.stagingBaseDir)
+      this.archive.discardPreparedArchive(
+        session.preparedArchive.stagingRoot,
+        session.stagingBaseDir
+      )
     }
   }
 
@@ -308,10 +343,14 @@ export class ImportSessionService {
     sourceChangedDuringPreparation: boolean
   ): ImportSession {
     const validation: ImportValidation = {
-      verificationOk: preparedArchive.verificationOk && !sourceChangedDuringPreparation,
+      verificationOk:
+        preparedArchive.verificationOk && !sourceChangedDuringPreparation,
       failedEntries: preparedArchive.failedEntries,
       warnings: sourceChangedDuringPreparation
-        ? [...preparedArchive.warnings, 'The original ZIP changed during preparation and was kept.']
+        ? [
+            ...preparedArchive.warnings,
+            'The original ZIP changed during preparation and was kept.'
+          ]
         : preparedArchive.warnings,
       extractedFiles: preparedArchive.totalExtractedFiles
     }
@@ -321,7 +360,8 @@ export class ImportSessionService {
       sourceKind: 'zip',
       sourcePath: preparedArchive.sourcePath,
       sourceRoot: preparedArchive.extractedPath,
-      sourceSignature: sourceBeforePreparation ?? sourceSignature(preparedArchive.sourcePath),
+      sourceSignature:
+        sourceBeforePreparation ?? sourceSignature(preparedArchive.sourcePath),
       stagingBaseDir,
       preparedArchive,
       validation,
@@ -334,14 +374,19 @@ export class ImportSessionService {
     return {
       sessionId: session.id,
       sourceKind: session.sourceKind,
-      suggestedTitle: session.proposal?.suggestedTitle ?? session.preparedArchive?.suggestedCourseName ?? '',
+      suggestedTitle:
+        session.proposal?.suggestedTitle ??
+        session.preparedArchive?.suggestedCourseName ??
+        '',
       preview: session.proposal ? toPublicPreview(session.proposal) : undefined,
       validation: toPublicValidation(session.validation, session)
     }
   }
 }
 
-function toPublicPreview(proposal: ProposedCourseStructure): ImportSessionPreview {
+function toPublicPreview(
+  proposal: ProposedCourseStructure
+): ImportSessionPreview {
   const preview: ImportSessionPreview = {
     suggestedTitle: proposal.suggestedTitle,
     totalLessons: proposal.totalLessons,
@@ -350,7 +395,9 @@ function toPublicPreview(proposal: ProposedCourseStructure): ImportSessionPrevie
       id: module.id,
       title: module.title,
       orderIndex: module.orderIndex,
-      ...(typeof module.duration === 'number' ? { duration: module.duration } : {}),
+      ...(typeof module.duration === 'number'
+        ? { duration: module.duration }
+        : {}),
       resources: (module.resources ?? []).map(toPublicResource),
       lessons: module.lessons.map((lesson) => ({
         id: lesson.id,
@@ -360,7 +407,9 @@ function toPublicPreview(proposal: ProposedCourseStructure): ImportSessionPrevie
         mediaType: lesson.mediaType,
         fileSize: lesson.fileSize,
         orderIndex: lesson.orderIndex,
-        ...(typeof lesson.duration === 'number' ? { duration: lesson.duration } : {}),
+        ...(typeof lesson.duration === 'number'
+          ? { duration: lesson.duration }
+          : {}),
         contentResources: (lesson.contentResources ?? []).map(toPublicResource)
       }))
     }))
@@ -380,7 +429,9 @@ function toPublicPreview(proposal: ProposedCourseStructure): ImportSessionPrevie
   return preview
 }
 
-function toPublicResource(resource: ProposedContentResource): ImportSessionResourcePreview {
+function toPublicResource(
+  resource: ProposedContentResource
+): ImportSessionResourcePreview {
   return {
     id: resource.id,
     name: displayFileName(resource.name),
@@ -408,7 +459,9 @@ function toPublicValidation(
   return {
     verificationOk: validation.verificationOk,
     failedEntries: validation.failedEntries.map(displayFileName),
-    warnings: validation.warnings.map((warning) => redactPrivatePaths(warning, privatePaths)),
+    warnings: validation.warnings.map((warning) =>
+      redactPrivatePaths(warning, privatePaths)
+    ),
     extractedFiles: validation.extractedFiles
   }
 }
@@ -425,7 +478,9 @@ function redactPrivatePaths(value: string, privatePaths: string[]): string {
   )
 }
 
-function sourceSignature(sourcePath: string): ImportSourceSignature | undefined {
+function sourceSignature(
+  sourcePath: string
+): ImportSourceSignature | undefined {
   try {
     const stat = fs.statSync(sourcePath)
     return { sizeBytes: stat.size, modifiedAtMs: stat.mtimeMs }
@@ -438,14 +493,25 @@ function sameSourceSignature(
   first: ImportSourceSignature,
   second: ImportSourceSignature | undefined
 ): boolean {
-  return Boolean(second && first.sizeBytes === second.sizeBytes && first.modifiedAtMs === second.modifiedAtMs)
+  return Boolean(
+    second &&
+    first.sizeBytes === second.sizeBytes &&
+    first.modifiedAtMs === second.modifiedAtMs
+  )
 }
 
-function createFolderSourceSnapshot(scannedDirectory: ScannedDirectory, sourceRoot: string): FolderSourceSnapshot {
+function createFolderSourceSnapshot(
+  scannedDirectory: ScannedDirectory,
+  sourceRoot: string
+): FolderSourceSnapshot {
   const resolvedRoot = path.resolve(sourceRoot)
   const files: FolderFileSignature[] = []
   collectFolderFileSignatures(scannedDirectory, resolvedRoot, files)
-  return { files: files.sort((first, second) => first.relativePath.localeCompare(second.relativePath)) }
+  return {
+    files: files.sort((first, second) =>
+      first.relativePath.localeCompare(second.relativePath)
+    )
+  }
 }
 
 function collectFolderFileSignatures(
@@ -456,7 +522,12 @@ function collectFolderFileSignatures(
   for (const file of scannedDirectory.files) {
     const absolutePath = path.resolve(file.fullPath)
     const relativePath = path.relative(sourceRoot, absolutePath)
-    if (!relativePath || relativePath.startsWith(`..${path.sep}`) || relativePath === '..' || path.isAbsolute(relativePath)) {
+    if (
+      !relativePath ||
+      relativePath.startsWith(`..${path.sep}`) ||
+      relativePath === '..' ||
+      path.isAbsolute(relativePath)
+    ) {
       throw new Error('Scanner returned a file outside the selected folder.')
     }
     files.push({
@@ -477,8 +548,12 @@ export async function validateFolderSourceIntegrity(
   expectedSnapshot: FolderSourceSnapshot,
   scanDirectory: (folderPath: string) => Promise<ScannedDirectory>
 ): Promise<boolean> {
-  const currentSnapshot = createFolderSourceSnapshot(await scanDirectory(sourceRoot), sourceRoot)
-  if (expectedSnapshot.files.length !== currentSnapshot.files.length) return false
+  const currentSnapshot = createFolderSourceSnapshot(
+    await scanDirectory(sourceRoot),
+    sourceRoot
+  )
+  if (expectedSnapshot.files.length !== currentSnapshot.files.length)
+    return false
 
   return expectedSnapshot.files.every((expectedFile, index) => {
     const currentFile = currentSnapshot.files[index]
@@ -496,7 +571,9 @@ export async function validateFolderSourceIntegrity(
  * ScannerService: scanner exclusions are correct for course structure, but an
  * excluded entry would still be moved with its parent directory.
  */
-async function createFolderMoveManifest(sourceRoot: string): Promise<FolderMoveManifest> {
+async function createFolderMoveManifest(
+  sourceRoot: string
+): Promise<FolderMoveManifest> {
   const resolvedRoot = path.resolve(sourceRoot)
   let rootStats: Stats
 
@@ -510,7 +587,9 @@ async function createFolderMoveManifest(sourceRoot: string): Promise<FolderMoveM
   }
 
   if (rootStats.isSymbolicLink()) {
-    throw new Error('The selected import source must be a real directory, not a symbolic link.')
+    throw new Error(
+      'The selected import source must be a real directory, not a symbolic link.'
+    )
   }
   if (!rootStats.isDirectory()) {
     throw new Error(`Directory does not exist: "${sourceRoot}"`)
@@ -521,7 +600,9 @@ async function createFolderMoveManifest(sourceRoot: string): Promise<FolderMoveM
   ]
   await collectFolderMoveManifestEntries(resolvedRoot, resolvedRoot, entries)
   return {
-    entries: entries.sort((first, second) => first.relativePath.localeCompare(second.relativePath))
+    entries: entries.sort((first, second) =>
+      first.relativePath.localeCompare(second.relativePath)
+    )
   }
 }
 
@@ -556,7 +637,9 @@ async function collectFolderMoveManifestEntries(
       }
     }
 
-    entries.push(createFolderMoveManifestEntry(relativePath, childStats, linkTarget))
+    entries.push(
+      createFolderMoveManifestEntry(relativePath, childStats, linkTarget)
+    )
 
     if (childStats.isDirectory()) {
       await collectFolderMoveManifestEntries(sourceRoot, childPath, entries)
@@ -564,9 +647,17 @@ async function collectFolderMoveManifestEntries(
   }
 }
 
-function normalizedManifestRelativePath(sourceRoot: string, entryPath: string): string {
+function normalizedManifestRelativePath(
+  sourceRoot: string,
+  entryPath: string
+): string {
   const relativePath = path.relative(sourceRoot, entryPath)
-  if (!relativePath || relativePath === '..' || relativePath.startsWith(`..${path.sep}`) || path.isAbsolute(relativePath)) {
+  if (
+    !relativePath ||
+    relativePath === '..' ||
+    relativePath.startsWith(`..${path.sep}`) ||
+    path.isAbsolute(relativePath)
+  ) {
     throw inaccessibleFolderManifestError()
   }
   return relativePath.replaceAll('\\', '/')
@@ -586,7 +677,9 @@ function createFolderMoveManifestEntry(
   }
 }
 
-function folderMoveManifestEntryType(stats: Stats): FolderMoveManifestEntryType {
+function folderMoveManifestEntryType(
+  stats: Stats
+): FolderMoveManifestEntryType {
   if (stats.isSymbolicLink()) return 'symlink'
   if (stats.isDirectory()) return 'directory'
   if (stats.isFile()) return 'file'
@@ -598,7 +691,8 @@ async function validateFolderMoveManifest(
   expectedManifest: FolderMoveManifest
 ): Promise<boolean> {
   const currentManifest = await createFolderMoveManifest(sourceRoot)
-  if (expectedManifest.entries.length !== currentManifest.entries.length) return false
+  if (expectedManifest.entries.length !== currentManifest.entries.length)
+    return false
 
   return expectedManifest.entries.every((expectedEntry, index) => {
     const currentEntry = currentManifest.entries[index]
@@ -613,7 +707,9 @@ async function validateFolderMoveManifest(
 }
 
 function folderMoveManifestFailureMessage(error: unknown): string {
-  return error instanceof Error && error.message ? error.message : inaccessibleFolderManifestError().message
+  return error instanceof Error && error.message
+    ? error.message
+    : inaccessibleFolderManifestError().message
 }
 
 function inaccessibleFolderManifestError(): Error {

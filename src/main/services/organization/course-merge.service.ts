@@ -36,7 +36,9 @@ export class CourseMergeService {
    * INVARIANT: Never mutates the database or filesystem.
    */
   public async getMergePreview(courseIds: string[]): Promise<MergePreview> {
-    const ids = [...new Set((courseIds || []).map((id) => id.trim()).filter(Boolean))]
+    const ids = [
+      ...new Set((courseIds || []).map((id) => id.trim()).filter(Boolean))
+    ]
     if (ids.length < 2) {
       throw new Error('Select at least two courses to preview a merge.')
     }
@@ -46,10 +48,14 @@ export class CourseMergeService {
       throw new Error('One or more selected courses no longer exist.')
     }
 
-    const nonNullCourses = courses as Array<NonNullable<(typeof courses)[number]>>
+    const nonNullCourses = courses as Array<
+      NonNullable<(typeof courses)[number]>
+    >
     // Sort canonical course (prefer highest lesson count or oldest)
     nonNullCourses.sort(
-      (a, b) => b.course.lessonCount - a.course.lessonCount || a.course.createdAt - b.course.createdAt
+      (a, b) =>
+        b.course.lessonCount - a.course.lessonCount ||
+        a.course.createdAt - b.course.createdAt
     )
 
     const [canonical, ...secondaries] = nonNullCourses
@@ -64,9 +70,15 @@ export class CourseMergeService {
 
     for (const secondary of secondaries) {
       for (const secMod of secondary.modules) {
-        const key = normalizeModuleKey(secMod.title) || secMod.title.toLowerCase()
+        const key =
+          normalizeModuleKey(secMod.title) || secMod.title.toLowerCase()
         const targetMod = targetModules.get(key)
-        const materialCount = (secMod.resources?.length || 0) + secMod.lessons.reduce((sum, l) => sum + (l.contentResources?.length || 0), 0)
+        const materialCount =
+          (secMod.resources?.length || 0) +
+          secMod.lessons.reduce(
+            (sum, l) => sum + (l.contentResources?.length || 0),
+            0
+          )
 
         if (!targetMod) {
           previewModules.push({
@@ -93,8 +105,18 @@ export class CourseMergeService {
           for (const secLesson of secMod.lessons) {
             for (const canLesson of targetMod.lessons) {
               const equality = await verifyMediaEquality(
-                { filePath: secLesson.filePath, fileName: secLesson.fileName, sizeBytes: secLesson.fileSize, duration: secLesson.duration },
-                { filePath: canLesson.filePath, fileName: canLesson.fileName, sizeBytes: canLesson.fileSize, duration: canLesson.duration }
+                {
+                  filePath: secLesson.filePath,
+                  fileName: secLesson.fileName,
+                  sizeBytes: secLesson.fileSize,
+                  duration: secLesson.duration
+                },
+                {
+                  filePath: canLesson.filePath,
+                  fileName: canLesson.fileName,
+                  sizeBytes: canLesson.fileSize,
+                  duration: canLesson.duration
+                }
               )
 
               if (equality.isDuplicate) {
@@ -115,9 +137,14 @@ export class CourseMergeService {
       }
     }
 
-    const totalLessons = nonNullCourses.reduce((sum, c) => sum + c.course.lessonCount, 0)
+    const totalLessons = nonNullCourses.reduce(
+      (sum, c) => sum + c.course.lessonCount,
+      0
+    )
     const totalMaterials = nonNullCourses.reduce(
-      (sum, c) => sum + c.modules.reduce((mSum, m) => mSum + (m.resources?.length || 0), 0),
+      (sum, c) =>
+        sum +
+        c.modules.reduce((mSum, m) => mSum + (m.resources?.length || 0), 0),
       0
     )
 
@@ -135,13 +162,19 @@ export class CourseMergeService {
   /**
    * Commits an approved logical merge with complete metadata preservation and Undo snapshot.
    */
-  public async mergeCourses(options: CourseMergeOptions): Promise<MergeCoursesResult> {
-    await this.getMergePreview([options.primaryCourseId, ...options.secondaryCourseIds])
+  public async mergeCourses(
+    options: CourseMergeOptions
+  ): Promise<MergeCoursesResult> {
+    await this.getMergePreview([
+      options.primaryCourseId,
+      ...options.secondaryCourseIds
+    ])
     const rawDb = this.db.getDatabase()
     if (!rawDb) throw new Error('Database is not connected.')
 
     const primaryCourse = this.db.getCourseById(options.primaryCourseId)
-    if (!primaryCourse) throw new Error(`Primary course ${options.primaryCourseId} not found.`)
+    if (!primaryCourse)
+      throw new Error(`Primary course ${options.primaryCourseId} not found.`)
 
     const secondaryCourses = options.secondaryCourseIds
       .map((id) => this.db.getCourseById(id))
@@ -165,35 +198,60 @@ export class CourseMergeService {
       for (const sec of secondaryCourses) {
         // Union favorites
         if (sec.course.isFavorite) {
-          rawDb.prepare(`UPDATE courses SET is_favorite = 1 WHERE id = ?`).run(options.primaryCourseId)
+          rawDb
+            .prepare(`UPDATE courses SET is_favorite = 1 WHERE id = ?`)
+            .run(options.primaryCourseId)
         }
 
         // Re-point modules and lessons to primary course
         for (const mod of sec.modules) {
-          rawDb.prepare(`UPDATE modules SET course_id = ? WHERE id = ?`).run(options.primaryCourseId, mod.id)
-          rawDb.prepare(`UPDATE lessons SET course_id = ? WHERE module_id = ?`).run(options.primaryCourseId, mod.id)
-          rawDb.prepare(`UPDATE content_resources SET course_id = ? WHERE module_id = ?`).run(options.primaryCourseId, mod.id)
+          rawDb
+            .prepare(`UPDATE modules SET course_id = ? WHERE id = ?`)
+            .run(options.primaryCourseId, mod.id)
+          rawDb
+            .prepare(`UPDATE lessons SET course_id = ? WHERE module_id = ?`)
+            .run(options.primaryCourseId, mod.id)
+          rawDb
+            .prepare(
+              `UPDATE content_resources SET course_id = ? WHERE module_id = ?`
+            )
+            .run(options.primaryCourseId, mod.id)
         }
 
         // Migrate progress, notes, watch history to primary course ID
-        rawDb.prepare(`UPDATE lesson_progress SET course_id = ? WHERE course_id = ?`).run(options.primaryCourseId, sec.course.id)
-        rawDb.prepare(`UPDATE lesson_notes SET course_id = ? WHERE course_id = ?`).run(options.primaryCourseId, sec.course.id)
-        rawDb.prepare(`UPDATE watch_history SET course_id = ? WHERE course_id = ?`).run(options.primaryCourseId, sec.course.id)
+        rawDb
+          .prepare(
+            `UPDATE lesson_progress SET course_id = ? WHERE course_id = ?`
+          )
+          .run(options.primaryCourseId, sec.course.id)
+        rawDb
+          .prepare(`UPDATE lesson_notes SET course_id = ? WHERE course_id = ?`)
+          .run(options.primaryCourseId, sec.course.id)
+        rawDb
+          .prepare(`UPDATE watch_history SET course_id = ? WHERE course_id = ?`)
+          .run(options.primaryCourseId, sec.course.id)
 
         // Soft-archive secondary course with merge metadata instead of DELETE
-        rawDb.prepare(`
+        rawDb
+          .prepare(
+            `
           UPDATE courses
           SET merged_into_course_id = ?, merge_metadata = ?, updated_at = ?
           WHERE id = ?
-        `).run(options.primaryCourseId, JSON.stringify(preMergeSnapshot), Date.now(), sec.course.id)
+        `
+          )
+          .run(
+            options.primaryCourseId,
+            JSON.stringify(preMergeSnapshot),
+            Date.now(),
+            sec.course.id
+          )
       }
 
       if (options.targetTitle && options.targetTitle.trim()) {
-        rawDb.prepare(`UPDATE courses SET title = ?, updated_at = ? WHERE id = ?`).run(
-          options.targetTitle.trim(),
-          Date.now(),
-          options.primaryCourseId
-        )
+        rawDb
+          .prepare(`UPDATE courses SET title = ?, updated_at = ? WHERE id = ?`)
+          .run(options.targetTitle.trim(), Date.now(), options.primaryCourseId)
       }
 
       this.db.reindexCourseHierarchy(options.primaryCourseId)
@@ -228,12 +286,20 @@ export class CourseMergeService {
     const rawDb = this.db.getDatabase()
     if (!rawDb) throw new Error('Database is not connected.')
 
-    const secondaries = rawDb.prepare(`
+    const secondaries = rawDb
+      .prepare(
+        `
       SELECT id, merge_metadata as mergeMetadata FROM courses WHERE merged_into_course_id = ?
-    `).all(mergedCourseId) as Array<{ id: string; mergeMetadata: string }>
+    `
+      )
+      .all(mergedCourseId) as Array<{ id: string; mergeMetadata: string }>
 
     if (secondaries.length === 0) {
-      return { success: false, restoredCoursesCount: 0, error: 'No merged secondary courses found for this course.' }
+      return {
+        success: false,
+        restoredCoursesCount: 0,
+        error: 'No merged secondary courses found for this course.'
+      }
     }
 
     let restoredCount = 0
@@ -242,21 +308,40 @@ export class CourseMergeService {
       for (const sec of secondaries) {
         if (!sec.mergeMetadata) continue
         try {
-          const snapshot = JSON.parse(sec.mergeMetadata) as { secondaries?: Array<{ course: { id: string }; moduleIds?: string[] }> }
-          const secRecord = snapshot.secondaries?.find((s) => s.course.id === sec.id)
+          const snapshot = JSON.parse(sec.mergeMetadata) as {
+            secondaries?: Array<{
+              course: { id: string }
+              moduleIds?: string[]
+            }>
+          }
+          const secRecord = snapshot.secondaries?.find(
+            (s) => s.course.id === sec.id
+          )
           if (secRecord) {
             // Restore modules
             for (const modId of secRecord.moduleIds || []) {
-              rawDb.prepare(`UPDATE modules SET course_id = ? WHERE id = ?`).run(sec.id, modId)
-              rawDb.prepare(`UPDATE lessons SET course_id = ? WHERE module_id = ?`).run(sec.id, modId)
-              rawDb.prepare(`UPDATE content_resources SET course_id = ? WHERE module_id = ?`).run(sec.id, modId)
+              rawDb
+                .prepare(`UPDATE modules SET course_id = ? WHERE id = ?`)
+                .run(sec.id, modId)
+              rawDb
+                .prepare(`UPDATE lessons SET course_id = ? WHERE module_id = ?`)
+                .run(sec.id, modId)
+              rawDb
+                .prepare(
+                  `UPDATE content_resources SET course_id = ? WHERE module_id = ?`
+                )
+                .run(sec.id, modId)
             }
           }
 
           // Un-archive secondary course
-          rawDb.prepare(`
+          rawDb
+            .prepare(
+              `
             UPDATE courses SET merged_into_course_id = NULL, merge_metadata = NULL, updated_at = ? WHERE id = ?
-          `).run(Date.now(), sec.id)
+          `
+            )
+            .run(Date.now(), sec.id)
 
           this.db.reindexCourseHierarchy(sec.id)
           restoredCount++

@@ -1,7 +1,10 @@
 import { spawn } from 'node:child_process'
 import fs from 'node:fs'
 import ffmpegPath from 'ffmpeg-static'
-import type { AiTranscriptionRequest, AiTranscriptionResponse } from '../../../types/ai'
+import type {
+  AiTranscriptionRequest,
+  AiTranscriptionResponse
+} from '../../../types/ai'
 import type { TranscriptSegment } from '../../../types/transcription'
 import { aiCoreService } from '../ai/ai-core.service'
 import { LocalFileSourceInput } from '../optimizer/media-source-input'
@@ -62,11 +65,13 @@ export class TranscriptionEngineService implements TranscriptionEngine {
   ): Promise<TranscriptionEngineResult> {
     if (!fs.existsSync(sourcePath)) throw new Error('Source unavailable')
     const input = new LocalFileSourceInput(sourcePath)
-    if (!input.isDirectFile() || !input.getLocalFilePath()) throw new Error('Source unavailable')
+    if (!input.isDirectFile() || !input.getLocalFilePath())
+      throw new Error('Source unavailable')
     if (signal.aborted) throw new Error('Transcription cancelled')
 
     const audio = await this.extractAudioImpl(sourcePath, signal, onProgress)
-    if (audio.byteLength === 0) throw new Error('Audio extraction returned no data')
+    if (audio.byteLength === 0)
+      throw new Error('Audio extraction returned no data')
     if (signal.aborted) throw new Error('Transcription cancelled')
 
     onProgress?.(35)
@@ -74,7 +79,9 @@ export class TranscriptionEngineService implements TranscriptionEngine {
       audio,
       fileName: `${fileName.replace(/\.[^.]+$/, '') || 'audio'}.wav`,
       mimeType: 'audio/wav',
-      ...(options.language && !options.autoDetect ? { language: options.language } : {}),
+      ...(options.language && !options.autoDetect
+        ? { language: options.language }
+        : {}),
       ...(options.autoDetect ? { autoDetect: true } : {}),
       ...(options.cloudConsent ? { cloudConsent: true } : {}),
       signal
@@ -107,7 +114,21 @@ async function extractAudio(
   const executable = ffmpegPath || 'ffmpeg'
   const child = spawn(
     executable,
-    ['-hide_banner', '-loglevel', 'error', '-i', sourcePath, '-vn', '-ac', '1', '-ar', '16000', '-f', 'wav', 'pipe:1'],
+    [
+      '-hide_banner',
+      '-loglevel',
+      'error',
+      '-i',
+      sourcePath,
+      '-vn',
+      '-ac',
+      '1',
+      '-ar',
+      '16000',
+      '-f',
+      'wav',
+      'pipe:1'
+    ],
     { windowsHide: true }
   )
   const chunks: Buffer[] = []
