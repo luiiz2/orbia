@@ -91,7 +91,9 @@ describe('PlayerView resources', () => {
     state.useState.mockReset()
     state.useState.mockImplementation((initial: unknown) => [initial, vi.fn()])
     state.useState
-      .mockImplementationOnce(() => ['resources', vi.fn()])
+      .mockImplementationOnce(() => ['conteudo', vi.fn()])
+      .mockImplementationOnce(() => ['materiais', vi.fn()])
+      .mockImplementationOnce(() => ['anotacoes', vi.fn()])
       .mockImplementationOnce(() => [true, vi.fn()])
       .mockImplementationOnce(() => [null, vi.fn()])
       .mockImplementationOnce(() => [false, vi.fn()])

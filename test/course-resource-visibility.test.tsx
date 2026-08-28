@@ -88,7 +88,13 @@ vi.mock('../src/renderer/src/components/ui', async () => {
     DialogFooter: passthrough,
     DialogHeader: passthrough,
     DialogTitle: passthrough,
-    CourseCover: passthrough
+    CourseCover: passthrough,
+    DropdownMenu: passthrough,
+    DropdownMenuTrigger: passthrough,
+    DropdownMenuContent: passthrough,
+    DropdownMenuItem: passthrough,
+    DropdownMenuSeparator: passthrough,
+    EmptyState: passthrough
   }
 })
 

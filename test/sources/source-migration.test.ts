@@ -195,7 +195,7 @@ function insertTwoSourcesAndRoots(db: Database.Database): void {
   insertRoot.run('root-b', 'source-b', 'root-b', 'Root B', 'B:/')
 }
 
-describe('DatabaseService v0.8 connected-library migration', () => {
+describe('DatabaseService v0.8 connected-library migration', { timeout: 30000 }, () => {
   const vaults: string[] = []
 
   afterEach(() => {

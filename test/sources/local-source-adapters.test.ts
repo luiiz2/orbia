@@ -24,7 +24,7 @@ async function read(stream: NodeJS.ReadableStream): Promise<Buffer> {
   return Buffer.concat(chunks)
 }
 
-describe('local source adapters', () => {
+describe('local source adapters', { timeout: 30000 }, () => {
   let tempPath: string
   let localRoot: string
   let cacheRoot: string

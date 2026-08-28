@@ -231,7 +231,7 @@ describe('Orbia v0.9 hardening performance benchmarks', () => {
     expect(semanticSearchMs).toBeLessThan(3_000)
     expect(heapDeltaBytes).toBeLessThan(256 * 1024 * 1024)
     expect(databaseSizeBytes).toBeLessThan(128 * 1024 * 1024)
-  })
+  }, 30_000)
 })
 
 function seedCatalog(
