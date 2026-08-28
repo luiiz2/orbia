@@ -9,9 +9,11 @@ import {
   Check,
   X,
   Loader2,
-  BookOpen
+  BookOpen,
+  Sparkles
 } from 'lucide-react'
 import { usePlayerStore } from '../../stores/usePlayerStore'
+import { useAiNotesStore } from '../../stores/useAiNotesStore'
 import { Button, Tooltip, TooltipTrigger, TooltipContent } from '../ui'
 import { formatTime } from '../../lib/formatters'
 import { cn } from '../../lib/utils'
@@ -305,6 +307,31 @@ export function NotesPanel({ className }: NotesPanelProps): React.JSX.Element {
                   {/* Edit / Delete actions */}
                   {!isEditing && (
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              if (activeLesson && activeCourse) {
+                                useAiNotesStore.getState().requestSuggestion({
+                                  action: 'improve_note',
+                                  lessonId: activeLesson.id,
+                                  courseId: activeCourse.id,
+                                  noteId: note.id,
+                                  existingContent: note.content
+                                })
+                              }
+                            }}
+                            className="h-6.5 w-6.5 rounded-lg text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10 cursor-pointer"
+                            aria-label={t('aiNotes.improveNote', 'Melhorar com IA')}
+                          >
+                            <Sparkles className="h-3 w-3" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top">{t('aiNotes.improveNote', 'Melhorar com IA')}</TooltipContent>
+                      </Tooltip>
+
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Button

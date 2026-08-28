@@ -1,17 +1,38 @@
-export const AI_CAPABILITIES = ['CHAT', 'EMBEDDINGS', 'TRANSCRIPTION', 'STRUCTURED_OUTPUT'] as const
+export const AI_CAPABILITIES = [
+  'CHAT',
+  'EMBEDDINGS',
+  'TRANSCRIPTION',
+  'STRUCTURED_OUTPUT'
+] as const
 export type AiCapability = (typeof AI_CAPABILITIES)[number]
 
-export const AI_PROVIDER_IDS = ['ollama', 'openai-compatible', 'openai'] as const
+export const AI_PROVIDER_IDS = [
+  'ollama',
+  'openai-compatible',
+  'openai',
+  'openrouter',
+  'nvidia'
+] as const
 export type AiProviderId = (typeof AI_PROVIDER_IDS)[number]
 export type AiProviderKind = 'local' | 'cloud'
 
-export const AI_TASKS = ['chat', 'summary', 'embeddings', 'transcription', 'chapters'] as const
+export const AI_TASKS = [
+  'chat',
+  'summary',
+  'embeddings',
+  'transcription',
+  'chapters'
+] as const
 export type AiTask = (typeof AI_TASKS)[number]
 
 export const AI_PROMPT_KINDS = ['commit', 'pull_request'] as const
 export type AiPromptKind = (typeof AI_PROMPT_KINDS)[number]
 
-export const AI_PRIVACY_MODES = ['LOCAL_ONLY', 'HYBRID', 'CLOUD_ALLOWED'] as const
+export const AI_PRIVACY_MODES = [
+  'LOCAL_ONLY',
+  'HYBRID',
+  'CLOUD_ALLOWED'
+] as const
 export type AiPrivacyMode = (typeof AI_PRIVACY_MODES)[number]
 
 export interface AiProviderConfig {
@@ -65,14 +86,16 @@ export interface AiRouteUpdate {
 }
 
 export type AiDataType =
-  | 'transcript'
-  | 'notes'
-  | 'pdf'
-  | 'materials'
-  | 'course_name'
-  | 'user_metadata'
+  'transcript' | 'notes' | 'pdf' | 'materials' | 'course_name' | 'user_metadata'
 
-export const AI_DATA_TYPES = ['transcript', 'notes', 'pdf', 'materials', 'course_name', 'user_metadata'] as const
+export const AI_DATA_TYPES = [
+  'transcript',
+  'notes',
+  'pdf',
+  'materials',
+  'course_name',
+  'user_metadata'
+] as const
 
 export interface AiChatMessage {
   role: 'system' | 'user' | 'assistant'
@@ -93,6 +116,13 @@ export interface AiChatResponse {
   providerId: AiProviderId
   modelId: string
   content: string
+  usage?: AiProviderUsage
+}
+
+export interface AiProviderUsage {
+  promptTokens?: number
+  completionTokens?: number
+  totalTokens?: number
 }
 
 export interface AiEmbeddingRequest {
@@ -105,6 +135,7 @@ export interface AiEmbeddingResponse {
   providerId: AiProviderId
   modelId: string
   embeddings: number[][]
+  usage?: AiProviderUsage
 }
 
 export interface AiTranscriptionRequest {
@@ -129,6 +160,7 @@ export interface AiTranscriptionResponse {
   language?: string
   text: string
   segments: AiTranscriptionSegment[]
+  durationSeconds?: number
 }
 
 export type AiProviderHealthStatus =
@@ -187,6 +219,22 @@ export function createDefaultAiSettings(): AiSettingsSnapshot {
         baseUrl: 'https://api.openai.com/v1',
         enabled: false,
         apiKeyConfigured: false
+      },
+      openrouter: {
+        providerId: 'openrouter',
+        kind: 'cloud',
+        displayName: 'OpenRouter',
+        baseUrl: 'https://openrouter.ai/api/v1',
+        enabled: false,
+        apiKeyConfigured: false
+      },
+      nvidia: {
+        providerId: 'nvidia',
+        kind: 'cloud',
+        displayName: 'NVIDIA',
+        baseUrl: 'https://integrate.api.nvidia.com/v1',
+        enabled: false,
+        apiKeyConfigured: false
       }
     },
     routes: {
@@ -197,4 +245,28 @@ export function createDefaultAiSettings(): AiSettingsSnapshot {
       chapters: { primary: null, fallback: null }
     }
   }
+}
+
+export type AiStorageCategory =
+  'transcripts' | 'semanticIndex' | 'summaries' | 'chatHistory' | 'tempFiles'
+
+export interface AiCategoryStorageStats {
+  category: AiStorageCategory
+  itemCount: number
+  sizeBytes: number
+  description: string
+}
+
+export interface AiStorageStats {
+  totalSizeBytes: number
+  categories: Record<AiStorageCategory, AiCategoryStorageStats>
+}
+
+export interface AiLocalUsageStats {
+  totalRequests: number
+  totalPromptTokens: number
+  totalCompletionTokens: number
+  totalTranscriptionSeconds: number
+  totalEmbeddedChunks: number
+  lastActivityAt?: number
 }

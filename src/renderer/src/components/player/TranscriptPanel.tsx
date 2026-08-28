@@ -1,9 +1,12 @@
-import React, { useEffect, useMemo, useState } from 'react'
-import { Check, FileText, Loader2, RefreshCw, Search, Volume2 } from 'lucide-react'
+import React, { useEffect, useMemo, useState, useRef } from 'react'
+import { Check, FileText, Loader2, RefreshCw, Search, Volume2, Sparkles, MessageSquare, StickyNote, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { Transcript, TranscriptSegment, TranscriptionOptions } from '@shared'
 import { formatTime } from '../../lib/formatters'
 import { cn } from '../../lib/utils'
+import { useGroundedChatStore } from '../../stores/useGroundedChatStore'
+import { useAiNotesStore } from '../../stores/useAiNotesStore'
+import { usePlayerStore } from '../../stores/usePlayerStore'
 
 interface SubtitleCandidate {
   resourceId: string
@@ -21,10 +24,12 @@ export interface TranscriptPanelProps {
   isLoading: boolean
   errorMessage: string | null
   progressPercent?: number
+  lessonId?: string
   onSeek: (time: number) => void
   onTranscribe: (options?: TranscriptionOptions) => unknown
   onReuseSubtitle: (language?: string) => unknown
   onRetranscribe: (options?: TranscriptionOptions) => unknown
+  onAddNote?: (content: string, timestamp?: number) => unknown
 }
 
 export interface HighlightedTranscriptPart {
@@ -47,18 +52,27 @@ export function TranscriptPanel({
   isLoading,
   errorMessage,
   progressPercent,
+  lessonId,
   onSeek,
   onTranscribe,
   onReuseSubtitle,
-  onRetranscribe
+  onRetranscribe,
+  onAddNote
 }: TranscriptPanelProps): React.JSX.Element {
   const { t } = useTranslation()
   const [query, setQuery] = useState('')
   const [language, setLanguage] = useState('')
+  const [selectedText, setSelectedText] = useState<{
+    text: string
+    start?: number
+    end?: number
+  } | null>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     setQuery('')
     setLanguage(transcript?.language && transcript.language !== 'und' ? transcript.language : '')
+    setSelectedText(null)
   }, [transcript?.id, transcript?.language])
 
   const activeSequence = useMemo(() => {
@@ -89,6 +103,90 @@ export function TranscriptPanel({
       retranscribe: true,
       reuseExistingSubtitle: false
     })
+  }
+
+  const handleSelection = (): void => {
+    const selection = window.getSelection()
+    const text = selection?.toString().trim()
+    if (!text || text.length < 2) {
+      return
+    }
+
+    let nearestStart: number | undefined
+    let nearestEnd: number | undefined
+
+    if (transcript && transcript.segments.length > 0) {
+      const matchSegment = transcript.segments.find((s) => s.text.includes(text) || text.includes(s.text))
+      if (matchSegment) {
+        nearestStart = matchSegment.start
+        nearestEnd = matchSegment.end
+      }
+    }
+
+    setSelectedText({
+      text,
+      start: nearestStart,
+      end: nearestEnd
+    })
+  }
+
+  const handleExplainSelection = (): void => {
+    if (!selectedText) return
+    const targetLessonId = lessonId || transcript?.lessonId || ''
+    if (targetLessonId) {
+      useGroundedChatStore.getState().open({
+        scope: { type: 'lesson', lessonId: targetLessonId },
+        moment: selectedText.start !== undefined ? { lessonId: targetLessonId, timestampSeconds: selectedText.start } : undefined,
+        selection: {
+          lessonId: targetLessonId,
+          text: selectedText.text,
+          startTime: selectedText.start,
+          endTime: selectedText.end
+        }
+      })
+      void useGroundedChatStore.getState().ask(`Explain: "${selectedText.text}"`)
+    }
+  }
+
+  const handleAskSelection = (): void => {
+    if (!selectedText) return
+    const targetLessonId = lessonId || transcript?.lessonId || ''
+    if (targetLessonId) {
+      useGroundedChatStore.getState().open({
+        scope: { type: 'lesson', lessonId: targetLessonId },
+        moment: selectedText.start !== undefined ? { lessonId: targetLessonId, timestampSeconds: selectedText.start } : undefined,
+        selection: {
+          lessonId: targetLessonId,
+          text: selectedText.text,
+          startTime: selectedText.start,
+          endTime: selectedText.end
+        }
+      })
+    }
+  }
+
+  const handleCreateNoteFromSelection = (): void => {
+    if (!selectedText) return
+    const timestamp = selectedText.start ?? currentTime
+    const prefix = timestamp !== undefined ? `[${formatTime(timestamp)}] ` : ''
+    onAddNote?.(`${prefix}${selectedText.text}`, timestamp)
+    setSelectedText(null)
+  }
+
+  const handleCreateAiNoteFromSelection = (): void => {
+    if (!selectedText) return
+    const targetLessonId = lessonId || transcript?.lessonId || ''
+    const courseId = usePlayerStore.getState().activeCourse?.id || ''
+    if (targetLessonId && courseId) {
+      useAiNotesStore.getState().requestSuggestion({
+        action: 'create_from_selection',
+        lessonId: targetLessonId,
+        courseId,
+        selectedText: selectedText.text,
+        timestampSeconds: selectedText.start ?? currentTime
+      })
+      setSelectedText(null)
+    }
   }
 
   return (
@@ -179,7 +277,67 @@ export function TranscriptPanel({
         </label>
       )}
 
-      <div className="min-h-0 flex-1 space-y-1 overflow-y-auto pr-1" aria-live="polite">
+      {selectedText && (
+        <div className="flex items-center justify-between gap-1.5 rounded-xl border border-primary/40 bg-primary/10 p-2 text-xs shadow-sm animate-in fade-in duration-150">
+          <span className="truncate max-w-[140px] font-medium text-foreground text-[11px]" title={selectedText.text}>
+            "{selectedText.text}"
+          </span>
+          <div className="flex items-center gap-1 shrink-0">
+            <button
+              type="button"
+              onClick={handleExplainSelection}
+              className="inline-flex items-center gap-1 rounded-md bg-primary px-2 py-1 text-[11px] font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
+              title="Explain this selection with AI"
+            >
+              <Sparkles className="h-3 w-3" />
+              <span>{t('chat.explain', 'Explain')}</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleAskSelection}
+              className="inline-flex items-center gap-1 rounded-md border border-border/80 bg-background px-2 py-1 text-[11px] font-medium text-foreground hover:bg-secondary transition-colors"
+              title="Ask AI about this selection"
+            >
+              <MessageSquare className="h-3 w-3" />
+              <span>{t('chat.askAi', 'Ask AI')}</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleCreateAiNoteFromSelection}
+              className="inline-flex items-center gap-1 rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[11px] font-medium text-amber-500 hover:bg-amber-500/20 transition-colors"
+              title="Gerar anotação inteligente com IA"
+            >
+              <Sparkles className="h-3 w-3 text-amber-500" />
+              <span>{t('aiNotes.aiNote', 'Anotação IA')}</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleCreateNoteFromSelection}
+              className="inline-flex items-center gap-1 rounded-md border border-border/80 bg-background px-2 py-1 text-[11px] font-medium text-foreground hover:bg-secondary transition-colors"
+              title="Create note from selection"
+            >
+              <StickyNote className="h-3 w-3" />
+              <span>{t('player.createNote', 'Note')}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedText(null)}
+              className="p-1 text-muted-foreground hover:text-foreground rounded"
+              aria-label="Dismiss selection bar"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div
+        ref={containerRef}
+        onMouseUp={handleSelection}
+        onKeyUp={handleSelection}
+        className="min-h-0 flex-1 space-y-1 overflow-y-auto pr-1 select-text"
+        aria-live="polite"
+      >
         {!transcript && !isLoading && !errorMessage && (
           <div className="flex h-full flex-col items-center justify-center gap-2 px-4 text-center text-xs text-muted-foreground">
             <FileText className="h-7 w-7 opacity-40" />
@@ -192,24 +350,28 @@ export function TranscriptPanel({
         {visibleSegments.map((segment) => {
           const active = segment.sequence === activeSequence
           return (
-            <button
+            <div
               key={`${transcript?.id}-${segment.sequence}`}
-              type="button"
               aria-current={active ? 'true' : undefined}
-              aria-label={`${formatTime(segment.start)} ${segment.text}`}
-              onClick={() => onSeek(segment.start)}
               className={cn(
-                'flex w-full items-start gap-2 rounded-xl px-2.5 py-2 text-left text-xs leading-relaxed transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+                'group flex w-full items-start gap-2 rounded-xl px-2.5 py-2 text-left text-xs leading-relaxed transition-colors',
                 active ? 'bg-primary/15 text-foreground ring-1 ring-primary/30' : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
               )}
             >
-              <span className="shrink-0 font-mono text-[10px] text-primary">{formatTime(segment.start)}</span>
-              <span>
+              <button
+                type="button"
+                aria-label={`${formatTime(segment.start)} ${segment.text}`}
+                onClick={() => onSeek(segment.start)}
+                className="shrink-0 font-mono text-[10px] text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded px-1 py-0.5"
+              >
+                {formatTime(segment.start)}
+              </button>
+              <span className="flex-1 select-text">
                 {highlightTranscriptText(segment.text, query).map((part, index) =>
                   part.match ? <mark key={index} className="rounded bg-amber-300/40 text-inherit">{part.text}</mark> : <React.Fragment key={index}>{part.text}</React.Fragment>
                 )}
               </span>
-            </button>
+            </div>
           )
         })}
       </div>

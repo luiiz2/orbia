@@ -28,6 +28,7 @@ export function VideoPlayer({ className, onBack }: VideoPlayerProps): React.JSX.
     toggleTheater,
     notes,
     bookmarks,
+    chapters,
     subtitleTracks,
     activeSubtitleTrack,
     progressMap,
@@ -396,6 +397,7 @@ export function VideoPlayer({ className, onBack }: VideoPlayerProps): React.JSX.
         bufferedEnd={bufferedEnd}
         notes={notes}
         bookmarks={bookmarks}
+        chapters={chapters}
         onTogglePlay={togglePlay}
         onSeek={seekTo}
         onSeekRelative={seekRelative}

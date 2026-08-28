@@ -26,18 +26,23 @@ interface PdfViewerModalProps {
   resource: AttachedResource | DocumentResource | null
   isOpen: boolean
   onClose: () => void
+  initialPage?: number
 }
 
 export function PdfViewerModal({
   resource,
   isOpen,
-  onClose
+  onClose,
+  initialPage
 }: PdfViewerModalProps): React.JSX.Element | null {
   const { t } = useTranslation()
 
   if (!resource) return null
 
   const docMediaUrl = mediaUrl(resource.filePath)
+  const pageHash = initialPage && Number.isInteger(initialPage) && initialPage > 0
+    ? `#page=${initialPage}`
+    : ''
   const isPdf =
     resource.fileExtension?.toLowerCase().includes('pdf') ||
     resource.name.toLowerCase().endsWith('.pdf') ||
@@ -91,7 +96,7 @@ export function PdfViewerModal({
         <div className="flex-1 w-full h-full overflow-hidden bg-secondary/30 relative flex flex-col items-center justify-center">
           {isPdf ? (
             <iframe
-              src={docMediaUrl}
+              src={`${docMediaUrl}${pageHash}`}
               className="w-full h-full border-0 rounded-b-2xl bg-white dark:bg-zinc-900"
               title={resource.name}
             />

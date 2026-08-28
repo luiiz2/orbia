@@ -28,12 +28,20 @@ import type {
   StudyQueueEntityType,
   CourseGoal,
   StudySession,
-  ReviewDashboardStats
+  ReviewDashboardStats,
+  SummaryRecord,
+  SummaryScope,
+  SummaryScopeType,
+  LessonChapter
 } from '../../types'
 import { naturalCompare } from '../utils/natural-sort'
 import { cleanTitle, normalizeModuleKey } from '../utils/title-cleaner'
 import { isMediaFile, getMediaType } from '../utils/file-utils'
-import { generateVideoFrameCover, persistCover, TEMP_COVERS_DIR } from '../utils/cover-generator'
+import {
+  generateVideoFrameCover,
+  persistCover,
+  TEMP_COVERS_DIR
+} from '../utils/cover-generator'
 import { logger } from './logger.service'
 
 interface MergePreviewTargetModule {
@@ -403,10 +411,14 @@ export class DatabaseService {
     `)
 
     const migrationId = '002_v0.2_metadata_and_favorites'
-    const hasApplied002 = this.db.prepare(`SELECT 1 FROM _migrations WHERE id = ?`).get(migrationId)
+    const hasApplied002 = this.db
+      .prepare(`SELECT 1 FROM _migrations WHERE id = ?`)
+      .get(migrationId)
 
     if (!hasApplied002) {
-      const coursesCountRow = this.db.prepare(`SELECT count(*) as cnt FROM courses`).get() as { cnt: number } | undefined
+      const coursesCountRow = this.db
+        .prepare(`SELECT count(*) as cnt FROM courses`)
+        .get() as { cnt: number } | undefined
       const isNewDb = (coursesCountRow?.cnt ?? 0) === 0
 
       if (!isNewDb) {
@@ -437,21 +449,35 @@ export class DatabaseService {
         }
 
         try {
-          this.db!.exec(`UPDATE modules SET display_order = order_index WHERE display_order = 0;`)
-          this.db!.exec(`UPDATE lessons SET display_order = order_index WHERE display_order = 0;`)
-          this.db!.exec(`CREATE INDEX IF NOT EXISTS idx_lessons_favorite ON lessons(is_favorite);`)
-          this.db!.exec(`CREATE INDEX IF NOT EXISTS idx_modules_display_order ON modules(course_id, display_order);`)
-          this.db!.exec(`CREATE INDEX IF NOT EXISTS idx_lessons_display_order ON lessons(module_id, display_order);`)
+          this.db!.exec(
+            `UPDATE modules SET display_order = order_index WHERE display_order = 0;`
+          )
+          this.db!.exec(
+            `UPDATE lessons SET display_order = order_index WHERE display_order = 0;`
+          )
+          this.db!.exec(
+            `CREATE INDEX IF NOT EXISTS idx_lessons_favorite ON lessons(is_favorite);`
+          )
+          this.db!.exec(
+            `CREATE INDEX IF NOT EXISTS idx_modules_display_order ON modules(course_id, display_order);`
+          )
+          this.db!.exec(
+            `CREATE INDEX IF NOT EXISTS idx_lessons_display_order ON lessons(module_id, display_order);`
+          )
         } catch {
           // Ignored
         }
 
-        this.db!.prepare(`INSERT INTO _migrations (id, applied_at) VALUES (?, ?)`).run(migrationId, Date.now())
+        this.db!.prepare(
+          `INSERT INTO _migrations (id, applied_at) VALUES (?, ?)`
+        ).run(migrationId, Date.now())
       })()
     }
 
     const orgMigrationId = '002_course_organization_engine'
-    const orgMigrationApplied = this.db.prepare(`SELECT id FROM _migrations WHERE id = ?`).get(orgMigrationId)
+    const orgMigrationApplied = this.db
+      .prepare(`SELECT id FROM _migrations WHERE id = ?`)
+      .get(orgMigrationId)
 
     if (!orgMigrationApplied) {
       this.db.transaction(() => {
@@ -477,20 +503,32 @@ export class DatabaseService {
         }
 
         try {
-          this.db!.exec(`CREATE INDEX IF NOT EXISTS idx_courses_merged_into ON courses(merged_into_course_id);`)
-          this.db!.exec(`CREATE INDEX IF NOT EXISTS idx_lessons_content_hash ON lessons(content_hash);`)
-          this.db!.exec(`CREATE INDEX IF NOT EXISTS idx_lessons_parent ON lessons(parent_lesson_id);`)
-          this.db!.exec(`CREATE INDEX IF NOT EXISTS idx_modules_parent ON modules(parent_module_id);`)
+          this.db!.exec(
+            `CREATE INDEX IF NOT EXISTS idx_courses_merged_into ON courses(merged_into_course_id);`
+          )
+          this.db!.exec(
+            `CREATE INDEX IF NOT EXISTS idx_lessons_content_hash ON lessons(content_hash);`
+          )
+          this.db!.exec(
+            `CREATE INDEX IF NOT EXISTS idx_lessons_parent ON lessons(parent_lesson_id);`
+          )
+          this.db!.exec(
+            `CREATE INDEX IF NOT EXISTS idx_modules_parent ON modules(parent_module_id);`
+          )
         } catch {
           // Ignored
         }
 
-        this.db!.prepare(`INSERT INTO _migrations (id, applied_at) VALUES (?, ?)`).run(orgMigrationId, Date.now())
+        this.db!.prepare(
+          `INSERT INTO _migrations (id, applied_at) VALUES (?, ?)`
+        ).run(orgMigrationId, Date.now())
       })()
     }
 
     const v03MigrationId = '003_v03_review_and_portability'
-    const v03MigrationApplied = this.db.prepare(`SELECT id FROM _migrations WHERE id = ?`).get(v03MigrationId)
+    const v03MigrationApplied = this.db
+      .prepare(`SELECT id FROM _migrations WHERE id = ?`)
+      .get(v03MigrationId)
 
     if (!v03MigrationApplied) {
       this.db.transaction(() => {
@@ -555,12 +593,16 @@ export class DatabaseService {
           CREATE INDEX IF NOT EXISTS idx_study_sessions_started ON study_sessions(started_at);
         `)
 
-        this.db!.prepare(`INSERT INTO _migrations (id, applied_at) VALUES (?, ?)`).run(v03MigrationId, Date.now())
+        this.db!.prepare(
+          `INSERT INTO _migrations (id, applied_at) VALUES (?, ?)`
+        ).run(v03MigrationId, Date.now())
       })()
     }
 
     const v05MigrationId = '005_v05_library_studio'
-    const v05MigrationApplied = this.db.prepare(`SELECT id FROM _migrations WHERE id = ?`).get(v05MigrationId)
+    const v05MigrationApplied = this.db
+      .prepare(`SELECT id FROM _migrations WHERE id = ?`)
+      .get(v05MigrationId)
 
     if (!v05MigrationApplied) {
       this.db.transaction(() => {
@@ -668,13 +710,17 @@ export class DatabaseService {
 
         this.backfillLibraryAppearances()
 
-        this.db!.prepare(`INSERT INTO _migrations (id, applied_at) VALUES (?, ?)`).run(v05MigrationId, Date.now())
+        this.db!.prepare(
+          `INSERT INTO _migrations (id, applied_at) VALUES (?, ?)`
+        ).run(v05MigrationId, Date.now())
       })()
     }
 
     // 7. Migration 006: Discovery, Course Relationships & Feedback (v0.6)
     const v06MigrationId = '006_v06_discovery'
-    const hasApplied006 = this.db.prepare(`SELECT 1 FROM _migrations WHERE id = ?`).get(v06MigrationId)
+    const hasApplied006 = this.db
+      .prepare(`SELECT 1 FROM _migrations WHERE id = ?`)
+      .get(v06MigrationId)
 
     if (!hasApplied006) {
       this.db.transaction(() => {
@@ -712,12 +758,16 @@ export class DatabaseService {
           CREATE INDEX IF NOT EXISTS idx_courses_created_at ON courses(created_at DESC);
         `)
 
-        this.db!.prepare(`INSERT INTO _migrations (id, applied_at) VALUES (?, ?)`).run(v06MigrationId, Date.now())
+        this.db!.prepare(
+          `INSERT INTO _migrations (id, applied_at) VALUES (?, ?)`
+        ).run(v06MigrationId, Date.now())
       })()
     }
 
     const v08MigrationId = '007_v08_connected_library'
-    const hasApplied008 = this.db.prepare(`SELECT 1 FROM _migrations WHERE id = ?`).get(v08MigrationId)
+    const hasApplied008 = this.db
+      .prepare(`SELECT 1 FROM _migrations WHERE id = ?`)
+      .get(v08MigrationId)
 
     if (!hasApplied008) {
       const sourceTableNames = new Set([
@@ -729,28 +779,40 @@ export class DatabaseService {
         'offline_assets',
         'source_sync_runs'
       ])
-      const userDataTables = (this.db.prepare(`
+      const userDataTables = (
+        this.db
+          .prepare(
+            `
         SELECT name
         FROM sqlite_master
         WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name <> '_migrations'
         ORDER BY name
-      `).all() as Array<{ name: string }>).filter(({ name }) => !sourceTableNames.has(name))
-      const quoteIdentifier = (name: string): string => `"${name.replaceAll('"', '""')}"`
+      `
+          )
+          .all() as Array<{ name: string }>
+      ).filter(({ name }) => !sourceTableNames.has(name))
+      const quoteIdentifier = (name: string): string =>
+        `"${name.replaceAll('"', '""')}"`
       const hashUserDataRows = (database: Database.Database): string => {
         const hash = crypto.createHash('sha256')
 
         for (const { name } of userDataTables) {
           const table = quoteIdentifier(name)
-          const columns = database.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>
+          const columns = database
+            .prepare(`PRAGMA table_info(${table})`)
+            .all() as Array<{ name: string }>
           const columnNames = columns.map((column) => column.name)
           const orderBy = columnNames.map(quoteIdentifier).join(', ')
           hash.update(`${JSON.stringify([name, columnNames])}\n`)
 
-          const rows = database.prepare(`SELECT * FROM ${table} ORDER BY ${orderBy}`).iterate() as Iterable<Record<string, unknown>>
+          const rows = database
+            .prepare(`SELECT * FROM ${table} ORDER BY ${orderBy}`)
+            .iterate() as Iterable<Record<string, unknown>>
           for (const row of rows) {
             const values = columnNames.map((columnName) => {
               const value = row[columnName]
-              if (Buffer.isBuffer(value)) return { type: 'blob', value: value.toString('base64') }
+              if (Buffer.isBuffer(value))
+                return { type: 'blob', value: value.toString('base64') }
               if (value === null) return { type: 'null' }
               return { type: typeof value, value }
             })
@@ -761,7 +823,9 @@ export class DatabaseService {
         return hash.digest('hex')
       }
       const hasUserData = userDataTables.some(({ name }) => {
-        const row = this.db!.prepare(`SELECT 1 AS present FROM ${quoteIdentifier(name)} LIMIT 1`).get()
+        const row = this.db!.prepare(
+          `SELECT 1 AS present FROM ${quoteIdentifier(name)} LIMIT 1`
+        ).get()
         return row !== undefined
       })
 
@@ -773,24 +837,37 @@ export class DatabaseService {
         let backupDb: Database.Database | null = null
 
         try {
-          const checkpointRows = this.db.pragma('wal_checkpoint(FULL)') as Array<{
+          const checkpointRows = this.db.pragma(
+            'wal_checkpoint(FULL)'
+          ) as Array<{
             busy: number
             log: number
             checkpointed: number
           }>
           const checkpoint = checkpointRows[0]
-          if (!checkpoint || checkpoint.busy !== 0 || checkpoint.checkpointed !== checkpoint.log) {
-            throw new Error(`WAL checkpoint incomplete: ${JSON.stringify(checkpoint ?? null)}`)
+          if (
+            !checkpoint ||
+            checkpoint.busy !== 0 ||
+            checkpoint.checkpointed !== checkpoint.log
+          ) {
+            throw new Error(
+              `WAL checkpoint incomplete: ${JSON.stringify(checkpoint ?? null)}`
+            )
           }
 
           const backupExists = fs.existsSync(backupPath)
           if (!backupExists) {
             temporaryBackupPath = `${backupPath}.${crypto.randomUUID()}.tmp`
-            const quotedBackupPath = this.db.prepare(`SELECT quote(?) AS value`).get(temporaryBackupPath) as { value: string }
+            const quotedBackupPath = this.db
+              .prepare(`SELECT quote(?) AS value`)
+              .get(temporaryBackupPath) as { value: string }
             this.db.exec(`VACUUM INTO ${quotedBackupPath.value}`)
           }
 
-          backupDb = new Database(temporaryBackupPath ?? backupPath, { readonly: true, fileMustExist: true })
+          backupDb = new Database(temporaryBackupPath ?? backupPath, {
+            readonly: true,
+            fileMustExist: true
+          })
           if (backupDb.pragma('integrity_check', { simple: true }) !== 'ok') {
             throw new Error('Backup integrity check failed')
           }
@@ -811,7 +888,9 @@ export class DatabaseService {
             temporaryBackupPath = null
           }
         } catch (error) {
-          throw new Error(`Failed to validate v0.8 migration backup: ${String(error)}`)
+          throw new Error(
+            `Failed to validate v0.8 migration backup: ${String(error)}`
+          )
         } finally {
           backupDb?.close()
           if (temporaryBackupPath && fs.existsSync(temporaryBackupPath)) {
@@ -959,24 +1038,40 @@ export class DatabaseService {
 
         this.backfillLegacySourceLinks()
 
-        const expectedItems = this.db!.prepare(`
+        const expectedItems = this.db!.prepare(
+          `
           SELECT
             (SELECT count(*) FROM lessons) + (SELECT count(*) FROM content_resources) AS count
-        `).get() as { count: number }
-        const sourceItems = this.db!.prepare(`SELECT count(*) AS count FROM source_items`).get() as { count: number }
-        const sourceLinks = this.db!.prepare(`SELECT count(*) AS count FROM canonical_source_links`).get() as { count: number }
-        const foreignKeyIssues = this.db!.prepare(`PRAGMA foreign_key_check`).all()
+        `
+        ).get() as { count: number }
+        const sourceItems = this.db!.prepare(
+          `SELECT count(*) AS count FROM source_items`
+        ).get() as { count: number }
+        const sourceLinks = this.db!.prepare(
+          `SELECT count(*) AS count FROM canonical_source_links`
+        ).get() as { count: number }
+        const foreignKeyIssues = this.db!.prepare(
+          `PRAGMA foreign_key_check`
+        ).all()
 
-        if (sourceItems.count !== expectedItems.count || sourceLinks.count !== expectedItems.count || foreignKeyIssues.length > 0) {
+        if (
+          sourceItems.count !== expectedItems.count ||
+          sourceLinks.count !== expectedItems.count ||
+          foreignKeyIssues.length > 0
+        ) {
           throw new Error('Connected-library migration validation failed')
         }
 
-        this.db!.prepare(`INSERT INTO _migrations (id, applied_at) VALUES (?, ?)`).run(v08MigrationId, Date.now())
+        this.db!.prepare(
+          `INSERT INTO _migrations (id, applied_at) VALUES (?, ?)`
+        ).run(v08MigrationId, Date.now())
       })()
     }
 
     const v09MigrationId = '008_v09_transcription'
-    const hasApplied009 = this.db.prepare(`SELECT 1 FROM _migrations WHERE id = ?`).get(v09MigrationId)
+    const hasApplied009 = this.db
+      .prepare(`SELECT 1 FROM _migrations WHERE id = ?`)
+      .get(v09MigrationId)
 
     if (!hasApplied009) {
       this.db.transaction(() => {
@@ -1038,17 +1133,25 @@ export class DatabaseService {
           CREATE INDEX IF NOT EXISTS idx_transcription_queue_lesson ON optimization_queue(job_type, lesson_id, status);
         `)
 
-        this.db!.prepare(`INSERT INTO _migrations (id, applied_at) VALUES (?, ?)`).run(v09MigrationId, Date.now())
+        this.db!.prepare(
+          `INSERT INTO _migrations (id, applied_at) VALUES (?, ?)`
+        ).run(v09MigrationId, Date.now())
       })()
     }
 
     const v10MigrationId = '009_v09_semantic_index'
-    const hasApplied010 = this.db.prepare(`SELECT 1 FROM _migrations WHERE id = ?`).get(v10MigrationId)
+    const hasApplied010 = this.db
+      .prepare(`SELECT 1 FROM _migrations WHERE id = ?`)
+      .get(v10MigrationId)
 
     if (!hasApplied010) {
       this.db.transaction(() => {
-        const lessonIdColumn = this.db!.prepare(`PRAGMA table_info(optimization_queue)`).all() as Array<{ name: string; notnull: number }>
-        const needsNullableLessonId = lessonIdColumn.some((column) => column.name === 'lesson_id' && column.notnull === 1)
+        const lessonIdColumn = this.db!.prepare(
+          `PRAGMA table_info(optimization_queue)`
+        ).all() as Array<{ name: string; notnull: number }>
+        const needsNullableLessonId = lessonIdColumn.some(
+          (column) => column.name === 'lesson_id' && column.notnull === 1
+        )
 
         if (needsNullableLessonId) {
           this.db!.exec(`
@@ -1205,12 +1308,16 @@ export class DatabaseService {
           CREATE INDEX IF NOT EXISTS idx_semantic_chunks_resource ON semantic_index_chunks(generation_id, resource_id);
         `)
 
-        this.db!.prepare(`INSERT INTO _migrations (id, applied_at) VALUES (?, ?)`).run(v10MigrationId, Date.now())
+        this.db!.prepare(
+          `INSERT INTO _migrations (id, applied_at) VALUES (?, ?)`
+        ).run(v10MigrationId, Date.now())
       })()
     }
 
     const v11MigrationId = '010_v09_grounded_chat'
-    const hasApplied011 = this.db.prepare(`SELECT 1 FROM _migrations WHERE id = ?`).get(v11MigrationId)
+    const hasApplied011 = this.db
+      .prepare(`SELECT 1 FROM _migrations WHERE id = ?`)
+      .get(v11MigrationId)
 
     if (!hasApplied011) {
       this.db.transaction(() => {
@@ -1286,11 +1393,112 @@ export class DatabaseService {
           CREATE INDEX IF NOT EXISTS idx_chat_message_sources_message ON chat_message_sources(message_id, ordinal);
         `)
 
-        this.db!.prepare(`INSERT INTO _migrations (id, applied_at) VALUES (?, ?)`).run(v11MigrationId, Date.now())
+        this.db!.prepare(
+          `INSERT INTO _migrations (id, applied_at) VALUES (?, ?)`
+        ).run(v11MigrationId, Date.now())
       })()
     }
 
-    const userVersion = this.db.pragma('user_version', { simple: true }) as number
+    const v12MigrationId = '012_v09_summaries_chapters'
+    const hasApplied012 = this.db
+      .prepare(`SELECT 1 FROM _migrations WHERE id = ?`)
+      .get(v12MigrationId)
+
+    if (!hasApplied012) {
+      this.db.transaction(() => {
+        this.db!.exec(`
+          CREATE TABLE IF NOT EXISTS ai_summaries (
+            id                      TEXT PRIMARY KEY,
+            scope_type              TEXT NOT NULL CHECK(scope_type IN ('lesson', 'module', 'course')),
+            course_id               TEXT NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+            module_id               TEXT REFERENCES modules(id) ON DELETE CASCADE,
+            lesson_id               TEXT REFERENCES lessons(id) ON DELETE CASCADE,
+            title                   TEXT NOT NULL,
+            overview                TEXT NOT NULL,
+            key_concepts_json       TEXT NOT NULL DEFAULT '[]',
+            topics_covered_json     TEXT NOT NULL DEFAULT '[]',
+            important_details_json  TEXT NOT NULL DEFAULT '[]',
+            timestamps_json         TEXT NOT NULL DEFAULT '[]',
+            full_markdown           TEXT NOT NULL,
+            provider_id             TEXT NOT NULL,
+            model_id                TEXT NOT NULL,
+            template_version        TEXT NOT NULL,
+            source_revision         TEXT NOT NULL,
+            is_stale                INTEGER NOT NULL DEFAULT 0,
+            created_at              INTEGER NOT NULL,
+            updated_at              INTEGER NOT NULL
+          );
+
+          CREATE UNIQUE INDEX IF NOT EXISTS idx_ai_summaries_lesson
+          ON ai_summaries(course_id, module_id, lesson_id)
+          WHERE scope_type = 'lesson';
+
+          CREATE UNIQUE INDEX IF NOT EXISTS idx_ai_summaries_module
+          ON ai_summaries(course_id, module_id)
+          WHERE scope_type = 'module' AND lesson_id IS NULL;
+
+          CREATE UNIQUE INDEX IF NOT EXISTS idx_ai_summaries_course
+          ON ai_summaries(course_id)
+          WHERE scope_type = 'course' AND module_id IS NULL AND lesson_id IS NULL;
+
+          CREATE INDEX IF NOT EXISTS idx_ai_summaries_course_scope ON ai_summaries(course_id, scope_type);
+
+          CREATE TABLE IF NOT EXISTS lesson_chapters (
+            id                TEXT PRIMARY KEY,
+            lesson_id         TEXT NOT NULL REFERENCES lessons(id) ON DELETE CASCADE,
+            course_id         TEXT NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+            title             TEXT NOT NULL CHECK(length(trim(title)) > 0),
+            timestamp_seconds REAL NOT NULL CHECK(timestamp_seconds >= 0),
+            source            TEXT NOT NULL CHECK(source IN ('manual', 'ai', 'media')),
+            is_manual         INTEGER NOT NULL DEFAULT 0,
+            order_index       INTEGER NOT NULL DEFAULT 0,
+            created_at        INTEGER NOT NULL,
+            updated_at        INTEGER NOT NULL
+          );
+
+          CREATE INDEX IF NOT EXISTS idx_lesson_chapters_lesson ON lesson_chapters(lesson_id, timestamp_seconds ASC);
+          CREATE INDEX IF NOT EXISTS idx_lesson_chapters_course ON lesson_chapters(course_id);
+        `)
+
+        this.db!.prepare(
+          `INSERT INTO _migrations (id, applied_at) VALUES (?, ?)`
+        ).run(v12MigrationId, Date.now())
+      })()
+    }
+
+    const v13MigrationId = '013_v09_ai_usage'
+    const hasApplied013 = this.db
+      .prepare(`SELECT 1 FROM _migrations WHERE id = ?`)
+      .get(v13MigrationId)
+
+    if (!hasApplied013) {
+      this.db.transaction(() => {
+        this.db!.exec(`
+          CREATE TABLE IF NOT EXISTS ai_local_usage (
+            id                          INTEGER PRIMARY KEY CHECK(id = 1),
+            total_requests              INTEGER NOT NULL DEFAULT 0,
+            total_prompt_tokens         INTEGER NOT NULL DEFAULT 0,
+            total_completion_tokens     INTEGER NOT NULL DEFAULT 0,
+            total_transcription_seconds REAL NOT NULL DEFAULT 0.0,
+            total_embedded_chunks       INTEGER NOT NULL DEFAULT 0,
+            last_activity_at            INTEGER
+          );
+
+          INSERT OR IGNORE INTO ai_local_usage (
+            id, total_requests, total_prompt_tokens, total_completion_tokens,
+            total_transcription_seconds, total_embedded_chunks
+          ) VALUES (1, 0, 0, 0, 0.0, 0);
+        `)
+
+        this.db!.prepare(
+          `INSERT INTO _migrations (id, applied_at) VALUES (?, ?)`
+        ).run(v13MigrationId, Date.now())
+      })()
+    }
+
+    const userVersion = this.db.pragma('user_version', {
+      simple: true
+    }) as number
 
     if (userVersion < 1) {
       this.db.pragma('user_version = 1')
@@ -1300,31 +1508,53 @@ export class DatabaseService {
   private backfillLegacySourceLinks(): void {
     if (!this.db) throw new Error('Database is not connected to any vault.')
 
-    const localAvailability = (localPath: string): 'available' | 'missing' | 'relink-required' => {
+    const localAvailability = (
+      localPath: string
+    ): 'available' | 'missing' | 'relink-required' => {
       if (localPath === '') return 'relink-required'
       return fs.existsSync(localPath) ? 'available' : 'missing'
     }
-    const safeRelativePath = (rootPath: string, itemPath: string, untrustedName: string): string => {
-      const fallback = path.win32.basename(path.posix.basename(untrustedName)).replaceAll('..', '') || 'unnamed'
-      const pathApi = path.win32.isAbsolute(rootPath) && path.win32.isAbsolute(itemPath)
-        ? path.win32
-        : path.posix.isAbsolute(rootPath) && path.posix.isAbsolute(itemPath)
-          ? path.posix
-          : null
+    const safeRelativePath = (
+      rootPath: string,
+      itemPath: string,
+      untrustedName: string
+    ): string => {
+      const fallback =
+        path.win32
+          .basename(path.posix.basename(untrustedName))
+          .replaceAll('..', '') || 'unnamed'
+      const pathApi =
+        path.win32.isAbsolute(rootPath) && path.win32.isAbsolute(itemPath)
+          ? path.win32
+          : path.posix.isAbsolute(rootPath) && path.posix.isAbsolute(itemPath)
+            ? path.posix
+            : null
 
       if (!pathApi) return fallback
-      const relative = pathApi.relative(pathApi.resolve(rootPath), pathApi.resolve(itemPath))
-      if (relative === '' || relative === '..' || relative.startsWith(`..${pathApi.sep}`) || pathApi.isAbsolute(relative)) {
+      const relative = pathApi.relative(
+        pathApi.resolve(rootPath),
+        pathApi.resolve(itemPath)
+      )
+      if (
+        relative === '' ||
+        relative === '..' ||
+        relative.startsWith(`..${pathApi.sep}`) ||
+        pathApi.isAbsolute(relative)
+      ) {
         return fallback
       }
       return relative.split(pathApi.sep).join('/')
     }
 
-    const courses = this.db.prepare(`
+    const courses = this.db
+      .prepare(
+        `
       SELECT id, title, source_type, root_path, created_at, updated_at
       FROM courses
       ORDER BY id
-    `).all() as Array<{
+    `
+      )
+      .all() as Array<{
       id: string
       title: string
       source_type: string
@@ -1382,12 +1612,16 @@ export class DatabaseService {
         course.updated_at
       )
 
-      const lessons = this.db.prepare(`
+      const lessons = this.db
+        .prepare(
+          `
         SELECT id, title, file_path, file_name, duration, file_size, content_hash, fingerprint_signature, created_at
         FROM lessons
         WHERE course_id = ?
         ORDER BY id
-      `).all(course.id) as Array<{
+      `
+        )
+        .all(course.id) as Array<{
         id: string
         title: string
         file_path: string
@@ -1407,7 +1641,11 @@ export class DatabaseService {
           rootId,
           itemId,
           lesson.file_name || lesson.title,
-          safeRelativePath(course.root_path, lesson.file_path, lesson.file_name || lesson.title),
+          safeRelativePath(
+            course.root_path,
+            lesson.file_path,
+            lesson.file_name || lesson.title
+          ),
           JSON.stringify({ provider: 'local-folder', path: lesson.file_path }),
           lesson.file_size,
           lesson.duration,
@@ -1428,12 +1666,16 @@ export class DatabaseService {
         )
       }
 
-      const resources = this.db.prepare(`
+      const resources = this.db
+        .prepare(
+          `
         SELECT id, name, file_path, file_size, created_at
         FROM content_resources
         WHERE course_id = ?
         ORDER BY id
-      `).all(course.id) as Array<{
+      `
+        )
+        .all(course.id) as Array<{
         id: string
         name: string
         file_path: string
@@ -1450,7 +1692,10 @@ export class DatabaseService {
           itemId,
           resource.name,
           safeRelativePath(course.root_path, resource.file_path, resource.name),
-          JSON.stringify({ provider: 'local-folder', path: resource.file_path }),
+          JSON.stringify({
+            provider: 'local-folder',
+            path: resource.file_path
+          }),
           resource.file_size,
           null,
           JSON.stringify({ size: resource.file_size }),
@@ -1476,7 +1721,9 @@ export class DatabaseService {
     if (!this.db) return
 
     const now = Date.now()
-    const courses = this.db.prepare(`SELECT id, custom_title, is_hidden FROM courses`).all() as { id: string; custom_title?: string; is_hidden?: number }[]
+    const courses = this.db
+      .prepare(`SELECT id, custom_title, is_hidden FROM courses`)
+      .all() as { id: string; custom_title?: string; is_hidden?: number }[]
     const insertApp = this.db.prepare(`
       INSERT OR IGNORE INTO library_appearances (
         id, entity_type, entity_id, root_course_id, parent_appearance_id, section_id,
@@ -1506,12 +1753,22 @@ export class DatabaseService {
         updatedAt: now
       })
 
-      const modules = this.db.prepare(`
+      const modules = this.db
+        .prepare(
+          `
         SELECT id, course_id, custom_title, display_order, is_hidden
         FROM modules
         WHERE course_id = ?
         ORDER BY display_order ASC
-      `).all(c.id) as { id: string; course_id: string; custom_title?: string; display_order: number; is_hidden?: number }[]
+      `
+        )
+        .all(c.id) as {
+        id: string
+        course_id: string
+        custom_title?: string
+        display_order: number
+        is_hidden?: number
+      }[]
 
       for (const m of modules) {
         const modAppId = `app_mod_${m.id}`
@@ -1532,12 +1789,23 @@ export class DatabaseService {
           updatedAt: now
         })
 
-        const lessons = this.db.prepare(`
+        const lessons = this.db
+          .prepare(
+            `
           SELECT id, module_id, course_id, custom_title, display_order, is_hidden
           FROM lessons
           WHERE module_id = ?
           ORDER BY display_order ASC
-        `).all(m.id) as { id: string; module_id: string; course_id: string; custom_title?: string; display_order: number; is_hidden?: number }[]
+        `
+          )
+          .all(m.id) as {
+          id: string
+          module_id: string
+          course_id: string
+          custom_title?: string
+          display_order: number
+          is_hidden?: number
+        }[]
 
         for (const l of lessons) {
           const lesAppId = `app_les_${l.id}`
@@ -1582,7 +1850,9 @@ export class DatabaseService {
         if (isMediaFile(testPath)) {
           mediaLessons.push(les)
         } else {
-          const ext = (les.fileExtension || path.extname(testPath)).replace(/^\./, '').toLowerCase()
+          const ext = (les.fileExtension || path.extname(testPath))
+            .replace(/^\./, '')
+            .toLowerCase()
           const resourceType = toResourceType(testPath)
           extraResources.push({
             id: les.id || crypto.randomUUID(),
@@ -1600,7 +1870,10 @@ export class DatabaseService {
       }
 
       const allResources = [...(mod.resources || []), ...extraResources]
-      const modDuration = mediaLessons.reduce((sum, l) => sum + (l.duration || 0), 0)
+      const modDuration = mediaLessons.reduce(
+        (sum, l) => sum + (l.duration || 0),
+        0
+      )
 
       return {
         ...mod,
@@ -1611,8 +1884,14 @@ export class DatabaseService {
       }
     })
 
-    const totalCourseLessons = cleanedModules.reduce((sum, mod) => sum + mod.lessons.length, 0)
-    const totalCourseDuration = cleanedModules.reduce((sum, mod) => sum + mod.duration, 0)
+    const totalCourseLessons = cleanedModules.reduce(
+      (sum, mod) => sum + mod.lessons.length,
+      0
+    )
+    const totalCourseDuration = cleanedModules.reduce(
+      (sum, mod) => sum + mod.duration,
+      0
+    )
 
     const insertCourse = this.db!.prepare(`
       INSERT INTO courses (
@@ -1736,7 +2015,11 @@ export class DatabaseService {
             createdAt: lesson.createdAt
           })
 
-          for (const resource of lessonResourcesForPersistence(lesson, course.id, mod.id)) {
+          for (const resource of lessonResourcesForPersistence(
+            lesson,
+            course.id,
+            mod.id
+          )) {
             insertContentResource.run(toContentResourceRow(resource))
           }
         }
@@ -1761,7 +2044,9 @@ export class DatabaseService {
       WHERE merged_into_course_id IS NULL
       ORDER BY last_accessed_at DESC NULLS LAST, created_at DESC
     `)
-    const rows = stmt.all() as (Omit<Course, 'isFavorite'> & { isFavorite: number })[]
+    const rows = stmt.all() as (Omit<Course, 'isFavorite'> & {
+      isFavorite: number
+    })[]
     return rows.map((r) => ({
       ...r,
       coverPath: r.coverPath || undefined,
@@ -1786,7 +2071,8 @@ export class DatabaseService {
       FROM courses
       WHERE id = ?
     `)
-    const course = courseStmt.get(courseId) as (Omit<Course, 'isFavorite'> & { isFavorite: number }) | undefined
+    const course = courseStmt.get(courseId) as
+      (Omit<Course, 'isFavorite'> & { isFavorite: number }) | undefined
     if (!course) return null
 
     const modulesStmt = this.db!.prepare(`
@@ -1800,7 +2086,10 @@ export class DatabaseService {
       WHERE course_id = ?
       ORDER BY display_order ASC, order_index ASC
     `)
-    const modules = modulesStmt.all(courseId) as (Omit<Module, 'hasManualOrder' | 'isAuxiliary'> & {
+    const modules = modulesStmt.all(courseId) as (Omit<
+      Module,
+      'hasManualOrder' | 'isAuxiliary'
+    > & {
       hasManualOrder: number
       isAuxiliary: number
     })[]
@@ -1817,7 +2106,10 @@ export class DatabaseService {
       WHERE course_id = ?
       ORDER BY module_id, display_order ASC, order_index ASC
     `)
-    const allLessons = lessonsStmt.all(courseId) as (Omit<Lesson, 'isFavorite'> & { isFavorite: number })[]
+    const allLessons = lessonsStmt.all(courseId) as (Omit<
+      Lesson,
+      'isFavorite'
+    > & { isFavorite: number })[]
 
     const resourcesStmt = this.db!.prepare(`
       SELECT
@@ -1829,7 +2121,9 @@ export class DatabaseService {
       WHERE course_id = ?
       ORDER BY module_id ASC, lesson_id ASC, created_at ASC, id ASC
     `)
-    const allResources = (resourcesStmt.all(courseId) as ContentResourceRow[]).map(contentResourceFromRow)
+    const allResources = (
+      resourcesStmt.all(courseId) as ContentResourceRow[]
+    ).map(contentResourceFromRow)
     const resourcesByModule = new Map<string, ContentResource[]>()
     const resourcesByLesson = new Map<string, ContentResource[]>()
     for (const resource of allResources) {
@@ -1850,7 +2144,9 @@ export class DatabaseService {
       const contentResources = resourcesByLesson.get(lesson.id) || []
       const attachedResources = contentResources
         .map(toAttachedResource)
-        .filter((resource): resource is AttachedResource => resource !== undefined)
+        .filter(
+          (resource): resource is AttachedResource => resource !== undefined
+        )
       const subtitles = contentResources
         .map(toSubtitleTrack)
         .filter((subtitle): subtitle is SubtitleTrack => subtitle !== undefined)
@@ -1859,7 +2155,9 @@ export class DatabaseService {
         isFavorite: Boolean(lesson.isFavorite),
         coverPath: lesson.coverPath || undefined,
         ...(contentResources.length > 0 ? { contentResources } : {}),
-        ...(attachedResources.length > 0 ? { resources: attachedResources } : {}),
+        ...(attachedResources.length > 0
+          ? { resources: attachedResources }
+          : {}),
         ...(subtitles.length > 0 ? { subtitles } : {})
       }
       const existing = lessonsByModule.get(lesson.moduleId)
@@ -1870,16 +2168,18 @@ export class DatabaseService {
       }
     }
 
-    const modulesWithLessons: (Module & { lessons: Lesson[] })[] = modules.map((mod) => {
-      const resources = resourcesByModule.get(mod.id) || []
-      return {
-        ...mod,
-        hasManualOrder: Boolean(mod.hasManualOrder),
-        isAuxiliary: Boolean(mod.isAuxiliary),
-        ...(resources.length > 0 ? { resources } : {}),
-        lessons: lessonsByModule.get(mod.id) || []
+    const modulesWithLessons: (Module & { lessons: Lesson[] })[] = modules.map(
+      (mod) => {
+        const resources = resourcesByModule.get(mod.id) || []
+        return {
+          ...mod,
+          hasManualOrder: Boolean(mod.hasManualOrder),
+          isAuxiliary: Boolean(mod.isAuxiliary),
+          ...(resources.length > 0 ? { resources } : {}),
+          lessons: lessonsByModule.get(mod.id) || []
+        }
       }
-    })
+    )
 
     return {
       course: {
@@ -1893,7 +2193,9 @@ export class DatabaseService {
 
   public toggleCourseFavorite(courseId: string): boolean {
     this.ensureConnected()
-    const getStmt = this.db!.prepare(`SELECT is_favorite FROM courses WHERE id = ?`)
+    const getStmt = this.db!.prepare(
+      `SELECT is_favorite FROM courses WHERE id = ?`
+    )
     const row = getStmt.get(courseId) as { is_favorite: number } | undefined
     if (!row) {
       throw new Error(`Course with id "${courseId}" not found.`)
@@ -1912,13 +2214,17 @@ export class DatabaseService {
   public updateCourseCover(courseId: string, coverPath: string): void {
     this.ensureConnected()
     const now = Date.now()
-    const stmt = this.db!.prepare(`UPDATE courses SET cover_path = ?, updated_at = ? WHERE id = ?`)
+    const stmt = this.db!.prepare(
+      `UPDATE courses SET cover_path = ?, updated_at = ? WHERE id = ?`
+    )
     stmt.run(coverPath, now, courseId)
   }
 
   public updateLessonCover(lessonId: string, coverPath: string): void {
     this.ensureConnected()
-    const stmt = this.db!.prepare(`UPDATE lessons SET cover_path = ? WHERE id = ?`)
+    const stmt = this.db!.prepare(
+      `UPDATE lessons SET cover_path = ? WHERE id = ?`
+    )
     stmt.run(coverPath, lessonId)
   }
 
@@ -1932,10 +2238,15 @@ export class DatabaseService {
   public updateLessonDuration(lessonId: string, duration: number): void {
     this.ensureConnected()
     const value = Number.isFinite(duration) && duration >= 0 ? duration : 0
-    const lesson = this.db!.prepare(`SELECT module_id as moduleId, course_id as courseId FROM lessons WHERE id = ?`).get(lessonId) as { moduleId: string; courseId: string } | undefined
+    const lesson = this.db!.prepare(
+      `SELECT module_id as moduleId, course_id as courseId FROM lessons WHERE id = ?`
+    ).get(lessonId) as { moduleId: string; courseId: string } | undefined
     if (!lesson) return
 
-    this.db!.prepare(`UPDATE lessons SET duration = ? WHERE id = ?`).run(value, lessonId)
+    this.db!.prepare(`UPDATE lessons SET duration = ? WHERE id = ?`).run(
+      value,
+      lessonId
+    )
     this.reindexCourseHierarchy(lesson.courseId)
   }
 
@@ -1950,7 +2261,8 @@ export class DatabaseService {
         created_at as createdAt
       FROM lessons WHERE file_path = ?
     `)
-    const row = stmt.get(filePath) as (Omit<Lesson, 'isFavorite'> & { isFavorite: number }) | undefined
+    const row = stmt.get(filePath) as
+      (Omit<Lesson, 'isFavorite'> & { isFavorite: number }) | undefined
     if (!row) return null
     return {
       ...row,
@@ -1970,7 +2282,8 @@ export class DatabaseService {
         created_at as createdAt
       FROM lessons WHERE id = ?
     `)
-    const row = stmt.get(lessonId) as (Omit<Lesson, 'isFavorite'> & { isFavorite: number }) | undefined
+    const row = stmt.get(lessonId) as
+      (Omit<Lesson, 'isFavorite'> & { isFavorite: number }) | undefined
     if (!row) return null
     return {
       ...row,
@@ -1982,12 +2295,14 @@ export class DatabaseService {
   /** Records a file operation journal entry (used by delete/undo workflows). */
   public recordFileOperation(entry: FileOperationRecord): void {
     this.ensureConnected()
-    this.db!.prepare(`
+    this.db!.prepare(
+      `
       INSERT INTO file_operations (
         operation_id, group_id, type, source_path, destination_path,
         original_filename, new_filename, timestamp, status, error_details, is_reversible
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
+    `
+    ).run(
       entry.operationId,
       entry.groupId,
       entry.type,
@@ -2009,17 +2324,23 @@ export class DatabaseService {
     errorDetails: string | null = null
   ): void {
     this.ensureConnected()
-    this.db!
-      .prepare(`UPDATE file_operations SET status = ?, error_details = ? WHERE operation_id = ?`)
-      .run(status, errorDetails, operationId)
+    this.db!.prepare(
+      `UPDATE file_operations SET status = ?, error_details = ? WHERE operation_id = ?`
+    ).run(status, errorDetails, operationId)
   }
 
-  public updateLessonFilePath(lessonId: string, newPath: string, newFileName: string): void {
+  public updateLessonFilePath(
+    lessonId: string,
+    newPath: string,
+    newFileName: string
+  ): void {
     this.ensureConnected()
     const ext = path.extname(newFileName)
-    this.db!.prepare(`
+    this.db!.prepare(
+      `
       UPDATE lessons SET file_path = ?, file_name = ?, file_extension = ? WHERE id = ?
-    `).run(newPath, newFileName, ext, lessonId)
+    `
+    ).run(newPath, newFileName, ext, lessonId)
   }
 
   public getFileOperationsByGroup(groupId: string): FileOperationRecord[] {
@@ -2035,7 +2356,10 @@ export class DatabaseService {
       WHERE group_id = ?
       ORDER BY timestamp DESC
     `)
-    const rows = stmt.all(groupId) as (Omit<FileOperationRecord, 'isReversible'> & { isReversible: number })[]
+    const rows = stmt.all(groupId) as (Omit<
+      FileOperationRecord,
+      'isReversible'
+    > & { isReversible: number })[]
     return rows.map((r) => ({ ...r, isReversible: Boolean(r.isReversible) }))
   }
 
@@ -2047,8 +2371,8 @@ export class DatabaseService {
   private recoverPendingFileOperations(vaultPath: string): void {
     this.ensureConnected()
     const coursesRoot = path.join(vaultPath, 'Courses')
-    const pendingOperations = this.db!
-      .prepare(`
+    const pendingOperations = this.db!.prepare(
+      `
         SELECT
           operation_id AS operationId,
           type,
@@ -2056,8 +2380,8 @@ export class DatabaseService {
           destination_path AS destinationPath
         FROM file_operations
         WHERE status = 'pending'
-      `)
-      .all() as PendingFileOperation[]
+      `
+    ).all() as PendingFileOperation[]
 
     for (const operation of pendingOperations) {
       try {
@@ -2070,8 +2394,14 @@ export class DatabaseService {
     }
   }
 
-  private recoverPendingFileOperation(operation: PendingFileOperation, coursesRoot: string): void {
-    if (operation.type !== 'move' || !isStrictPathWithin(coursesRoot, operation.destinationPath)) {
+  private recoverPendingFileOperation(
+    operation: PendingFileOperation,
+    coursesRoot: string
+  ): void {
+    if (
+      operation.type !== 'move' ||
+      !isStrictPathWithin(coursesRoot, operation.destinationPath)
+    ) {
       this.updateFileOperationStatus(
         operation.operationId,
         'failed',
@@ -2102,9 +2432,9 @@ export class DatabaseService {
     }
 
     if (sourceState === 'missing' && destinationState === 'present') {
-      const persistedCourse = this.db!
-        .prepare(`SELECT 1 FROM courses WHERE root_path = ? LIMIT 1`)
-        .get(operation.destinationPath)
+      const persistedCourse = this.db!.prepare(
+        `SELECT 1 FROM courses WHERE root_path = ? LIMIT 1`
+      ).get(operation.destinationPath)
       if (persistedCourse) {
         this.updateFileOperationStatus(
           operation.operationId,
@@ -2115,7 +2445,10 @@ export class DatabaseService {
       }
 
       const sourceParent = path.dirname(operation.sourcePath)
-      if (!isRealDirectory(operation.destinationPath) || !isRealDirectory(sourceParent)) {
+      if (
+        !isRealDirectory(operation.destinationPath) ||
+        !isRealDirectory(sourceParent)
+      ) {
         this.updateFileOperationStatus(
           operation.operationId,
           'failed',
@@ -2143,7 +2476,9 @@ export class DatabaseService {
   public updateCourseLastAccessed(courseId: string): void {
     this.ensureConnected()
     const now = Date.now()
-    const stmt = this.db!.prepare(`UPDATE courses SET last_accessed_at = ? WHERE id = ?`)
+    const stmt = this.db!.prepare(
+      `UPDATE courses SET last_accessed_at = ? WHERE id = ?`
+    )
     stmt.run(now, courseId)
   }
 
@@ -2191,7 +2526,8 @@ export class DatabaseService {
       FROM lesson_progress
       WHERE lesson_id = ?
     `)
-    const row = stmt.get(lessonId) as (Omit<LessonProgress, 'completed'> & { completed: number }) | undefined
+    const row = stmt.get(lessonId) as
+      (Omit<LessonProgress, 'completed'> & { completed: number }) | undefined
     if (!row) return null
     return {
       ...row,
@@ -2210,7 +2546,9 @@ export class DatabaseService {
       FROM lesson_progress
       WHERE course_id = ?
     `)
-    const rows = stmt.all(courseId) as (Omit<LessonProgress, 'completed'> & { completed: number })[]
+    const rows = stmt.all(courseId) as (Omit<LessonProgress, 'completed'> & {
+      completed: number
+    })[]
     return rows.map((row) => ({ ...row, completed: Boolean(row.completed) }))
   }
 
@@ -2237,7 +2575,9 @@ export class DatabaseService {
     return newStatus
   }
 
-  public getCourseProgressSummary(courseId: string): CourseProgressSummary | null {
+  public getCourseProgressSummary(
+    courseId: string
+  ): CourseProgressSummary | null {
     this.ensureConnected()
 
     const stmt = this.db!.prepare(`
@@ -2294,10 +2634,13 @@ export class DatabaseService {
       lastPlayedAt: number | null
     }
 
-    const row = stmt.get(courseId, courseId, courseId) as ProgressSummaryRow | undefined
+    const row = stmt.get(courseId, courseId, courseId) as
+      ProgressSummaryRow | undefined
     if (!row || row.totalLessons === 0) return null
 
-    const percentage = Math.round((row.completedLessons / row.totalLessons) * 100)
+    const percentage = Math.round(
+      (row.completedLessons / row.totalLessons) * 100
+    )
 
     return {
       courseId: row.courseId,
@@ -2370,7 +2713,9 @@ export class DatabaseService {
     const summaries: Record<string, CourseProgressSummary> = {}
 
     for (const row of rows) {
-      const percentage = Math.round((row.completedLessons / row.totalLessons) * 100)
+      const percentage = Math.round(
+        (row.completedLessons / row.totalLessons) * 100
+      )
       summaries[row.courseId] = {
         courseId: row.courseId,
         totalLessons: row.totalLessons,
@@ -2380,7 +2725,10 @@ export class DatabaseService {
         lastPlayedLessonTitle: row.lastPlayedLessonTitle || undefined,
         lastPlayedAt: row.lastPlayedAt || undefined,
         totalDuration: row.totalDuration,
-        remainingDuration: Math.max(0, row.totalDuration * (1 - percentage / 100))
+        remainingDuration: Math.max(
+          0,
+          row.totalDuration * (1 - percentage / 100)
+        )
       }
     }
 
@@ -2462,7 +2810,9 @@ export class DatabaseService {
     return stmt.all(lessonId) as LessonNote[]
   }
 
-  public addLessonNote(note: Omit<LessonNote, 'id' | 'createdAt' | 'updatedAt'>): LessonNote {
+  public addLessonNote(
+    note: Omit<LessonNote, 'id' | 'createdAt' | 'updatedAt'>
+  ): LessonNote {
     this.ensureConnected()
     const now = Date.now()
     const id = crypto.randomUUID()
@@ -2471,7 +2821,15 @@ export class DatabaseService {
         id, lesson_id, course_id, timestamp_seconds, content, created_at, updated_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?)
     `)
-    stmt.run(id, note.lessonId, note.courseId, note.timestampSeconds, note.content, now, now)
+    stmt.run(
+      id,
+      note.lessonId,
+      note.courseId,
+      note.timestampSeconds,
+      note.content,
+      now,
+      now
+    )
     return {
       id,
       lessonId: note.lessonId,
@@ -2518,6 +2876,359 @@ export class DatabaseService {
     return stmt.all(courseId) as LessonNote[]
   }
 
+  // --- AI Summaries Operations (v0.9 Phase 6) ---
+
+  public getAiSummary(scope: SummaryScope): SummaryRecord | null {
+    this.ensureConnected()
+    interface SummaryDbRow {
+      id: string
+      scope_type: SummaryScopeType
+      course_id: string
+      module_id: string | null
+      lesson_id: string | null
+      title: string
+      overview: string
+      key_concepts_json: string
+      topics_covered_json: string
+      important_details_json: string
+      timestamps_json: string
+      full_markdown: string
+      provider_id: string
+      model_id: string
+      template_version: string
+      source_revision: string
+      is_stale: number
+      created_at: number
+      updated_at: number
+    }
+
+    let row: SummaryDbRow | undefined = undefined
+    if (scope.type === 'lesson') {
+      row = this.db!.prepare(
+        `
+        SELECT * FROM ai_summaries
+        WHERE scope_type = 'lesson' AND course_id = ? AND module_id = ? AND lesson_id = ?
+      `
+      ).get(scope.courseId, scope.moduleId, scope.lessonId) as
+        SummaryDbRow | undefined
+    } else if (scope.type === 'module') {
+      row = this.db!.prepare(
+        `
+        SELECT * FROM ai_summaries
+        WHERE scope_type = 'module' AND course_id = ? AND module_id = ? AND lesson_id IS NULL
+      `
+      ).get(scope.courseId, scope.moduleId) as SummaryDbRow | undefined
+    } else {
+      row = this.db!.prepare(
+        `
+        SELECT * FROM ai_summaries
+        WHERE scope_type = 'course' AND course_id = ? AND module_id IS NULL AND lesson_id IS NULL
+      `
+      ).get(scope.courseId) as SummaryDbRow | undefined
+    }
+    if (!row) return null
+
+    return {
+      id: row.id,
+      scopeType: row.scope_type,
+      courseId: row.course_id,
+      moduleId: row.module_id || undefined,
+      lessonId: row.lesson_id || undefined,
+      title: row.title,
+      overview: row.overview,
+      keyConcepts: JSON.parse(row.key_concepts_json || '[]'),
+      topicsCovered: JSON.parse(row.topics_covered_json || '[]'),
+      importantDetails: JSON.parse(row.important_details_json || '[]'),
+      timestamps: JSON.parse(row.timestamps_json || '[]'),
+      fullMarkdown: row.full_markdown,
+      providerId: row.provider_id,
+      modelId: row.model_id,
+      templateVersion: row.template_version,
+      sourceRevision: row.source_revision,
+      isStale: Boolean(row.is_stale),
+      createdAt: row.created_at,
+      updatedAt: row.updated_at
+    }
+  }
+
+  public upsertAiSummary(
+    summary: Omit<SummaryRecord, 'id' | 'createdAt' | 'updatedAt'> & {
+      id?: string
+    }
+  ): SummaryRecord {
+    this.ensureConnected()
+    const now = Date.now()
+    let id = summary.id
+    if (!id) {
+      const existing = this.getAiSummary(
+        summary.scopeType === 'lesson'
+          ? {
+              type: 'lesson',
+              courseId: summary.courseId,
+              moduleId: summary.moduleId!,
+              lessonId: summary.lessonId!
+            }
+          : summary.scopeType === 'module'
+            ? {
+                type: 'module',
+                courseId: summary.courseId,
+                moduleId: summary.moduleId!
+              }
+            : { type: 'course', courseId: summary.courseId }
+      )
+      id = existing?.id || crypto.randomUUID()
+    }
+    const stmt = this.db!.prepare(`
+      INSERT INTO ai_summaries (
+        id, scope_type, course_id, module_id, lesson_id, title, overview,
+        key_concepts_json, topics_covered_json, important_details_json, timestamps_json,
+        full_markdown, provider_id, model_id, template_version, source_revision,
+        is_stale, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        title = excluded.title,
+        overview = excluded.overview,
+        key_concepts_json = excluded.key_concepts_json,
+        topics_covered_json = excluded.topics_covered_json,
+        important_details_json = excluded.important_details_json,
+        timestamps_json = excluded.timestamps_json,
+        full_markdown = excluded.full_markdown,
+        provider_id = excluded.provider_id,
+        model_id = excluded.model_id,
+        template_version = excluded.template_version,
+        source_revision = excluded.source_revision,
+        is_stale = excluded.is_stale,
+        updated_at = excluded.updated_at
+    `)
+
+    stmt.run(
+      id,
+      summary.scopeType,
+      summary.courseId,
+      summary.moduleId || null,
+      summary.lessonId || null,
+      summary.title,
+      summary.overview,
+      JSON.stringify(summary.keyConcepts || []),
+      JSON.stringify(summary.topicsCovered || []),
+      JSON.stringify(summary.importantDetails || []),
+      JSON.stringify(summary.timestamps || []),
+      summary.fullMarkdown,
+      summary.providerId,
+      summary.modelId,
+      summary.templateVersion,
+      summary.sourceRevision,
+      summary.isStale ? 1 : 0,
+      now,
+      now
+    )
+
+    return {
+      id,
+      ...summary,
+      createdAt: now,
+      updatedAt: now
+    }
+  }
+
+  public markAiSummariesStale(
+    courseId: string,
+    moduleId?: string,
+    lessonId?: string
+  ): void {
+    this.ensureConnected()
+    if (lessonId) {
+      this.db!.prepare(
+        `
+        UPDATE ai_summaries SET is_stale = 1
+        WHERE course_id = ? AND (lesson_id = ? OR module_id = ? OR scope_type = 'course')
+      `
+      ).run(courseId, lessonId, moduleId || null)
+    } else if (moduleId) {
+      this.db!.prepare(
+        `
+        UPDATE ai_summaries SET is_stale = 1
+        WHERE course_id = ? AND (module_id = ? OR scope_type = 'course')
+      `
+      ).run(courseId, moduleId)
+    } else {
+      this.db!.prepare(
+        `
+        UPDATE ai_summaries SET is_stale = 1 WHERE course_id = ?
+      `
+      ).run(courseId)
+    }
+  }
+
+  // --- Lesson Chapters Operations (v0.9 Phase 6) ---
+
+  public getLessonChapters(lessonId: string): LessonChapter[] {
+    this.ensureConnected()
+    const stmt = this.db!.prepare(`
+      SELECT
+        id,
+        lesson_id as lessonId,
+        course_id as courseId,
+        title,
+        timestamp_seconds as timestampSeconds,
+        source,
+        is_manual as isManual,
+        order_index as orderIndex,
+        created_at as createdAt,
+        updated_at as updatedAt
+      FROM lesson_chapters
+      WHERE lesson_id = ?
+      ORDER BY timestamp_seconds ASC, order_index ASC
+    `)
+    type ChapterRow = {
+      id: string
+      lessonId: string
+      courseId: string
+      title: string
+      timestampSeconds: number
+      source: import('../../types/chapters').ChapterSource
+      isManual: number
+      orderIndex: number
+      createdAt: number
+      updatedAt: number
+    }
+
+    const rows = stmt.all(lessonId) as ChapterRow[]
+    return rows.map((r) => ({
+      ...r,
+      isManual: Boolean(r.isManual)
+    }))
+  }
+
+  public saveLessonChapters(
+    lessonId: string,
+    courseId: string,
+    chapters: Array<
+      Omit<LessonChapter, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }
+    >
+  ): LessonChapter[] {
+    this.ensureConnected()
+    const now = Date.now()
+
+    this.db!.transaction(() => {
+      // Clear non-manual chapters for this lesson
+      this.db!.prepare(
+        `DELETE FROM lesson_chapters WHERE lesson_id = ? AND is_manual = 0`
+      ).run(lessonId)
+
+      const insertStmt = this.db!.prepare(`
+        INSERT INTO lesson_chapters (
+          id, lesson_id, course_id, title, timestamp_seconds, source, is_manual, order_index, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          title = excluded.title,
+          timestamp_seconds = excluded.timestamp_seconds,
+          source = excluded.source,
+          is_manual = excluded.is_manual,
+          order_index = excluded.order_index,
+          updated_at = excluded.updated_at
+      `)
+
+      let order = 0
+      for (const ch of chapters) {
+        const id = ch.id || crypto.randomUUID()
+        insertStmt.run(
+          id,
+          lessonId,
+          courseId,
+          ch.title.trim(),
+          ch.timestampSeconds,
+          ch.source || (ch.isManual ? 'manual' : 'ai'),
+          ch.isManual ? 1 : 0,
+          ch.orderIndex ?? order++,
+          now,
+          now
+        )
+      }
+    })()
+
+    return this.getLessonChapters(lessonId)
+  }
+
+  public updateLessonChapter(
+    id: string,
+    updateOrLessonId: string | { title?: string; timestampSeconds?: number },
+    maybeUpdate?: { title?: string; timestampSeconds?: number }
+  ): LessonChapter | null {
+    this.ensureConnected()
+    const now = Date.now()
+    const lessonId =
+      typeof updateOrLessonId === 'string' ? updateOrLessonId : undefined
+    const update =
+      typeof updateOrLessonId === 'object'
+        ? updateOrLessonId
+        : maybeUpdate || {}
+
+    type ChapterRow = {
+      id: string
+      lesson_id: string
+      course_id: string
+      title: string
+      timestamp_seconds: number
+      source: import('../../types/chapters').ChapterSource
+      is_manual: number
+      order_index: number
+      created_at: number
+      updated_at: number
+    }
+
+    const current = lessonId
+      ? (this.db!.prepare(
+          `SELECT * FROM lesson_chapters WHERE id = ? AND lesson_id = ?`
+        ).get(id, lessonId) as ChapterRow | undefined)
+      : (this.db!.prepare(`SELECT * FROM lesson_chapters WHERE id = ?`).get(
+          id
+        ) as ChapterRow | undefined)
+    if (!current) return null
+
+    const title =
+      update.title !== undefined ? update.title.trim() : current.title
+    const timestampSeconds =
+      update.timestampSeconds !== undefined
+        ? update.timestampSeconds
+        : current.timestamp_seconds
+
+    this.db!.prepare(
+      `
+      UPDATE lesson_chapters
+      SET title = ?, timestamp_seconds = ?, is_manual = 1, source = 'manual', updated_at = ?
+      WHERE id = ?
+    `
+    ).run(title, timestampSeconds, now, id)
+
+    const updated = this.db!.prepare(
+      `SELECT * FROM lesson_chapters WHERE id = ?`
+    ).get(id) as ChapterRow | undefined
+    if (!updated) return null
+    return {
+      id: updated.id,
+      lessonId: updated.lesson_id,
+      courseId: updated.course_id,
+      title: updated.title,
+      timestampSeconds: updated.timestamp_seconds,
+      source: updated.source,
+      isManual: Boolean(updated.is_manual),
+      orderIndex: updated.order_index,
+      createdAt: updated.created_at,
+      updatedAt: updated.updated_at
+    }
+  }
+
+  public deleteLessonChapter(id: string, lessonId?: string): boolean {
+    this.ensureConnected()
+    const result = lessonId
+      ? this.db!.prepare(
+          `DELETE FROM lesson_chapters WHERE id = ? AND lesson_id = ?`
+        ).run(id, lessonId)
+      : this.db!.prepare(`DELETE FROM lesson_chapters WHERE id = ?`).run(id)
+    return result.changes > 0
+  }
+
   // --- Video Bookmarks Operations (v0.3) ---
 
   public createBookmark(bookmark: {
@@ -2531,13 +3242,25 @@ export class DatabaseService {
     this.ensureConnected()
     const now = Date.now()
     const id = bookmark.id || crypto.randomUUID()
-    const title = bookmark.title?.trim() || `Bookmark ${Math.floor(bookmark.timestamp)}s`
+    const title =
+      bookmark.title?.trim() || `Bookmark ${Math.floor(bookmark.timestamp)}s`
     const color = bookmark.color || '#f59e0b'
 
-    this.db!.prepare(`
+    this.db!.prepare(
+      `
       INSERT INTO video_bookmarks (id, course_id, lesson_id, timestamp, title, color, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(id, bookmark.courseId, bookmark.lessonId, bookmark.timestamp, title, color, now, now)
+    `
+    ).run(
+      id,
+      bookmark.courseId,
+      bookmark.lessonId,
+      bookmark.timestamp,
+      title,
+      color,
+      now,
+      now
+    )
 
     return {
       id,
@@ -2551,7 +3274,10 @@ export class DatabaseService {
     }
   }
 
-  public updateBookmark(id: string, updates: { title?: string; color?: string; timestamp?: number }): boolean {
+  public updateBookmark(
+    id: string,
+    updates: { title?: string; color?: string; timestamp?: number }
+  ): boolean {
     this.ensureConnected()
     const now = Date.now()
     const fields: string[] = []
@@ -2575,19 +3301,24 @@ export class DatabaseService {
     params.push(now)
     params.push(id)
 
-    const res = this.db!.prepare(`UPDATE video_bookmarks SET ${fields.join(', ')} WHERE id = ?`).run(...params)
+    const res = this.db!.prepare(
+      `UPDATE video_bookmarks SET ${fields.join(', ')} WHERE id = ?`
+    ).run(...params)
     return res.changes > 0
   }
 
   public deleteBookmark(id: string): boolean {
     this.ensureConnected()
-    const res = this.db!.prepare(`DELETE FROM video_bookmarks WHERE id = ?`).run(id)
+    const res = this.db!.prepare(
+      `DELETE FROM video_bookmarks WHERE id = ?`
+    ).run(id)
     return res.changes > 0
   }
 
   public getBookmarksByLesson(lessonId: string): VideoBookmark[] {
     this.ensureConnected()
-    const rows = this.db!.prepare(`
+    const rows = this.db!.prepare(
+      `
       SELECT b.id, b.course_id as courseId, b.lesson_id as lessonId, b.timestamp, b.title, b.color,
              b.created_at as createdAt, b.updated_at as updatedAt,
              c.title as courseTitle, l.title as lessonTitle
@@ -2596,13 +3327,15 @@ export class DatabaseService {
       LEFT JOIN lessons l ON b.lesson_id = l.id
       WHERE b.lesson_id = ?
       ORDER BY b.timestamp ASC
-    `).all(lessonId) as VideoBookmark[]
+    `
+    ).all(lessonId) as VideoBookmark[]
     return rows
   }
 
   public getBookmarksByCourse(courseId: string): VideoBookmark[] {
     this.ensureConnected()
-    const rows = this.db!.prepare(`
+    const rows = this.db!.prepare(
+      `
       SELECT b.id, b.course_id as courseId, b.lesson_id as lessonId, b.timestamp, b.title, b.color,
              b.created_at as createdAt, b.updated_at as updatedAt,
              c.title as courseTitle, l.title as lessonTitle
@@ -2611,13 +3344,15 @@ export class DatabaseService {
       LEFT JOIN lessons l ON b.lesson_id = l.id
       WHERE b.course_id = ?
       ORDER BY b.created_at DESC
-    `).all(courseId) as VideoBookmark[]
+    `
+    ).all(courseId) as VideoBookmark[]
     return rows
   }
 
   public getRecentBookmarks(limit = 30): VideoBookmark[] {
     this.ensureConnected()
-    const rows = this.db!.prepare(`
+    const rows = this.db!.prepare(
+      `
       SELECT b.id, b.course_id as courseId, b.lesson_id as lessonId, b.timestamp, b.title, b.color,
              b.created_at as createdAt, b.updated_at as updatedAt,
              c.title as courseTitle, l.title as lessonTitle
@@ -2626,7 +3361,8 @@ export class DatabaseService {
       LEFT JOIN lessons l ON b.lesson_id = l.id
       ORDER BY b.created_at DESC
       LIMIT ?
-    `).all(limit) as VideoBookmark[]
+    `
+    ).all(limit) as VideoBookmark[]
     return rows
   }
 
@@ -2649,12 +3385,14 @@ export class DatabaseService {
     const state: FlashcardState = card.state || 'NEW'
     const dueAt = card.dueAt || now
 
-    this.db!.prepare(`
+    this.db!.prepare(
+      `
       INSERT INTO flashcards (
         id, course_id, module_id, lesson_id, timestamp, question, answer,
         state, due_at, interval_days, success_count, created_at, updated_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
+    `
+    ).run(
       id,
       card.courseId || null,
       card.moduleId || null,
@@ -2723,7 +3461,9 @@ export class DatabaseService {
     params.push(now)
     params.push(id)
 
-    const res = this.db!.prepare(`UPDATE flashcards SET ${fields.join(', ')} WHERE id = ?`).run(...params)
+    const res = this.db!.prepare(
+      `UPDATE flashcards SET ${fields.join(', ')} WHERE id = ?`
+    ).run(...params)
     return res.changes > 0
   }
 
@@ -2735,7 +3475,8 @@ export class DatabaseService {
 
   public getFlashcardById(id: string): Flashcard | null {
     this.ensureConnected()
-    const row = this.db!.prepare(`
+    const row = this.db!.prepare(
+      `
       SELECT f.id, f.course_id as courseId, f.module_id as moduleId, f.lesson_id as lessonId,
              f.timestamp, f.question, f.answer, f.state, f.due_at as dueAt,
              f.interval_days as intervalDays, f.success_count as successCount,
@@ -2745,14 +3486,16 @@ export class DatabaseService {
       LEFT JOIN courses c ON f.course_id = c.id
       LEFT JOIN lessons l ON f.lesson_id = l.id
       WHERE f.id = ?
-    `).get(id) as Flashcard | undefined
+    `
+    ).get(id) as Flashcard | undefined
     return row || null
   }
 
   public getDueFlashcards(limit = 100): Flashcard[] {
     this.ensureConnected()
     const now = Date.now()
-    const rows = this.db!.prepare(`
+    const rows = this.db!.prepare(
+      `
       SELECT f.id, f.course_id as courseId, f.module_id as moduleId, f.lesson_id as lessonId,
              f.timestamp, f.question, f.answer, f.state, f.due_at as dueAt,
              f.interval_days as intervalDays, f.success_count as successCount,
@@ -2764,7 +3507,8 @@ export class DatabaseService {
       WHERE f.due_at IS NULL OR f.due_at <= ?
       ORDER BY f.due_at ASC NULLS FIRST, f.created_at ASC
       LIMIT ?
-    `).all(now, limit) as Flashcard[]
+    `
+    ).all(now, limit) as Flashcard[]
     return rows
   }
 
@@ -2792,7 +3536,8 @@ export class DatabaseService {
 
   public getFlashcardsByLesson(lessonId: string): Flashcard[] {
     this.ensureConnected()
-    return this.db!.prepare(`
+    return this.db!.prepare(
+      `
       SELECT f.id, f.course_id as courseId, f.module_id as moduleId, f.lesson_id as lessonId,
              f.timestamp, f.question, f.answer, f.state, f.due_at as dueAt,
              f.interval_days as intervalDays, f.success_count as successCount,
@@ -2803,10 +3548,14 @@ export class DatabaseService {
       LEFT JOIN lessons l ON f.lesson_id = l.id
       WHERE f.lesson_id = ?
       ORDER BY f.timestamp ASC NULLS LAST, f.created_at ASC
-    `).all(lessonId) as Flashcard[]
+    `
+    ).all(lessonId) as Flashcard[]
   }
 
-  public reviewFlashcard(id: string, grade: FlashcardReviewGrade): { success: boolean; flashcard?: Flashcard } {
+  public reviewFlashcard(
+    id: string,
+    grade: FlashcardReviewGrade
+  ): { success: boolean; flashcard?: Flashcard } {
     this.ensureConnected()
     const card = this.getFlashcardById(id)
     if (!card) return { success: false }
@@ -2838,11 +3587,13 @@ export class DatabaseService {
       nextState = 'REVIEW'
     }
 
-    this.db!.prepare(`
+    this.db!.prepare(
+      `
       UPDATE flashcards
       SET state = ?, due_at = ?, interval_days = ?, success_count = ?, updated_at = ?
       WHERE id = ?
-    `).run(nextState, nextDueAt, nextInterval, nextSuccessCount, now, id)
+    `
+    ).run(nextState, nextDueAt, nextInterval, nextSuccessCount, now, id)
 
     const updated = this.getFlashcardById(id)
     return { success: true, flashcard: updated || undefined }
@@ -2850,23 +3601,32 @@ export class DatabaseService {
 
   // --- Study Queue Operations (v0.3) ---
 
-  public addToStudyQueue(entityType: StudyQueueEntityType, entityId: string): StudyQueueItem {
+  public addToStudyQueue(
+    entityType: StudyQueueEntityType,
+    entityId: string
+  ): StudyQueueItem {
     this.ensureConnected()
-    const existing = this.db!.prepare(`SELECT id FROM study_queue WHERE entity_type = ? AND entity_id = ?`).get(entityType, entityId) as { id: string } | undefined
+    const existing = this.db!.prepare(
+      `SELECT id FROM study_queue WHERE entity_type = ? AND entity_id = ?`
+    ).get(entityType, entityId) as { id: string } | undefined
     if (existing) {
       const items = this.getStudyQueue()
       return items.find((i) => i.id === existing.id)!
     }
 
-    const maxOrderRow = this.db!.prepare(`SELECT COALESCE(MAX(order_index), 0) as maxOrder FROM study_queue`).get() as { maxOrder: number } | undefined
+    const maxOrderRow = this.db!.prepare(
+      `SELECT COALESCE(MAX(order_index), 0) as maxOrder FROM study_queue`
+    ).get() as { maxOrder: number } | undefined
     const nextOrder = (maxOrderRow?.maxOrder ?? 0) + 1
     const id = crypto.randomUUID()
     const now = Date.now()
 
-    this.db!.prepare(`
+    this.db!.prepare(
+      `
       INSERT INTO study_queue (id, entity_type, entity_id, order_index, created_at)
       VALUES (?, ?, ?, ?, ?)
-    `).run(id, entityType, entityId, nextOrder, now)
+    `
+    ).run(id, entityType, entityId, nextOrder, now)
 
     const items = this.getStudyQueue()
     return items.find((i) => i.id === id)!
@@ -2880,7 +3640,9 @@ export class DatabaseService {
 
   public reorderStudyQueue(id: string, direction: 'up' | 'down'): boolean {
     this.ensureConnected()
-    const all = this.db!.prepare(`SELECT id, order_index as orderIndex FROM study_queue ORDER BY order_index ASC, created_at ASC`).all() as Array<{ id: string; orderIndex: number }>
+    const all = this.db!.prepare(
+      `SELECT id, order_index as orderIndex FROM study_queue ORDER BY order_index ASC, created_at ASC`
+    ).all() as Array<{ id: string; orderIndex: number }>
     const currentIndex = all.findIndex((item) => item.id === id)
     if (currentIndex === -1) return false
 
@@ -2891,8 +3653,12 @@ export class DatabaseService {
     const otherItem = all[swapIndex]
 
     const tx = this.db!.transaction(() => {
-      this.db!.prepare(`UPDATE study_queue SET order_index = ? WHERE id = ?`).run(otherItem.orderIndex, currentItem.id)
-      this.db!.prepare(`UPDATE study_queue SET order_index = ? WHERE id = ?`).run(currentItem.orderIndex, otherItem.id)
+      this.db!.prepare(
+        `UPDATE study_queue SET order_index = ? WHERE id = ?`
+      ).run(otherItem.orderIndex, currentItem.id)
+      this.db!.prepare(
+        `UPDATE study_queue SET order_index = ? WHERE id = ?`
+      ).run(currentItem.orderIndex, otherItem.id)
     })
     tx()
 
@@ -2901,17 +3667,29 @@ export class DatabaseService {
 
   public getStudyQueue(): StudyQueueItem[] {
     this.ensureConnected()
-    const rows = this.db!.prepare(`
+    const rows = this.db!.prepare(
+      `
       SELECT id, entity_type as entityType, entity_id as entityId, order_index as orderIndex, created_at as createdAt
       FROM study_queue
       ORDER BY order_index ASC, created_at ASC
-    `).all() as Array<{ id: string; entityType: StudyQueueEntityType; entityId: string; orderIndex: number; createdAt: number }>
+    `
+    ).all() as Array<{
+      id: string
+      entityType: StudyQueueEntityType
+      entityId: string
+      orderIndex: number
+      createdAt: number
+    }>
 
     const results: StudyQueueItem[] = []
 
     for (const r of rows) {
       if (r.entityType === 'course') {
-        const c = this.db!.prepare(`SELECT id, title, cover_path as coverPath, total_duration as duration FROM courses WHERE id = ?`).get(r.entityId) as { id: string; title: string; coverPath?: string; duration: number } | undefined
+        const c = this.db!.prepare(
+          `SELECT id, title, cover_path as coverPath, total_duration as duration FROM courses WHERE id = ?`
+        ).get(r.entityId) as
+          | { id: string; title: string; coverPath?: string; duration: number }
+          | undefined
         if (c) {
           results.push({
             id: r.id,
@@ -2927,12 +3705,23 @@ export class DatabaseService {
           })
         }
       } else if (r.entityType === 'module') {
-        const m = this.db!.prepare(`
+        const m = this.db!.prepare(
+          `
           SELECT m.id, m.title, m.course_id as courseId, m.duration, c.title as courseTitle, c.cover_path as coverPath
           FROM modules m
           JOIN courses c ON m.course_id = c.id
           WHERE m.id = ?
-        `).get(r.entityId) as { id: string; title: string; courseId: string; duration: number; courseTitle: string; coverPath?: string } | undefined
+        `
+        ).get(r.entityId) as
+          | {
+              id: string
+              title: string
+              courseId: string
+              duration: number
+              courseTitle: string
+              coverPath?: string
+            }
+          | undefined
         if (m) {
           results.push({
             id: r.id,
@@ -2949,14 +3738,26 @@ export class DatabaseService {
           })
         }
       } else if (r.entityType === 'lesson') {
-        const l = this.db!.prepare(`
+        const l = this.db!.prepare(
+          `
           SELECT l.id, l.title, l.course_id as courseId, l.duration, l.cover_path as coverPath,
                  c.title as courseTitle, m.title as moduleTitle
           FROM lessons l
           JOIN courses c ON l.course_id = c.id
           JOIN modules m ON l.module_id = m.id
           WHERE l.id = ?
-        `).get(r.entityId) as { id: string; title: string; courseId: string; duration: number; coverPath?: string; courseTitle: string; moduleTitle: string } | undefined
+        `
+        ).get(r.entityId) as
+          | {
+              id: string
+              title: string
+              courseId: string
+              duration: number
+              coverPath?: string
+              courseTitle: string
+              moduleTitle: string
+            }
+          | undefined
         if (l) {
           results.push({
             id: r.id,
@@ -2982,12 +3783,14 @@ export class DatabaseService {
 
   public getCourseGoal(courseId: string): CourseGoal | null {
     this.ensureConnected()
-    const row = this.db!.prepare(`
+    const row = this.db!.prepare(
+      `
       SELECT course_id as courseId, target_date as targetDate, daily_minutes as dailyMinutes,
              weekly_lessons as weeklyLessons, updated_at as updatedAt
       FROM course_goals
       WHERE course_id = ?
-    `).get(courseId) as CourseGoal | undefined
+    `
+    ).get(courseId) as CourseGoal | undefined
     return row || null
   }
 
@@ -2999,10 +3802,18 @@ export class DatabaseService {
   }): CourseGoal {
     this.ensureConnected()
     const now = Date.now()
-    this.db!.prepare(`
+    this.db!.prepare(
+      `
       INSERT OR REPLACE INTO course_goals (course_id, target_date, daily_minutes, weekly_lessons, updated_at)
       VALUES (?, ?, ?, ?, ?)
-    `).run(goal.courseId, goal.targetDate || null, goal.dailyMinutes || null, goal.weeklyLessons || null, now)
+    `
+    ).run(
+      goal.courseId,
+      goal.targetDate || null,
+      goal.dailyMinutes || null,
+      goal.weeklyLessons || null,
+      now
+    )
 
     return {
       courseId: goal.courseId,
@@ -3015,22 +3826,30 @@ export class DatabaseService {
 
   public deleteCourseGoal(courseId: string): boolean {
     this.ensureConnected()
-    const res = this.db!.prepare(`DELETE FROM course_goals WHERE course_id = ?`).run(courseId)
+    const res = this.db!.prepare(
+      `DELETE FROM course_goals WHERE course_id = ?`
+    ).run(courseId)
     return res.changes > 0
   }
 
   // --- Study Sessions Operations (v0.3) ---
 
-  public startStudySession(session: { id?: string; courseId?: string; source?: 'player' | 'focus_timer' }): StudySession {
+  public startStudySession(session: {
+    id?: string
+    courseId?: string
+    source?: 'player' | 'focus_timer'
+  }): StudySession {
     this.ensureConnected()
     const id = session.id || crypto.randomUUID()
     const now = Date.now()
     const source = session.source || 'player'
 
-    this.db!.prepare(`
+    this.db!.prepare(
+      `
       INSERT INTO study_sessions (id, course_id, started_at, duration, source)
       VALUES (?, ?, ?, 0, ?)
-    `).run(id, session.courseId || null, now, source)
+    `
+    ).run(id, session.courseId || null, now, source)
 
     return {
       id,
@@ -3046,24 +3865,32 @@ export class DatabaseService {
     const now = Date.now()
     let dur = duration
     if (dur === undefined) {
-      const existing = this.db!.prepare(`SELECT started_at as startedAt FROM study_sessions WHERE id = ?`).get(id) as { startedAt: number } | undefined
-      dur = existing ? Math.max(0, Math.floor((now - existing.startedAt) / 1000)) : 0
+      const existing = this.db!.prepare(
+        `SELECT started_at as startedAt FROM study_sessions WHERE id = ?`
+      ).get(id) as { startedAt: number } | undefined
+      dur = existing
+        ? Math.max(0, Math.floor((now - existing.startedAt) / 1000))
+        : 0
     }
 
-    const res = this.db!.prepare(`
+    const res = this.db!.prepare(
+      `
       UPDATE study_sessions SET ended_at = ?, duration = ? WHERE id = ?
-    `).run(now, dur, id)
+    `
+    ).run(now, dur, id)
     return res.changes > 0
   }
 
   public getStudySessions(limit = 50): StudySession[] {
     this.ensureConnected()
-    return this.db!.prepare(`
+    return this.db!.prepare(
+      `
       SELECT id, course_id as courseId, started_at as startedAt, ended_at as endedAt, duration, source
       FROM study_sessions
       ORDER BY started_at DESC
       LIMIT ?
-    `).all(limit) as StudySession[]
+    `
+    ).all(limit) as StudySession[]
   }
 
   // --- Review Dashboard Aggregator (v0.3) ---
@@ -3072,25 +3899,35 @@ export class DatabaseService {
     this.ensureConnected()
     const now = Date.now()
 
-    const dueFlashcardsRow = this.db!.prepare(`
+    const dueFlashcardsRow = this.db!.prepare(
+      `
       SELECT count(*) as cnt FROM flashcards WHERE due_at IS NULL OR due_at <= ?
-    `).get(now) as { cnt: number } | undefined
+    `
+    ).get(now) as { cnt: number } | undefined
 
-    const totalFlashcardsRow = this.db!.prepare(`
+    const totalFlashcardsRow = this.db!.prepare(
+      `
       SELECT count(*) as cnt FROM flashcards
-    `).get() as { cnt: number } | undefined
+    `
+    ).get() as { cnt: number } | undefined
 
-    const bookmarksRow = this.db!.prepare(`
+    const bookmarksRow = this.db!.prepare(
+      `
       SELECT count(*) as cnt FROM video_bookmarks
-    `).get() as { cnt: number } | undefined
+    `
+    ).get() as { cnt: number } | undefined
 
-    const studyQueueRow = this.db!.prepare(`
+    const studyQueueRow = this.db!.prepare(
+      `
       SELECT count(*) as cnt FROM study_queue
-    `).get() as { cnt: number } | undefined
+    `
+    ).get() as { cnt: number } | undefined
 
-    const recentNotesRow = this.db!.prepare(`
+    const recentNotesRow = this.db!.prepare(
+      `
       SELECT count(*) as cnt FROM lesson_notes
-    `).get() as { cnt: number } | undefined
+    `
+    ).get() as { cnt: number } | undefined
 
     const analytics = this.getStudyAnalytics()
 
@@ -3163,7 +4000,9 @@ export class DatabaseService {
     const ids = [
       ...new Set(
         (Array.isArray(courseIds) ? courseIds : [])
-          .map((courseId) => (typeof courseId === 'string' ? courseId.trim() : ''))
+          .map((courseId) =>
+            typeof courseId === 'string' ? courseId.trim() : ''
+          )
           .filter(Boolean)
       )
     ]
@@ -3234,7 +4073,10 @@ export class DatabaseService {
           let matchingLesson: Lesson | undefined
           let reason: MergeDuplicateCandidate['reason'] | undefined
           for (const targetLesson of targetModule.lessons) {
-            const candidateReason = this.getMergePreviewDuplicateReason(sourceLesson, targetLesson)
+            const candidateReason = this.getMergePreviewDuplicateReason(
+              sourceLesson,
+              targetLesson
+            )
             if (candidateReason) {
               matchingLesson = targetLesson
               reason = candidateReason
@@ -3266,12 +4108,21 @@ export class DatabaseService {
       canonicalCourseTitle: canonical.course.title,
       selectedCourseIds: ids,
       totalLessons: courses.reduce(
-        (total, course) => total + course.modules.reduce((sum, module) => sum + module.lessons.length, 0),
+        (total, course) =>
+          total +
+          course.modules.reduce(
+            (sum, module) => sum + module.lessons.length,
+            0
+          ),
         0
       ),
       totalMaterials: courses.reduce(
         (total, course) =>
-          total + course.modules.reduce((sum, module) => sum + this.countMergePreviewMaterials(module), 0),
+          total +
+          course.modules.reduce(
+            (sum, module) => sum + this.countMergePreviewMaterials(module),
+            0
+          ),
         0
       ),
       modules,
@@ -3284,11 +4135,15 @@ export class DatabaseService {
     return normalized || `module:${module.id}`
   }
 
-  private countMergePreviewMaterials(module: Module & { lessons: Lesson[] }): number {
+  private countMergePreviewMaterials(
+    module: Module & { lessons: Lesson[] }
+  ): number {
     return (
       (module.resources?.length || 0) +
       module.lessons.reduce(
-        (count, lesson) => count + (lesson.contentResources?.length ?? lesson.resources?.length ?? 0),
+        (count, lesson) =>
+          count +
+          (lesson.contentResources?.length ?? lesson.resources?.length ?? 0),
         0
       )
     )
@@ -3302,11 +4157,17 @@ export class DatabaseService {
     const targetTitle = this.normalizeMergePreviewValue(target.title)
     if (sourceTitle && sourceTitle === targetTitle) return 'same-title'
 
-    const sourceFileName = path.basename(source.fileName, path.extname(source.fileName)).toLowerCase()
-    const targetFileName = path.basename(target.fileName, path.extname(target.fileName)).toLowerCase()
-    if (sourceFileName && sourceFileName === targetFileName) return 'same-file-name'
+    const sourceFileName = path
+      .basename(source.fileName, path.extname(source.fileName))
+      .toLowerCase()
+    const targetFileName = path
+      .basename(target.fileName, path.extname(target.fileName))
+      .toLowerCase()
+    if (sourceFileName && sourceFileName === targetFileName)
+      return 'same-file-name'
 
-    if (source.filePath && source.filePath === target.filePath) return 'same-file-path'
+    if (source.filePath && source.filePath === target.filePath)
+      return 'same-file-path'
     return undefined
   }
 
@@ -3364,7 +4225,9 @@ export class DatabaseService {
         if (courseList.length <= 1) continue
 
         // Pick canonical course (prefer one with highest lessonCount, or oldest created_at)
-        courseList.sort((a, b) => b.lessonCount - a.lessonCount || a.createdAt - b.createdAt)
+        courseList.sort(
+          (a, b) => b.lessonCount - a.lessonCount || a.createdAt - b.createdAt
+        )
         const canonical = courseList[0]
         const secondaries = courseList.slice(1)
 
@@ -3390,18 +4253,30 @@ export class DatabaseService {
               // Merge lessons into matching canonical module
               for (const secLesson of secMod.lessons) {
                 const secLessonNorm = normalize(secLesson.title)
-                const secFileBase = path.basename(secLesson.fileName, path.extname(secLesson.fileName)).toLowerCase()
+                const secFileBase = path
+                  .basename(
+                    secLesson.fileName,
+                    path.extname(secLesson.fileName)
+                  )
+                  .toLowerCase()
 
                 const matchingCanLesson = matchingCanMod.lessons.find((cl) => {
                   const clNorm = normalize(cl.title)
-                  const clFileBase = path.basename(cl.fileName, path.extname(cl.fileName)).toLowerCase()
-                  return clNorm === secLessonNorm || clFileBase === secFileBase || cl.filePath === secLesson.filePath
+                  const clFileBase = path
+                    .basename(cl.fileName, path.extname(cl.fileName))
+                    .toLowerCase()
+                  return (
+                    clNorm === secLessonNorm ||
+                    clFileBase === secFileBase ||
+                    cl.filePath === secLesson.filePath
+                  )
                 })
 
                 if (matchingCanLesson) {
                   // Duplicate lesson: migrate progress / notes / history, then delete secondary lesson.
                   // Progress merges by taking the furthest position (never drops it on PK conflict).
-                  this.db!.prepare(`
+                  this.db!.prepare(
+                    `
                     INSERT INTO lesson_progress (lesson_id, course_id, current_time, duration, completed, updated_at)
                     SELECT ?, ?, lesson_progress.current_time, duration, completed, updated_at
                     FROM lesson_progress WHERE lesson_id = ?
@@ -3410,36 +4285,51 @@ export class DatabaseService {
                       duration = MAX(lesson_progress.duration, excluded.duration),
                       completed = MAX(lesson_progress.completed, excluded.completed),
                       updated_at = excluded.updated_at
-                  `).run(matchingCanLesson.id, canonical.id, secLesson.id)
+                  `
+                  ).run(matchingCanLesson.id, canonical.id, secLesson.id)
 
-                  this.db!.prepare(`
+                  this.db!.prepare(
+                    `
                     UPDATE OR IGNORE lesson_notes SET lesson_id = ?, course_id = ? WHERE lesson_id = ?
-                  `).run(matchingCanLesson.id, canonical.id, secLesson.id)
+                  `
+                  ).run(matchingCanLesson.id, canonical.id, secLesson.id)
 
-                  this.db!.prepare(`
+                  this.db!.prepare(
+                    `
                     UPDATE OR IGNORE watch_history SET lesson_id = ?, course_id = ? WHERE lesson_id = ?
-                  `).run(matchingCanLesson.id, canonical.id, secLesson.id)
+                  `
+                  ).run(matchingCanLesson.id, canonical.id, secLesson.id)
 
-                  this.db!.prepare(`DELETE FROM lessons WHERE id = ?`).run(secLesson.id)
+                  this.db!.prepare(`DELETE FROM lessons WHERE id = ?`).run(
+                    secLesson.id
+                  )
                   groupRemovedLessons++
                   deduplicatedLessonsCount++
                 } else {
                   // New lesson: reassign to canonical module & canonical course
-                  this.db!.prepare(`
+                  this.db!.prepare(
+                    `
                     UPDATE lessons SET course_id = ?, module_id = ? WHERE id = ?
-                  `).run(canonical.id, matchingCanMod.id, secLesson.id)
+                  `
+                  ).run(canonical.id, matchingCanMod.id, secLesson.id)
 
-                  this.db!.prepare(`
+                  this.db!.prepare(
+                    `
                     UPDATE lesson_progress SET course_id = ? WHERE lesson_id = ?
-                  `).run(canonical.id, secLesson.id)
+                  `
+                  ).run(canonical.id, secLesson.id)
 
-                  this.db!.prepare(`
+                  this.db!.prepare(
+                    `
                     UPDATE lesson_notes SET course_id = ? WHERE lesson_id = ?
-                  `).run(canonical.id, secLesson.id)
+                  `
+                  ).run(canonical.id, secLesson.id)
 
-                  this.db!.prepare(`
+                  this.db!.prepare(
+                    `
                     UPDATE watch_history SET course_id = ? WHERE lesson_id = ?
-                  `).run(canonical.id, secLesson.id)
+                  `
+                  ).run(canonical.id, secLesson.id)
 
                   matchingCanMod.lessons.push({
                     ...secLesson,
@@ -3450,28 +4340,40 @@ export class DatabaseService {
               }
 
               // Delete empty secondary module
-              this.db!.prepare(`DELETE FROM modules WHERE id = ?`).run(secMod.id)
+              this.db!.prepare(`DELETE FROM modules WHERE id = ?`).run(
+                secMod.id
+              )
             } else {
               // Module does not exist in canonical course: transfer entire module
-              this.db!.prepare(`
+              this.db!.prepare(
+                `
                 UPDATE modules SET course_id = ? WHERE id = ?
-              `).run(canonical.id, secMod.id)
+              `
+              ).run(canonical.id, secMod.id)
 
-              this.db!.prepare(`
+              this.db!.prepare(
+                `
                 UPDATE lessons SET course_id = ? WHERE module_id = ?
-              `).run(canonical.id, secMod.id)
+              `
+              ).run(canonical.id, secMod.id)
 
-              this.db!.prepare(`
+              this.db!.prepare(
+                `
                 UPDATE lesson_progress SET course_id = ? WHERE course_id = ?
-              `).run(canonical.id, secondary.id)
+              `
+              ).run(canonical.id, secondary.id)
 
-              this.db!.prepare(`
+              this.db!.prepare(
+                `
                 UPDATE lesson_notes SET course_id = ? WHERE course_id = ?
-              `).run(canonical.id, secondary.id)
+              `
+              ).run(canonical.id, secondary.id)
 
-              this.db!.prepare(`
+              this.db!.prepare(
+                `
                 UPDATE watch_history SET course_id = ? WHERE course_id = ?
-              `).run(canonical.id, secondary.id)
+              `
+              ).run(canonical.id, secondary.id)
 
               canonicalHierarchy.modules.push({
                 ...secMod,
@@ -3522,10 +4424,13 @@ export class DatabaseService {
     totalDuration: number
   } {
     const hierarchy = this.getCourseById(courseId)
-    if (!hierarchy || hierarchy.modules.length === 0) return { moduleCount: 0, lessonCount: 0, totalDuration: 0 }
+    if (!hierarchy || hierarchy.modules.length === 0)
+      return { moduleCount: 0, lessonCount: 0, totalDuration: 0 }
 
-    const sortedModules = [...hierarchy.modules].sort((a, b) =>
-      (a.displayOrder || a.orderIndex) - (b.displayOrder || b.orderIndex) || naturalCompare(a.title, b.title)
+    const sortedModules = [...hierarchy.modules].sort(
+      (a, b) =>
+        (a.displayOrder || a.orderIndex) - (b.displayOrder || b.orderIndex) ||
+        naturalCompare(a.title, b.title)
     )
 
     let totalCourseLessons = 0
@@ -3534,32 +4439,49 @@ export class DatabaseService {
     const tx = this.db!.transaction(() => {
       for (let mIdx = 0; mIdx < sortedModules.length; mIdx++) {
         const mod = sortedModules[mIdx]
-        const sortedLessons = [...mod.lessons].sort((a, b) =>
-          (a.displayOrder || a.orderIndex) - (b.displayOrder || b.orderIndex) || naturalCompare(a.title, b.title)
+        const sortedLessons = [...mod.lessons].sort(
+          (a, b) =>
+            (a.displayOrder || a.orderIndex) -
+              (b.displayOrder || b.orderIndex) ||
+            naturalCompare(a.title, b.title)
         )
 
         let modDuration = 0
         for (let lIdx = 0; lIdx < sortedLessons.length; lIdx++) {
           const les = sortedLessons[lIdx]
           modDuration += les.duration || 0
-          const finalDisplayOrder = les.hasManualOrder && les.displayOrder ? les.displayOrder : lIdx + 1
-          this.db!.prepare(`
+          const finalDisplayOrder =
+            les.hasManualOrder && les.displayOrder ? les.displayOrder : lIdx + 1
+          this.db!.prepare(
+            `
             UPDATE lessons SET order_index = ?, display_order = ? WHERE id = ?
-          `).run(lIdx + 1, finalDisplayOrder, les.id)
+          `
+          ).run(lIdx + 1, finalDisplayOrder, les.id)
         }
 
         totalCourseLessons += sortedLessons.length
         totalCourseDuration += modDuration
-        const finalModDisplayOrder = mod.hasManualOrder && mod.displayOrder ? mod.displayOrder : mIdx + 1
+        const finalModDisplayOrder =
+          mod.hasManualOrder && mod.displayOrder ? mod.displayOrder : mIdx + 1
 
-        this.db!.prepare(`
+        this.db!.prepare(
+          `
           UPDATE modules SET order_index = ?, display_order = ?, lesson_count = ?, duration = ? WHERE id = ?
-        `).run(mIdx + 1, finalModDisplayOrder, sortedLessons.length, modDuration, mod.id)
+        `
+        ).run(
+          mIdx + 1,
+          finalModDisplayOrder,
+          sortedLessons.length,
+          modDuration,
+          mod.id
+        )
       }
 
-      this.db!.prepare(`
+      this.db!.prepare(
+        `
         UPDATE courses SET module_count = ?, lesson_count = ?, total_duration = ?, updated_at = ? WHERE id = ?
-      `).run(
+      `
+      ).run(
         sortedModules.length,
         totalCourseLessons,
         totalCourseDuration,
@@ -3577,9 +4499,14 @@ export class DatabaseService {
     }
   }
 
-  public deleteLesson(lessonId: string, deleteFileFromDisk = false): { success: boolean; error?: string } {
+  public deleteLesson(
+    lessonId: string,
+    deleteFileFromDisk = false
+  ): { success: boolean; error?: string } {
     this.ensureConnected()
-    const lesson = this.db!.prepare(`SELECT file_path as filePath, course_id as courseId FROM lessons WHERE id = ?`).get(lessonId) as { filePath: string; courseId: string } | undefined
+    const lesson = this.db!.prepare(
+      `SELECT file_path as filePath, course_id as courseId FROM lessons WHERE id = ?`
+    ).get(lessonId) as { filePath: string; courseId: string } | undefined
     if (!lesson) return { success: false, error: 'Lesson not found' }
 
     if (deleteFileFromDisk && lesson.filePath) {
@@ -3597,14 +4524,18 @@ export class DatabaseService {
     return { success: true }
   }
 
-  public getCourseHealth(courseId: string): import('../../types').CourseHealthReport {
+  public getCourseHealth(
+    courseId: string
+  ): import('../../types').CourseHealthReport {
     this.ensureConnected()
-    const lessons = this.db!.prepare(`
+    const lessons = this.db!.prepare(
+      `
       SELECT l.id, l.title, l.module_id as moduleId, m.title as moduleTitle, l.file_path as filePath, l.file_name as fileName
       FROM lessons l
       JOIN modules m ON l.module_id = m.id
       WHERE l.course_id = ?
-    `).all(courseId) as Array<{
+    `
+    ).all(courseId) as Array<{
       id: string
       title: string
       moduleId: string
@@ -3681,7 +4612,12 @@ export class DatabaseService {
     }
   }
 
-  public fixCourseProblems(courseId: string): { success: boolean; fixedCount: number; removedCount: number; error?: string } {
+  public fixCourseProblems(courseId: string): {
+    success: boolean
+    fixedCount: number
+    removedCount: number
+    error?: string
+  } {
     this.ensureConnected()
     const health = this.getCourseHealth(courseId)
     let fixedCount = 0
@@ -3690,7 +4626,10 @@ export class DatabaseService {
     const tx = this.db!.transaction(() => {
       for (const prob of health.problemLessons) {
         if (prob.problemType === 'non_media_type') {
-          const ext = path.extname(prob.filePath || prob.fileName).replace(/^\./, '').toLowerCase()
+          const ext = path
+            .extname(prob.filePath || prob.fileName)
+            .replace(/^\./, '')
+            .toLowerCase()
           const resourceType = toResourceType(prob.filePath || prob.fileName)
           let fileSize = 0
           try {
@@ -3698,15 +4637,20 @@ export class DatabaseService {
               fileSize = fs.statSync(prob.filePath).size
             }
           } catch (statErr) {
-            logger.debug('Failed to stat problem non-media lesson file:', statErr)
+            logger.debug(
+              'Failed to stat problem non-media lesson file:',
+              statErr
+            )
           }
 
-          this.db!.prepare(`
+          this.db!.prepare(
+            `
             INSERT OR REPLACE INTO content_resources (
               id, course_id, module_id, lesson_id, role, name,
               file_path, file_extension, file_size, resource_type, created_at
             ) VALUES (?, ?, ?, NULL, 'resource', ?, ?, ?, ?, ?, ?)
-          `).run(
+          `
+          ).run(
             crypto.randomUUID(),
             courseId,
             prob.moduleId,
@@ -3720,10 +4664,17 @@ export class DatabaseService {
 
           this.db!.prepare(`DELETE FROM lessons WHERE id = ?`).run(prob.id)
           fixedCount++
-        } else if (prob.problemType === 'missing_file' || prob.problemType === 'zero_bytes') {
+        } else if (
+          prob.problemType === 'missing_file' ||
+          prob.problemType === 'zero_bytes'
+        ) {
           this.db!.prepare(`DELETE FROM lessons WHERE id = ?`).run(prob.id)
-          this.db!.prepare(`DELETE FROM lesson_progress WHERE lesson_id = ?`).run(prob.id)
-          this.db!.prepare(`DELETE FROM content_resources WHERE lesson_id = ?`).run(prob.id)
+          this.db!.prepare(
+            `DELETE FROM lesson_progress WHERE lesson_id = ?`
+          ).run(prob.id)
+          this.db!.prepare(
+            `DELETE FROM content_resources WHERE lesson_id = ?`
+          ).run(prob.id)
           removedCount++
         }
       }
@@ -3739,13 +4690,15 @@ export class DatabaseService {
 
   public cleanupNonMediaLessons(): void {
     this.ensureConnected()
-    const rows = this.db!.prepare(`
+    const rows = this.db!.prepare(
+      `
       SELECT id, module_id as moduleId, course_id as courseId, title,
              file_path as filePath, file_name as fileName,
              file_extension as fileExtension, file_size as fileSize,
              created_at as createdAt
       FROM lessons
-    `).all() as Array<{
+    `
+    ).all() as Array<{
       id: string
       moduleId: string
       courseId: string
@@ -3763,14 +4716,18 @@ export class DatabaseService {
       for (const lesson of rows) {
         const testPath = lesson.filePath || lesson.fileName
         if (!isMediaFile(testPath)) {
-          const ext = (lesson.fileExtension || path.extname(testPath)).replace(/^\./, '').toLowerCase()
+          const ext = (lesson.fileExtension || path.extname(testPath))
+            .replace(/^\./, '')
+            .toLowerCase()
           const resourceType = toResourceType(testPath)
-          this.db!.prepare(`
+          this.db!.prepare(
+            `
             INSERT OR REPLACE INTO content_resources (
               id, course_id, module_id, lesson_id, role, name,
               file_path, file_extension, file_size, resource_type, created_at
             ) VALUES (?, ?, ?, NULL, 'resource', ?, ?, ?, ?, ?, ?)
-          `).run(
+          `
+          ).run(
             crypto.randomUUID(),
             lesson.courseId,
             lesson.moduleId,
@@ -3803,25 +4760,45 @@ export class DatabaseService {
     this.ensureConnected()
     const targetCourseIds = courseId
       ? [courseId]
-      : (this.db!.prepare(`SELECT id FROM courses`).all() as Array<{ id: string }>).map((c) => c.id)
+      : (
+          this.db!.prepare(`SELECT id FROM courses`).all() as Array<{
+            id: string
+          }>
+        ).map((c) => c.id)
 
     for (const cId of targetCourseIds) {
-      const rawModules = this.db!.prepare(`
+      const rawModules = this.db!.prepare(
+        `
         SELECT id, course_id as courseId, title, order_index as orderIndex, display_order as displayOrder
         FROM modules WHERE course_id = ?
         ORDER BY display_order ASC, order_index ASC
-      `).all(cId) as Array<{ id: string; courseId: string; title: string; orderIndex: number; displayOrder: number }>
+      `
+      ).all(cId) as Array<{
+        id: string
+        courseId: string
+        title: string
+        orderIndex: number
+        displayOrder: number
+      }>
 
-      const modulesByTitle = new Map<string, { id: string; courseId: string; title: string }>()
+      const modulesByTitle = new Map<
+        string,
+        { id: string; courseId: string; title: string }
+      >()
       for (const mod of rawModules) {
         const rawTitle = (mod.title || '').trim()
-        const normalizedKey = normalizeModuleKey(rawTitle) || rawTitle.toLowerCase()
+        const normalizedKey =
+          normalizeModuleKey(rawTitle) || rawTitle.toLowerCase()
         const existing = modulesByTitle.get(normalizedKey)
         if (existing && existing.id !== mod.id) {
           // Reassign all lessons from duplicate module to canonical module
-          this.db!.prepare(`UPDATE lessons SET module_id = ? WHERE module_id = ?`).run(existing.id, mod.id)
+          this.db!.prepare(
+            `UPDATE lessons SET module_id = ? WHERE module_id = ?`
+          ).run(existing.id, mod.id)
           // Reassign all content resources from duplicate module to canonical module
-          this.db!.prepare(`UPDATE content_resources SET module_id = ? WHERE module_id = ?`).run(existing.id, mod.id)
+          this.db!.prepare(
+            `UPDATE content_resources SET module_id = ? WHERE module_id = ?`
+          ).run(existing.id, mod.id)
           // Delete duplicate module row
           this.db!.prepare(`DELETE FROM modules WHERE id = ?`).run(mod.id)
         } else if (!existing) {
@@ -3832,20 +4809,36 @@ export class DatabaseService {
     }
   }
 
-  public getStudyAnalytics(dailyGoalMinutes = 30): import('../../types').StudyAnalytics {
+  public getStudyAnalytics(
+    dailyGoalMinutes = 30
+  ): import('../../types').StudyAnalytics {
     this.ensureConnected()
     const now = new Date()
-    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+    const startOfToday = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate()
+    ).getTime()
 
-    const historyRows = this.db!.prepare(`
+    const historyRows = this.db!.prepare(
+      `
       SELECT lesson_id as lessonId, course_id as courseId, duration, watched_at as watchedAt, current_time as currentTime
       FROM watch_history
       ORDER BY watched_at ASC
-    `).all() as Array<{ lessonId: string; courseId: string; duration: number; watchedAt: number; currentTime: number }>
+    `
+    ).all() as Array<{
+      lessonId: string
+      courseId: string
+      duration: number
+      watchedAt: number
+      currentTime: number
+    }>
 
-    const completedCountRow = this.db!.prepare(`
+    const completedCountRow = this.db!.prepare(
+      `
       SELECT count(*) as cnt FROM lesson_progress WHERE completed = 1
-    `).get() as { cnt: number } | undefined
+    `
+    ).get() as { cnt: number } | undefined
     const totalLessonsCompleted = completedCountRow?.cnt ?? 0
 
     if (historyRows.length === 0) {
@@ -3876,8 +4869,14 @@ export class DatabaseService {
 
       const d = new Date(row.watchedAt)
       const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-      secondsByDate.set(dateKey, (secondsByDate.get(dateKey) || 0) + watchedSeconds)
-      secondsByCourse.set(row.courseId, (secondsByCourse.get(row.courseId) || 0) + watchedSeconds)
+      secondsByDate.set(
+        dateKey,
+        (secondsByDate.get(dateKey) || 0) + watchedSeconds
+      )
+      secondsByCourse.set(
+        row.courseId,
+        (secondsByCourse.get(row.courseId) || 0) + watchedSeconds
+      )
 
       let set = lessonsCountByDate.get(dateKey)
       if (!set) {
@@ -3890,7 +4889,9 @@ export class DatabaseService {
     // Calculate streaks
     let currentStreakDays = 0
     let longestStreakDays = 0
-    const activeDates = Array.from(secondsByDate.keys()).filter((k) => (secondsByDate.get(k) || 0) > 0).sort()
+    const activeDates = Array.from(secondsByDate.keys())
+      .filter((k) => (secondsByDate.get(k) || 0) > 0)
+      .sort()
 
     const dailyHistory: import('../../types').DailyStudyTime[] = []
     for (const dateStr of activeDates) {
@@ -3945,10 +4946,18 @@ export class DatabaseService {
     }
 
     // Top 5 courses
-    const topCourseIds = Array.from(secondsByCourse.entries()).sort((a, b) => b[1] - a[1]).slice(0, 5)
-    const topCourses: Array<{ courseId: string; courseTitle: string; secondsWatched: number }> = []
+    const topCourseIds = Array.from(secondsByCourse.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+    const topCourses: Array<{
+      courseId: string
+      courseTitle: string
+      secondsWatched: number
+    }> = []
     for (const [cId, sec] of topCourseIds) {
-      const cRow = this.db!.prepare(`SELECT title, custom_title as customTitle FROM courses WHERE id = ?`).get(cId) as { title: string; customTitle?: string } | undefined
+      const cRow = this.db!.prepare(
+        `SELECT title, custom_title as customTitle FROM courses WHERE id = ?`
+      ).get(cId) as { title: string; customTitle?: string } | undefined
       if (cRow) {
         topCourses.push({
           courseId: cId,
@@ -3970,7 +4979,10 @@ export class DatabaseService {
     }
   }
 
-  public mergeCourses(courseIds: string[], targetTitle?: string): MergeCoursesResult {
+  public mergeCourses(
+    courseIds: string[],
+    targetTitle?: string
+  ): MergeCoursesResult {
     return this.mergeCoursesByIds(courseIds, targetTitle)
   }
 
@@ -3980,10 +4992,15 @@ export class DatabaseService {
    * deduplication — the user explicitly chose to combine separate parts).
    * Progress, notes, and watch history are re-pointed to the canonical course.
    */
-  public mergeCoursesByIds(courseIds: string[], targetTitle?: string): MergeCoursesResult {
+  public mergeCoursesByIds(
+    courseIds: string[],
+    targetTitle?: string
+  ): MergeCoursesResult {
     this.ensureConnected()
 
-    const ids = [...new Set((courseIds || []).map((id) => id.trim()).filter(Boolean))]
+    const ids = [
+      ...new Set((courseIds || []).map((id) => id.trim()).filter(Boolean))
+    ]
     if (ids.length < 2) {
       throw new Error('Select at least two courses to merge.')
     }
@@ -3997,7 +5014,9 @@ export class DatabaseService {
 
     // Canonical: highest lesson count (keeps the richest course's cover/metadata)
     courses.sort(
-      (a, b) => b.course.lessonCount - a.course.lessonCount || a.course.createdAt - b.course.createdAt
+      (a, b) =>
+        b.course.lessonCount - a.course.lessonCount ||
+        a.course.createdAt - b.course.createdAt
     )
     const canonical = courses[0]
     const secondaries = courses.slice(1)
@@ -4005,38 +5024,54 @@ export class DatabaseService {
     const mergeTransaction = this.db!.transaction(() => {
       for (const secondary of secondaries) {
         for (const mod of secondary.modules) {
-          this.db!.prepare(`
+          this.db!.prepare(
+            `
             UPDATE modules SET course_id = ? WHERE id = ?
-          `).run(canonical.course.id, mod.id)
+          `
+          ).run(canonical.course.id, mod.id)
 
-          this.db!.prepare(`
+          this.db!.prepare(
+            `
             UPDATE lessons SET course_id = ? WHERE module_id = ?
-          `).run(canonical.course.id, mod.id)
+          `
+          ).run(canonical.course.id, mod.id)
         }
 
-        this.db!.prepare(`
+        this.db!.prepare(
+          `
           UPDATE content_resources SET course_id = ? WHERE course_id = ?
-        `).run(canonical.course.id, secondary.course.id)
+        `
+        ).run(canonical.course.id, secondary.course.id)
 
-        this.db!.prepare(`
+        this.db!.prepare(
+          `
           UPDATE lesson_progress SET course_id = ? WHERE course_id = ?
-        `).run(canonical.course.id, secondary.course.id)
+        `
+        ).run(canonical.course.id, secondary.course.id)
 
-        this.db!.prepare(`
+        this.db!.prepare(
+          `
           UPDATE lesson_notes SET course_id = ? WHERE course_id = ?
-        `).run(canonical.course.id, secondary.course.id)
+        `
+        ).run(canonical.course.id, secondary.course.id)
 
-        this.db!.prepare(`
+        this.db!.prepare(
+          `
           UPDATE watch_history SET course_id = ? WHERE course_id = ?
-        `).run(canonical.course.id, secondary.course.id)
+        `
+        ).run(canonical.course.id, secondary.course.id)
 
-        this.db!.prepare(`DELETE FROM courses WHERE id = ?`).run(secondary.course.id)
+        this.db!.prepare(`DELETE FROM courses WHERE id = ?`).run(
+          secondary.course.id
+        )
       }
 
       if (targetTitle && targetTitle.trim()) {
-        this.db!.prepare(`
+        this.db!.prepare(
+          `
           UPDATE courses SET title = ? WHERE id = ?
-        `).run(targetTitle.trim(), canonical.course.id)
+        `
+        ).run(targetTitle.trim(), canonical.course.id)
       }
 
       // Re-index within the transaction so a failure rolls back everything.
@@ -4049,7 +5084,10 @@ export class DatabaseService {
     const reindexed = {
       moduleCount: canonicalCourse?.modules.length ?? 0,
       lessonCount:
-        canonicalCourse?.modules.reduce((acc, m) => acc + (m.lessons?.length || 0), 0) ?? 0,
+        canonicalCourse?.modules.reduce(
+          (acc, m) => acc + (m.lessons?.length || 0),
+          0
+        ) ?? 0,
       totalDuration: canonicalCourse?.course.totalDuration ?? 0
     }
 
@@ -4080,9 +5118,12 @@ export class DatabaseService {
   public separateMistakenlyMergedCourses(): import('../../types').SeparateCoursesResult {
     this.ensureConnected()
     const allCourses = this.getAllCourses()
-    if (allCourses.length === 0) return { separatedCoursesCount: 0, createdCoursesCount: 0, details: [] }
+    if (allCourses.length === 0)
+      return { separatedCoursesCount: 0, createdCoursesCount: 0, details: [] }
 
-    const coursesRoot = this.currentVaultPath ? path.join(this.currentVaultPath, 'Courses') : null
+    const coursesRoot = this.currentVaultPath
+      ? path.join(this.currentVaultPath, 'Courses')
+      : null
     const details: import('../../types').SeparateCoursesResult['details'] = []
     let createdCoursesCount = 0
     let separatedCoursesCount = 0
@@ -4092,14 +5133,20 @@ export class DatabaseService {
       if (!hierarchy || hierarchy.modules.length <= 1) continue
 
       // For each module in the course, detect its physical course root directory
-      const modulesByCourseRoot = new Map<string, Array<{ module: Module; lessons: Lesson[] }>>()
+      const modulesByCourseRoot = new Map<
+        string,
+        Array<{ module: Module; lessons: Lesson[] }>
+      >()
 
       for (const mod of hierarchy.modules) {
         let detectedRoot: string | null = null
 
         // 1. Try from module folderPath
         if (mod.folderPath) {
-          if (coursesRoot && mod.folderPath.toLowerCase().startsWith(coursesRoot.toLowerCase())) {
+          if (
+            coursesRoot &&
+            mod.folderPath.toLowerCase().startsWith(coursesRoot.toLowerCase())
+          ) {
             const rel = path.relative(coursesRoot, mod.folderPath)
             const firstDir = rel.split(/[\\/]/)[0]
             if (firstDir && firstDir !== '..' && firstDir !== '.') {
@@ -4115,7 +5162,10 @@ export class DatabaseService {
         if (!detectedRoot && mod.lessons && mod.lessons.length > 0) {
           for (const l of mod.lessons) {
             if (l.filePath) {
-              if (coursesRoot && l.filePath.toLowerCase().startsWith(coursesRoot.toLowerCase())) {
+              if (
+                coursesRoot &&
+                l.filePath.toLowerCase().startsWith(coursesRoot.toLowerCase())
+              ) {
                 const rel = path.relative(coursesRoot, l.filePath)
                 const firstDir = rel.split(/[\\/]/)[0]
                 if (firstDir && firstDir !== '..' && firstDir !== '.') {
@@ -4132,12 +5182,16 @@ export class DatabaseService {
           }
         }
 
-        const rootKey = detectedRoot ? path.normalize(detectedRoot).toLowerCase() : path.normalize(course.rootPath).toLowerCase()
+        const rootKey = detectedRoot
+          ? path.normalize(detectedRoot).toLowerCase()
+          : path.normalize(course.rootPath).toLowerCase()
 
         if (!modulesByCourseRoot.has(rootKey)) {
           modulesByCourseRoot.set(rootKey, [])
         }
-        modulesByCourseRoot.get(rootKey)!.push({ module: mod, lessons: mod.lessons })
+        modulesByCourseRoot
+          .get(rootKey)!
+          .push({ module: mod, lessons: mod.lessons })
       }
 
       // If all modules come from the same course root, no separation needed
@@ -4163,30 +5217,48 @@ export class DatabaseService {
         for (const [rootKey, modGroups] of modulesByCourseRoot.entries()) {
           if (rootKey === primaryKey) continue
 
-          const samplePath = modGroups[0]?.module.folderPath || modGroups[0]?.lessons[0]?.filePath || rootKey
+          const samplePath =
+            modGroups[0]?.module.folderPath ||
+            modGroups[0]?.lessons[0]?.filePath ||
+            rootKey
           let rawCourseName = path.basename(samplePath)
-          if (coursesRoot && samplePath.toLowerCase().startsWith(coursesRoot.toLowerCase())) {
+          if (
+            coursesRoot &&
+            samplePath.toLowerCase().startsWith(coursesRoot.toLowerCase())
+          ) {
             const rel = path.relative(coursesRoot, samplePath)
             rawCourseName = rel.split(/[\\/]/)[0] || rawCourseName
           }
 
           const targetCourseTitle = cleanTitle(rawCourseName) || rawCourseName
-          const targetCourseRoot = coursesRoot && samplePath.toLowerCase().startsWith(coursesRoot.toLowerCase())
-            ? path.join(coursesRoot, rawCourseName)
-            : path.dirname(samplePath)
+          const targetCourseRoot =
+            coursesRoot &&
+            samplePath.toLowerCase().startsWith(coursesRoot.toLowerCase())
+              ? path.join(coursesRoot, rawCourseName)
+              : path.dirname(samplePath)
 
           // Check if a course with this root path already exists
-          let targetCourse = this.db!.prepare(`SELECT id, title FROM courses WHERE LOWER(root_path) = LOWER(?)`).get(targetCourseRoot) as { id: string; title: string } | undefined
+          let targetCourse = this.db!.prepare(
+            `SELECT id, title FROM courses WHERE LOWER(root_path) = LOWER(?)`
+          ).get(targetCourseRoot) as { id: string; title: string } | undefined
           if (!targetCourse) {
             const newCourseId = crypto.randomUUID()
-            const slug = (targetCourseTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'course') + '-' + newCourseId.slice(0, 6)
-            this.db!.prepare(`
+            const slug =
+              (targetCourseTitle
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, '-')
+                .replace(/(^-|-$)/g, '') || 'course') +
+              '-' +
+              newCourseId.slice(0, 6)
+            this.db!.prepare(
+              `
               INSERT INTO courses (
                 id, title, slug, source_type, root_path, is_external,
                 cover_path, description, total_duration, module_count,
                 lesson_count, is_favorite, created_at, updated_at
               ) VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, 0, 0, 0, 0, ?, ?)
-            `).run(
+            `
+            ).run(
               newCourseId,
               targetCourseTitle,
               slug,
@@ -4205,18 +5277,30 @@ export class DatabaseService {
 
           for (const item of modGroups) {
             const modId = item.module.id
-            this.db!.prepare(`UPDATE modules SET course_id = ? WHERE id = ?`).run(targetCourseId, modId)
-            this.db!.prepare(`UPDATE lessons SET course_id = ? WHERE module_id = ?`).run(targetCourseId, modId)
-            this.db!.prepare(`UPDATE content_resources SET course_id = ? WHERE module_id = ?`).run(targetCourseId, modId)
-            this.db!.prepare(`
+            this.db!.prepare(
+              `UPDATE modules SET course_id = ? WHERE id = ?`
+            ).run(targetCourseId, modId)
+            this.db!.prepare(
+              `UPDATE lessons SET course_id = ? WHERE module_id = ?`
+            ).run(targetCourseId, modId)
+            this.db!.prepare(
+              `UPDATE content_resources SET course_id = ? WHERE module_id = ?`
+            ).run(targetCourseId, modId)
+            this.db!.prepare(
+              `
               UPDATE lesson_progress SET course_id = ? WHERE lesson_id IN (SELECT id FROM lessons WHERE module_id = ?)
-            `).run(targetCourseId, modId)
-            this.db!.prepare(`
+            `
+            ).run(targetCourseId, modId)
+            this.db!.prepare(
+              `
               UPDATE lesson_notes SET course_id = ? WHERE lesson_id IN (SELECT id FROM lessons WHERE module_id = ?)
-            `).run(targetCourseId, modId)
-            this.db!.prepare(`
+            `
+            ).run(targetCourseId, modId)
+            this.db!.prepare(
+              `
               UPDATE watch_history SET course_id = ? WHERE lesson_id IN (SELECT id FROM lessons WHERE module_id = ?)
-            `).run(targetCourseId, modId)
+            `
+            ).run(targetCourseId, modId)
 
             movedLessonsCount += item.lessons.length
           }
@@ -4254,7 +5338,10 @@ export class DatabaseService {
   public autoOrganizeLibrary(): import('../../types').AutoOrganizeResult {
     this.ensureConnected()
 
-    const details: Array<{ action: 'separated' | 'merged' | 'deduplicated'; message: string }> = []
+    const details: Array<{
+      action: 'separated' | 'merged' | 'deduplicated'
+      message: string
+    }> = []
 
     // 1. Separate any courses that were mistakenly merged across distinct folder roots
     const separateResult = this.separateMistakenlyMergedCourses()
@@ -4271,9 +5358,17 @@ export class DatabaseService {
     const allCourses = this.getAllCourses()
     let deduplicatedModulesCount = 0
     for (const c of allCourses) {
-      const beforeModules = (this.db!.prepare(`SELECT count(*) as cnt FROM modules WHERE course_id = ?`).get(c.id) as { cnt: number }).cnt
+      const beforeModules = (
+        this.db!.prepare(
+          `SELECT count(*) as cnt FROM modules WHERE course_id = ?`
+        ).get(c.id) as { cnt: number }
+      ).cnt
       this.reindexCourseHierarchy(c.id)
-      const afterModules = (this.db!.prepare(`SELECT count(*) as cnt FROM modules WHERE course_id = ?`).get(c.id) as { cnt: number }).cnt
+      const afterModules = (
+        this.db!.prepare(
+          `SELECT count(*) as cnt FROM modules WHERE course_id = ?`
+        ).get(c.id) as { cnt: number }
+      ).cnt
       if (beforeModules > afterModules) {
         const mergedMods = beforeModules - afterModules
         deduplicatedModulesCount += mergedMods
@@ -4311,8 +5406,11 @@ export class DatabaseService {
     }
   }
 
-  public async extractMissingVideoThumbnails(targetCourseId?: string): Promise<{ updatedLessons: number; updatedCourses: number }> {
-    if (!this.db || !this.currentVaultPath) return { updatedLessons: 0, updatedCourses: 0 }
+  public async extractMissingVideoThumbnails(
+    targetCourseId?: string
+  ): Promise<{ updatedLessons: number; updatedCourses: number }> {
+    if (!this.db || !this.currentVaultPath)
+      return { updatedLessons: 0, updatedCourses: 0 }
 
     let updatedLessons = 0
     let updatedCourses = 0
@@ -4323,7 +5421,9 @@ export class DatabaseService {
         ? `SELECT id, course_id as courseId, title, file_path as filePath, media_type as mediaType, cover_path as coverPath FROM lessons WHERE course_id = ? AND media_type = 'video' AND (cover_path IS NULL OR cover_path LIKE '%.svg')`
         : `SELECT id, course_id as courseId, title, file_path as filePath, media_type as mediaType, cover_path as coverPath FROM lessons WHERE media_type = 'video' AND (cover_path IS NULL OR cover_path LIKE '%.svg')`
 
-      const lessons = this.db.prepare(lessonQuery).all(targetCourseId ? [targetCourseId] : []) as {
+      const lessons = this.db
+        .prepare(lessonQuery)
+        .all(targetCourseId ? [targetCourseId] : []) as {
         id: string
         courseId: string
         title: string
@@ -4336,16 +5436,30 @@ export class DatabaseService {
         if (!this.db || !this.currentVaultPath) break
         if (!les.filePath || !fs.existsSync(les.filePath)) continue
         try {
-          const frame = await generateVideoFrameCover(les.filePath, TEMP_COVERS_DIR, 3)
+          const frame = await generateVideoFrameCover(
+            les.filePath,
+            TEMP_COVERS_DIR,
+            3
+          )
           if (frame && this.db && this.currentVaultPath) {
-            const persisted = await persistCover(frame, les.courseId, this.currentVaultPath, 'lesson')
+            const persisted = await persistCover(
+              frame,
+              les.courseId,
+              this.currentVaultPath,
+              'lesson'
+            )
             if (persisted) {
-              this.db.prepare(`UPDATE lessons SET cover_path = ? WHERE id = ?`).run(persisted, les.id)
+              this.db
+                .prepare(`UPDATE lessons SET cover_path = ? WHERE id = ?`)
+                .run(persisted, les.id)
               updatedLessons++
             }
           }
         } catch (err) {
-          logger.warn(`[DatabaseService] Failed to extract video thumbnail for lesson ${les.id}:`, err)
+          logger.warn(
+            `[DatabaseService] Failed to extract video thumbnail for lesson ${les.id}:`,
+            err
+          )
         }
       }
 
@@ -4355,7 +5469,9 @@ export class DatabaseService {
           ? `SELECT id, title, root_path as rootPath, cover_path as coverPath FROM courses WHERE id = ? AND (cover_path IS NULL OR cover_path LIKE '%.svg')`
           : `SELECT id, title, root_path as rootPath, cover_path as coverPath FROM courses WHERE (cover_path IS NULL OR cover_path LIKE '%.svg')`
 
-        const courses = this.db.prepare(courseQuery).all(targetCourseId ? [targetCourseId] : []) as {
+        const courses = this.db
+          .prepare(courseQuery)
+          .all(targetCourseId ? [targetCourseId] : []) as {
           id: string
           title: string
           rootPath: string
@@ -4364,25 +5480,56 @@ export class DatabaseService {
 
         for (const c of courses) {
           if (!this.db || !this.currentVaultPath) break
-          const firstVideo = this.db.prepare(
-            `SELECT file_path as filePath, cover_path as coverPath FROM lessons WHERE course_id = ? AND media_type = 'video' AND file_path IS NOT NULL ORDER BY order_index ASC LIMIT 1`
-          ).get(c.id) as { filePath: string; coverPath: string | null } | undefined
+          const firstVideo = this.db
+            .prepare(
+              `SELECT file_path as filePath, cover_path as coverPath FROM lessons WHERE course_id = ? AND media_type = 'video' AND file_path IS NOT NULL ORDER BY order_index ASC LIMIT 1`
+            )
+            .get(c.id) as
+            { filePath: string; coverPath: string | null } | undefined
 
-          if (firstVideo && firstVideo.coverPath && (firstVideo.coverPath.endsWith('.jpg') || firstVideo.coverPath.endsWith('.png'))) {
-            this.db.prepare(`UPDATE courses SET cover_path = ?, updated_at = ? WHERE id = ?`).run(firstVideo.coverPath, Date.now(), c.id)
+          if (
+            firstVideo &&
+            firstVideo.coverPath &&
+            (firstVideo.coverPath.endsWith('.jpg') ||
+              firstVideo.coverPath.endsWith('.png'))
+          ) {
+            this.db
+              .prepare(
+                `UPDATE courses SET cover_path = ?, updated_at = ? WHERE id = ?`
+              )
+              .run(firstVideo.coverPath, Date.now(), c.id)
             updatedCourses++
-          } else if (firstVideo?.filePath && fs.existsSync(firstVideo.filePath)) {
+          } else if (
+            firstVideo?.filePath &&
+            fs.existsSync(firstVideo.filePath)
+          ) {
             try {
-              const frame = await generateVideoFrameCover(firstVideo.filePath, TEMP_COVERS_DIR, 3)
+              const frame = await generateVideoFrameCover(
+                firstVideo.filePath,
+                TEMP_COVERS_DIR,
+                3
+              )
               if (frame && this.db && this.currentVaultPath) {
-                const persisted = await persistCover(frame, c.id, this.currentVaultPath, 'course')
+                const persisted = await persistCover(
+                  frame,
+                  c.id,
+                  this.currentVaultPath,
+                  'course'
+                )
                 if (persisted) {
-                  this.db.prepare(`UPDATE courses SET cover_path = ?, updated_at = ? WHERE id = ?`).run(persisted, Date.now(), c.id)
+                  this.db
+                    .prepare(
+                      `UPDATE courses SET cover_path = ?, updated_at = ? WHERE id = ?`
+                    )
+                    .run(persisted, Date.now(), c.id)
                   updatedCourses++
                 }
               }
             } catch (err) {
-              logger.warn(`[DatabaseService] Failed to extract video thumbnail for course ${c.id}:`, err)
+              logger.warn(
+                `[DatabaseService] Failed to extract video thumbnail for course ${c.id}:`,
+                err
+              )
             }
           }
         }
@@ -4396,7 +5543,9 @@ export class DatabaseService {
 
   // --- Import History ---
 
-  public recordImportHistory(entry: Omit<ImportHistoryEntry, 'id' | 'createdAt'>): ImportHistoryEntry {
+  public recordImportHistory(
+    entry: Omit<ImportHistoryEntry, 'id' | 'createdAt'>
+  ): ImportHistoryEntry {
     this.ensureConnected()
     const id = crypto.randomUUID()
     const createdAt = Date.now()
@@ -4465,60 +5614,104 @@ export class DatabaseService {
     return true
   }
 
-  public updateCourseMetadata(courseId: string, updates: { customTitle?: string }): void {
+  public updateCourseMetadata(
+    courseId: string,
+    updates: { customTitle?: string }
+  ): void {
     this.ensureConnected()
-    this.db!.prepare(`
+    this.db!.prepare(
+      `
       UPDATE courses SET custom_title = ?, updated_at = ? WHERE id = ?
-    `).run(updates.customTitle ?? null, Date.now(), courseId)
+    `
+    ).run(updates.customTitle ?? null, Date.now(), courseId)
   }
 
-  public updateModuleMetadata(moduleId: string, updates: { customTitle?: string; displayOrder?: number }): void {
+  public updateModuleMetadata(
+    moduleId: string,
+    updates: { customTitle?: string; displayOrder?: number }
+  ): void {
     this.ensureConnected()
-    if (updates.customTitle !== undefined && updates.displayOrder !== undefined) {
-      this.db!.prepare(`
+    if (
+      updates.customTitle !== undefined &&
+      updates.displayOrder !== undefined
+    ) {
+      this.db!.prepare(
+        `
         UPDATE modules SET custom_title = ?, display_order = ?, has_manual_order = 1 WHERE id = ?
-      `).run(updates.customTitle ?? null, updates.displayOrder, moduleId)
+      `
+      ).run(updates.customTitle ?? null, updates.displayOrder, moduleId)
     } else if (updates.customTitle !== undefined) {
-      this.db!.prepare(`
+      this.db!.prepare(
+        `
         UPDATE modules SET custom_title = ? WHERE id = ?
-      `).run(updates.customTitle ?? null, moduleId)
+      `
+      ).run(updates.customTitle ?? null, moduleId)
     } else if (updates.displayOrder !== undefined) {
-      this.db!.prepare(`
+      this.db!.prepare(
+        `
         UPDATE modules SET display_order = ?, has_manual_order = 1 WHERE id = ?
-      `).run(updates.displayOrder, moduleId)
+      `
+      ).run(updates.displayOrder, moduleId)
     }
   }
 
-  public updateLessonMetadata(lessonId: string, updates: { customTitle?: string; displayOrder?: number }): void {
+  public updateLessonMetadata(
+    lessonId: string,
+    updates: { customTitle?: string; displayOrder?: number }
+  ): void {
     this.ensureConnected()
-    if (updates.customTitle !== undefined && updates.displayOrder !== undefined) {
-      this.db!.prepare(`
+    if (
+      updates.customTitle !== undefined &&
+      updates.displayOrder !== undefined
+    ) {
+      this.db!.prepare(
+        `
         UPDATE lessons SET custom_title = ?, display_order = ?, has_manual_order = 1 WHERE id = ?
-      `).run(updates.customTitle ?? null, updates.displayOrder, lessonId)
+      `
+      ).run(updates.customTitle ?? null, updates.displayOrder, lessonId)
     } else if (updates.customTitle !== undefined) {
-      this.db!.prepare(`
+      this.db!.prepare(
+        `
         UPDATE lessons SET custom_title = ? WHERE id = ?
-      `).run(updates.customTitle ?? null, lessonId)
+      `
+      ).run(updates.customTitle ?? null, lessonId)
     } else if (updates.displayOrder !== undefined) {
-      this.db!.prepare(`
+      this.db!.prepare(
+        `
         UPDATE lessons SET display_order = ?, has_manual_order = 1 WHERE id = ?
-      `).run(updates.displayOrder, lessonId)
+      `
+      ).run(updates.displayOrder, lessonId)
     }
   }
 
   public reorderModule(moduleId: string, direction: 'up' | 'down'): boolean {
     this.ensureConnected()
-    const targetModule = this.db!.prepare(`
+    const targetModule = this.db!.prepare(
+      `
       SELECT id, course_id as courseId, display_order as displayOrder, order_index as orderIndex
       FROM modules WHERE id = ?
-    `).get(moduleId) as { id: string; courseId: string; displayOrder: number; orderIndex: number } | undefined
+    `
+    ).get(moduleId) as
+      | {
+          id: string
+          courseId: string
+          displayOrder: number
+          orderIndex: number
+        }
+      | undefined
     if (!targetModule) return false
 
-    const allModules = this.db!.prepare(`
+    const allModules = this.db!.prepare(
+      `
       SELECT id, display_order as displayOrder, order_index as orderIndex
       FROM modules WHERE course_id = ?
       ORDER BY display_order ASC, order_index ASC
-    `).all(targetModule.courseId) as Array<{ id: string; displayOrder: number; orderIndex: number }>
+    `
+    ).all(targetModule.courseId) as Array<{
+      id: string
+      displayOrder: number
+      orderIndex: number
+    }>
 
     const currentIndex = allModules.findIndex((m) => m.id === moduleId)
     if (currentIndex === -1) return false
@@ -4529,11 +5722,17 @@ export class DatabaseService {
 
     this.db!.transaction(() => {
       allModules.forEach((m, idx) => {
-        this.db!.prepare(`UPDATE modules SET display_order = ?, has_manual_order = 1 WHERE id = ?`).run(idx + 1, m.id)
+        this.db!.prepare(
+          `UPDATE modules SET display_order = ?, has_manual_order = 1 WHERE id = ?`
+        ).run(idx + 1, m.id)
       })
 
-      this.db!.prepare(`UPDATE modules SET display_order = ?, has_manual_order = 1 WHERE id = ?`).run(swapIndex + 1, targetModule.id)
-      this.db!.prepare(`UPDATE modules SET display_order = ?, has_manual_order = 1 WHERE id = ?`).run(currentIndex + 1, otherModule.id)
+      this.db!.prepare(
+        `UPDATE modules SET display_order = ?, has_manual_order = 1 WHERE id = ?`
+      ).run(swapIndex + 1, targetModule.id)
+      this.db!.prepare(
+        `UPDATE modules SET display_order = ?, has_manual_order = 1 WHERE id = ?`
+      ).run(currentIndex + 1, otherModule.id)
     })()
 
     return true
@@ -4541,17 +5740,32 @@ export class DatabaseService {
 
   public reorderLesson(lessonId: string, direction: 'up' | 'down'): boolean {
     this.ensureConnected()
-    const targetLesson = this.db!.prepare(`
+    const targetLesson = this.db!.prepare(
+      `
       SELECT id, module_id as moduleId, display_order as displayOrder, order_index as orderIndex
       FROM lessons WHERE id = ?
-    `).get(lessonId) as { id: string; moduleId: string; displayOrder: number; orderIndex: number } | undefined
+    `
+    ).get(lessonId) as
+      | {
+          id: string
+          moduleId: string
+          displayOrder: number
+          orderIndex: number
+        }
+      | undefined
     if (!targetLesson) return false
 
-    const allLessons = this.db!.prepare(`
+    const allLessons = this.db!.prepare(
+      `
       SELECT id, display_order as displayOrder, order_index as orderIndex
       FROM lessons WHERE module_id = ?
       ORDER BY display_order ASC, order_index ASC
-    `).all(targetLesson.moduleId) as Array<{ id: string; displayOrder: number; orderIndex: number }>
+    `
+    ).all(targetLesson.moduleId) as Array<{
+      id: string
+      displayOrder: number
+      orderIndex: number
+    }>
 
     const currentIndex = allLessons.findIndex((l) => l.id === lessonId)
     if (currentIndex === -1) return false
@@ -4562,11 +5776,17 @@ export class DatabaseService {
 
     this.db!.transaction(() => {
       allLessons.forEach((l, idx) => {
-        this.db!.prepare(`UPDATE lessons SET display_order = ?, has_manual_order = 1 WHERE id = ?`).run(idx + 1, l.id)
+        this.db!.prepare(
+          `UPDATE lessons SET display_order = ?, has_manual_order = 1 WHERE id = ?`
+        ).run(idx + 1, l.id)
       })
 
-      this.db!.prepare(`UPDATE lessons SET display_order = ?, has_manual_order = 1 WHERE id = ?`).run(swapIndex + 1, targetLesson.id)
-      this.db!.prepare(`UPDATE lessons SET display_order = ?, has_manual_order = 1 WHERE id = ?`).run(currentIndex + 1, otherLesson.id)
+      this.db!.prepare(
+        `UPDATE lessons SET display_order = ?, has_manual_order = 1 WHERE id = ?`
+      ).run(swapIndex + 1, targetLesson.id)
+      this.db!.prepare(
+        `UPDATE lessons SET display_order = ?, has_manual_order = 1 WHERE id = ?`
+      ).run(currentIndex + 1, otherLesson.id)
     })()
 
     return true
@@ -4574,29 +5794,48 @@ export class DatabaseService {
 
   public toggleLessonFavorite(lessonId: string): boolean {
     this.ensureConnected()
-    const current = this.db!.prepare(`SELECT is_favorite as isFavorite FROM lessons WHERE id = ?`).get(lessonId) as { isFavorite: number } | undefined
+    const current = this.db!.prepare(
+      `SELECT is_favorite as isFavorite FROM lessons WHERE id = ?`
+    ).get(lessonId) as { isFavorite: number } | undefined
     if (!current) return false
     const nextVal = current.isFavorite ? 0 : 1
-    this.db!.prepare(`UPDATE lessons SET is_favorite = ? WHERE id = ?`).run(nextVal, lessonId)
+    this.db!.prepare(`UPDATE lessons SET is_favorite = ? WHERE id = ?`).run(
+      nextVal,
+      lessonId
+    )
     return Boolean(nextVal)
   }
 
-  public toggleModuleCompletion(moduleId: string, courseId: string, forceCompleted?: boolean): number {
+  public toggleModuleCompletion(
+    moduleId: string,
+    courseId: string,
+    forceCompleted?: boolean
+  ): number {
     this.ensureConnected()
-    const lessons = this.db!.prepare(`
+    const lessons = this.db!.prepare(
+      `
       SELECT id, duration FROM lessons WHERE module_id = ?
-    `).all(moduleId) as Array<{ id: string; duration: number }>
+    `
+    ).all(moduleId) as Array<{ id: string; duration: number }>
     if (lessons.length === 0) return 0
 
     const placeholders = lessons.map(() => '?').join(',')
-    const progressRows = this.db!.prepare(`
+    const progressRows = this.db!.prepare(
+      `
       SELECT lesson_id as lessonId, completed FROM lesson_progress
       WHERE course_id = ? AND lesson_id IN (${placeholders})
-    `).all(courseId, ...lessons.map((l) => l.id)) as Array<{ lessonId: string; completed: number }>
+    `
+    ).all(courseId, ...lessons.map((l) => l.id)) as Array<{
+      lessonId: string
+      completed: number
+    }>
 
-    const completedSet = new Set(progressRows.filter((p) => Boolean(p.completed)).map((p) => p.lessonId))
+    const completedSet = new Set(
+      progressRows.filter((p) => Boolean(p.completed)).map((p) => p.lessonId)
+    )
     const allCompleted = lessons.every((l) => completedSet.has(l.id))
-    const shouldComplete = forceCompleted !== undefined ? forceCompleted : !allCompleted
+    const shouldComplete =
+      forceCompleted !== undefined ? forceCompleted : !allCompleted
 
     const stmt = this.db!.prepare(`
       INSERT INTO lesson_progress (lesson_id, course_id, current_time, duration, completed, updated_at)
@@ -4633,12 +5872,18 @@ export class DatabaseService {
     const results: import('../../types').SearchResultItem[] = []
 
     // 1. Courses
-    const courses = this.db!.prepare(`
+    const courses = this.db!.prepare(
+      `
       SELECT id, title, custom_title as customTitle
       FROM courses
       WHERE title LIKE ? OR (custom_title IS NOT NULL AND custom_title LIKE ?)
       LIMIT 15
-    `).all(pattern, pattern) as Array<{ id: string; title: string; customTitle?: string }>
+    `
+    ).all(pattern, pattern) as Array<{
+      id: string
+      title: string
+      customTitle?: string
+    }>
 
     for (const c of courses) {
       results.push({
@@ -4651,14 +5896,16 @@ export class DatabaseService {
     }
 
     // 2. Modules
-    const modules = this.db!.prepare(`
+    const modules = this.db!.prepare(
+      `
       SELECT m.id, m.title, m.custom_title as customTitle, m.course_id as courseId,
              c.title as courseTitle, c.custom_title as courseCustomTitle
       FROM modules m
       JOIN courses c ON m.course_id = c.id
       WHERE m.title LIKE ? OR (m.custom_title IS NOT NULL AND m.custom_title LIKE ?)
       LIMIT 20
-    `).all(pattern, pattern) as Array<{
+    `
+    ).all(pattern, pattern) as Array<{
       id: string
       title: string
       customTitle?: string
@@ -4680,7 +5927,8 @@ export class DatabaseService {
     }
 
     // 3. Lessons
-    const lessons = this.db!.prepare(`
+    const lessons = this.db!.prepare(
+      `
       SELECT l.id, l.title, l.custom_title as customTitle, l.module_id as moduleId, l.course_id as courseId,
              m.title as moduleTitle, m.custom_title as moduleCustomTitle,
              c.title as courseTitle, c.custom_title as courseCustomTitle
@@ -4689,7 +5937,8 @@ export class DatabaseService {
       JOIN courses c ON l.course_id = c.id
       WHERE l.title LIKE ? OR (l.custom_title IS NOT NULL AND l.custom_title LIKE ?)
       LIMIT 25
-    `).all(pattern, pattern) as Array<{
+    `
+    ).all(pattern, pattern) as Array<{
       id: string
       title: string
       customTitle?: string
@@ -4739,12 +5988,23 @@ type ContentResourceRow = {
   createdAt: number
 }
 
-function moduleResourcesForPersistence(module: Module, courseId: string): ContentResource[] {
-  return (module.resources || []).map((resource) => withResourceOwnership(resource, courseId, module.id))
+function moduleResourcesForPersistence(
+  module: Module,
+  courseId: string
+): ContentResource[] {
+  return (module.resources || []).map((resource) =>
+    withResourceOwnership(resource, courseId, module.id)
+  )
 }
 
-function isStrictPathWithin(parentPath: string, candidatePath: string): boolean {
-  const relativePath = path.relative(path.resolve(parentPath), path.resolve(candidatePath))
+function isStrictPathWithin(
+  parentPath: string,
+  candidatePath: string
+): boolean {
+  const relativePath = path.relative(
+    path.resolve(parentPath),
+    path.resolve(candidatePath)
+  )
   return (
     relativePath.length > 0 &&
     relativePath !== '..' &&
@@ -4762,7 +6022,9 @@ function isRealDirectory(entryPath: string): boolean {
   }
 }
 
-function getPathState(entryPath: string): 'missing' | 'present' | 'inaccessible' {
+function getPathState(
+  entryPath: string
+): 'missing' | 'present' | 'inaccessible' {
   try {
     fs.lstatSync(entryPath)
     return 'present'
@@ -4772,14 +6034,23 @@ function getPathState(entryPath: string): 'missing' | 'present' | 'inaccessible'
 }
 
 function isMissingPathError(error: unknown): boolean {
-  return typeof error === 'object' && error !== null && 'code' in error && error.code === 'ENOENT'
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    error.code === 'ENOENT'
+  )
 }
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
-function lessonResourcesForPersistence(lesson: Lesson, courseId: string, moduleId: string): ContentResource[] {
+function lessonResourcesForPersistence(
+  lesson: Lesson,
+  courseId: string,
+  moduleId: string
+): ContentResource[] {
   if (lesson.contentResources !== undefined) {
     return lesson.contentResources.map((resource) =>
       withResourceOwnership(resource, courseId, moduleId, lesson.id)
@@ -4787,8 +6058,12 @@ function lessonResourcesForPersistence(lesson: Lesson, courseId: string, moduleI
   }
 
   return [
-    ...(lesson.resources || []).map((resource) => legacyAttachedResource(resource, courseId, moduleId, lesson)),
-    ...(lesson.subtitles || []).map((subtitle) => legacySubtitleResource(subtitle, courseId, moduleId, lesson))
+    ...(lesson.resources || []).map((resource) =>
+      legacyAttachedResource(resource, courseId, moduleId, lesson)
+    ),
+    ...(lesson.subtitles || []).map((subtitle) =>
+      legacySubtitleResource(subtitle, courseId, moduleId, lesson)
+    )
   ]
 }
 
@@ -4860,7 +6135,9 @@ function legacySubtitleResource(
   }
 }
 
-function toContentResourceRow(resource: ContentResource): Record<string, string | number | null> {
+function toContentResourceRow(
+  resource: ContentResource
+): Record<string, string | number | null> {
   return {
     id: resource.id,
     courseId: resource.courseId,
@@ -4897,8 +6174,14 @@ function contentResourceFromRow(row: ContentResourceRow): ContentResource {
   return resource
 }
 
-function toAttachedResource(resource: ContentResource): AttachedResource | undefined {
-  if (resource.role !== 'resource' || !resource.lessonId || !isAttachedResourceType(resource.type)) {
+function toAttachedResource(
+  resource: ContentResource
+): AttachedResource | undefined {
+  if (
+    resource.role !== 'resource' ||
+    !resource.lessonId ||
+    !isAttachedResourceType(resource.type)
+  ) {
     return undefined
   }
   return {
@@ -4928,7 +6211,12 @@ function toSubtitleTrack(resource: ContentResource): SubtitleTrack | undefined {
 
 function toResourceType(filePath: string): ContentResource['type'] {
   const mediaType = getMediaType(filePath)
-  if (mediaType === 'pdf' || mediaType === 'document' || mediaType === 'image' || mediaType === 'archive') {
+  if (
+    mediaType === 'pdf' ||
+    mediaType === 'document' ||
+    mediaType === 'image' ||
+    mediaType === 'archive'
+  ) {
     return mediaType
   }
   return 'other'
@@ -4937,7 +6225,12 @@ function toResourceType(filePath: string): ContentResource['type'] {
 function isAttachedResourceType(
   type: ContentResource['type']
 ): type is AttachedResource['type'] {
-  return type === 'pdf' || type === 'code' || type === 'archive' || type === 'document'
+  return (
+    type === 'pdf' ||
+    type === 'code' ||
+    type === 'archive' ||
+    type === 'document'
+  )
 }
 
 function consolidateModulesForPersistence(
@@ -4971,7 +6264,9 @@ function consolidateModulesForPersistence(
   // Re-index modules and lessons naturally
   merged.forEach((mod, mIdx) => {
     mod.orderIndex = mIdx + 1
-    mod.lessons.sort((a, b) => (a.orderIndex - b.orderIndex) || naturalCompare(a.title, b.title))
+    mod.lessons.sort(
+      (a, b) => a.orderIndex - b.orderIndex || naturalCompare(a.title, b.title)
+    )
     mod.lessons.forEach((les, lIdx) => {
       les.orderIndex = lIdx + 1
       les.moduleId = mod.id

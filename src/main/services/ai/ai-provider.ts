@@ -8,7 +8,8 @@ import type {
   AiProviderConfig,
   AiProviderErrorCode,
   AiProviderHealth,
-  AiProviderId
+  AiProviderId,
+  AiProviderUsage
 } from '../../../types/ai'
 
 const AI_REQUEST_TIMEOUT_MS = 15_000
@@ -44,7 +45,9 @@ export interface AiProviderAdapter {
   health(modelId?: string): Promise<AiProviderHealth>
   chat(request: AiProviderChatRequest): Promise<AiChatResponse>
   embed(request: AiProviderEmbeddingRequest): Promise<AiEmbeddingResponse>
-  transcribe?(request: AiProviderTranscriptionRequest): Promise<AiTranscriptionResponse>
+  transcribe?(
+    request: AiProviderTranscriptionRequest
+  ): Promise<AiTranscriptionResponse>
 }
 
 export class AiProviderRegistry {
@@ -94,13 +97,20 @@ export function normalizeModelCapabilities(
   for (const value of raw) {
     if (typeof value !== 'string') continue
     const capability = value.toUpperCase().replace(/[-\s]/g, '_')
-    if (capability === 'CHAT' || capability === 'COMPLETION' || capability === 'GENERATE') {
+    if (
+      capability === 'CHAT' ||
+      capability === 'COMPLETION' ||
+      capability === 'GENERATE'
+    ) {
       capabilities.add('CHAT')
     } else if (capability === 'EMBEDDING' || capability === 'EMBEDDINGS') {
       capabilities.add('EMBEDDINGS')
     } else if (capability === 'TRANSCRIPTION' || capability === 'TRANSCRIBE') {
       capabilities.add('TRANSCRIPTION')
-    } else if (capability === 'STRUCTURED_OUTPUT' || capability === 'STRUCTURED') {
+    } else if (
+      capability === 'STRUCTURED_OUTPUT' ||
+      capability === 'STRUCTURED'
+    ) {
       capabilities.add('STRUCTURED_OUTPUT')
     }
   }
@@ -125,6 +135,48 @@ export function normalizeContent(value: unknown): string {
   return value == null ? '' : JSON.stringify(value)
 }
 
+export function normalizeProviderUsage(
+  payload: unknown
+): AiProviderUsage | undefined {
+  if (!payload || typeof payload !== 'object') return undefined
+  const root = payload as Record<string, unknown>
+  const nested =
+    root.usage && typeof root.usage === 'object'
+      ? (root.usage as Record<string, unknown>)
+      : {}
+  const promptTokens = nonNegativeNumber(
+    nested.prompt_tokens ?? nested.promptTokens ?? root.prompt_eval_count
+  )
+  const completionTokens = nonNegativeNumber(
+    nested.completion_tokens ?? nested.completionTokens ?? root.eval_count
+  )
+  const explicitTotal = nonNegativeNumber(
+    nested.total_tokens ?? nested.totalTokens
+  )
+  const totalTokens =
+    explicitTotal ??
+    (promptTokens !== undefined || completionTokens !== undefined
+      ? (promptTokens ?? 0) + (completionTokens ?? 0)
+      : undefined)
+  if (
+    promptTokens === undefined &&
+    completionTokens === undefined &&
+    totalTokens === undefined
+  )
+    return undefined
+  return {
+    ...(promptTokens === undefined ? {} : { promptTokens }),
+    ...(completionTokens === undefined ? {} : { completionTokens }),
+    ...(totalTokens === undefined ? {} : { totalTokens })
+  }
+}
+
+function nonNegativeNumber(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0
+    ? value
+    : undefined
+}
+
 export abstract class HttpAiProvider implements AiProviderAdapter {
   public abstract readonly providerId: AiProviderId
   public abstract readonly kind: AiProviderConfig['kind']
@@ -147,9 +199,13 @@ export abstract class HttpAiProvider implements AiProviderAdapter {
   public abstract discoverModels(): Promise<AiModel[]>
   public abstract health(modelId?: string): Promise<AiProviderHealth>
   public abstract chat(request: AiProviderChatRequest): Promise<AiChatResponse>
-  public abstract embed(request: AiProviderEmbeddingRequest): Promise<AiEmbeddingResponse>
+  public abstract embed(
+    request: AiProviderEmbeddingRequest
+  ): Promise<AiEmbeddingResponse>
 
-  public async transcribe(_request: AiProviderTranscriptionRequest): Promise<AiTranscriptionResponse> {
+  public async transcribe(
+    _request: AiProviderTranscriptionRequest
+  ): Promise<AiTranscriptionResponse> {
     void _request
     throw new AiProviderError(
       'CAPABILITY_UNSUPPORTED',
@@ -172,10 +228,18 @@ export abstract class HttpAiProvider implements AiProviderAdapter {
       if (init.body) headers.set('content-type', 'application/json')
       if (this.apiKey) headers.set('authorization', `Bearer ${this.apiKey}`)
 
-      response = await this.fetchImpl(`${this.baseUrl}${path}`, { ...init, headers, signal: controller.signal })
+      response = await this.fetchImpl(`${this.baseUrl}${path}`, {
+        ...init,
+        headers,
+        signal: controller.signal
+      })
     } catch (error) {
       if (isAiProviderError(error)) throw error
-      throw new AiProviderError('CONNECTION_FAILED', 'AI provider connection failed', this.providerId)
+      throw new AiProviderError(
+        'CONNECTION_FAILED',
+        'AI provider connection failed',
+        this.providerId
+      )
     } finally {
       clearTimeout(timeout)
     }
@@ -196,7 +260,12 @@ export abstract class HttpAiProvider implements AiProviderAdapter {
     try {
       return await response.json()
     } catch {
-      throw new AiProviderError('PROVIDER_ERROR', 'AI provider returned an invalid response', this.providerId, response.status)
+      throw new AiProviderError(
+        'PROVIDER_ERROR',
+        'AI provider returned an invalid response',
+        this.providerId,
+        response.status
+      )
     }
   }
 
@@ -224,8 +293,17 @@ export abstract class HttpAiProvider implements AiProviderAdapter {
       })
     } catch (error) {
       if (isAiProviderError(error)) throw error
-      if (signal?.aborted) throw new AiProviderError('PROVIDER_ERROR', 'AI transcription was cancelled', this.providerId)
-      throw new AiProviderError('CONNECTION_FAILED', 'AI provider connection failed', this.providerId)
+      if (signal?.aborted)
+        throw new AiProviderError(
+          'PROVIDER_ERROR',
+          'AI transcription was cancelled',
+          this.providerId
+        )
+      throw new AiProviderError(
+        'CONNECTION_FAILED',
+        'AI provider connection failed',
+        this.providerId
+      )
     } finally {
       clearTimeout(timeout)
       signal?.removeEventListener('abort', abortFromCaller)
@@ -247,11 +325,19 @@ export abstract class HttpAiProvider implements AiProviderAdapter {
     try {
       return await response.json()
     } catch {
-      throw new AiProviderError('PROVIDER_ERROR', 'AI provider returned an invalid response', this.providerId, response.status)
+      throw new AiProviderError(
+        'PROVIDER_ERROR',
+        'AI provider returned an invalid response',
+        this.providerId,
+        response.status
+      )
     }
   }
 
-  protected healthFromError(error: unknown, modelId?: string): AiProviderHealth {
+  protected healthFromError(
+    error: unknown,
+    modelId?: string
+  ): AiProviderHealth {
     if (isAiProviderError(error)) {
       const status =
         error.code === 'INVALID_CREDENTIALS'
@@ -276,8 +362,12 @@ export abstract class HttpAiProvider implements AiProviderAdapter {
     }
   }
 
-  private publicErrorForStatus(status: number, context: 'discovery' | 'model'): string {
-    if (status === 401 || status === 403) return 'AI provider credentials were rejected'
+  private publicErrorForStatus(
+    status: number,
+    context: 'discovery' | 'model'
+  ): string {
+    if (status === 401 || status === 403)
+      return 'AI provider credentials were rejected'
     if (context === 'model' && status === 404) return 'AI model was not found'
     return 'AI provider request failed'
   }

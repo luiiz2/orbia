@@ -55,6 +55,7 @@ describe('AI core routing and privacy', () => {
   let cloudEmbed: ReturnType<typeof vi.fn>
   let cloudTranscribe: ReturnType<typeof vi.fn>
   let cloudDiscover: ReturnType<typeof vi.fn>
+  let recordUsage: ReturnType<typeof vi.fn>
   let service: AiCoreService
 
   beforeEach(() => {
@@ -64,13 +65,15 @@ describe('AI core routing and privacy', () => {
     localChat = vi.fn().mockResolvedValue({
       providerId: 'ollama',
       modelId: 'local-chat',
-      content: 'local'
+      content: 'local',
+      usage: { promptTokens: 8, completionTokens: 4, totalTokens: 12 }
     })
     localTranscribe = vi.fn().mockResolvedValue({
       providerId: 'ollama',
       modelId: 'local-chat',
       text: 'local transcript',
-      segments: [{ start: 0, end: 1, text: 'local transcript' }]
+      segments: [{ start: 0, end: 1, text: 'local transcript' }],
+      durationSeconds: 1
     })
     const localProvider = fakeProvider(
       'ollama',
@@ -133,10 +136,12 @@ describe('AI core routing and privacy', () => {
       )
     ])
 
+    recordUsage = vi.fn()
     service = new AiCoreService({
       config,
       credentials: { get: vi.fn().mockReturnValue('configured') },
-      providers: registry
+      providers: registry,
+      usage: { recordUsage }
     })
     service.saveProvider({
       providerId: 'ollama',
@@ -306,6 +311,12 @@ describe('AI core routing and privacy', () => {
       modelId: 'local-chat',
       audio,
       language: 'pt-BR'
+    })
+    expect(recordUsage).toHaveBeenCalledWith({
+      promptTokens: undefined,
+      completionTokens: undefined,
+      transcriptionSeconds: 1,
+      embeddedChunks: undefined
     })
   })
 
@@ -579,5 +590,11 @@ describe('AI core routing and privacy', () => {
         ])
       })
     )
+    expect(recordUsage).toHaveBeenCalledWith({
+      promptTokens: 8,
+      completionTokens: 4,
+      transcriptionSeconds: undefined,
+      embeddedChunks: undefined
+    })
   })
 })

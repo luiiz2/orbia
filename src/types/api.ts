@@ -40,6 +40,13 @@ import type {
   SourceNavigationRequest,
   SourceNavigationResult
 } from './grounded-chat'
+import type {
+  LibrarySearchNavigationResult,
+  LibrarySearchRequest,
+  LibrarySearchResponse,
+  RelatedContentRequest,
+  RelatedContentResponse
+} from './library-search'
 
 export interface SelectedCourseSource {
   path: string
@@ -529,7 +536,7 @@ export interface OrbiaApi {
     set: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => Promise<void>
   }
 
-  // AI foundation (Phase 1)
+  // AI foundation (v0.9 Phase 1 and final hardening)
   ai: {
     getSettings: () => Promise<AiSettingsSnapshot>
     saveProvider: (input: AiProviderUpdate) => Promise<AiSettingsSnapshot>
@@ -540,6 +547,10 @@ export interface OrbiaApi {
     health: (providerId: AiProviderId, modelId?: string) => Promise<AiProviderHealth>
     chat: (input: AiChatInput) => Promise<AiChatResponse>
     embed: (input: AiEmbeddingRequest) => Promise<AiEmbeddingResponse>
+    getStorageStats: () => Promise<import('./ai').AiStorageStats>
+    clearStorageCategory: (category: import('./ai').AiStorageCategory) => Promise<boolean>
+    getUsageStats: () => Promise<import('./ai').AiLocalUsageStats>
+    resetUsageStats: () => Promise<boolean>
   }
 
   // Content extraction, embeddings and local semantic index (v0.9 Phase 3)
@@ -574,6 +585,34 @@ export interface OrbiaApi {
     resolveSource: (input: SourceNavigationRequest) => Promise<SourceNavigationResult>
   }
 
+  // Semantic library search and related content (v0.9 Phase 5)
+  search: {
+    findInLibrary: (input: LibrarySearchRequest) => Promise<LibrarySearchResponse>
+    related: (input: RelatedContentRequest) => Promise<RelatedContentResponse>
+    resolveResult: (input: { chunkId: string }) => Promise<LibrarySearchNavigationResult>
+  }
+
+  // Summaries (v0.9 Phase 6)
+  summaries: {
+    get: (scope: import('./summaries').SummaryScope) => Promise<import('./summaries').SummaryRecord | null>
+    generate: (input: import('./summaries').GenerateSummaryRequest) => Promise<import('./summaries').GenerateSummaryResponse>
+    invalidate: (scope: import('./summaries').SummaryScope) => Promise<boolean>
+  }
+
+  // Automatic & Manual Chapters (v0.9 Phase 6)
+  chapters: {
+    get: (lessonId: string) => Promise<import('./chapters').LessonChapter[]>
+    generate: (input: import('./chapters').GenerateChaptersRequest) => Promise<import('./chapters').GenerateChaptersResponse>
+    save: (input: import('./chapters').SaveChaptersRequest) => Promise<import('./chapters').LessonChapter[]>
+    update: (input: import('./chapters').UpdateChapterRequest) => Promise<import('./chapters').LessonChapter>
+    delete: (input: import('./chapters').DeleteChapterRequest) => Promise<boolean>
+  }
+
+  // AI-Assisted Notes (v0.9 Phase 6)
+  aiNotes: {
+    suggest: (input: import('./ai-notes').AiNoteRequest) => Promise<import('./ai-notes').AiNoteSuggestion>
+  }
+
   // System
   system: {
     getLocale: () => Promise<string>
@@ -582,4 +621,3 @@ export interface OrbiaApi {
     getPathForFile: (file: File) => string
   }
 }
-

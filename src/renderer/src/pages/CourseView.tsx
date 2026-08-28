@@ -20,12 +20,15 @@ import {
   FolderSync,
   Target,
   ListPlus,
-  Calendar
+  Calendar,
+  Sparkles
 } from 'lucide-react'
 import { useLibraryStore } from '../stores/useLibraryStore'
 import { usePlayerStore } from '../stores/usePlayerStore'
 import { useNavigationStore } from '../stores/useNavigationStore'
 import { useReviewStore } from '../stores/useReviewStore'
+import { useGroundedChatStore } from '../stores/useGroundedChatStore'
+import { useSummariesStore } from '../stores/useSummariesStore'
 import { useCourseProgress } from '../hooks/useCourseProgress'
 import { PdfViewerModal } from '../components/documents/PdfViewerModal'
 import { CodeViewerModal } from '../components/documents/CodeViewerModal'
@@ -551,6 +554,53 @@ export function CourseView(): React.JSX.Element {
             </TooltipContent>
           </Tooltip>
 
+          {/* Summarize Course AI Button */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  useSummariesStore.getState().openSummary({
+                    type: 'course',
+                    courseId: course.id
+                  })
+                }
+                className="gap-1.5 text-xs text-foreground hover:border-primary/40 hover:text-primary rounded-xl cursor-pointer min-h-[36px] border-border/80"
+                aria-label={t('summaries.summarizeCourse', 'Resumo do Curso')}
+              >
+                <FileText className="h-3.5 w-3.5 text-primary" />
+                <span>{t('summaries.summarizeCourse', 'Resumo do Curso')}</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              {t('summaries.summarizeCourseTooltip', 'Gerar ou visualizar síntese estruturada deste curso')}
+            </TooltipContent>
+          </Tooltip>
+
+          {/* Ask About Course AI Button */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  useGroundedChatStore.getState().open({
+                    scope: { type: 'course', courseId: course.id }
+                  })
+                }
+                className="gap-1.5 text-xs text-foreground hover:border-primary/40 hover:text-primary rounded-xl cursor-pointer min-h-[36px] border-border/80"
+                aria-label={t('chat.askAboutCourse', 'Perguntar sobre este curso')}
+              >
+                <Sparkles className="h-3.5 w-3.5 text-primary" />
+                <span>{t('chat.askAboutCourse', 'Perguntar sobre o Curso')}</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              {t('chat.askAboutCourseTooltip', 'Conversar com a IA usando o conteúdo indexado deste curso')}
+            </TooltipContent>
+          </Tooltip>
+
           {/* Delete Course Action Button */}
           <Tooltip>
             <TooltipTrigger asChild>
@@ -963,6 +1013,38 @@ export function CourseView(): React.JSX.Element {
                         className="rounded p-1 text-muted-foreground transition-colors hover:bg-secondary/70 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         {queueingModuleId === module.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileText className="h-3.5 w-3.5" />}
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={t('summaries.summarizeModule', 'Resumir módulo')}
+                        title={t('summaries.summarizeModule', 'Resumo do Módulo')}
+                        onClick={(event) => {
+                          event.preventDefault()
+                          event.stopPropagation()
+                          useSummariesStore.getState().openSummary({
+                            type: 'module',
+                            courseId: course.id,
+                            moduleId: module.id
+                          })
+                        }}
+                        className="rounded p-1 text-muted-foreground transition-colors hover:bg-secondary/70 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                      >
+                        <FileText className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={t('chat.askAboutModule', 'Perguntar sobre este módulo')}
+                        title={t('chat.askAboutModule', 'Perguntar sobre este módulo')}
+                        onClick={(event) => {
+                          event.preventDefault()
+                          event.stopPropagation()
+                          useGroundedChatStore.getState().open({
+                            scope: { type: 'module', moduleId: module.id }
+                          })
+                        }}
+                        className="rounded p-1 text-muted-foreground transition-colors hover:bg-secondary/70 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                      >
+                        <Sparkles className="h-3.5 w-3.5" />
                       </button>
                       {modInfo && modInfo.duration > 0 && (
                         <span className="font-mono text-muted-foreground/80">

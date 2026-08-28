@@ -9,18 +9,24 @@ import {
   Tv,
   Eye,
   AlertTriangle,
-  Trash2
+  Trash2,
+  Sparkles,
+  HelpCircle
 } from 'lucide-react'
 import { PlaybackQueueDrawer } from '../components/player/PlaybackQueueDrawer'
 import { VideoPlayer } from '../components/player/VideoPlayer'
 import { NotesPanel } from '../components/player/NotesPanel'
+import { ChaptersPanel } from '../components/player/ChaptersPanel'
 import { BookmarksPanel } from '../components/player/BookmarksPanel'
 import { FlashcardsPanel } from '../components/player/FlashcardsPanel'
 import { TranscriptPanel } from '../components/player/TranscriptPanel'
 import { PdfViewerModal } from '../components/documents/PdfViewerModal'
 import { CodeViewerModal } from '../components/documents/CodeViewerModal'
 import { usePlayerStore } from '../stores/usePlayerStore'
+import { useLibraryStore } from '../stores/useLibraryStore'
 import { useNavigationStore } from '../stores/useNavigationStore'
+import { useGroundedChatStore } from '../stores/useGroundedChatStore'
+import { useSummariesStore } from '../stores/useSummariesStore'
 import { useCourseProgress } from '../hooks/useCourseProgress'
 import { applyTranscriptProgress, useTranscriptStore } from '../stores/useTranscriptStore'
 import {
@@ -75,6 +81,7 @@ export function PlayerView(): React.JSX.Element {
     currentTime,
     modulesWithLessons,
     notes,
+    chapters,
     bookmarks,
     flashcards,
     playbackQueue,
@@ -84,7 +91,8 @@ export function PlayerView(): React.JSX.Element {
     isFullscreen,
     brokenLessonIds,
     deleteLesson,
-    seek
+    seek,
+    addNote
   } = usePlayerStore()
 
   const {
@@ -101,16 +109,63 @@ export function PlayerView(): React.JSX.Element {
   } = useTranscriptStore()
 
   const { setView } = useNavigationStore()
-  const [activeTab, setActiveTab] = useState<'curriculum' | 'queue' | 'notes' | 'transcript' | 'bookmarks' | 'flashcards' | 'resources'>('curriculum')
+  const [activeTab, setActiveTab] = useState<'curriculum' | 'queue' | 'notes' | 'chapters' | 'transcript' | 'bookmarks' | 'flashcards' | 'resources'>('curriculum')
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true)
   const [selectedResource, setSelectedResource] = useState<VisibleResource | null>(null)
   const [isPdfModalOpen, setIsPdfModalOpen] = useState<boolean>(false)
+  const [pdfInitialPage, setPdfInitialPage] = useState<number | undefined>(undefined)
   const [isCodeModalOpen, setIsCodeModalOpen] = useState<boolean>(false)
   const [courseHealth, setCourseHealth] = useState<CourseHealthReport | null>(null)
   const [lessonToDelete, setLessonToDelete] = useState<Lesson | null>(null)
   const [deleteFileFromDisk, setDeleteFileFromDisk] = useState<boolean>(false)
   const [isDeleting, setIsDeleting] = useState<boolean>(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState<boolean>(false)
+
+  // Handle source navigation target from Grounded Chat / Orbia
+  useEffect(() => {
+    const rawTarget = useNavigationStore.getState().consumeSourceTarget()
+    if (!rawTarget) return
+
+    const navTarget = rawTarget
+
+    async function handleTarget(): Promise<void> {
+      try {
+        if (navTarget.courseId && navTarget.courseId !== activeCourse?.id) {
+          const hierarchy = await useLibraryStore.getState().fetchCourseById(navTarget.courseId)
+          if (hierarchy) {
+            await usePlayerStore.getState().loadHierarchy(hierarchy.course, hierarchy.modules, navTarget.lessonId)
+          }
+        } else if (navTarget.lessonId && navTarget.lessonId !== activeLesson?.id) {
+          await loadLesson(navTarget.lessonId)
+        }
+
+        if (navTarget.timestampSeconds !== undefined && navTarget.timestampSeconds >= 0) {
+          seek(navTarget.timestampSeconds)
+        }
+
+        if (navTarget.resourceId) {
+          const allRes = [
+            ...(activeLesson ? getLessonVisibleResources(activeLesson) : []),
+            ...(modulesWithLessons.find((m) => m.lessons.some((l) => l.id === navTarget.lessonId))?.resources || [])
+          ]
+          const targetResource = allRes.find((r) => r.id === navTarget.resourceId)
+          if (targetResource) {
+            setSelectedResource(targetResource)
+            if (hasEmbeddedPreview(targetResource)) {
+              setPdfInitialPage(navTarget.pdfPage)
+              setIsPdfModalOpen(true)
+            } else if (isCodeResource(targetResource)) {
+              setIsCodeModalOpen(true)
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('[PlayerView] Failed to handle source navigation target:', err)
+      }
+    }
+
+    void handleTarget()
+  }, [activeCourse?.id, activeLesson?.id, loadLesson, modulesWithLessons, seek])
 
   const fetchHealth = useCallback(async () => {
     if (activeCourse?.id) {
@@ -230,6 +285,59 @@ export function PlayerView(): React.JSX.Element {
               />
             </div>
 
+            {/* Grounded AI Action Bar */}
+            {activeLesson && (
+              <div className="flex items-center gap-1.5 pt-0.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    useGroundedChatStore.getState().open({
+                      scope: { type: 'lesson', lessonId: activeLesson.id }
+                    })
+                  }}
+                  className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-2 py-1.5 text-xs font-semibold text-primary hover:bg-primary/20 transition-all cursor-pointer"
+                  title={t('chat.askAboutLesson', 'Perguntar sobre esta aula')}
+                >
+                  <Sparkles className="h-3.5 w-3.5 shrink-0" />
+                  <span className="truncate">{t('chat.askAboutLesson', 'Perguntar sobre a Aula')}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (activeCourse && activeModule && activeLesson) {
+                      useSummariesStore.getState().openSummary({
+                        type: 'lesson',
+                        courseId: activeCourse.id,
+                        moduleId: activeModule.id,
+                        lessonId: activeLesson.id
+                      })
+                    }
+                  }}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-2.5 py-1.5 text-xs font-semibold text-primary hover:bg-primary/20 transition-all cursor-pointer shrink-0"
+                  title={t('summaries.summarizeLesson', 'Resumir Aula')}
+                >
+                  <FileText className="h-3.5 w-3.5 shrink-0" />
+                  <span>{t('summaries.summarize', 'Resumo')}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    useGroundedChatStore.getState().open({
+                      scope: { type: 'lesson', lessonId: activeLesson.id },
+                      moment: { lessonId: activeLesson.id, timestampSeconds: currentTime }
+                    })
+                    void useGroundedChatStore.getState().ask('Explain this moment')
+                  }}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border/80 bg-secondary/50 px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-secondary transition-all cursor-pointer shrink-0"
+                  title={t('chat.explainThis', 'Explicar este momento do vídeo')}
+                >
+                  <HelpCircle className="h-3.5 w-3.5 text-primary shrink-0" />
+                  <span className="hidden sm:inline">{t('chat.explainThis', 'Explicar Este Momento')}</span>
+                  <span className="sm:hidden">{t('chat.explain', 'Explicar')}</span>
+                </button>
+              </div>
+            )}
+
             {/* Curriculum / Notes / Bookmarks / Flashcards / Resources Tabs */}
             <div className="flex rounded-xl bg-secondary/80 p-1 text-xs overflow-x-auto gap-0.5 scrollbar-none" role="tablist">
               <button
@@ -238,9 +346,9 @@ export function PlayerView(): React.JSX.Element {
                 aria-selected={activeTab === 'curriculum'}
                 onClick={() => setActiveTab('curriculum')}
                 className={cn(
-                  'flex-1 py-1.5 px-2 text-center font-semibold rounded-lg transition-all cursor-pointer active:scale-95 duration-150 whitespace-nowrap',
+                  'flex-1 py-1.5 px-2 text-center font-semibold rounded-lg transition-all cursor-pointer relative active:scale-95 duration-150 whitespace-nowrap',
                   activeTab === 'curriculum'
-                    ? 'bg-card text-foreground shadow-sm'
+                    ? 'bg-card text-primary shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
                 )}
               >
@@ -254,14 +362,14 @@ export function PlayerView(): React.JSX.Element {
                 className={cn(
                   'flex-1 py-1.5 px-2 text-center font-semibold rounded-lg transition-all cursor-pointer relative active:scale-95 duration-150 whitespace-nowrap',
                   activeTab === 'transcript'
-                    ? 'bg-card text-foreground shadow-sm'
+                    ? 'bg-card text-primary shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
                 )}
               >
-                {t('player.transcript', 'Transcript')}
+                {t('player.transcript', 'Transcrição')}
                 {transcript && (
                   <span className="ml-1 rounded-full bg-primary/20 px-1 py-0.2 text-[10px] font-bold text-primary">
-                    {transcript.segments.length}
+                    ✓
                   </span>
                 )}
               </button>
@@ -281,6 +389,25 @@ export function PlayerView(): React.JSX.Element {
                 {playbackQueue && playbackQueue.length > 0 && (
                   <span className="ml-1 rounded-full bg-primary/20 px-1 py-0.2 text-[10px] font-bold text-primary">
                     {playbackQueue.length}
+                  </span>
+                )}
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === 'chapters'}
+                onClick={() => setActiveTab('chapters')}
+                className={cn(
+                  'flex-1 py-1.5 px-2 text-center font-semibold rounded-lg transition-all cursor-pointer relative active:scale-95 duration-150 whitespace-nowrap',
+                  activeTab === 'chapters'
+                    ? 'bg-card text-primary shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                {t('player.chapters', 'Capítulos')}
+                {chapters && chapters.length > 0 && (
+                  <span className="ml-1 rounded-full bg-primary/20 px-1 py-0.2 text-[10px] font-bold text-primary">
+                    {chapters.length}
                   </span>
                 )}
               </button>
@@ -512,6 +639,10 @@ export function PlayerView(): React.JSX.Element {
               <NotesPanel />
             )}
 
+            {activeTab === 'chapters' && (
+              <ChaptersPanel />
+            )}
+
             {activeTab === 'transcript' && (
               <TranscriptPanel
                 transcript={transcript}
@@ -520,10 +651,14 @@ export function PlayerView(): React.JSX.Element {
                 isLoading={isTranscriptLoading}
                 errorMessage={transcriptError}
                 progressPercent={transcriptProgress?.progressPercent}
+                lessonId={activeLesson?.id}
                 onSeek={seek}
                 onTranscribe={transcribe}
                 onReuseSubtitle={reuseSubtitle}
                 onRetranscribe={retranscribe}
+                onAddNote={(content) => {
+                  void addNote(content)
+                }}
               />
             )}
 
@@ -635,9 +770,11 @@ export function PlayerView(): React.JSX.Element {
       <PdfViewerModal
         resource={selectedResource}
         isOpen={isPdfModalOpen}
+        initialPage={pdfInitialPage}
         onClose={() => {
           setIsPdfModalOpen(false)
           setSelectedResource(null)
+          setPdfInitialPage(undefined)
         }}
       />
 

@@ -14,7 +14,8 @@ import {
   type AiProviderUpdate,
   type AiRouteUpdate
 } from '../../types/ai'
-import { AiProviderError, aiCoreService, isAiProviderError } from '../services/ai'
+import { AiProviderError, aiCoreService, aiStorageService, aiUsageService, isAiProviderError } from '../services/ai'
+import type { AiStorageCategory } from '../../types/ai'
 
 export function registerAiIpc(): void {
   ipcMain.handle('ai:get-settings', () => run(() => aiCoreService.getSettings()))
@@ -63,6 +64,27 @@ export function registerAiIpc(): void {
 
   ipcMain.handle('ai:embed', (_event, payload: unknown) =>
     run(() => aiCoreService.embed(parseEmbeddingRequest(payload)))
+  )
+
+  ipcMain.handle('ai:get-storage-stats', () =>
+    run(() => aiStorageService.getStorageStats())
+  )
+
+  ipcMain.handle('ai:clear-storage-category', (_event, payload: unknown) =>
+    run(() => {
+      const category = String(payload) as AiStorageCategory
+      const validCategories: AiStorageCategory[] = ['transcripts', 'semanticIndex', 'summaries', 'chatHistory', 'tempFiles']
+      if (!validCategories.includes(category)) throw invalid('Invalid storage category')
+      return aiStorageService.clearCategory(category)
+    })
+  )
+
+  ipcMain.handle('ai:get-usage-stats', () =>
+    run(() => aiUsageService.getUsageStats())
+  )
+
+  ipcMain.handle('ai:reset-usage-stats', () =>
+    run(() => aiUsageService.resetUsageStats())
   )
 }
 

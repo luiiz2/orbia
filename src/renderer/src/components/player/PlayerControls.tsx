@@ -38,6 +38,7 @@ export interface PlayerControlsProps {
   bufferedEnd?: number
   notes?: import('@shared').LessonNote[]
   bookmarks?: import('@shared').VideoBookmark[]
+  chapters?: import('@shared').LessonChapter[]
   onTogglePlay: () => void
   onSeek: (time: number) => void
   onSeekRelative: (deltaSeconds: number) => void
@@ -69,6 +70,7 @@ export function PlayerControls({
   bufferedEnd,
   notes,
   bookmarks,
+  chapters,
   onTogglePlay,
   onSeek,
   onSeekRelative,
@@ -99,6 +101,7 @@ export function PlayerControls({
         bufferedEnd={bufferedEnd}
         notes={notes}
         bookmarks={bookmarks}
+        chapters={chapters}
         onSeek={onSeek}
         className="mb-2"
       />

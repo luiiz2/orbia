@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { AlertCircle, Cloud, KeyRound, RefreshCw, Save, Server, ShieldCheck } from 'lucide-react'
+import { AlertCircle, Cloud, KeyRound, RefreshCw, Save, Server, ShieldCheck, Trash2 } from 'lucide-react'
 import { Button } from '../ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card'
 import { useAiSettingsStore } from '../../stores/useAiSettingsStore'
@@ -9,6 +9,7 @@ import {
   AI_DATA_TYPES,
   AI_PROVIDER_IDS,
   AI_TASKS,
+  type AiCategoryStorageStats,
   type AiDataType,
   type AiModel,
   type AiProviderId,
@@ -78,6 +79,8 @@ export function AiSettingsSection(): React.JSX.Element {
     settings,
     models,
     health,
+    storageStats,
+    usageStats,
     isLoading,
     error,
     init,
@@ -87,6 +90,9 @@ export function AiSettingsSection(): React.JSX.Element {
     setAllowedCloudDataTypes,
     discoverModels,
     checkHealth,
+    fetchStorageStats,
+    clearStorageCategory,
+    resetUsageStats,
     clearError
   } = useAiSettingsStore()
   const [providerDrafts, setProviderDrafts] = useState<Record<AiProviderId, ProviderDraft> | null>(null)
@@ -335,12 +341,103 @@ export function AiSettingsSection(): React.JSX.Element {
           })}
         </section>
 
-        <section className="space-y-2 border-t border-border/40 pt-4">
-          <div className="flex items-center gap-2">
-            <KeyRound className="h-3.5 w-3.5 text-primary" />
-            <p className="text-sm font-semibold text-foreground">{t('settings.ai.usage', 'Usage')}</p>
+        {/* Local Usage Metrics (v0.9 Hardening) */}
+        <section className="space-y-3 border-t border-border/40 pt-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold text-foreground">{t('settings.ai.usageTitle', 'Uso Local da IA')}</p>
+              <p className="text-xs text-muted-foreground">{t('settings.ai.usageSubtitle', 'Métricas contabilizadas exclusivamente na máquina local. Zero telemetria.')}</p>
+            </div>
+            {usageStats && usageStats.totalRequests > 0 && (
+              <Button
+                variant="ghost"
+                size="xs"
+                onClick={() => {
+                  if (window.confirm(t('settings.ai.confirmResetUsage', 'Deseja zerar os contadores locais de uso?'))) {
+                    void resetUsageStats()
+                  }
+                }}
+                className="text-xs text-muted-foreground hover:text-foreground"
+              >
+                {t('settings.ai.resetUsage', 'Zerar')}
+              </Button>
+            )}
           </div>
-          <p className="text-xs text-muted-foreground">{t('settings.ai.usageDesc', 'Usage records are not collected in Phase 1.')}</p>
+
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="rounded-xl border border-border/60 bg-secondary/20 p-3">
+              <p className="text-[11px] text-muted-foreground">{t('settings.ai.metricRequests', 'Requisições')}</p>
+              <p className="text-lg font-bold text-foreground">{usageStats?.totalRequests || 0}</p>
+            </div>
+            <div className="rounded-xl border border-border/60 bg-secondary/20 p-3">
+              <p className="text-[11px] text-muted-foreground">{t('settings.ai.metricTokens', 'Tokens Totais')}</p>
+              <p className="text-lg font-bold text-foreground">
+                {((usageStats?.totalPromptTokens || 0) + (usageStats?.totalCompletionTokens || 0)).toLocaleString()}
+              </p>
+            </div>
+            <div className="rounded-xl border border-border/60 bg-secondary/20 p-3">
+              <p className="text-[11px] text-muted-foreground">{t('settings.ai.metricAudio', 'Áudio Transcrito')}</p>
+              <p className="text-lg font-bold text-foreground">
+                {Math.round((usageStats?.totalTranscriptionSeconds || 0) / 60)} min
+              </p>
+            </div>
+            <div className="rounded-xl border border-border/60 bg-secondary/20 p-3">
+              <p className="text-[11px] text-muted-foreground">{t('settings.ai.metricChunks', 'Chunks Indexados')}</p>
+              <p className="text-lg font-bold text-foreground">
+                {storageStats?.categories.semanticIndex.itemCount || usageStats?.totalEmbeddedChunks || 0}
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* AI Storage Management & Independent Category Clearing (v0.9 Hardening) */}
+        <section className="space-y-3 border-t border-border/40 pt-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold text-foreground">{t('settings.ai.storageTitle', 'Gerenciamento de Armazenamento de IA')}</p>
+              <p className="text-xs text-muted-foreground">
+                {t('settings.ai.storageSubtitle', 'Visibilidade de dados auxiliares de IA. Arquivos de mídia originais nunca são excluídos.')}
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="xs"
+              onClick={() => void fetchStorageStats()}
+              className="text-xs"
+            >
+              <RefreshCw className="mr-1 h-3 w-3" />
+              {t('common.refresh', 'Atualizar')}
+            </Button>
+          </div>
+
+          <div className="space-y-2">
+            {storageStats && (
+              Object.values(storageStats.categories).map((cat: AiCategoryStorageStats) => (
+                <div key={cat.category} className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-secondary/20 p-3">
+                  <div>
+                    <p className="text-xs font-semibold text-foreground">{cat.description}</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {cat.itemCount > 0 ? `${cat.itemCount} itens • ` : ''}{(cat.sizeBytes / (1024 * 1024)).toFixed(2)} MB
+                    </p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    disabled={cat.sizeBytes === 0 && cat.itemCount === 0}
+                    onClick={async () => {
+                      if (window.confirm(t('settings.ai.confirmClearCategory', `Deseja limpar os dados de "${cat.description}"? A mídia original dos cursos permanecerá intacta.`))) {
+                        await clearStorageCategory(cat.category)
+                      }
+                    }}
+                    className="text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
+                  >
+                    <Trash2 className="mr-1 h-3 w-3" />
+                    {t('settings.ai.clearCategory', 'Limpar')}
+                  </Button>
+                </div>
+              ))
+            )}
+          </div>
         </section>
       </CardContent>
     </Card>

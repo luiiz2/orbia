@@ -1,7 +1,11 @@
 import crypto from 'node:crypto'
 import type Database from 'better-sqlite3'
 import type { AiProviderId } from '../../../types/ai'
-import type { GroundedScope, IndexCoverage, RetrievedChunk } from '../../../types/retrieval'
+import type {
+  GroundedScope,
+  IndexCoverage,
+  RetrievedChunk
+} from '../../../types/retrieval'
 import type {
   SemanticChunkDraft,
   SemanticIndexChunk,
@@ -67,6 +71,12 @@ interface VectorChunkRow extends ChunkRow {
   dimensions: number
 }
 
+interface ChunkIdentityRow {
+  id: string
+  source_id: string
+  content_revision: string
+}
+
 export interface CreateSemanticGenerationInput {
   totalSources: number
   providerId?: AiProviderId
@@ -95,7 +105,9 @@ export class SemanticIndexRepository {
   private readonly now: () => number
   private readonly createId: () => string
 
-  public constructor(dependencies: SemanticIndexRepositoryDependencies | DatabaseService = {}) {
+  public constructor(
+    dependencies: SemanticIndexRepositoryDependencies | DatabaseService = {}
+  ) {
     if (isDatabaseService(dependencies)) {
       this.databaseService = dependencies
       this.now = Date.now
@@ -107,16 +119,20 @@ export class SemanticIndexRepository {
     this.createId = dependencies.createId ?? crypto.randomUUID
   }
 
-  public createGeneration(input: CreateSemanticGenerationInput): SemanticIndexGeneration {
+  public createGeneration(
+    input: CreateSemanticGenerationInput
+  ): SemanticIndexGeneration {
     const db = this.requireDatabase()
     const id = this.createId()
     const createdAt = this.now()
-    db.prepare(`
+    db.prepare(
+      `
       INSERT INTO semantic_index_generations (
         id, status, provider_id, model_id, dimensions, chunking_version,
         created_at, total_sources
       ) VALUES (?, 'building', ?, ?, ?, ?, ?, ?)
-    `).run(
+    `
+    ).run(
       id,
       input.providerId ?? null,
       input.modelId ?? null,
@@ -129,19 +145,25 @@ export class SemanticIndexRepository {
   }
 
   public getGeneration(id: string): SemanticIndexGeneration | null {
-    const row = this.requireDatabase().prepare(`
+    const row = this.requireDatabase()
+      .prepare(
+        `
       SELECT id, status, provider_id, model_id, dimensions, chunking_version,
              created_at, completed_at, total_sources, discovered_sources,
              extracted_chunks, embedded_chunks, indexed_chunks, failed_sources,
              storage_text_bytes, storage_vector_bytes, error_message, is_current
       FROM semantic_index_generations
       WHERE id = ?
-    `).get(id) as GenerationRow | undefined
+    `
+      )
+      .get(id) as GenerationRow | undefined
     return row ? mapGeneration(row) : null
   }
 
   public getCurrent(): SemanticIndexGeneration | null {
-    const row = this.requireDatabase().prepare(`
+    const row = this.requireDatabase()
+      .prepare(
+        `
       SELECT id, status, provider_id, model_id, dimensions, chunking_version,
              created_at, completed_at, total_sources, discovered_sources,
              extracted_chunks, embedded_chunks, indexed_chunks, failed_sources,
@@ -150,12 +172,16 @@ export class SemanticIndexRepository {
       WHERE is_current = 1
       ORDER BY created_at DESC
       LIMIT 1
-    `).get() as GenerationRow | undefined
+    `
+      )
+      .get() as GenerationRow | undefined
     return row ? mapGeneration(row) : null
   }
 
   public getLatest(): SemanticIndexGeneration | null {
-    const row = this.requireDatabase().prepare(`
+    const row = this.requireDatabase()
+      .prepare(
+        `
       SELECT id, status, provider_id, model_id, dimensions, chunking_version,
              created_at, completed_at, total_sources, discovered_sources,
              extracted_chunks, embedded_chunks, indexed_chunks, failed_sources,
@@ -163,7 +189,9 @@ export class SemanticIndexRepository {
       FROM semantic_index_generations
       ORDER BY created_at DESC
       LIMIT 1
-    `).get() as GenerationRow | undefined
+    `
+      )
+      .get() as GenerationRow | undefined
     return row ? mapGeneration(row) : null
   }
 
@@ -180,12 +208,17 @@ export class SemanticIndexRepository {
     chunks: SemanticChunkDraft[],
     embeddings: number[][]
   ): void {
-    if (chunks.length !== embeddings.length) throw new Error('Embedding count does not match chunk count')
+    if (chunks.length !== embeddings.length)
+      throw new Error('Embedding count does not match chunk count')
     const db = this.requireDatabase()
     const generation = this.getGeneration(generationId)
     if (!generation) throw new Error('Semantic index generation not found')
     if (chunks.length === 0) return
-    if (!generation.providerId || !generation.modelId || !generation.dimensions) {
+    if (
+      !generation.providerId ||
+      !generation.modelId ||
+      !generation.dimensions
+    ) {
       throw new Error('Semantic index embedding configuration is missing')
     }
 
@@ -194,15 +227,23 @@ export class SemanticIndexRepository {
     }
 
     const source = chunks[0]
-    if (chunks.some((chunk) => chunk.sourceKind !== source.sourceKind || chunk.sourceId !== source.sourceId)) {
+    if (
+      chunks.some(
+        (chunk) =>
+          chunk.sourceKind !== source.sourceKind ||
+          chunk.sourceId !== source.sourceId
+      )
+    ) {
       throw new Error('Source chunks must share one provenance key')
     }
 
     const transaction = db.transaction(() => {
-      db.prepare(`
+      db.prepare(
+        `
         DELETE FROM semantic_index_chunks
         WHERE generation_id = ? AND source_kind = ? AND source_id = ?
-      `).run(generationId, source.sourceKind, source.sourceId)
+      `
+      ).run(generationId, source.sourceKind, source.sourceId)
 
       const insertChunk = db.prepare(`
         INSERT INTO semantic_index_chunks (
@@ -251,25 +292,114 @@ export class SemanticIndexRepository {
     this.refreshStorageMetrics(generationId)
   }
 
-  public deleteSource(generationId: string, sourceKind: SemanticChunkDraft['sourceKind'], sourceId: string): boolean {
-    const result = this.requireDatabase().prepare(`
+  public deleteSource(
+    generationId: string,
+    sourceKind: SemanticChunkDraft['sourceKind'],
+    sourceId: string
+  ): boolean {
+    const result = this.requireDatabase()
+      .prepare(
+        `
       DELETE FROM semantic_index_chunks
       WHERE generation_id = ? AND source_kind = ? AND source_id = ?
-    `).run(generationId, sourceKind, sourceId)
+    `
+      )
+      .run(generationId, sourceKind, sourceId)
     this.refreshStorageMetrics(generationId)
     return result.changes > 0
   }
 
   public listChunks(generationId: string): SemanticIndexChunk[] {
-    const rows = this.requireDatabase().prepare(`
+    const rows = this.requireDatabase()
+      .prepare(
+        `
       SELECT id, generation_id, source_kind, source_id, course_id, module_id, lesson_id,
              resource_id, transcript_id, note_id, source_revision, content_revision,
              data_type, text, locator_json, start_time, end_time, created_at
       FROM semantic_index_chunks
       WHERE generation_id = ?
       ORDER BY created_at, id
-    `).all(generationId) as ChunkRow[]
+    `
+      )
+      .all(generationId) as ChunkRow[]
     return rows.map(mapChunk)
+  }
+
+  public listChunkIdentities(
+    generationId: string,
+    chunkIds: readonly string[]
+  ): Array<Pick<SemanticIndexChunk, 'id' | 'sourceId' | 'contentRevision'>> {
+    const ids = [...new Set(chunkIds.filter(isIdentifier))]
+    if (ids.length === 0) return []
+    const db = this.requireDatabase()
+    const rows: ChunkIdentityRow[] = []
+    const batchSize = 500
+    for (let offset = 0; offset < ids.length; offset += batchSize) {
+      const batch = ids.slice(offset, offset + batchSize)
+      const placeholders = batch.map(() => '?').join(', ')
+      rows.push(
+        ...(db
+          .prepare(
+            `
+        SELECT id, source_id, content_revision
+        FROM semantic_index_chunks
+        WHERE generation_id = ? AND id IN (${placeholders})
+        ORDER BY id
+      `
+          )
+          .all(generationId, ...batch) as ChunkIdentityRow[])
+      )
+    }
+    return rows.map((row) => ({
+      id: row.id,
+      sourceId: row.source_id,
+      contentRevision: row.content_revision
+    }))
+  }
+
+  public findChunkForNavigation(
+    generationId: string,
+    publicId: string,
+    preferredChunkId?: string
+  ): SemanticIndexChunk | null {
+    const db = this.requireDatabase()
+    if (preferredChunkId && isIdentifier(preferredChunkId)) {
+      const preferred = db
+        .prepare(
+          `
+        SELECT id, generation_id, source_kind, source_id, course_id, module_id, lesson_id,
+               resource_id, transcript_id, note_id, source_revision, content_revision,
+               data_type, text, locator_json, start_time, end_time, created_at
+        FROM semantic_index_chunks
+        WHERE generation_id = ? AND id = ?
+      `
+        )
+        .get(generationId, preferredChunkId) as ChunkRow | undefined
+      if (preferred) return mapChunk(preferred)
+    }
+    if (!isIdentifier(publicId)) return null
+    const rows = db
+      .prepare(
+        `
+      SELECT id, generation_id, source_kind, source_id, course_id, module_id, lesson_id,
+             resource_id, transcript_id, note_id, source_revision, content_revision,
+             data_type, text, locator_json, start_time, end_time, created_at
+      FROM semantic_index_chunks
+      WHERE generation_id = ?
+        AND (id = ? OR source_id = ? OR content_revision = ?)
+      ORDER BY CASE WHEN id = ? THEN 0 WHEN source_id = ? THEN 1 ELSE 2 END, id
+      LIMIT 2
+    `
+      )
+      .all(
+        generationId,
+        publicId,
+        publicId,
+        `${publicId}:revision-1`,
+        publicId,
+        publicId
+      ) as ChunkRow[]
+    return rows.length === 1 ? mapChunk(rows[0]) : null
   }
 
   public resolveScope(scope: GroundedScope): GroundedScope | null {
@@ -277,24 +407,40 @@ export class SemanticIndexRepository {
     if (!scope || typeof scope !== 'object') return null
     if (scope.type === 'vault') return scope
     if (scope.type === 'course' && isIdentifier(scope.courseId)) {
-      return db.prepare(`SELECT id FROM courses WHERE id = ?`).get(scope.courseId) ? scope : null
+      return db
+        .prepare(`SELECT id FROM courses WHERE id = ?`)
+        .get(scope.courseId)
+        ? scope
+        : null
     }
     if (scope.type === 'module' && isIdentifier(scope.moduleId)) {
-      return db.prepare(`
+      return db
+        .prepare(
+          `
         SELECT m.id
         FROM modules m
         JOIN courses course ON course.id = m.course_id
         WHERE m.id = ?
-      `).get(scope.moduleId) ? scope : null
+      `
+        )
+        .get(scope.moduleId)
+        ? scope
+        : null
     }
     if (scope.type === 'lesson' && isIdentifier(scope.lessonId)) {
-      return db.prepare(`
+      return db
+        .prepare(
+          `
         SELECT lesson.id
         FROM lessons lesson
         JOIN modules module ON module.id = lesson.module_id AND module.course_id = lesson.course_id
         JOIN courses course ON course.id = lesson.course_id
         WHERE lesson.id = ?
-      `).get(scope.lessonId) ? scope : null
+      `
+        )
+        .get(scope.lessonId)
+        ? scope
+        : null
     }
     return null
   }
@@ -306,7 +452,9 @@ export class SemanticIndexRepository {
     limit: number
   ): Array<RetrievedChunk & { lexicalRank: number }> {
     const { clause, values } = buildScopeFilter(scope)
-    const rows = this.requireDatabase().prepare(`
+    const rows = this.requireDatabase()
+      .prepare(
+        `
       SELECT c.id, c.generation_id, c.source_kind, c.source_id, c.course_id, c.module_id, c.lesson_id,
              c.resource_id, c.transcript_id, c.note_id, c.source_revision, c.content_revision,
              c.data_type, c.text, c.locator_json, c.start_time, c.end_time, c.created_at,
@@ -316,8 +464,18 @@ export class SemanticIndexRepository {
       WHERE semantic_index_fts MATCH ? AND c.generation_id = ?${clause}
       ORDER BY lexical_rank ASC, c.id ASC
       LIMIT ?
-    `).all(query, generationId, ...values, clampCandidateLimit(limit)) as LexicalChunkRow[]
-    return rows.map((row) => ({ ...mapRetrievedChunk(row), lexicalRank: row.lexical_rank }))
+    `
+      )
+      .all(
+        query,
+        generationId,
+        ...values,
+        clampCandidateLimit(limit)
+      ) as LexicalChunkRow[]
+    return rows.map((row) => ({
+      ...mapRetrievedChunk(row),
+      lexicalRank: row.lexical_rank
+    }))
   }
 
   public listVectorRows(
@@ -332,7 +490,9 @@ export class SemanticIndexRepository {
     dimensions: number
   }> {
     const { clause, values } = buildScopeFilter(scope)
-    const rows = this.requireDatabase().prepare(`
+    const rows = this.requireDatabase()
+      .prepare(
+        `
       SELECT c.id, c.generation_id, c.source_kind, c.source_id, c.course_id, c.module_id, c.lesson_id,
              c.resource_id, c.transcript_id, c.note_id, c.source_revision, c.content_revision,
              c.data_type, c.text, c.locator_json, c.start_time, c.end_time, c.created_at,
@@ -342,7 +502,13 @@ export class SemanticIndexRepository {
       WHERE c.generation_id = ?${clause}
       ORDER BY c.id ASC
       LIMIT ?
-    `).all(generationId, ...values, clampCandidateLimit(limit)) as VectorChunkRow[]
+    `
+      )
+      .all(
+        generationId,
+        ...values,
+        clampCandidateLimit(limit)
+      ) as VectorChunkRow[]
     return rows.map((row) => ({
       chunk: mapRetrievedChunk(row),
       vector: row.vector,
@@ -353,8 +519,16 @@ export class SemanticIndexRepository {
   }
 
   public getGenerationCoverage(generationId?: string): IndexCoverage {
-    const generation = generationId ? this.getGeneration(generationId) : this.getCurrent()
-    if (!generation) return { status: 'none', indexedChunks: 0, indexedSources: 0, failedSources: 0 }
+    const generation = generationId
+      ? this.getGeneration(generationId)
+      : this.getCurrent()
+    if (!generation)
+      return {
+        status: 'none',
+        indexedChunks: 0,
+        indexedSources: 0,
+        failedSources: 0
+      }
     return {
       generationId: generation.id,
       status: generation.status,
@@ -370,7 +544,12 @@ export class SemanticIndexRepository {
     modelId: string,
     dimensions: number
   ): void {
-    if (!providerId || !modelId || !Number.isInteger(dimensions) || dimensions <= 0) {
+    if (
+      !providerId ||
+      !modelId ||
+      !Number.isInteger(dimensions) ||
+      dimensions <= 0
+    ) {
       throw new Error('Invalid semantic index embedding configuration')
     }
     const db = this.requireDatabase()
@@ -380,15 +559,21 @@ export class SemanticIndexRepository {
       (generation.providerId && generation.providerId !== providerId) ||
       (generation.modelId && generation.modelId !== modelId) ||
       (generation.dimensions && generation.dimensions !== dimensions)
-    if (incompatible) throw new Error('Semantic index embedding configuration is incompatible')
-    db.prepare(`
+    if (incompatible)
+      throw new Error('Semantic index embedding configuration is incompatible')
+    db.prepare(
+      `
       UPDATE semantic_index_generations
       SET provider_id = ?, model_id = ?, dimensions = ?
       WHERE id = ?
-    `).run(providerId, modelId, dimensions, generationId)
+    `
+    ).run(providerId, modelId, dimensions, generationId)
   }
 
-  public updateProgress(generationId: string, counters: SemanticGenerationCounters): void {
+  public updateProgress(
+    generationId: string,
+    counters: SemanticGenerationCounters
+  ): void {
     const fields: string[] = []
     const values: unknown[] = []
     const add = (column: string, value: number | undefined): void => {
@@ -404,7 +589,11 @@ export class SemanticIndexRepository {
     add('failed_sources', counters.failedSources)
     if (fields.length === 0) return
     values.push(generationId)
-    this.requireDatabase().prepare(`UPDATE semantic_index_generations SET ${fields.join(', ')} WHERE id = ?`).run(...values)
+    this.requireDatabase()
+      .prepare(
+        `UPDATE semantic_index_generations SET ${fields.join(', ')} WHERE id = ?`
+      )
+      .run(...values)
   }
 
   public finalizeGeneration(
@@ -415,31 +604,50 @@ export class SemanticIndexRepository {
   ): void {
     const db = this.requireDatabase()
     const transaction = db.transaction(() => {
-      if (makeCurrent) db.prepare(`UPDATE semantic_index_generations SET is_current = 0 WHERE id <> ?`).run(generationId)
-      db.prepare(`
+      if (makeCurrent)
+        db.prepare(
+          `UPDATE semantic_index_generations SET is_current = 0 WHERE id <> ?`
+        ).run(generationId)
+      db.prepare(
+        `
         UPDATE semantic_index_generations
         SET status = ?, completed_at = ?, is_current = ?, error_message = ?
         WHERE id = ?
-      `).run(status, this.now(), makeCurrent ? 1 : 0, errorMessage ?? null, generationId)
+      `
+      ).run(
+        status,
+        this.now(),
+        makeCurrent ? 1 : 0,
+        errorMessage ?? null,
+        generationId
+      )
     })
     transaction()
     this.refreshStorageMetrics(generationId)
   }
 
   public getSettings(): SemanticIndexSettings {
-    const row = this.requireDatabase().prepare(`
+    const row = this.requireDatabase()
+      .prepare(
+        `
       SELECT include_notes FROM semantic_index_settings WHERE id = 1
-    `).get() as { include_notes: number } | undefined
+    `
+      )
+      .get() as { include_notes: number } | undefined
     return { includeNotes: row?.include_notes === 1 }
   }
 
   public setSettings(updates: Partial<SemanticIndexSettings>): boolean {
     const current = this.getSettings()
     const includeNotes = updates.includeNotes ?? current.includeNotes
-    this.requireDatabase().prepare(`
+    this.requireDatabase()
+      .prepare(
+        `
       INSERT INTO semantic_index_settings (id, include_notes) VALUES (1, ?)
       ON CONFLICT(id) DO UPDATE SET include_notes = excluded.include_notes
-    `).run(includeNotes ? 1 : 0)
+    `
+      )
+      .run(includeNotes ? 1 : 0)
     return true
   }
 
@@ -466,13 +674,16 @@ export class SemanticIndexRepository {
       failedSources: generation.failedSources,
       storageTextBytes: generation.storageTextBytes,
       storageVectorBytes: generation.storageVectorBytes,
-      totalStorageBytes: generation.storageTextBytes + generation.storageVectorBytes
+      totalStorageBytes:
+        generation.storageTextBytes + generation.storageVectorBytes
     }
   }
 
   private refreshStorageMetrics(generationId: string): void {
     const db = this.requireDatabase()
-    const metrics = db.prepare(`
+    const metrics = db
+      .prepare(
+        `
       SELECT COUNT(c.id) AS extracted_chunks,
              COUNT(e.chunk_id) AS embedded_chunks,
              COALESCE(SUM(LENGTH(c.text)), 0) AS storage_text_bytes,
@@ -480,18 +691,22 @@ export class SemanticIndexRepository {
       FROM semantic_index_chunks c
       LEFT JOIN semantic_index_embeddings e ON e.chunk_id = c.id
       WHERE c.generation_id = ?
-    `).get(generationId) as {
+    `
+      )
+      .get(generationId) as {
       extracted_chunks: number
       embedded_chunks: number
       storage_text_bytes: number
       storage_vector_bytes: number
     }
-    db.prepare(`
+    db.prepare(
+      `
       UPDATE semantic_index_generations
       SET extracted_chunks = ?, embedded_chunks = ?, indexed_chunks = ?,
           storage_text_bytes = ?, storage_vector_bytes = ?
       WHERE id = ?
-    `).run(
+    `
+    ).run(
       metrics.extracted_chunks,
       metrics.embedded_chunks,
       metrics.embedded_chunks,
@@ -513,7 +728,11 @@ function encodeVector(vector: number[]): Buffer {
 }
 
 function validateVector(vector: number[], dimensions: number): void {
-  if (!Array.isArray(vector) || vector.length !== dimensions || !vector.every((value) => Number.isFinite(value))) {
+  if (
+    !Array.isArray(vector) ||
+    vector.length !== dimensions ||
+    !vector.every((value) => Number.isFinite(value))
+  ) {
     throw new Error('Embedding vector has incompatible dimensions')
   }
 }
@@ -597,10 +816,16 @@ function mapRetrievedChunk(row: ChunkRow): RetrievedChunk {
   }
 }
 
-function buildScopeFilter(scope: GroundedScope): { clause: string; values: string[] } {
-  if (scope.type === 'lesson') return { clause: ' AND c.lesson_id = ?', values: [scope.lessonId] }
-  if (scope.type === 'module') return { clause: ' AND c.module_id = ?', values: [scope.moduleId] }
-  if (scope.type === 'course') return { clause: ' AND c.course_id = ?', values: [scope.courseId] }
+function buildScopeFilter(scope: GroundedScope): {
+  clause: string
+  values: string[]
+} {
+  if (scope.type === 'lesson')
+    return { clause: ' AND c.lesson_id = ?', values: [scope.lessonId] }
+  if (scope.type === 'module')
+    return { clause: ' AND c.module_id = ?', values: [scope.moduleId] }
+  if (scope.type === 'course')
+    return { clause: ' AND c.course_id = ?', values: [scope.courseId] }
   return { clause: '', values: [] }
 }
 
@@ -612,8 +837,16 @@ function isIdentifier(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0
 }
 
-function isDatabaseService(value: SemanticIndexRepositoryDependencies | DatabaseService): value is DatabaseService {
-  return Boolean(value && typeof value === 'object' && typeof (value as { getDatabase?: unknown }).getDatabase === 'function')
+function isDatabaseService(
+  value: SemanticIndexRepositoryDependencies | DatabaseService
+): value is DatabaseService {
+  return Boolean(
+    value &&
+    typeof value === 'object' &&
+    typeof (value as { getDatabase?: unknown }).getDatabase === 'function'
+  )
 }
 
-export const semanticIndexRepository = new SemanticIndexRepository(databaseService)
+export const semanticIndexRepository = new SemanticIndexRepository(
+  databaseService
+)

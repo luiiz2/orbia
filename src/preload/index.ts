@@ -331,7 +331,11 @@ const api: OrbiaApi = {
     discoverModels: (providerId) => ipcRenderer.invoke('ai:discover-models', providerId),
     health: (providerId, modelId) => ipcRenderer.invoke('ai:health', { providerId, modelId }),
     chat: (input) => ipcRenderer.invoke('ai:chat', input),
-    embed: (input) => ipcRenderer.invoke('ai:embed', input)
+    embed: (input) => ipcRenderer.invoke('ai:embed', input),
+    getStorageStats: () => ipcRenderer.invoke('ai:get-storage-stats'),
+    clearStorageCategory: (category) => ipcRenderer.invoke('ai:clear-storage-category', category),
+    getUsageStats: () => ipcRenderer.invoke('ai:get-usage-stats'),
+    resetUsageStats: () => ipcRenderer.invoke('ai:reset-usage-stats')
   },
 
   semanticIndex: {
@@ -363,6 +367,30 @@ const api: OrbiaApi = {
     renameConversation: (id, title) => ipcRenderer.invoke('chat:rename-conversation', { id, title }),
     deleteConversation: (id) => ipcRenderer.invoke('chat:delete-conversation', { id }),
     resolveSource: (input) => ipcRenderer.invoke('chat:resolve-source', input)
+  },
+
+  search: {
+    findInLibrary: (input) => ipcRenderer.invoke('search:find-in-library', input),
+    related: (input) => ipcRenderer.invoke('search:related', input),
+    resolveResult: (input) => ipcRenderer.invoke('search:resolve-result', input)
+  },
+
+  summaries: {
+    get: (scope) => ipcRenderer.invoke('summaries:get', scope),
+    generate: (input) => ipcRenderer.invoke('summaries:generate', input),
+    invalidate: (scope) => ipcRenderer.invoke('summaries:invalidate', scope)
+  },
+
+  chapters: {
+    get: (lessonId) => ipcRenderer.invoke('chapters:get', lessonId),
+    generate: (input) => ipcRenderer.invoke('chapters:generate', input),
+    save: (input) => ipcRenderer.invoke('chapters:save', input),
+    update: (input) => ipcRenderer.invoke('chapters:update', input),
+    delete: (input) => ipcRenderer.invoke('chapters:delete', input)
+  },
+
+  aiNotes: {
+    suggest: (input) => ipcRenderer.invoke('ai-notes:suggest', input)
   },
 
   system: {

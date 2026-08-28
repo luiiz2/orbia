@@ -2,9 +2,18 @@ import { create } from 'zustand'
 
 export type ViewType = 'home' | 'discover' | 'course' | 'player' | 'history' | 'review' | 'settings' | 'studio'
 
+export interface SourceNavigationIntent {
+  courseId: string
+  lessonId?: string
+  timestampSeconds?: number
+  resourceId?: string
+  pdfPage?: number
+}
+
 export interface NavigationState {
   currentView: ViewType
   selectedCourseId: string | null
+  sourceNavigationTarget: SourceNavigationIntent | null
   isSidebarCollapsed: boolean
   isImportModalOpen: boolean
   isVaultModalOpen: boolean
@@ -13,6 +22,8 @@ export interface NavigationState {
 
   // Actions
   setView: (view: ViewType, courseId?: string) => void
+  openSourceTarget: (target: SourceNavigationIntent) => void
+  consumeSourceTarget: () => SourceNavigationIntent | null
   navigateToHome: () => void
   navigateToDiscover: () => void
   navigateToCourse: (courseId: string) => void
@@ -29,9 +40,10 @@ export interface NavigationState {
   setProfileModalOpen: (open: boolean) => void
 }
 
-export const useNavigationStore = create<NavigationState>((set) => ({
+export const useNavigationStore = create<NavigationState>((set, get) => ({
   currentView: 'home',
   selectedCourseId: null,
+  sourceNavigationTarget: null,
   isSidebarCollapsed: false,
   isImportModalOpen: false,
   isVaultModalOpen: false,
@@ -43,6 +55,21 @@ export const useNavigationStore = create<NavigationState>((set) => ({
       currentView: view,
       selectedCourseId: courseId !== undefined ? courseId : null
     }),
+
+  openSourceTarget: (target) =>
+    set({
+      currentView: target.lessonId ? 'player' : 'course',
+      selectedCourseId: target.courseId,
+      sourceNavigationTarget: target
+    }),
+
+  consumeSourceTarget: () => {
+    const current = get().sourceNavigationTarget
+    if (current) {
+      set({ sourceNavigationTarget: null })
+    }
+    return current
+  },
 
   navigateToHome: () =>
     set({

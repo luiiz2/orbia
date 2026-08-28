@@ -31,6 +31,11 @@ import { useSettingsStore } from './stores/useSettingsStore'
 import { useLibraryStore } from './stores/useLibraryStore'
 import { useProfileStore } from './stores/useProfileStore'
 import { TooltipProvider } from './components/ui/tooltip'
+import { LibrarySearchDialog } from './components/search'
+import { GroundedChatPanel } from './components/chat/GroundedChatPanel'
+import { useGroundedChatStore } from './stores/useGroundedChatStore'
+import { SummaryViewModal } from './components/summaries/SummaryViewModal'
+import { AiNotePreviewModal } from './components/notes/AiNotePreviewModal'
 
 export function App(): React.JSX.Element {
   const {
@@ -128,6 +133,7 @@ export function App(): React.JSX.Element {
             : (
               <>
                 <AppShell>{renderActiveView()}</AppShell>
+                <LibrarySearchDialog />
                 <ImportWizard open={isImportModalOpen} onOpenChange={setImportModalOpen} />
                 <VaultModal />
                 <BulkActionBar />
@@ -139,6 +145,9 @@ export function App(): React.JSX.Element {
                 <ThemeEditorModal open={isThemeModalOpen} onOpenChange={setThemeModalOpen} />
                 <OptimizerDashboardModal />
                 <VisualComparatorModal />
+                <SummaryViewModal />
+                <AiNotePreviewModal />
+                <GroundedChatPanelWrapper />
               </>
             ))}
       </TooltipProvider>
@@ -146,6 +155,16 @@ export function App(): React.JSX.Element {
   )
 }
 
-export default App
+function GroundedChatPanelWrapper(): React.JSX.Element | null {
+  const isOpen = useGroundedChatStore((s) => s.isOpen)
+  if (!isOpen) return null
 
+  return (
+    <div className="fixed inset-y-0 right-0 z-50 flex w-full max-w-2xl shadow-2xl border-l border-border bg-background animate-in slide-in-from-right duration-200">
+      <GroundedChatPanel onNavigate={(target) => useNavigationStore.getState().openSourceTarget(target)} />
+    </div>
+  )
+}
+
+export default App
 

@@ -488,7 +488,7 @@ function hashText(text: string): string {
   return hashBuffer(Buffer.from(text, 'utf8'))
 }
 
-async function extractPdfText(content: Buffer, _fileName: string): Promise<PdfTextPage[]> {
+async function extractPdfText(content: Buffer): Promise<PdfTextPage[]> {
   const mupdf = await import('mupdf')
   const document = mupdf.Document.openDocument(content, 'application/pdf')
   try {

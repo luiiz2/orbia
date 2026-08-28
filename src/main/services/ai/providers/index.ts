@@ -15,6 +15,8 @@ export function createAiProvider(
     case 'ollama':
       return new OllamaProvider(config, fetchImpl)
     case 'openai-compatible':
+    case 'openrouter':
+    case 'nvidia':
       return new OpenAICompatibleProvider(config, apiKey, fetchImpl)
     case 'openai':
       return new OpenAIProvider(config, apiKey, fetchImpl)

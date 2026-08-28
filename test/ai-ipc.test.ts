@@ -43,7 +43,11 @@ describe('AI IPC boundary', () => {
       'ai:discover-models',
       'ai:health',
       'ai:chat',
-      'ai:embed'
+      'ai:embed',
+      'ai:get-storage-stats',
+      'ai:clear-storage-category',
+      'ai:get-usage-stats',
+      'ai:reset-usage-stats'
     ])
   })
 

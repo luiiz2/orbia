@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { Course, Module, Lesson, LessonProgress, LessonNote, VideoBookmark, Flashcard } from '@shared'
+import type { Course, Module, Lesson, LessonProgress, LessonNote, VideoBookmark, Flashcard, LessonChapter } from '@shared'
 import { mediaUrl } from '../lib/utils'
 
 export interface PlayerModuleWithLessons extends Module {
@@ -24,6 +24,11 @@ export interface PlayerState {
   // Notes
   notes: LessonNote[]
   isLoadingNotes: boolean
+
+  // Chapters (v0.9 Phase 6)
+  chapters: LessonChapter[]
+  isLoadingChapters: boolean
+  isGeneratingChapters: boolean
 
   // Bookmarks (v0.3)
   bookmarks: VideoBookmark[]
@@ -85,6 +90,13 @@ export interface PlayerState {
   deleteNote: (id: string) => Promise<void>
   exportNotes: (courseId: string) => Promise<string>
 
+  // Chapter actions (v0.9 Phase 6)
+  fetchChapters: (lessonId: string) => Promise<void>
+  generateChapters: () => Promise<void>
+  addChapter: (title: string, timestampSeconds: number) => Promise<void>
+  updateChapter: (id: string, title?: string, timestampSeconds?: number) => Promise<void>
+  deleteChapter: (id: string) => Promise<void>
+
   // Bookmark actions (v0.3)
   fetchBookmarks: (lessonId: string) => Promise<void>
   addBookmark: (title?: string, color?: string, timestamp?: number) => Promise<VideoBookmark | null>
@@ -125,6 +137,11 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   // Notes state
   notes: [],
   isLoadingNotes: false,
+
+  // Chapters state (v0.9 Phase 6)
+  chapters: [],
+  isLoadingChapters: false,
+  isGeneratingChapters: false,
 
   // Bookmarks state (v0.3)
   bookmarks: [],
@@ -388,9 +405,10 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       activeSubtitleTrack: preparedTracks.length > 0 ? preparedTracks[0].id : null
     })
 
-    // Fetch notes, bookmarks, and flashcards for the active lesson
+    // Fetch notes, chapters, bookmarks, and flashcards for the active lesson
     await Promise.all([
       get().fetchNotes(foundLesson.id),
+      get().fetchChapters(foundLesson.id),
       get().fetchBookmarks(foundLesson.id),
       get().fetchFlashcards(foundLesson.id)
     ])
@@ -604,6 +622,105 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     } catch (err) {
       console.error('Failed to export course notes:', err)
       return ''
+    }
+  },
+
+  // Chapter actions (v0.9 Phase 6)
+  fetchChapters: async (lessonId: string) => {
+    set({ isLoadingChapters: true })
+    try {
+      const chapters = await window.api.chapters.get(lessonId)
+      set({ chapters: chapters || [], isLoadingChapters: false })
+    } catch (err) {
+      console.error('Failed to fetch lesson chapters:', err)
+      set({ chapters: [], isLoadingChapters: false })
+    }
+  },
+
+  generateChapters: async () => {
+    const { activeLesson, activeCourse } = get()
+    if (!activeLesson || !activeCourse) return
+
+    set({ isGeneratingChapters: true })
+    try {
+      const res = await window.api.chapters.generate({
+        lessonId: activeLesson.id,
+        courseId: activeCourse.id
+      })
+      if (res && Array.isArray(res.chapters)) {
+        set({ chapters: res.chapters, isGeneratingChapters: false })
+      } else {
+        set({ isGeneratingChapters: false })
+      }
+    } catch (err) {
+      console.error('Failed to generate chapters:', err)
+      set({ isGeneratingChapters: false })
+    }
+  },
+
+  addChapter: async (title: string, timestampSeconds: number) => {
+    const { activeLesson, activeCourse, chapters } = get()
+    if (!activeLesson || !activeCourse || !title.trim()) return
+
+    const newChapterDraft = {
+      title: title.trim(),
+      timestampSeconds: Math.max(0, timestampSeconds),
+      isManual: true
+    }
+
+    try {
+      const updated = await window.api.chapters.save({
+        lessonId: activeLesson.id,
+        courseId: activeCourse.id,
+        chapters: [...chapters, newChapterDraft]
+      })
+      set({ chapters: updated })
+    } catch (err) {
+      console.error('Failed to add chapter:', err)
+    }
+  },
+
+  updateChapter: async (id: string, title?: string, timestampSeconds?: number) => {
+    const { activeLesson, activeCourse } = get()
+    if (!activeLesson || !activeCourse) return
+
+    try {
+      const updated = await window.api.chapters.update({
+        id,
+        lessonId: activeLesson.id,
+        courseId: activeCourse.id,
+        title,
+        timestampSeconds
+      })
+      if (updated) {
+        set((state) => ({
+          chapters: state.chapters
+            .map((c) => (c.id === id ? updated : c))
+            .sort((a, b) => a.timestampSeconds - b.timestampSeconds)
+        }))
+      }
+    } catch (err) {
+      console.error('Failed to update chapter:', err)
+    }
+  },
+
+  deleteChapter: async (id: string) => {
+    const { activeLesson, activeCourse } = get()
+    if (!activeLesson || !activeCourse) return
+
+    try {
+      const success = await window.api.chapters.delete({
+        id,
+        lessonId: activeLesson.id,
+        courseId: activeCourse.id
+      })
+      if (success) {
+        set((state) => ({
+          chapters: state.chapters.filter((c) => c.id !== id)
+        }))
+      }
+    } catch (err) {
+      console.error('Failed to delete chapter:', err)
     }
   },
 

@@ -11,6 +11,10 @@ import { registerAiIpc } from './ai.ipc'
 import { registerTranscriptionIpc } from './transcription.ipc'
 import { registerSemanticIndexIpc } from './semantic-index.ipc'
 import { registerChatIpc } from './chat.ipc'
+import { registerSearchIpc } from './search.ipc'
+import { registerSummariesIpc } from './summaries.ipc'
+import { registerChaptersIpc } from './chapters.ipc'
+import { registerAiNotesIpc } from './ai-notes.ipc'
 
 export function registerAllIpc(): void {
   registerVaultIpc()
@@ -26,5 +30,8 @@ export function registerAllIpc(): void {
   registerTranscriptionIpc()
   registerSemanticIndexIpc()
   registerChatIpc()
+  registerSearchIpc()
+  registerSummariesIpc()
+  registerChaptersIpc()
+  registerAiNotesIpc()
 }
-

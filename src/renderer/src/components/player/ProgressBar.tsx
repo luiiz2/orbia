@@ -2,7 +2,7 @@ import React, { useState, useRef, useCallback, useEffect } from 'react'
 import { formatTime } from '../../lib/formatters'
 import { cn } from '../../lib/utils'
 
-import type { LessonNote, VideoBookmark } from '@shared'
+import type { LessonNote, VideoBookmark, LessonChapter } from '@shared'
 
 export interface ProgressBarProps {
   currentTime: number
@@ -10,6 +10,7 @@ export interface ProgressBarProps {
   bufferedEnd?: number
   notes?: LessonNote[]
   bookmarks?: VideoBookmark[]
+  chapters?: LessonChapter[]
   onSeek: (time: number) => void
   className?: string
 }
@@ -20,6 +21,7 @@ export function ProgressBar({
   bufferedEnd = 0,
   notes,
   bookmarks,
+  chapters,
   onSeek,
   className
 }: ProgressBarProps): React.JSX.Element {
@@ -254,6 +256,23 @@ export function ProgressBar({
                     {bm.title}
                   </div>
                 </div>
+              </div>
+            )
+          })}
+
+        {/* Chapter Break Markers (v0.9 Phase 6) */}
+        {chapters &&
+          duration > 0 &&
+          chapters.map((ch) => {
+            const chPct = Math.min(100, Math.max(0, (ch.timestampSeconds / duration) * 100))
+            if (chPct <= 0 || chPct >= 100) return null
+            return (
+              <div
+                key={ch.id}
+                className="group/chapter absolute top-0 bottom-0 -translate-x-1/2 z-15 pointer-events-none"
+                style={{ left: `${chPct}%` }}
+              >
+                <div className="w-[2px] h-full bg-background/80" />
               </div>
             )
           })}

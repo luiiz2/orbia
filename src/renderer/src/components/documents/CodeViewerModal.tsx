@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Code2, Copy, Check, ExternalLink, Loader2, FileCode } from 'lucide-react'
 import {
@@ -18,30 +18,35 @@ interface CodeViewerModalProps {
   resource: AttachedResource | DocumentResource | null
   isOpen: boolean
   onClose: () => void
+  initialLine?: number
 }
 
 export function CodeViewerModal({
   resource,
   isOpen,
-  onClose
+  onClose,
+  initialLine
 }: CodeViewerModalProps): React.JSX.Element | null {
   const { t } = useTranslation()
   const [content, setContent] = useState<string>('')
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
   const [isCopied, setIsCopied] = useState<boolean>(false)
+  const lineRefs = useRef<Record<number, HTMLTableRowElement | null>>({})
 
   useEffect(() => {
     if (!isOpen || !resource) {
       setContent('')
       setIsLoading(true)
       setError(null)
+      lineRefs.current = {}
       return
     }
 
     let isMounted = true
     setIsLoading(true)
     setError(null)
+    lineRefs.current = {}
 
     const fetchCode = async (): Promise<void> => {
       try {
@@ -69,6 +74,11 @@ export function CodeViewerModal({
       isMounted = false
     }
   }, [isOpen, resource])
+
+  useEffect(() => {
+    if (isLoading || !initialLine || initialLine < 1) return
+    lineRefs.current[initialLine]?.scrollIntoView({ block: 'center' })
+  }, [content, initialLine, isLoading])
 
   if (!resource) return null
 
@@ -172,16 +182,26 @@ export function CodeViewerModal({
             <div className="flex-1 overflow-auto p-4 select-text">
               <table className="w-full border-collapse">
                 <tbody>
-                  {lines.map((line, idx) => (
-                    <tr key={idx} className="hover:bg-white/[0.04] transition-colors leading-relaxed">
+                  {lines.map((line, idx) => {
+                    const lineNumber = idx + 1
+                    const isInitialLine = lineNumber === initialLine
+                    return (
+                    <tr
+                      key={idx}
+                      ref={(element) => {
+                        lineRefs.current[lineNumber] = element
+                      }}
+                      className={`hover:bg-white/[0.04] transition-colors leading-relaxed ${isInitialLine ? 'bg-purple-500/15' : ''}`}
+                    >
                       <td className="pr-4 py-0.5 text-right select-none text-zinc-600 font-mono text-[11px] w-12 shrink-0 border-r border-zinc-800">
-                        {idx + 1}
+                        {lineNumber}
                       </td>
                       <td className="pl-4 py-0.5 text-zinc-200 font-mono text-xs whitespace-pre break-all">
                         {line || ' '}
                       </td>
                     </tr>
-                  ))}
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
