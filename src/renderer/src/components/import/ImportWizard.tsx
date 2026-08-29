@@ -15,11 +15,11 @@ import {
 import type {
   CommitImportSessionInput,
   ImportSourceCapability,
+  ImportSessionPreparation,
   ImportSessionPreview,
   ImportSessionSourceKind,
   ImportSessionValidation,
-  PrepareImportSourceInput,
-  ProposedCourseStructure
+  PrepareImportSourceInput
 } from '@shared'
 import {
   Badge,
@@ -57,7 +57,6 @@ interface BatchItem {
   currentExtractFile: string
   validation?: ImportSessionValidation
   preview?: ImportSessionPreview
-  rawProposal?: ProposedCourseStructure
   isExternal: boolean
   selected: boolean
   error: string | null
@@ -89,55 +88,6 @@ export function buildSourcePreparationRequest(
   source: Pick<ImportSourceCapability, 'token'>
 ): PrepareImportSourceInput {
   return { token: source.token }
-}
-
-export function proposalToSessionPreview(
-  proposal: ProposedCourseStructure
-): ImportSessionPreview {
-  return {
-    suggestedTitle: proposal.suggestedTitle,
-    totalLessons: proposal.totalLessons,
-    totalFilesScanned: proposal.totalFilesScanned,
-    ...(typeof proposal.totalDuration === 'number'
-      ? { totalDuration: proposal.totalDuration }
-      : {}),
-    modules: proposal.modules.map((mod) => ({
-      id: mod.id,
-      title: mod.title,
-      orderIndex: mod.orderIndex,
-      ...(typeof mod.duration === 'number' ? { duration: mod.duration } : {}),
-      resources: (mod.resources || []).map((r) => ({
-        id: r.id,
-        name: r.name,
-        fileExtension: r.fileExtension,
-        fileSize: r.fileSize,
-        type: r.type,
-        role: r.role,
-        ...(r.language ? { language: r.language } : {}),
-        ...(r.label ? { label: r.label } : {})
-      })),
-      lessons: mod.lessons.map((les) => ({
-        id: les.id,
-        title: les.title,
-        originalFileName: les.originalFileName,
-        fileExtension: les.fileExtension,
-        mediaType: les.mediaType,
-        fileSize: les.fileSize,
-        orderIndex: les.orderIndex,
-        ...(typeof les.duration === 'number' ? { duration: les.duration } : {}),
-        contentResources: (les.contentResources || []).map((r) => ({
-          id: r.id,
-          name: r.name,
-          fileExtension: r.fileExtension,
-          fileSize: r.fileSize,
-          type: r.type,
-          role: r.role,
-          ...(r.language ? { language: r.language } : {}),
-          ...(r.label ? { label: r.label } : {})
-        }))
-      }))
-    }))
-  }
 }
 
 export function ImportWizard({
@@ -359,12 +309,12 @@ export function ImportWizard({
     setStep('processing')
     try {
       const scanResult = await window.api.courses.scanMultiCourseFolder(
-        selected.path
+        buildSourcePreparationRequest(selected)
       )
       if (
         !scanResult.success ||
-        !scanResult.proposals ||
-        scanResult.proposals.length === 0
+        !scanResult.preparations ||
+        scanResult.preparations.length === 0
       ) {
         setGlobalError(
           scanResult.error ||
@@ -377,28 +327,29 @@ export function ImportWizard({
         return
       }
 
-      const queue: BatchItem[] = scanResult.proposals.map((prop, idx) => ({
-        id: `multi-${Date.now()}-${idx}`,
-        name: prop.suggestedTitle,
-        sourceToken: '',
-        isZip: false,
-        sourceKind: 'folder',
-        status: 'ready',
-        extractProgress: 100,
-        currentExtractFile: '',
-        isExternal: true,
-        selected: true,
-        error: null,
-        rawProposal: prop,
-        validation: {
-          verificationOk: true,
-          warnings: [],
-          duplicateFiles: prop.duplicates || [],
-          failedEntries: [],
-          extractedFiles: prop.totalFilesScanned
-        },
-        preview: proposalToSessionPreview(prop)
-      }))
+      const queue: BatchItem[] = scanResult.preparations.map(
+        (preparation: ImportSessionPreparation, idx) => {
+          const ready =
+            preparation.validation.verificationOk &&
+            Boolean(preparation.preview)
+          return {
+            id: `multi-${Date.now()}-${idx}`,
+            name: preparation.suggestedTitle,
+            sourceToken: '',
+            isZip: false,
+            sourceKind: preparation.sourceKind,
+            sessionId: preparation.sessionId,
+            status: ready ? ('ready' as const) : ('validation-failed' as const),
+            extractProgress: 100,
+            currentExtractFile: '',
+            isExternal: true,
+            selected: ready,
+            error: ready ? null : t('import.validationFailed'),
+            validation: preparation.validation,
+            preview: preparation.preview
+          }
+        }
+      )
 
       replaceBatchItems(queue)
       setActiveItemIndex(0)
@@ -515,44 +466,6 @@ export function ImportWizard({
               : current
           )
         )
-      }
-
-      // 2. Process batch direct items (from multi-course folder)
-      const directItems = selectedItems.filter(
-        (item) => !item.sessionId && item.rawProposal && item.preview
-      )
-      if (directItems.length > 0) {
-        const batchPayload = directItems.map((item) => {
-          const prop = item.rawProposal!
-          const edits = buildImportTitleEdits(item.preview!)
-          const modTitleMap = new Map(
-            (edits.modules ?? []).map((m) => [m.id, m.title])
-          )
-          const lesTitleMap = new Map(
-            (edits.lessons ?? []).map((l) => [l.id, l.title])
-          )
-
-          return {
-            proposal: {
-              ...prop,
-              suggestedTitle: edits.courseTitle || prop.suggestedTitle,
-              modules: prop.modules.map((m) => ({
-                ...m,
-                title: modTitleMap.get(m.id) || m.title,
-                lessons: m.lessons.map((l) => ({
-                  ...l,
-                  title: lesTitleMap.get(l.id) || l.title
-                }))
-              }))
-            },
-            isExternal: item.isExternal
-          }
-        })
-
-        const batchRes = await window.api.courses.importBatch(batchPayload)
-        if (batchRes.success && batchRes.courses) {
-          importedCourseIds.push(...batchRes.courses.map((c) => c.id))
-        }
       }
 
       await fetchCourses()

@@ -29,13 +29,16 @@ describe('VaultStore Operations', () => {
           getRecent: vi.fn().mockResolvedValue([mockVault]),
           getStats: vi.fn().mockResolvedValue(mockStats),
           open: vi.fn().mockResolvedValue({ success: true, vault: mockVault }),
-          create: vi.fn().mockResolvedValue({ success: true, vault: mockVault }),
+          create: vi
+            .fn()
+            .mockResolvedValue({ success: true, vault: mockVault }),
           selectDirectory: vi.fn().mockResolvedValue('/vaults/selected')
         }
       }
     }
 
-    ;(globalThis as unknown as { window: typeof mockWindow }).window = mockWindow
+    ;(globalThis as unknown as { window: typeof mockWindow }).window =
+      mockWindow
 
     useVaultStore.setState({
       currentVault: null,
@@ -78,15 +81,21 @@ describe('VaultStore Operations', () => {
 
     expect(result.success).toBe(false)
     expect(result.error).toBe('Vault directory does not exist')
-    expect(useVaultStore.getState().error).toBe('Vault directory does not exist')
+    expect(useVaultStore.getState().error).toBe(
+      'Vault directory does not exist'
+    )
   })
 
   it('creates new vault and sets it as current', async () => {
-    const result = await useVaultStore.getState().createVault('/vaults/new', 'New Vault')
+    const result = await useVaultStore
+      .getState()
+      .createVault('/vaults/new', 'New Vault')
 
     expect(result.success).toBe(true)
-    expect(window.api.vault.create).toHaveBeenCalledWith('/vaults/new', 'New Vault')
+    expect(window.api.vault.create).toHaveBeenCalledWith(
+      '/vaults/new',
+      'New Vault'
+    )
     expect(useVaultStore.getState().currentVault?.name).toBe('Primary Vault')
   })
-
 })

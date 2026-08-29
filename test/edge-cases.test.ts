@@ -20,7 +20,8 @@ describe('Subtitle Converter compatibility cases', () => {
   })
 
   it('handles dot-separated timestamps and pads single/double digit milliseconds', () => {
-    const srt = '1\n00:01:05.5 --> 00:01:08.50\nDot separated with partial milliseconds'
+    const srt =
+      '1\n00:01:05.5 --> 00:01:08.50\nDot separated with partial milliseconds'
     const vtt = convertSrtToVtt(srt)
     expect(vtt).toContain('00:01:05.500 --> 00:01:08.500')
   })

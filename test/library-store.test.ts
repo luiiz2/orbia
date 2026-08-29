@@ -13,7 +13,6 @@ describe('Zustand Stores', () => {
       isLoading: false,
       error: null
     })
-
   })
 
   it('toggles course favorite optimistically and calls window.api.courses.toggleFavorite', async () => {

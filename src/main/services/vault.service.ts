@@ -5,6 +5,7 @@ import type { Vault, VaultStats } from '../../types'
 import { appConfigService } from './app-config.service'
 import { databaseService } from './database.service'
 import { sourceWatchService } from './sources/source-watch.service'
+import { samePath } from '../utils/path-security'
 
 export class VaultService {
   private currentVault: Vault | null = null
@@ -201,11 +202,38 @@ export class VaultService {
     deleteFiles: boolean
   ): Promise<boolean> {
     const trimmedPath = vaultPath.trim()
+    if (!trimmedPath) throw new Error('Vault path is required.')
+
+    const registeredVault = this.getRecentVaults().find((vault) =>
+      samePath(vault.path, trimmedPath)
+    )
+    if (!registeredVault) {
+      throw new Error('Vault must be registered before it can be deleted.')
+    }
+
+    const targetPath = registeredVault.path
+    if (fs.existsSync(targetPath)) {
+      const stat = await fs.promises.stat(targetPath)
+      if (!stat.isDirectory()) {
+        throw new Error('Registered vault path is not a directory.')
+      }
+    }
+
+    if (deleteFiles) {
+      if (samePath(path.parse(targetPath).root, targetPath)) {
+        throw new Error('The filesystem root cannot be deleted as a vault.')
+      }
+      if (!this.isValidVault(targetPath)) {
+        throw new Error('Only a valid Orbia vault can be deleted from disk.')
+      }
+    }
 
     // 1. If currently connected to this vault, close the DB connection
     if (
-      this.currentVault?.path === trimmedPath ||
-      databaseService.getCurrentVaultPath() === trimmedPath
+      (this.currentVault?.path &&
+        samePath(this.currentVault.path, targetPath)) ||
+      (databaseService.getCurrentVaultPath() &&
+        samePath(databaseService.getCurrentVaultPath()!, targetPath))
     ) {
       await this.beforeVaultChange()
       databaseService.close()
@@ -214,11 +242,11 @@ export class VaultService {
     }
 
     // 2. Remove from AppConfig registry
-    appConfigService.removeVault(trimmedPath)
+    appConfigService.removeVault(targetPath)
 
     // 3. If deleteFiles is true, delete the folder from disk
-    if (deleteFiles && fs.existsSync(trimmedPath)) {
-      await fs.promises.rm(trimmedPath, { recursive: true, force: true })
+    if (deleteFiles && fs.existsSync(targetPath)) {
+      await fs.promises.rm(targetPath, { recursive: true, force: true })
     }
 
     return true

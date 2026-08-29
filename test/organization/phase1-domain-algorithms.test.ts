@@ -13,9 +13,7 @@ import {
   extractPartInfo,
   groupMultipartLessons
 } from '../../src/main/services/organization/multipart-detector'
-import {
-  detectCourseRoots
-} from '../../src/main/services/organization/course-root-detector'
+import { detectCourseRoots } from '../../src/main/services/organization/course-root-detector'
 import type { ScannedDirectory } from '../../src/main/services/scanner.service'
 
 describe('Phase 1: Pure Organization Algorithms', () => {
@@ -29,17 +27,44 @@ describe('Phase 1: Pure Organization Algorithms', () => {
     })
 
     it('resolves generic titles using parent folder or fallback index', () => {
-      expect(resolveGenericTitle('video.mp4', '01 - Introdução aos Protocolos')).toBe('01 - Introdução aos Protocolos')
-      expect(resolveGenericTitle('aula.mp4', '02 - Como Funciona a Internet')).toBe('02 - Como Funciona a Internet')
+      expect(
+        resolveGenericTitle('video.mp4', '01 - Introdução aos Protocolos')
+      ).toBe('01 - Introdução aos Protocolos')
+      expect(
+        resolveGenericTitle('aula.mp4', '02 - Como Funciona a Internet')
+      ).toBe('02 - Como Funciona a Internet')
       expect(resolveGenericTitle('video.mp4', undefined, 5)).toBe('Lesson 05')
-      expect(resolveGenericTitle('01 - Custom Title.mp4', '01 - Module')).toBe('01 - Custom Title')
+      expect(resolveGenericTitle('01 - Custom Title.mp4', '01 - Module')).toBe(
+        '01 - Custom Title'
+      )
     })
 
     it('handles numeric ordering 1, 2, 10 correctly', () => {
       const items = [
-        { id: '3', rawFileName: 'Aula 10.mp4', cleanTitle: '10', filePath: '/a/10.mp4', explicitNumber: 10, orderIndex: 1 },
-        { id: '1', rawFileName: 'Aula 1.mp4', cleanTitle: '1', filePath: '/a/1.mp4', explicitNumber: 1, orderIndex: 2 },
-        { id: '2', rawFileName: 'Aula 2.mp4', cleanTitle: '2', filePath: '/a/2.mp4', explicitNumber: 2, orderIndex: 3 }
+        {
+          id: '3',
+          rawFileName: 'Aula 10.mp4',
+          cleanTitle: '10',
+          filePath: '/a/10.mp4',
+          explicitNumber: 10,
+          orderIndex: 1
+        },
+        {
+          id: '1',
+          rawFileName: 'Aula 1.mp4',
+          cleanTitle: '1',
+          filePath: '/a/1.mp4',
+          explicitNumber: 1,
+          orderIndex: 2
+        },
+        {
+          id: '2',
+          rawFileName: 'Aula 2.mp4',
+          cleanTitle: '2',
+          filePath: '/a/2.mp4',
+          explicitNumber: 2,
+          orderIndex: 3
+        }
       ]
 
       const result = resolveSequenceOrdering(items)
@@ -49,24 +74,101 @@ describe('Phase 1: Pure Organization Algorithms', () => {
 
     it('handles decimal sequences 1, 1.1, 1.2, 1.5, 2, 10', () => {
       const items = [
-        { id: '6', rawFileName: '10 - Deploy.mp4', cleanTitle: '10 - Deploy', filePath: '/a/10.mp4', explicitNumber: 10, orderIndex: 1 },
-        { id: '1', rawFileName: '1 - Intro.mp4', cleanTitle: '1 - Intro', filePath: '/a/1.mp4', explicitNumber: 1, orderIndex: 2 },
-        { id: '4', rawFileName: '1.5 - Bonus.mp4', cleanTitle: '1.5 - Bonus', filePath: '/a/1.5.mp4', explicitNumber: 1.5, orderIndex: 3 },
-        { id: '2', rawFileName: '1.1 - Setup.mp4', cleanTitle: '1.1 - Setup', filePath: '/a/1.1.mp4', explicitNumber: 1.1, orderIndex: 4 },
-        { id: '5', rawFileName: '2 - Basics.mp4', cleanTitle: '2 - Basics', filePath: '/a/2.mp4', explicitNumber: 2, orderIndex: 5 },
-        { id: '3', rawFileName: '1.2 - Tools.mp4', cleanTitle: '1.2 - Tools', filePath: '/a/1.2.mp4', explicitNumber: 1.2, orderIndex: 6 }
+        {
+          id: '6',
+          rawFileName: '10 - Deploy.mp4',
+          cleanTitle: '10 - Deploy',
+          filePath: '/a/10.mp4',
+          explicitNumber: 10,
+          orderIndex: 1
+        },
+        {
+          id: '1',
+          rawFileName: '1 - Intro.mp4',
+          cleanTitle: '1 - Intro',
+          filePath: '/a/1.mp4',
+          explicitNumber: 1,
+          orderIndex: 2
+        },
+        {
+          id: '4',
+          rawFileName: '1.5 - Bonus.mp4',
+          cleanTitle: '1.5 - Bonus',
+          filePath: '/a/1.5.mp4',
+          explicitNumber: 1.5,
+          orderIndex: 3
+        },
+        {
+          id: '2',
+          rawFileName: '1.1 - Setup.mp4',
+          cleanTitle: '1.1 - Setup',
+          filePath: '/a/1.1.mp4',
+          explicitNumber: 1.1,
+          orderIndex: 4
+        },
+        {
+          id: '5',
+          rawFileName: '2 - Basics.mp4',
+          cleanTitle: '2 - Basics',
+          filePath: '/a/2.mp4',
+          explicitNumber: 2,
+          orderIndex: 5
+        },
+        {
+          id: '3',
+          rawFileName: '1.2 - Tools.mp4',
+          cleanTitle: '1.2 - Tools',
+          filePath: '/a/1.2.mp4',
+          explicitNumber: 1.2,
+          orderIndex: 6
+        }
       ]
 
       const result = resolveSequenceOrdering(items)
-      expect(result.items.map((i) => i.id)).toEqual(['1', '2', '3', '4', '5', '6'])
+      expect(result.items.map((i) => i.id)).toEqual([
+        '1',
+        '2',
+        '3',
+        '4',
+        '5',
+        '6'
+      ])
     })
 
     it('detects sequence gaps in integer numbering (e.g. 1, 2, 4, 5 -> missing 3)', () => {
       const items = [
-        { id: '1', rawFileName: '01 - Intro.mp4', cleanTitle: '01 - Intro', filePath: '/a/01.mp4', explicitNumber: 1, orderIndex: 1 },
-        { id: '2', rawFileName: '02 - Basics.mp4', cleanTitle: '02 - Basics', filePath: '/a/02.mp4', explicitNumber: 2, orderIndex: 2 },
-        { id: '4', rawFileName: '04 - Advanced.mp4', cleanTitle: '04 - Advanced', filePath: '/a/04.mp4', explicitNumber: 4, orderIndex: 3 },
-        { id: '5', rawFileName: '05 - Summary.mp4', cleanTitle: '05 - Summary', filePath: '/a/05.mp4', explicitNumber: 5, orderIndex: 4 }
+        {
+          id: '1',
+          rawFileName: '01 - Intro.mp4',
+          cleanTitle: '01 - Intro',
+          filePath: '/a/01.mp4',
+          explicitNumber: 1,
+          orderIndex: 1
+        },
+        {
+          id: '2',
+          rawFileName: '02 - Basics.mp4',
+          cleanTitle: '02 - Basics',
+          filePath: '/a/02.mp4',
+          explicitNumber: 2,
+          orderIndex: 2
+        },
+        {
+          id: '4',
+          rawFileName: '04 - Advanced.mp4',
+          cleanTitle: '04 - Advanced',
+          filePath: '/a/04.mp4',
+          explicitNumber: 4,
+          orderIndex: 3
+        },
+        {
+          id: '5',
+          rawFileName: '05 - Summary.mp4',
+          cleanTitle: '05 - Summary',
+          filePath: '/a/05.mp4',
+          explicitNumber: 5,
+          orderIndex: 4
+        }
       ]
 
       const result = resolveSequenceOrdering(items)
@@ -77,11 +179,31 @@ describe('Phase 1: Pure Organization Algorithms', () => {
 
     it('preserves manual ordering when flagged', () => {
       const items = [
-        { id: '1', rawFileName: '01 - Intro.mp4', cleanTitle: '01 - Intro', filePath: '/a/01.mp4', explicitNumber: 1, orderIndex: 1, displayOrder: 2, isManual: true },
-        { id: '2', rawFileName: '02 - Basics.mp4', cleanTitle: '02 - Basics', filePath: '/a/02.mp4', explicitNumber: 2, orderIndex: 2, displayOrder: 1, isManual: true }
+        {
+          id: '1',
+          rawFileName: '01 - Intro.mp4',
+          cleanTitle: '01 - Intro',
+          filePath: '/a/01.mp4',
+          explicitNumber: 1,
+          orderIndex: 1,
+          displayOrder: 2,
+          isManual: true
+        },
+        {
+          id: '2',
+          rawFileName: '02 - Basics.mp4',
+          cleanTitle: '02 - Basics',
+          filePath: '/a/02.mp4',
+          explicitNumber: 2,
+          orderIndex: 2,
+          displayOrder: 1,
+          isManual: true
+        }
       ]
 
-      const result = resolveSequenceOrdering(items, { preserveManualOrder: true })
+      const result = resolveSequenceOrdering(items, {
+        preserveManualOrder: true
+      })
       expect(result.items[0].id).toBe('2')
       expect(result.items[1].id).toBe('1')
       expect(result.items[0].displayOrder).toBe(1)
@@ -115,9 +237,15 @@ describe('Phase 1: Pure Organization Algorithms', () => {
     })
 
     it('identifies paths inside backup folders correctly', () => {
-      expect(isInsideBackupFolder('/course/Backup/01.mp4', '/course')).toBe(true)
-      expect(isInsideBackupFolder('/course/Module 1/Old/01.mp4', '/course')).toBe(true)
-      expect(isInsideBackupFolder('/course/Module 1/01.mp4', '/course')).toBe(false)
+      expect(isInsideBackupFolder('/course/Backup/01.mp4', '/course')).toBe(
+        true
+      )
+      expect(
+        isInsideBackupFolder('/course/Module 1/Old/01.mp4', '/course')
+      ).toBe(true)
+      expect(isInsideBackupFolder('/course/Module 1/01.mp4', '/course')).toBe(
+        false
+      )
     })
   })
 
@@ -143,10 +271,38 @@ describe('Phase 1: Pure Organization Algorithms', () => {
 
     it('groups multipart lessons with composite duration and parts', () => {
       const items = [
-        { id: '1', fileName: '05 - Arrays - Parte 1.mp4', filePath: '/a/05-1.mp4', fileExtension: 'mp4', duration: 100, fileSize: 1000 },
-        { id: '2', fileName: '05 - Arrays - Parte 2.mp4', filePath: '/a/05-2.mp4', fileExtension: 'mp4', duration: 120, fileSize: 1200 },
-        { id: '3', fileName: '05 - Arrays - Parte 3.mp4', filePath: '/a/05-3.mp4', fileExtension: 'mp4', duration: 80, fileSize: 800 },
-        { id: '4', fileName: '06 - Objects.mp4', filePath: '/a/06.mp4', fileExtension: 'mp4', duration: 200, fileSize: 2000 }
+        {
+          id: '1',
+          fileName: '05 - Arrays - Parte 1.mp4',
+          filePath: '/a/05-1.mp4',
+          fileExtension: 'mp4',
+          duration: 100,
+          fileSize: 1000
+        },
+        {
+          id: '2',
+          fileName: '05 - Arrays - Parte 2.mp4',
+          filePath: '/a/05-2.mp4',
+          fileExtension: 'mp4',
+          duration: 120,
+          fileSize: 1200
+        },
+        {
+          id: '3',
+          fileName: '05 - Arrays - Parte 3.mp4',
+          filePath: '/a/05-3.mp4',
+          fileExtension: 'mp4',
+          duration: 80,
+          fileSize: 800
+        },
+        {
+          id: '4',
+          fileName: '06 - Objects.mp4',
+          filePath: '/a/06.mp4',
+          fileExtension: 'mp4',
+          duration: 200,
+          fileSize: 2000
+        }
       ]
 
       const grouped = groupMultipartLessons(items)
@@ -177,13 +333,29 @@ describe('Phase 1: Pure Organization Algorithms', () => {
           {
             name: '01 - Intro',
             fullPath: '/courses/python/01 - Intro',
-            files: [{ name: '01.mp4', fullPath: '/courses/python/01 - Intro/01.mp4', extension: '.mp4', sizeBytes: 1000, isDirectory: false }],
+            files: [
+              {
+                name: '01.mp4',
+                fullPath: '/courses/python/01 - Intro/01.mp4',
+                extension: '.mp4',
+                sizeBytes: 1000,
+                isDirectory: false
+              }
+            ],
             subDirectories: []
           },
           {
             name: '02 - Basics',
             fullPath: '/courses/python/02 - Basics',
-            files: [{ name: '02.mp4', fullPath: '/courses/python/02 - Basics/02.mp4', extension: '.mp4', sizeBytes: 1000, isDirectory: false }],
+            files: [
+              {
+                name: '02.mp4',
+                fullPath: '/courses/python/02 - Basics/02.mp4',
+                extension: '.mp4',
+                sizeBytes: 1000,
+                isDirectory: false
+              }
+            ],
             subDirectories: []
           }
         ]
@@ -207,7 +379,15 @@ describe('Phase 1: Pure Organization Algorithms', () => {
               {
                 name: 'Module 1',
                 fullPath: '/all-courses/Python Masterclass/Module 1',
-                files: [{ name: '01.mp4', fullPath: '/all-courses/Python Masterclass/Module 1/01.mp4', extension: '.mp4', sizeBytes: 1000, isDirectory: false }],
+                files: [
+                  {
+                    name: '01.mp4',
+                    fullPath: '/all-courses/Python Masterclass/Module 1/01.mp4',
+                    extension: '.mp4',
+                    sizeBytes: 1000,
+                    isDirectory: false
+                  }
+                ],
                 subDirectories: []
               }
             ]
@@ -220,7 +400,15 @@ describe('Phase 1: Pure Organization Algorithms', () => {
               {
                 name: 'Module 1',
                 fullPath: '/all-courses/React Masterclass/Module 1',
-                files: [{ name: '01.mp4', fullPath: '/all-courses/React Masterclass/Module 1/01.mp4', extension: '.mp4', sizeBytes: 1000, isDirectory: false }],
+                files: [
+                  {
+                    name: '01.mp4',
+                    fullPath: '/all-courses/React Masterclass/Module 1/01.mp4',
+                    extension: '.mp4',
+                    sizeBytes: 1000,
+                    isDirectory: false
+                  }
+                ],
                 subDirectories: []
               }
             ]
@@ -231,7 +419,10 @@ describe('Phase 1: Pure Organization Algorithms', () => {
       const result = detectCourseRoots(mockContainer)
       expect(result.type).toBe('batch_multi_course')
       if (result.type === 'batch_multi_course') {
-        expect(result.courseRoots.map((r) => r.name)).toEqual(['Python Masterclass', 'React Masterclass'])
+        expect(result.courseRoots.map((r) => r.name)).toEqual([
+          'Python Masterclass',
+          'React Masterclass'
+        ])
       }
     })
   })

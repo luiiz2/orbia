@@ -102,19 +102,46 @@ describe('Physical Course Reorganizer & Journal Undo Engine', () => {
       createdAt: now
     }
 
-    databaseService.saveCourseWithHierarchy(course, [{ ...mod, lessons: [les1, les2] }])
+    databaseService.saveCourseWithHierarchy(course, [
+      { ...mod, lessons: [les1, les2] }
+    ])
 
     // 1. Generate Plan
     const plan = reorganizerService.generateReorganizePlan(courseId)
     expect(plan.hasConflicts).toBe(false)
     expect(plan.proposedMutations.length).toBe(2)
 
-    const mut1 = plan.proposedMutations.find((m) => m.sourcePath === lesson1Path)
+    const mut1 = plan.proposedMutations.find(
+      (m) => m.sourcePath === lesson1Path
+    )
     expect(mut1).toBeDefined()
     expect(mut1!.newFileName).toContain('01 - Introdução.mp4')
 
+    const forgedMutations = plan.proposedMutations.map((mutation) =>
+      mutation === mut1
+        ? {
+            ...mutation,
+            destinationPath: path.join(vaultDir, 'outside-course', 'stolen.mp4')
+          }
+        : mutation
+    )
+    expect(() =>
+      reorganizerService.applyReorganizePlan(
+        plan.groupId,
+        forgedMutations,
+        courseId
+      )
+    ).toThrow(/plan|outside/i)
+    expect(
+      fs.existsSync(path.join(vaultDir, 'outside-course', 'stolen.mp4'))
+    ).toBe(false)
+
     // 2. Apply Plan
-    const applyResult = reorganizerService.applyReorganizePlan(plan.groupId, plan.proposedMutations, courseId)
+    const applyResult = reorganizerService.applyReorganizePlan(
+      plan.groupId,
+      plan.proposedMutations,
+      courseId
+    )
     expect(applyResult.success).toBe(true)
     expect(applyResult.appliedCount).toBe(2)
 
@@ -170,7 +197,11 @@ describe('Physical Course Reorganizer & Journal Undo Engine', () => {
       createdAt: now
     }
 
-    const nonExistentPath = path.join(courseDir, 'old_inbox_folder', 'ghost.mp4')
+    const nonExistentPath = path.join(
+      courseDir,
+      'old_inbox_folder',
+      'ghost.mp4'
+    )
     const les: Lesson = {
       id: lesId,
       moduleId: modId,
@@ -186,7 +217,9 @@ describe('Physical Course Reorganizer & Journal Undo Engine', () => {
       createdAt: now
     }
 
-    databaseService.saveCourseWithHierarchy(course, [{ ...mod, lessons: [les] }])
+    databaseService.saveCourseWithHierarchy(course, [
+      { ...mod, lessons: [les] }
+    ])
 
     // 1. Generate plan for non-existent file
     const plan = reorganizerService.generateReorganizePlan(courseId)
@@ -195,8 +228,86 @@ describe('Physical Course Reorganizer & Journal Undo Engine', () => {
     expect(plan.conflictDetails?.length).toBeGreaterThan(0)
 
     // 2. Applying plan succeeds gracefully with 0 errors
-    const applyResult = reorganizerService.applyReorganizePlan(plan.groupId, plan.proposedMutations, courseId)
+    const applyResult = reorganizerService.applyReorganizePlan(
+      plan.groupId,
+      plan.proposedMutations,
+      courseId
+    )
     expect(applyResult.success).toBe(true)
     expect(applyResult.appliedCount).toBe(0)
+  })
+
+  it('rejects destinations redirected by a symlinked course directory', () => {
+    const outsideDir = path.join(tempDir, 'outside-course')
+    const sourceDir = path.join(courseDir, 'raw')
+    const redirectedModuleDir = path.join(courseDir, '01 - Modulo 1')
+    fs.mkdirSync(outsideDir, { recursive: true })
+    fs.mkdirSync(sourceDir, { recursive: true })
+    fs.symlinkSync(
+      outsideDir,
+      redirectedModuleDir,
+      process.platform === 'win32' ? 'junction' : 'dir'
+    )
+
+    const sourcePath = path.join(sourceDir, 'lesson.mp4')
+    fs.writeFileSync(sourcePath, 'dummy video')
+
+    const courseId = 'course-reorg-symlink'
+    const moduleId = 'mod-reorg-symlink'
+    const lessonId = 'lesson-reorg-symlink'
+    const now = Date.now()
+    databaseService.saveCourseWithHierarchy(
+      {
+        id: courseId,
+        title: 'Symlink Course',
+        slug: 'symlink-course',
+        sourceType: 'local-vault',
+        rootPath: courseDir,
+        totalDuration: 60,
+        moduleCount: 1,
+        lessonCount: 1,
+        createdAt: now,
+        updatedAt: now
+      },
+      [
+        {
+          id: moduleId,
+          courseId,
+          title: 'Modulo 1',
+          orderIndex: 0,
+          folderPath: sourceDir,
+          duration: 60,
+          lessonCount: 1,
+          createdAt: now,
+          lessons: [
+            {
+              id: lessonId,
+              moduleId: moduleId,
+              courseId,
+              title: 'Lesson',
+              orderIndex: 0,
+              filePath: sourcePath,
+              fileName: 'lesson.mp4',
+              fileExtension: '.mp4',
+              mediaType: 'video',
+              duration: 60,
+              fileSize: 11,
+              createdAt: now
+            }
+          ]
+        }
+      ]
+    )
+
+    const plan = reorganizerService.generateReorganizePlan(courseId)
+    expect(() =>
+      reorganizerService.applyReorganizePlan(
+        plan.groupId,
+        plan.proposedMutations,
+        courseId
+      )
+    ).toThrow(/parent|outside|unauthorized/i)
+    expect(fs.existsSync(sourcePath)).toBe(true)
+    expect(fs.existsSync(path.join(outsideDir, '01 - Lesson.mp4'))).toBe(false)
   })
 })

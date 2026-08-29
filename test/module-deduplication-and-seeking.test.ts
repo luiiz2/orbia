@@ -12,7 +12,10 @@ describe('Module Deduplication & Video Range Seeking', () => {
   let dbService: DatabaseService
 
   beforeEach(() => {
-    tempDir = path.join(os.tmpdir(), `orbia-test-dedup-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`)
+    tempDir = path.join(
+      os.tmpdir(),
+      `orbia-test-dedup-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+    )
     fs.mkdirSync(tempDir, { recursive: true })
     dbService = new DatabaseService()
     dbService.connect(tempDir)
@@ -41,7 +44,12 @@ describe('Module Deduplication & Video Range Seeking', () => {
           files: [
             {
               name: '01 - Aula 1.mp4',
-              fullPath: path.join(tempDir, 'Voss Academy Course', '01 - Modulo 1', '01 - Aula 1.mp4'),
+              fullPath: path.join(
+                tempDir,
+                'Voss Academy Course',
+                '01 - Modulo 1',
+                '01 - Aula 1.mp4'
+              ),
               extension: '.mp4',
               sizeBytes: 1000,
               isDirectory: false
@@ -55,7 +63,12 @@ describe('Module Deduplication & Video Range Seeking', () => {
           files: [
             {
               name: '02 - Aula 2.mp4',
-              fullPath: path.join(tempDir, 'Voss Academy Course', 'Modulo 1', '02 - Aula 2.mp4'),
+              fullPath: path.join(
+                tempDir,
+                'Voss Academy Course',
+                'Modulo 1',
+                '02 - Aula 2.mp4'
+              ),
               extension: '.mp4',
               sizeBytes: 2000,
               isDirectory: false
@@ -152,7 +165,10 @@ describe('Module Deduplication & Video Range Seeking', () => {
     expect(cleaned!.modules.length).toBe(1)
     expect(cleaned!.modules[0].title).toBe('01 - Introdução')
     expect(cleaned!.modules[0].lessons.length).toBe(2)
-    expect(cleaned!.modules[0].lessons.map((l) => l.title)).toEqual(['Aula 01', 'Aula 02'])
+    expect(cleaned!.modules[0].lessons.map((l) => l.title)).toEqual([
+      'Aula 01',
+      'Aula 02'
+    ])
   })
 
   it('merges 17 modules down to 2 when only "Lovable PRO - Rafa Voss" and "ClaudePRO - RafaVoss" are present', () => {
@@ -189,31 +205,33 @@ describe('Module Deduplication & Video Range Seeking', () => {
       'Lovable PRO - Rafa Voss'
     ]
 
-    const modules: (Module & { lessons: Lesson[] })[] = titles.map((title, idx) => ({
-      id: `mod-${idx + 1}`,
-      courseId: course.id,
-      title,
-      orderIndex: idx + 1,
-      duration: 100,
-      lessonCount: 1,
-      createdAt: Date.now() + idx,
-      lessons: [
-        {
-          id: `les-${idx + 1}`,
-          moduleId: `mod-${idx + 1}`,
-          courseId: course.id,
-          title: `Aula ${String(idx + 1).padStart(2, '0')} - ${title}`,
-          orderIndex: 1,
-          filePath: path.join(course.rootPath, `video_${idx + 1}.mp4`),
-          fileName: `video_${idx + 1}.mp4`,
-          fileExtension: '.mp4',
-          mediaType: 'video',
-          duration: 100,
-          fileSize: 1000,
-          createdAt: Date.now() + idx
-        }
-      ]
-    }))
+    const modules: (Module & { lessons: Lesson[] })[] = titles.map(
+      (title, idx) => ({
+        id: `mod-${idx + 1}`,
+        courseId: course.id,
+        title,
+        orderIndex: idx + 1,
+        duration: 100,
+        lessonCount: 1,
+        createdAt: Date.now() + idx,
+        lessons: [
+          {
+            id: `les-${idx + 1}`,
+            moduleId: `mod-${idx + 1}`,
+            courseId: course.id,
+            title: `Aula ${String(idx + 1).padStart(2, '0')} - ${title}`,
+            orderIndex: 1,
+            filePath: path.join(course.rootPath, `video_${idx + 1}.mp4`),
+            fileName: `video_${idx + 1}.mp4`,
+            fileExtension: '.mp4',
+            mediaType: 'video',
+            duration: 100,
+            fileSize: 1000,
+            createdAt: Date.now() + idx
+          }
+        ]
+      })
+    )
 
     // Save with duplicate modules — saveCourseWithHierarchy will automatically consolidate them!
     dbService.saveCourseWithHierarchy(course, modules)
@@ -228,11 +246,18 @@ describe('Module Deduplication & Video Range Seeking', () => {
     expect(moduleTitles).toContain('ClaudePRO - RafaVoss')
 
     // Total lessons across the 2 modules must still equal 17 (zero data loss)
-    const totalLessons = result!.modules.reduce((sum, m) => sum + m.lessons.length, 0)
+    const totalLessons = result!.modules.reduce(
+      (sum, m) => sum + m.lessons.length,
+      0
+    )
     expect(totalLessons).toBe(17)
 
-    const lovableModule = result!.modules.find((m) => m.title === 'Lovable PRO - Rafa Voss')
-    const claudeModule = result!.modules.find((m) => m.title === 'ClaudePRO - RafaVoss')
+    const lovableModule = result!.modules.find(
+      (m) => m.title === 'Lovable PRO - Rafa Voss'
+    )
+    const claudeModule = result!.modules.find(
+      (m) => m.title === 'ClaudePRO - RafaVoss'
+    )
 
     expect(lovableModule).toBeDefined()
     expect(claudeModule).toBeDefined()
@@ -253,31 +278,43 @@ describe('Module Deduplication & Video Range Seeking', () => {
   it('automatically self-heals duplicate modules on getCourseById', () => {
     const courseId = 'course-self-heal'
     // Manually insert duplicate modules directly in SQLite
-    const db = (dbService as unknown as { db: import('better-sqlite3').Database }).db
-    db.prepare(`
+    const db = (
+      dbService as unknown as { db: import('better-sqlite3').Database }
+    ).db
+    db.prepare(
+      `
       INSERT INTO courses (id, title, slug, source_type, root_path, is_external, total_duration, module_count, lesson_count, is_favorite, created_at, updated_at)
       VALUES (?, 'Self Healing Course', 'self-healing', 'local-vault', 'C:/test', 0, 200, 2, 2, 0, 1000, 1000)
-    `).run(courseId)
+    `
+    ).run(courseId)
 
-    db.prepare(`
+    db.prepare(
+      `
       INSERT INTO modules (id, course_id, title, order_index, duration, lesson_count, created_at)
       VALUES ('mod-a', ?, 'Lovable PRO - Rafa Voss', 1, 100, 1, 1000)
-    `).run(courseId)
+    `
+    ).run(courseId)
 
-    db.prepare(`
+    db.prepare(
+      `
       INSERT INTO modules (id, course_id, title, order_index, duration, lesson_count, created_at)
       VALUES ('mod-b', ?, 'Lovable PRO - Rafa Voss', 2, 100, 1, 1000)
-    `).run(courseId)
+    `
+    ).run(courseId)
 
-    db.prepare(`
+    db.prepare(
+      `
       INSERT INTO lessons (id, module_id, course_id, title, order_index, file_path, file_name, file_extension, media_type, duration, file_size, availability, created_at)
       VALUES ('les-a', 'mod-a', ?, 'Aula 1', 1, 'C:/test/1.mp4', '1.mp4', 'mp4', 'video', 100, 500, 'local', 1000)
-    `).run(courseId)
+    `
+    ).run(courseId)
 
-    db.prepare(`
+    db.prepare(
+      `
       INSERT INTO lessons (id, module_id, course_id, title, order_index, file_path, file_name, file_extension, media_type, duration, file_size, availability, created_at)
       VALUES ('les-b', 'mod-b', ?, 'Aula 2', 1, 'C:/test/2.mp4', '2.mp4', 'mp4', 'video', 100, 500, 'local', 1000)
-    `).run(courseId)
+    `
+    ).run(courseId)
 
     // Querying getCourseById is strictly read-only and non-destructive
     const hierarchy = dbService.getCourseById(courseId)
@@ -290,7 +327,9 @@ describe('Module Deduplication & Video Range Seeking', () => {
     expect(cleaned!.modules.length).toBe(1)
     expect(cleaned!.modules[0].title).toBe('Lovable PRO - Rafa Voss')
     expect(cleaned!.modules[0].lessons.length).toBe(2)
-    expect(cleaned!.modules[0].lessons.map((l) => l.title)).toEqual(['Aula 1', 'Aula 2'])
+    expect(cleaned!.modules[0].lessons.map((l) => l.title)).toEqual([
+      'Aula 1',
+      'Aula 2'
+    ])
   })
-
 })

@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { naturalCompare, naturalSort, naturalSortBy, extractLeadingNumber } from '../src/main/utils/natural-sort'
+import {
+  naturalCompare,
+  naturalSort,
+  naturalSortBy,
+  extractLeadingNumber
+} from '../src/main/utils/natural-sort'
 
 describe('Natural Sort Utility', () => {
   it('correctly compares strings with numbers so 2 precedes 10', () => {

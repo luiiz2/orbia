@@ -105,7 +105,10 @@ describe('Backup & Restore Service (.orbia format)', () => {
     })
 
     // Write a dummy cover
-    fs.writeFileSync(path.join(vaultDir, '.orbia', 'covers', 'thumb1.jpg'), 'fake-image-bytes')
+    fs.writeFileSync(
+      path.join(vaultDir, '.orbia', 'covers', 'thumb1.jpg'),
+      'fake-image-bytes'
+    )
 
     backupService = new BackupService(dbService)
   })
@@ -157,9 +160,15 @@ describe('Backup & Restore Service (.orbia format)', () => {
 
   it('rejects path traversal attacks in malicious backup files', async () => {
     const maliciousZip = new AdmZip()
-    maliciousZip.addFile('manifest.json', Buffer.from(JSON.stringify({ format: 'orbia-backup' })))
+    maliciousZip.addFile(
+      'manifest.json',
+      Buffer.from(JSON.stringify({ format: 'orbia-backup' }))
+    )
     maliciousZip.addFile('library.db', Buffer.from('dummy'))
-    maliciousZip.addFile('../../Windows/System32/evil.txt', Buffer.from('malicious payload'))
+    maliciousZip.addFile(
+      '../../Windows/System32/evil.txt',
+      Buffer.from('malicious payload')
+    )
     const maliciousPath = path.join(tempDir, 'evil.orbia')
     maliciousZip.writeZip(maliciousPath)
 

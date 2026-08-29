@@ -91,7 +91,9 @@ describe('Multi-Import & Course/Lesson Covers Engine', () => {
     const retrieved = databaseService.getCourseById(courseId)
     expect(retrieved).toBeDefined()
     expect(retrieved?.course.coverPath).toBe('C:/test/course/cover.jpg')
-    expect(retrieved?.modules[0].lessons[0].coverPath).toBe('C:/test/course/01 - intro.jpg')
+    expect(retrieved?.modules[0].lessons[0].coverPath).toBe(
+      'C:/test/course/01 - intro.jpg'
+    )
     expect(retrieved?.modules[0].lessons[1].coverPath).toBeUndefined()
   })
 
@@ -140,14 +142,24 @@ describe('Multi-Import & Course/Lesson Covers Engine', () => {
     databaseService.saveCourseWithHierarchy(course, [mod])
 
     // Update course cover
-    databaseService.updateCourseCover(courseId, 'C:/covers/new-course-cover.png')
+    databaseService.updateCourseCover(
+      courseId,
+      'C:/covers/new-course-cover.png'
+    )
     const updatedCourse = databaseService.getCourseById(courseId)
-    expect(updatedCourse?.course.coverPath).toBe('C:/covers/new-course-cover.png')
+    expect(updatedCourse?.course.coverPath).toBe(
+      'C:/covers/new-course-cover.png'
+    )
 
     // Update lesson cover
-    databaseService.updateLessonCover('lesson-dyn-1', 'C:/covers/new-lesson-thumb.png')
+    databaseService.updateLessonCover(
+      'lesson-dyn-1',
+      'C:/covers/new-lesson-thumb.png'
+    )
     const updatedWithLesson = databaseService.getCourseById(courseId)
-    expect(updatedWithLesson?.modules[0].lessons[0].coverPath).toBe('C:/covers/new-lesson-thumb.png')
+    expect(updatedWithLesson?.modules[0].lessons[0].coverPath).toBe(
+      'C:/covers/new-lesson-thumb.png'
+    )
   })
 
   it('auto-detects course cover image and lesson companion thumbnails in parserService', async () => {
@@ -159,11 +171,20 @@ describe('Multi-Import & Course/Lesson Covers Engine', () => {
     fs.writeFileSync(path.join(courseFolder, 'cover.png'), 'fake-image-data')
 
     // Lesson 1 video and companion image
-    fs.writeFileSync(path.join(moduleFolder, '01 - Introduction.mp4'), 'fake-video')
-    fs.writeFileSync(path.join(moduleFolder, '01 - Introduction.jpg'), 'fake-thumb')
+    fs.writeFileSync(
+      path.join(moduleFolder, '01 - Introduction.mp4'),
+      'fake-video'
+    )
+    fs.writeFileSync(
+      path.join(moduleFolder, '01 - Introduction.jpg'),
+      'fake-thumb'
+    )
 
     // Lesson 2 video without companion image
-    fs.writeFileSync(path.join(moduleFolder, '02 - Variables.mp4'), 'fake-video-2')
+    fs.writeFileSync(
+      path.join(moduleFolder, '02 - Variables.mp4'),
+      'fake-video-2'
+    )
 
     const scanned = await scannerService.scanDirectory(courseFolder)
     const proposal = await parserService.parseCourseHierarchy(scanned)
@@ -176,7 +197,9 @@ describe('Multi-Import & Course/Lesson Covers Engine', () => {
 
     // Lesson 1 should have detected the companion thumbnail
     expect(proposal.modules[0].lessons[0].coverPath).toBeDefined()
-    expect(path.basename(proposal.modules[0].lessons[0].coverPath!)).toBe('01 - Introduction.jpg')
+    expect(path.basename(proposal.modules[0].lessons[0].coverPath!)).toBe(
+      '01 - Introduction.jpg'
+    )
 
     // Lesson 2 has no companion image but must get a generated fallback cover
     expect(proposal.modules[0].lessons[1].coverPath).toBeDefined()
@@ -274,5 +297,4 @@ describe('Multi-Import & Course/Lesson Covers Engine', () => {
     expect(allCourses.some((c) => c.id === course1Id)).toBe(true)
     expect(allCourses.some((c) => c.id === course2Id)).toBe(true)
   })
-
 })

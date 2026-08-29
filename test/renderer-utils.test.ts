@@ -46,15 +46,21 @@ describe('Renderer Utilities & Formatters Test Suite', () => {
   describe('Search Utils in Renderer', () => {
     it('strips accents and normalizes search strings', () => {
       expect(normalizeSearchString('ÁÉÍÓÚ âêîôû ãõ ç')).toBe('aeiou aeiou ao c')
-      expect(normalizeSearchString('   MÓDULO DE PROGRAMAÇÃO   ')).toBe('modulo de programacao')
+      expect(normalizeSearchString('   MÓDULO DE PROGRAMAÇÃO   ')).toBe(
+        'modulo de programacao'
+      )
       expect(normalizeSearchString('')).toBe('')
       expect(normalizeSearchString(null)).toBe('')
     })
 
     it('matches accent-insensitive search queries', () => {
       expect(matchesSearchQuery('Introdução ao React', 'introducao')).toBe(true)
-      expect(matchesSearchQuery('Configuração de Ambiente', 'configuracao')).toBe(true)
-      expect(matchesSearchQuery('Banco de Dados Relacional', 'banco relacional')).toBe(true)
+      expect(
+        matchesSearchQuery('Configuração de Ambiente', 'configuracao')
+      ).toBe(true)
+      expect(
+        matchesSearchQuery('Banco de Dados Relacional', 'banco relacional')
+      ).toBe(true)
       expect(matchesSearchQuery('Node.js & Express', 'node express')).toBe(true)
       expect(matchesSearchQuery('Rust para Iniciantes', 'python')).toBe(false)
     })
@@ -62,13 +68,22 @@ describe('Renderer Utilities & Formatters Test Suite', () => {
     it('matches across multiple candidate fields in courses', () => {
       const course = {
         title: 'Formação Frontend Completa',
-        description: 'Aprenda HTML, CSS, JavaScript, React e TypeScript com projetos práticos.'
+        description:
+          'Aprenda HTML, CSS, JavaScript, React e TypeScript com projetos práticos.'
       }
 
-      expect(matchesAnyField([course.title, course.description], 'formacao frontend')).toBe(true)
-      expect(matchesAnyField([course.title, course.description], 'typescript')).toBe(true)
-      expect(matchesAnyField([course.title, course.description], 'projetos')).toBe(true)
-      expect(matchesAnyField([course.title, course.description], 'angular')).toBe(false)
+      expect(
+        matchesAnyField([course.title, course.description], 'formacao frontend')
+      ).toBe(true)
+      expect(
+        matchesAnyField([course.title, course.description], 'typescript')
+      ).toBe(true)
+      expect(
+        matchesAnyField([course.title, course.description], 'projetos')
+      ).toBe(true)
+      expect(
+        matchesAnyField([course.title, course.description], 'angular')
+      ).toBe(false)
     })
   })
 })

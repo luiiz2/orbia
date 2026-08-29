@@ -18,7 +18,11 @@ describe('ErrorBoundary Resilience', () => {
   it('renders custom fallback prop when state has error', () => {
     const boundary = new ErrorBoundary({
       children: React.createElement('div', null, 'Normal Content'),
-      fallback: React.createElement('div', { id: 'custom-fallback' }, 'Custom Error Screen')
+      fallback: React.createElement(
+        'div',
+        { id: 'custom-fallback' },
+        'Custom Error Screen'
+      )
     })
 
     boundary.state = {
@@ -29,5 +33,4 @@ describe('ErrorBoundary Resilience', () => {
     const rendered = boundary.render() as React.ReactElement
     expect(rendered.props.id).toBe('custom-fallback')
   })
-
 })

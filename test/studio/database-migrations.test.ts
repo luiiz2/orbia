@@ -42,25 +42,35 @@ describe('Database Migration 005: Library Studio & Appearances', () => {
     const now = Date.now()
     const db = (dbService as unknown as { db: Database.Database }).db
 
-    db.prepare(`
+    db.prepare(
+      `
       INSERT INTO courses (id, title, slug, source_type, root_path, total_duration, module_count, lesson_count, is_favorite, created_at, updated_at)
       VALUES (?, 'Curso Teste', 'curso-teste', 'local-vault', '/test', 100, 1, 1, 0, ?, ?)
-    `).run(courseId, now, now)
+    `
+    ).run(courseId, now, now)
 
-    db.prepare(`
+    db.prepare(
+      `
       INSERT INTO modules (id, course_id, title, order_index, folder_path, duration, lesson_count, created_at)
       VALUES ('mod_1', ?, 'Modulo 1', 1, '/test/mod1', 100, 1, ?)
-    `).run(courseId, now)
+    `
+    ).run(courseId, now)
 
-    db.prepare(`
+    db.prepare(
+      `
       INSERT INTO lessons (id, module_id, course_id, title, order_index, file_path, file_name, file_extension, media_type, duration, file_size, availability, created_at)
       VALUES ('less_1', 'mod_1', ?, 'Aula 1', 1, '/test/mod1/aula1.mp4', 'aula1.mp4', '.mp4', 'video', 100, 1024, 'available', ?)
-    `).run(courseId, now)
+    `
+    ).run(courseId, now)
 
     // Run backfill
-    ;(dbService as unknown as { backfillLibraryAppearances: () => void }).backfillLibraryAppearances()
+    ;(
+      dbService as unknown as { backfillLibraryAppearances: () => void }
+    ).backfillLibraryAppearances()
 
-    const appearances = db.prepare(`SELECT * FROM library_appearances`).all() as Array<{
+    const appearances = db
+      .prepare(`SELECT * FROM library_appearances`)
+      .all() as Array<{
       id: string
       entity_type: string
       entity_id: string
@@ -69,8 +79,20 @@ describe('Database Migration 005: Library Studio & Appearances', () => {
     }>
 
     expect(appearances.length).toBe(3) // 1 course, 1 module, 1 lesson
-    expect(appearances.some((a) => a.entity_type === 'course' && a.entity_id === courseId)).toBe(true)
-    expect(appearances.some((a) => a.entity_type === 'module' && a.entity_id === 'mod_1')).toBe(true)
-    expect(appearances.some((a) => a.entity_type === 'lesson' && a.entity_id === 'less_1')).toBe(true)
+    expect(
+      appearances.some(
+        (a) => a.entity_type === 'course' && a.entity_id === courseId
+      )
+    ).toBe(true)
+    expect(
+      appearances.some(
+        (a) => a.entity_type === 'module' && a.entity_id === 'mod_1'
+      )
+    ).toBe(true)
+    expect(
+      appearances.some(
+        (a) => a.entity_type === 'lesson' && a.entity_id === 'less_1'
+      )
+    ).toBe(true)
   })
 })

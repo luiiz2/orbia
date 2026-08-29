@@ -31,7 +31,12 @@ describe('Custom Fields Service', () => {
     const list = customFieldsService.listDefinitions(db)
     expect(list).toHaveLength(1)
 
-    const setOk = customFieldsService.setValue(db, 'course_101', field.id, 'Rodrigo Branas')
+    const setOk = customFieldsService.setValue(
+      db,
+      'course_101',
+      field.id,
+      'Rodrigo Branas'
+    )
     expect(setOk).toBe(true)
 
     const values = customFieldsService.getValues(db, 'course_101')

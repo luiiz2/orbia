@@ -25,25 +25,31 @@ describe('Time Matcher Service (How much time do you have?)', () => {
 
   it('matches lessons that can be finished within target minutes', () => {
     const now = Date.now()
-    db.prepare(`
+    db.prepare(
+      `
       INSERT INTO courses (id, title, slug, source_type, root_path, total_duration, module_count, lesson_count, is_favorite, created_at, updated_at)
       VALUES ('c_web', 'Web Dev', 'web-dev', 'local-vault', '/web', 7200, 1, 3, 0, ?, ?)
-    `).run(now, now)
+    `
+    ).run(now, now)
 
-    db.prepare(`
+    db.prepare(
+      `
       INSERT INTO modules (id, course_id, title, order_index, folder_path, duration, lesson_count, created_at)
       VALUES ('m_web', 'c_web', 'Módulo 1', 1, '/web', 7200, 3, ?)
-    `).run(now)
+    `
+    ).run(now)
 
     // Lesson 1: 15 min (900s)
     // Lesson 2: 45 min (2700s)
     // Lesson 3: 60 min (3600s)
-    db.prepare(`
+    db.prepare(
+      `
       INSERT INTO lessons (id, module_id, course_id, title, order_index, file_path, file_name, file_extension, media_type, duration, file_size, availability, created_at)
       VALUES ('l_15', 'm_web', 'c_web', 'Aula 15 min', 1, '/15.mp4', '15.mp4', '.mp4', 'video', 900, 100, 'available', ?),
              ('l_45', 'm_web', 'c_web', 'Aula 45 min', 2, '/45.mp4', '45.mp4', '.mp4', 'video', 2700, 100, 'available', ?),
              ('l_60', 'm_web', 'c_web', 'Aula 60 min', 3, '/60.mp4', '60.mp4', '.mp4', 'video', 3600, 100, 'available', ?)
-    `).run(now, now, now)
+    `
+    ).run(now, now, now)
 
     // Query 20 minutes
     const recs20 = timeMatcherService.getRecommendationsForTimeWindow(db, 20)

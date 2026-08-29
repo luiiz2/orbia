@@ -1,9 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
-import {
-  extractAndValidateMediaPath
-} from '../src/main/protocol'
+import { extractAndValidateMediaPath } from '../src/main/protocol'
+import { databaseService } from '../src/main/services/database.service'
 import { registerCoursesIpc } from '../src/main/ipc/courses.ipc'
 import { registerPlayerIpc } from '../src/main/ipc/player.ipc'
 import { registerVaultIpc } from '../src/main/ipc/vault.ipc'
@@ -12,11 +11,17 @@ import { registerSettingsIpc } from '../src/main/ipc/settings.ipc'
 const TEST_TMP_DIR = path.join(__dirname, 'tmp_security_test')
 
 // Mock electron's ipcMain, dialog, and BrowserWindow
-const registeredHandlers = new Map<string, (_event: unknown, ...args: unknown[]) => Promise<unknown> | unknown>()
+const registeredHandlers = new Map<
+  string,
+  (_event: unknown, ...args: unknown[]) => Promise<unknown> | unknown
+>()
 
 vi.mock('electron', () => ({
   ipcMain: {
-    handle: (channel: string, handler: (_event: unknown, ...args: unknown[]) => unknown) => {
+    handle: (
+      channel: string,
+      handler: (_event: unknown, ...args: unknown[]) => unknown
+    ) => {
       registeredHandlers.set(channel, handler)
     }
   },
@@ -25,6 +30,10 @@ vi.mock('electron', () => ({
   },
   BrowserWindow: {
     getFocusedWindow: vi.fn()
+  },
+  shell: {
+    openPath: vi.fn().mockResolvedValue(''),
+    openExternal: vi.fn().mockResolvedValue(undefined)
   },
   protocol: {
     registerSchemesAsPrivileged: vi.fn(),
@@ -42,6 +51,7 @@ vi.mock('electron', () => ({
 describe('Security & IPC Boundary Audit Test Suite', () => {
   beforeEach(() => {
     registeredHandlers.clear()
+    databaseService.close()
     if (fs.existsSync(TEST_TMP_DIR)) {
       fs.rmSync(TEST_TMP_DIR, { recursive: true, force: true })
     }
@@ -49,6 +59,7 @@ describe('Security & IPC Boundary Audit Test Suite', () => {
   })
 
   afterEach(() => {
+    databaseService.close()
     if (fs.existsSync(TEST_TMP_DIR)) {
       fs.rmSync(TEST_TMP_DIR, { recursive: true, force: true })
     }
@@ -115,11 +126,14 @@ describe('Security & IPC Boundary Audit Test Suite', () => {
     })
 
     it('rejects invalid or non-media schemes', () => {
-      expect(extractAndValidateMediaPath('http://localhost/video.mp4').valid).toBe(false)
-      expect(extractAndValidateMediaPath('file:///C:/video.mp4').valid).toBe(false)
+      expect(
+        extractAndValidateMediaPath('http://localhost/video.mp4').valid
+      ).toBe(false)
+      expect(extractAndValidateMediaPath('file:///C:/video.mp4').valid).toBe(
+        false
+      )
       expect(extractAndValidateMediaPath('').valid).toBe(false)
     })
-
   })
 
   describe('2. Courses IPC Handlers Boundary & Input Validation', () => {
@@ -132,40 +146,74 @@ describe('Security & IPC Boundary Audit Test Suite', () => {
       expect(handler).toBeDefined()
 
       // Invalid empty payload
-      const res1 = await handler({}, null as unknown as { courseId: string; coverPath: string })
-      expect(res1).toEqual({ success: false, error: 'Valid courseId and coverPath are required' })
+      const res1 = await handler(
+        {},
+        null as unknown as { courseId: string; coverPath: string }
+      )
+      expect(res1).toEqual({
+        success: false,
+        error: 'Valid courseId and coverPath are required'
+      })
 
       // Empty courseId
-      const res2 = await handler({}, { courseId: '', coverPath: 'C:/cover.png' })
-      expect(res2).toEqual({ success: false, error: 'Valid courseId and coverPath are required' })
+      const res2 = await handler(
+        {},
+        { courseId: '', coverPath: 'C:/cover.png' }
+      )
+      expect(res2).toEqual({
+        success: false,
+        error: 'Valid courseId and coverPath are required'
+      })
 
       // Non-string coverPath
-      const res3 = await handler({}, { courseId: 'course-1', coverPath: 123 as unknown as string })
-      expect(res3).toEqual({ success: false, error: 'Valid courseId and coverPath are required' })
+      const res3 = await handler(
+        {},
+        { courseId: 'course-1', coverPath: 123 as unknown as string }
+      )
+      expect(res3).toEqual({
+        success: false,
+        error: 'Valid courseId and coverPath are required'
+      })
     })
 
     it('validates courses:update-lesson-cover inputs', async () => {
       const handler = registeredHandlers.get('courses:update-lesson-cover')!
       expect(handler).toBeDefined()
 
-      const res1 = await handler({}, { lessonId: ' ', coverPath: 'C:/cover.png' })
-      expect(res1).toEqual({ success: false, error: 'Valid lessonId and coverPath are required' })
+      const res1 = await handler(
+        {},
+        { lessonId: ' ', coverPath: 'C:/cover.png' }
+      )
+      expect(res1).toEqual({
+        success: false,
+        error: 'Valid lessonId and coverPath are required'
+      })
     })
 
     it('rejects raw cover paths that were not issued by the native picker', async () => {
-      const courseHandler = registeredHandlers.get('courses:update-course-cover')!
-      const lessonHandler = registeredHandlers.get('courses:update-lesson-cover')!
+      const courseHandler = registeredHandlers.get(
+        'courses:update-course-cover'
+      )!
+      const lessonHandler = registeredHandlers.get(
+        'courses:update-lesson-cover'
+      )!
       expect(courseHandler).toBeDefined()
       expect(lessonHandler).toBeDefined()
 
-      const courseResult = await courseHandler({}, {
-        courseId: 'course-1',
-        coverPath: 'C:/Users/Dell/Documents/private.png'
-      })
-      const lessonResult = await lessonHandler({}, {
-        lessonId: 'lesson-1',
-        coverPath: 'C:/Users/Dell/Documents/private.png'
-      })
+      const courseResult = await courseHandler(
+        {},
+        {
+          courseId: 'course-1',
+          coverPath: 'C:/Users/Dell/Documents/private.png'
+        }
+      )
+      const lessonResult = await lessonHandler(
+        {},
+        {
+          lessonId: 'lesson-1',
+          coverPath: 'C:/Users/Dell/Documents/private.png'
+        }
+      )
 
       const expectedFailure = {
         success: false,
@@ -181,15 +229,27 @@ describe('Security & IPC Boundary Audit Test Suite', () => {
 
       // Empty path
       const res1 = await handler({}, { srtPath: '' })
-      expect(res1).toEqual({ success: false, error: 'Subtitle file path is required' })
+      expect(res1).toEqual({
+        success: false,
+        error: 'Subtitle file path is required'
+      })
 
       // Non-subtitle file extension (e.g. trying to read system files or databases)
-      const res2 = await handler({}, { srtPath: 'C:/Windows/System32/config/SAM' })
-      expect(res2).toEqual({ success: false, error: 'File is not a supported subtitle file (.srt, .vtt, .sub, .ass)' })
+      const res2 = await handler(
+        {},
+        { srtPath: 'C:/Windows/System32/config/SAM' }
+      )
+      expect(res2).toEqual({
+        success: false,
+        error: 'File is not a supported subtitle file (.srt, .vtt, .sub, .ass)'
+      })
 
       // Non-existent subtitle file
       const res3 = await handler({}, { srtPath: 'C:/missing_subs.srt' })
-      expect(res3).toEqual({ success: false, error: 'Subtitle file not found at path: C:/missing_subs.srt' })
+      expect(res3).toEqual({
+        success: false,
+        error: 'Subtitle file is not registered in the active library'
+      })
     })
 
     it('validates courses:get-by-id and returns null on invalid input', async () => {
@@ -197,7 +257,9 @@ describe('Security & IPC Boundary Audit Test Suite', () => {
       expect(handler).toBeDefined()
 
       expect(await handler({}, { courseId: '' })).toBeNull()
-      expect(await handler({}, null as unknown as { courseId: string })).toBeNull()
+      expect(
+        await handler({}, null as unknown as { courseId: string })
+      ).toBeNull()
     })
 
     it('validates courses:delete and returns standardized error on invalid input', async () => {
@@ -226,7 +288,9 @@ describe('Security & IPC Boundary Audit Test Suite', () => {
       expect(handler).toBeDefined()
 
       expect(await handler({}, { lessonId: '' })).toBeNull()
-      expect(await handler({}, null as unknown as { lessonId: string })).toBeNull()
+      expect(
+        await handler({}, null as unknown as { lessonId: string })
+      ).toBeNull()
     })
 
     it('handles player:get-course-progress with invalid inputs gracefully', async () => {
@@ -314,5 +378,47 @@ describe('Security & IPC Boundary Audit Test Suite', () => {
       })
     })
 
+    it('opens only registered non-link content files', async () => {
+      const handler = registeredHandlers.get('system:open-path')!
+      expect(handler).toBeDefined()
+
+      const registeredPdf = path.join(TEST_TMP_DIR, 'manual.pdf')
+      const registeredLink = path.join(TEST_TMP_DIR, 'shortcut.lnk')
+      const unregisteredPdf = path.join(TEST_TMP_DIR, 'private.pdf')
+      fs.writeFileSync(registeredPdf, 'pdf')
+      fs.writeFileSync(registeredLink, 'shortcut')
+      fs.writeFileSync(unregisteredPdf, 'private')
+
+      databaseService.connect(TEST_TMP_DIR)
+      const db = databaseService.getDatabase()!
+      const insertCourse = db.prepare(`
+        INSERT INTO courses (id, title, slug, source_type, root_path, cover_path, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `)
+      insertCourse.run(
+        'course-open-pdf',
+        'Open PDF',
+        'open-pdf',
+        'local-vault',
+        TEST_TMP_DIR,
+        registeredPdf,
+        1,
+        1
+      )
+      insertCourse.run(
+        'course-open-link',
+        'Open Link',
+        'open-link',
+        'local-vault',
+        TEST_TMP_DIR,
+        registeredLink,
+        1,
+        1
+      )
+
+      await expect(handler({}, registeredPdf)).resolves.toBe(true)
+      await expect(handler({}, registeredLink)).resolves.toBe(false)
+      await expect(handler({}, unregisteredPdf)).resolves.toBe(false)
+    })
   })
 })

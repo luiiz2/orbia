@@ -76,7 +76,8 @@ describe('PlayerStore State Machine', () => {
       }
     }
 
-    ;(globalThis as unknown as { window: typeof mockWindow }).window = mockWindow
+    ;(globalThis as unknown as { window: typeof mockWindow }).window =
+      mockWindow
 
     usePlayerStore.getState().reset()
     usePlayerStore.setState({ progressMap: {} })
@@ -186,7 +187,10 @@ describe('PlayerStore State Machine', () => {
 
     await usePlayerStore.getState().toggleComplete('lp-1')
 
-    expect(window.api.player.toggleLessonCompletion).toHaveBeenCalledWith('lp-1', 'course-p1')
+    expect(window.api.player.toggleLessonCompletion).toHaveBeenCalledWith(
+      'lp-1',
+      'course-p1'
+    )
     expect(usePlayerStore.getState().progressMap['lp-1']?.completed).toBe(true)
   })
 })

@@ -12,7 +12,10 @@ describe('Phase 5: Course Merge & Reversible Undo', () => {
   let mergeService: CourseMergeService
 
   beforeEach(() => {
-    tempVaultDir = path.join(os.tmpdir(), `orbia-merge-undo-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`)
+    tempVaultDir = path.join(
+      os.tmpdir(),
+      `orbia-merge-undo-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+    )
     fs.mkdirSync(tempVaultDir, { recursive: true })
     dbService = new DatabaseService()
     dbService.connect(tempVaultDir)

@@ -115,14 +115,18 @@ describe('Export Service (Notes, Bookmarks, Flashcards)', () => {
   it('exports flashcards to Anki CSV format with correct escaping', () => {
     const csv = exportService.exportFlashcardsCsv()
     expect(csv).toContain('"Question","Answer","Course","Lesson","Timestamp"')
-    expect(csv).toContain('"Qual a diferença entre list e tuple?","Tuples são imutáveis, lists são mutáveis.","Python Pro","Aula 01 - Introdução","07:30"')
+    expect(csv).toContain(
+      '"Qual a diferença entre list e tuple?","Tuples são imutáveis, lists são mutáveis.","Python Pro","Aula 01 - Introdução","07:30"'
+    )
   })
 
   it('exports flashcards to Markdown format', () => {
     const md = exportService.exportFlashcardsMarkdown()
     expect(md).toContain('# Flashcards de Estudo — Orbia')
     expect(md).toContain('### 1. Qual a diferença entre list e tuple?')
-    expect(md).toContain('> **Resposta**: Tuples são imutáveis, lists são mutáveis.')
+    expect(md).toContain(
+      '> **Resposta**: Tuples são imutáveis, lists são mutáveis.'
+    )
     expect(md).toContain('Curso: Python Pro')
   })
 })

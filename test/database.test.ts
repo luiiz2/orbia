@@ -11,7 +11,10 @@ describe('DatabaseService Core Engine', () => {
   let extraTempPaths: string[]
 
   beforeEach(() => {
-    tempVaultDir = path.join(os.tmpdir(), `orbia-db-test-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`)
+    tempVaultDir = path.join(
+      os.tmpdir(),
+      `orbia-db-test-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+    )
     fs.mkdirSync(tempVaultDir, { recursive: true })
     dbService = new DatabaseService()
     extraTempPaths = []
@@ -36,8 +39,12 @@ describe('DatabaseService Core Engine', () => {
   it('throws error when performing operations without active connection', () => {
     expect(dbService.isConnected()).toBe(false)
     expect(dbService.getCurrentVaultPath()).toBeNull()
-    expect(() => dbService.deleteCourse('c-1')).toThrow('Database is not connected to an active Vault.')
-    expect(() => dbService.getCourseById('c-1')).toThrow('Database is not connected to an active Vault.')
+    expect(() => dbService.deleteCourse('c-1')).toThrow(
+      'Database is not connected to an active Vault.'
+    )
+    expect(() => dbService.getCourseById('c-1')).toThrow(
+      'Database is not connected to an active Vault.'
+    )
     expect(() =>
       dbService.saveLessonProgress({
         lessonId: 'l-1',
@@ -81,13 +88,15 @@ describe('DatabaseService Core Engine', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const internalDb = (dbService as any).db
     const operation = internalDb
-      .prepare(`SELECT original_filename, new_filename, status, error_details FROM file_operations WHERE operation_id = ?`)
+      .prepare(
+        `SELECT original_filename, new_filename, status, error_details FROM file_operations WHERE operation_id = ?`
+      )
       .get('operation-1') as {
-        original_filename: string
-        new_filename: string
-        status: string
-        error_details: string | null
-      }
+      original_filename: string
+      new_filename: string
+      status: string
+      error_details: string | null
+    }
 
     expect(operation).toEqual({
       original_filename: 'course',
@@ -100,7 +109,11 @@ describe('DatabaseService Core Engine', () => {
   it('rolls back a pending managed move after restart when no course was persisted', () => {
     const sourceRoot = `${tempVaultDir}-external-course`
     extraTempPaths.push(sourceRoot)
-    const destinationRoot = path.join(tempVaultDir, 'Courses', 'recovered-course')
+    const destinationRoot = path.join(
+      tempVaultDir,
+      'Courses',
+      'recovered-course'
+    )
     fs.mkdirSync(sourceRoot, { recursive: true })
     fs.writeFileSync(path.join(sourceRoot, 'lesson.mp4'), 'lesson')
 
@@ -166,7 +179,12 @@ describe('DatabaseService Core Engine', () => {
       slug: 'fullstack-typescript',
       sourceType: 'local-vault',
       rootPath: path.join(tempVaultDir, 'Courses', 'fullstack-typescript'),
-      coverPath: path.join(tempVaultDir, 'Courses', 'fullstack-typescript', 'cover.jpg'),
+      coverPath: path.join(
+        tempVaultDir,
+        'Courses',
+        'fullstack-typescript',
+        'cover.jpg'
+      ),
       description: 'Complete TS course',
       totalDuration: 7200,
       moduleCount: 2,
@@ -357,7 +375,10 @@ describe('DatabaseService Core Engine', () => {
     const details = dbService.getCourseById(course.id)
     expect(details).not.toBeNull()
     expect(details!.modules[0].resources).toEqual([moduleResource])
-    expect(details!.modules[0].lessons[0].contentResources).toEqual([lessonResource, subtitleResource])
+    expect(details!.modules[0].lessons[0].contentResources).toEqual([
+      lessonResource,
+      subtitleResource
+    ])
     expect(details!.modules[0].lessons[0].resources).toEqual([
       {
         id: 'resource-lesson-1',
@@ -530,8 +551,16 @@ describe('DatabaseService Core Engine', () => {
     expect(lesson.resources).toEqual(modules[0].lessons[0].resources)
     expect(lesson.subtitles).toEqual(modules[0].lessons[0].subtitles)
     expect(lesson.contentResources).toEqual([
-      expect.objectContaining({ id: 'legacy-attachment', role: 'resource', lessonId: lesson.id }),
-      expect.objectContaining({ id: 'legacy-subtitle', role: 'subtitle', lessonId: lesson.id })
+      expect.objectContaining({
+        id: 'legacy-attachment',
+        role: 'resource',
+        lessonId: lesson.id
+      }),
+      expect.objectContaining({
+        id: 'legacy-subtitle',
+        role: 'subtitle',
+        lessonId: lesson.id
+      })
     ])
   })
 
@@ -539,7 +568,11 @@ describe('DatabaseService Core Engine', () => {
     dbService.connect(tempVaultDir)
     const now = Date.now()
 
-    const createCourse = (id: string, title: string, created: number): Course => ({
+    const createCourse = (
+      id: string,
+      title: string,
+      created: number
+    ): Course => ({
       id,
       title,
       slug: id,
@@ -552,7 +585,9 @@ describe('DatabaseService Core Engine', () => {
       updatedAt: created
     })
 
-    const createModule = (courseId: string): (Module & { lessons: Lesson[] })[] => [
+    const createModule = (
+      courseId: string
+    ): (Module & { lessons: Lesson[] })[] => [
       {
         id: `m-${courseId}`,
         courseId,
@@ -581,8 +616,14 @@ describe('DatabaseService Core Engine', () => {
       }
     ]
 
-    dbService.saveCourseWithHierarchy(createCourse('c-1', 'First Course', now - 1000), createModule('c-1'))
-    dbService.saveCourseWithHierarchy(createCourse('c-2', 'Second Course', now - 2000), createModule('c-2'))
+    dbService.saveCourseWithHierarchy(
+      createCourse('c-1', 'First Course', now - 1000),
+      createModule('c-1')
+    )
+    dbService.saveCourseWithHierarchy(
+      createCourse('c-2', 'Second Course', now - 2000),
+      createModule('c-2')
+    )
 
     let courses = dbService.getAllCourses()
     expect(courses.map((c) => c.id)).toEqual(['c-1', 'c-2'])
@@ -848,7 +889,10 @@ describe('DatabaseService Core Engine', () => {
       duration: 600,
       completed: false
     })
-    expect(dbService.getWatchHistory()[0]).toMatchObject({ currentTime: 60, duration: 600 })
+    expect(dbService.getWatchHistory()[0]).toMatchObject({
+      currentTime: 60,
+      duration: 600
+    })
 
     dbService.saveLessonProgress({
       lessonId: 'l-continue',
@@ -857,7 +901,10 @@ describe('DatabaseService Core Engine', () => {
       duration: 600,
       completed: false
     })
-    expect(dbService.getWatchHistory()[0]).toMatchObject({ currentTime: 240, duration: 600 })
+    expect(dbService.getWatchHistory()[0]).toMatchObject({
+      currentTime: 240,
+      duration: 600
+    })
 
     dbService.saveLessonProgress({
       lessonId: 'l-continue',
@@ -866,7 +913,10 @@ describe('DatabaseService Core Engine', () => {
       duration: 600,
       completed: false
     })
-    expect(dbService.getWatchHistory()[0]).toMatchObject({ currentTime: 120, duration: 600 })
+    expect(dbService.getWatchHistory()[0]).toMatchObject({
+      currentTime: 120,
+      duration: 600
+    })
   })
 
   it('computes accurate progress summaries and aggregates all summaries', () => {
@@ -896,10 +946,66 @@ describe('DatabaseService Core Engine', () => {
           lessonCount: 4,
           createdAt: now,
           lessons: [
-            { id: 'ls-1', moduleId: 'm-summary', courseId: 'c-summary', title: 'L1', orderIndex: 1, filePath: '/1.mp4', fileName: '1.mp4', fileExtension: 'mp4', mediaType: 'video', duration: 250, fileSize: 100, availability: 'local', createdAt: now },
-            { id: 'ls-2', moduleId: 'm-summary', courseId: 'c-summary', title: 'L2', orderIndex: 2, filePath: '/2.mp4', fileName: '2.mp4', fileExtension: 'mp4', mediaType: 'video', duration: 250, fileSize: 100, availability: 'local', createdAt: now },
-            { id: 'ls-3', moduleId: 'm-summary', courseId: 'c-summary', title: 'L3', orderIndex: 3, filePath: '/3.mp4', fileName: '3.mp4', fileExtension: 'mp4', mediaType: 'video', duration: 250, fileSize: 100, availability: 'local', createdAt: now },
-            { id: 'ls-4', moduleId: 'm-summary', courseId: 'c-summary', title: 'L4', orderIndex: 4, filePath: '/4.mp4', fileName: '4.mp4', fileExtension: 'mp4', mediaType: 'video', duration: 250, fileSize: 100, availability: 'local', createdAt: now }
+            {
+              id: 'ls-1',
+              moduleId: 'm-summary',
+              courseId: 'c-summary',
+              title: 'L1',
+              orderIndex: 1,
+              filePath: '/1.mp4',
+              fileName: '1.mp4',
+              fileExtension: 'mp4',
+              mediaType: 'video',
+              duration: 250,
+              fileSize: 100,
+              availability: 'local',
+              createdAt: now
+            },
+            {
+              id: 'ls-2',
+              moduleId: 'm-summary',
+              courseId: 'c-summary',
+              title: 'L2',
+              orderIndex: 2,
+              filePath: '/2.mp4',
+              fileName: '2.mp4',
+              fileExtension: 'mp4',
+              mediaType: 'video',
+              duration: 250,
+              fileSize: 100,
+              availability: 'local',
+              createdAt: now
+            },
+            {
+              id: 'ls-3',
+              moduleId: 'm-summary',
+              courseId: 'c-summary',
+              title: 'L3',
+              orderIndex: 3,
+              filePath: '/3.mp4',
+              fileName: '3.mp4',
+              fileExtension: 'mp4',
+              mediaType: 'video',
+              duration: 250,
+              fileSize: 100,
+              availability: 'local',
+              createdAt: now
+            },
+            {
+              id: 'ls-4',
+              moduleId: 'm-summary',
+              courseId: 'c-summary',
+              title: 'L4',
+              orderIndex: 4,
+              filePath: '/4.mp4',
+              fileName: '4.mp4',
+              fileExtension: 'mp4',
+              mediaType: 'video',
+              duration: 250,
+              fileSize: 100,
+              availability: 'local',
+              createdAt: now
+            }
           ]
         }
       ]
@@ -970,7 +1076,21 @@ describe('DatabaseService Core Engine', () => {
           lessonCount: 1,
           createdAt: now,
           lessons: [
-            { id: 'ls-stat-1', moduleId: 'm-stat-1', courseId: 'c-stat', title: 'Les 1', orderIndex: 1, filePath: '/1.mp4', fileName: '1.mp4', fileExtension: 'mp4', mediaType: 'video', duration: 1000, fileSize: 500, availability: 'local', createdAt: now }
+            {
+              id: 'ls-stat-1',
+              moduleId: 'm-stat-1',
+              courseId: 'c-stat',
+              title: 'Les 1',
+              orderIndex: 1,
+              filePath: '/1.mp4',
+              fileName: '1.mp4',
+              fileExtension: 'mp4',
+              mediaType: 'video',
+              duration: 1000,
+              fileSize: 500,
+              availability: 'local',
+              createdAt: now
+            }
           ]
         },
         {
@@ -982,7 +1102,21 @@ describe('DatabaseService Core Engine', () => {
           lessonCount: 1,
           createdAt: now,
           lessons: [
-            { id: 'ls-stat-2', moduleId: 'm-stat-2', courseId: 'c-stat', title: 'Les 2', orderIndex: 1, filePath: '/2.mp4', fileName: '2.mp4', fileExtension: 'mp4', mediaType: 'video', duration: 1000, fileSize: 500, availability: 'local', createdAt: now }
+            {
+              id: 'ls-stat-2',
+              moduleId: 'm-stat-2',
+              courseId: 'c-stat',
+              title: 'Les 2',
+              orderIndex: 1,
+              filePath: '/2.mp4',
+              fileName: '2.mp4',
+              fileExtension: 'mp4',
+              mediaType: 'video',
+              duration: 1000,
+              fileSize: 500,
+              availability: 'local',
+              createdAt: now
+            }
           ]
         }
       ]
@@ -1055,24 +1189,36 @@ describe('DatabaseService Core Engine', () => {
     expect(indexNames).toContain('idx_history_course_watched')
 
     // Verify EXPLAIN QUERY PLAN uses composite indexes
-    const explainLessons = internalDb.prepare(`
+    const explainLessons = internalDb
+      .prepare(
+        `
       EXPLAIN QUERY PLAN
       SELECT id FROM lessons WHERE course_id = ? ORDER BY module_id, order_index ASC
-    `).all('c-test') as { detail: string }[]
+    `
+      )
+      .all('c-test') as { detail: string }[]
     const lessonsPlanText = explainLessons.map((p) => p.detail).join(' ')
     expect(lessonsPlanText).toContain('idx_lessons_course_module_order')
 
-    const explainNotes = internalDb.prepare(`
+    const explainNotes = internalDb
+      .prepare(
+        `
       EXPLAIN QUERY PLAN
       SELECT id FROM lesson_notes WHERE course_id = ? ORDER BY timestamp_seconds
-    `).all('c-test') as { detail: string }[]
+    `
+      )
+      .all('c-test') as { detail: string }[]
     const notesPlanText = explainNotes.map((p) => p.detail).join(' ')
     expect(notesPlanText).toContain('idx_notes_course_time')
 
-    const explainHistory = internalDb.prepare(`
+    const explainHistory = internalDb
+      .prepare(
+        `
       EXPLAIN QUERY PLAN
       SELECT id FROM watch_history WHERE course_id = ? ORDER BY watched_at DESC
-    `).all('c-test') as { detail: string }[]
+    `
+      )
+      .all('c-test') as { detail: string }[]
     const historyPlanText = explainHistory.map((p) => p.detail).join(' ')
     expect(historyPlanText).toContain('idx_history_course_watched')
   })
@@ -1086,23 +1232,82 @@ describe('DatabaseService Core Engine', () => {
       const courseId = `course-bench-${c}`
       const lessonCount = c === 5 ? 0 : 4 // Course 5 has no lessons
 
-      const modules: (Module & { lessons: Lesson[] })[] = lessonCount > 0 ? [
-        {
-          id: `mod-${c}-1`,
-          courseId,
-          title: `Module ${c}`,
-          orderIndex: 1,
-          duration: 4000,
-          lessonCount: 4,
-          createdAt: now,
-          lessons: [
-            { id: `l-${c}-1`, moduleId: `mod-${c}-1`, courseId, title: `L${c}.1`, orderIndex: 1, filePath: `/f1.mp4`, fileName: `f1.mp4`, fileExtension: 'mp4', mediaType: 'video', duration: 1000, fileSize: 100, availability: 'local', createdAt: now },
-            { id: `l-${c}-2`, moduleId: `mod-${c}-1`, courseId, title: `L${c}.2`, orderIndex: 2, filePath: `/f2.mp4`, fileName: `f2.mp4`, fileExtension: 'mp4', mediaType: 'video', duration: 1000, fileSize: 100, availability: 'local', createdAt: now },
-            { id: `l-${c}-3`, moduleId: `mod-${c}-1`, courseId, title: `L${c}.3`, orderIndex: 3, filePath: `/f3.mp4`, fileName: `f3.mp4`, fileExtension: 'mp4', mediaType: 'video', duration: 1000, fileSize: 100, availability: 'local', createdAt: now },
-            { id: `l-${c}-4`, moduleId: `mod-${c}-1`, courseId, title: `L${c}.4`, orderIndex: 4, filePath: `/f4.mp4`, fileName: `f4.mp4`, fileExtension: 'mp4', mediaType: 'video', duration: 1000, fileSize: 100, availability: 'local', createdAt: now }
-          ]
-        }
-      ] : []
+      const modules: (Module & { lessons: Lesson[] })[] =
+        lessonCount > 0
+          ? [
+              {
+                id: `mod-${c}-1`,
+                courseId,
+                title: `Module ${c}`,
+                orderIndex: 1,
+                duration: 4000,
+                lessonCount: 4,
+                createdAt: now,
+                lessons: [
+                  {
+                    id: `l-${c}-1`,
+                    moduleId: `mod-${c}-1`,
+                    courseId,
+                    title: `L${c}.1`,
+                    orderIndex: 1,
+                    filePath: `/f1.mp4`,
+                    fileName: `f1.mp4`,
+                    fileExtension: 'mp4',
+                    mediaType: 'video',
+                    duration: 1000,
+                    fileSize: 100,
+                    availability: 'local',
+                    createdAt: now
+                  },
+                  {
+                    id: `l-${c}-2`,
+                    moduleId: `mod-${c}-1`,
+                    courseId,
+                    title: `L${c}.2`,
+                    orderIndex: 2,
+                    filePath: `/f2.mp4`,
+                    fileName: `f2.mp4`,
+                    fileExtension: 'mp4',
+                    mediaType: 'video',
+                    duration: 1000,
+                    fileSize: 100,
+                    availability: 'local',
+                    createdAt: now
+                  },
+                  {
+                    id: `l-${c}-3`,
+                    moduleId: `mod-${c}-1`,
+                    courseId,
+                    title: `L${c}.3`,
+                    orderIndex: 3,
+                    filePath: `/f3.mp4`,
+                    fileName: `f3.mp4`,
+                    fileExtension: 'mp4',
+                    mediaType: 'video',
+                    duration: 1000,
+                    fileSize: 100,
+                    availability: 'local',
+                    createdAt: now
+                  },
+                  {
+                    id: `l-${c}-4`,
+                    moduleId: `mod-${c}-1`,
+                    courseId,
+                    title: `L${c}.4`,
+                    orderIndex: 4,
+                    filePath: `/f4.mp4`,
+                    fileName: `f4.mp4`,
+                    fileExtension: 'mp4',
+                    mediaType: 'video',
+                    duration: 1000,
+                    fileSize: 100,
+                    availability: 'local',
+                    createdAt: now
+                  }
+                ]
+              }
+            ]
+          : []
 
       dbService.saveCourseWithHierarchy(
         {
@@ -1123,17 +1328,59 @@ describe('DatabaseService Core Engine', () => {
 
     // Course 1: No progress recorded
     // Course 2: 1 of 4 completed (25%)
-    dbService.saveLessonProgress({ lessonId: 'l-2-1', courseId: 'course-bench-2', currentTime: 1000, duration: 1000, completed: true })
+    dbService.saveLessonProgress({
+      lessonId: 'l-2-1',
+      courseId: 'course-bench-2',
+      currentTime: 1000,
+      duration: 1000,
+      completed: true
+    })
 
     // Course 3: 2 of 4 completed (50%)
-    dbService.saveLessonProgress({ lessonId: 'l-3-1', courseId: 'course-bench-3', currentTime: 1000, duration: 1000, completed: true })
-    dbService.saveLessonProgress({ lessonId: 'l-3-2', courseId: 'course-bench-3', currentTime: 1000, duration: 1000, completed: true })
+    dbService.saveLessonProgress({
+      lessonId: 'l-3-1',
+      courseId: 'course-bench-3',
+      currentTime: 1000,
+      duration: 1000,
+      completed: true
+    })
+    dbService.saveLessonProgress({
+      lessonId: 'l-3-2',
+      courseId: 'course-bench-3',
+      currentTime: 1000,
+      duration: 1000,
+      completed: true
+    })
 
     // Course 4: 4 of 4 completed (100%), with sequential progress updates to verify lastPlayed ranking
-    dbService.saveLessonProgress({ lessonId: 'l-4-1', courseId: 'course-bench-4', currentTime: 1000, duration: 1000, completed: true })
-    dbService.saveLessonProgress({ lessonId: 'l-4-2', courseId: 'course-bench-4', currentTime: 1000, duration: 1000, completed: true })
-    dbService.saveLessonProgress({ lessonId: 'l-4-3', courseId: 'course-bench-4', currentTime: 1000, duration: 1000, completed: true })
-    dbService.saveLessonProgress({ lessonId: 'l-4-4', courseId: 'course-bench-4', currentTime: 1000, duration: 1000, completed: true })
+    dbService.saveLessonProgress({
+      lessonId: 'l-4-1',
+      courseId: 'course-bench-4',
+      currentTime: 1000,
+      duration: 1000,
+      completed: true
+    })
+    dbService.saveLessonProgress({
+      lessonId: 'l-4-2',
+      courseId: 'course-bench-4',
+      currentTime: 1000,
+      duration: 1000,
+      completed: true
+    })
+    dbService.saveLessonProgress({
+      lessonId: 'l-4-3',
+      courseId: 'course-bench-4',
+      currentTime: 1000,
+      duration: 1000,
+      completed: true
+    })
+    dbService.saveLessonProgress({
+      lessonId: 'l-4-4',
+      courseId: 'course-bench-4',
+      currentTime: 1000,
+      duration: 1000,
+      completed: true
+    })
 
     // Execute bulk aggregate
     const allSummaries = dbService.getAllProgressSummaries()
@@ -1219,8 +1466,36 @@ describe('DatabaseService Core Engine', () => {
           lessonCount: 2,
           createdAt: now,
           lessons: [
-            { id: 'l-v1-1', moduleId: 'm-v1', courseId: 'c-v1', title: 'L1', orderIndex: 1, filePath: '/1.mp4', fileName: '1.mp4', fileExtension: 'mp4', mediaType: 'video', duration: 1800, fileSize: 100, availability: 'local', createdAt: now },
-            { id: 'l-v1-2', moduleId: 'm-v1', courseId: 'c-v1', title: 'L2', orderIndex: 2, filePath: '/2.mp4', fileName: '2.mp4', fileExtension: 'mp4', mediaType: 'video', duration: 1800, fileSize: 100, availability: 'local', createdAt: now }
+            {
+              id: 'l-v1-1',
+              moduleId: 'm-v1',
+              courseId: 'c-v1',
+              title: 'L1',
+              orderIndex: 1,
+              filePath: '/1.mp4',
+              fileName: '1.mp4',
+              fileExtension: 'mp4',
+              mediaType: 'video',
+              duration: 1800,
+              fileSize: 100,
+              availability: 'local',
+              createdAt: now
+            },
+            {
+              id: 'l-v1-2',
+              moduleId: 'm-v1',
+              courseId: 'c-v1',
+              title: 'L2',
+              orderIndex: 2,
+              filePath: '/2.mp4',
+              fileName: '2.mp4',
+              fileExtension: 'mp4',
+              mediaType: 'video',
+              duration: 1800,
+              fileSize: 100,
+              availability: 'local',
+              createdAt: now
+            }
           ]
         }
       ]
@@ -1249,15 +1524,47 @@ describe('DatabaseService Core Engine', () => {
           lessonCount: 1,
           createdAt: now,
           lessons: [
-            { id: 'l-v2-1', moduleId: 'm-v2', courseId: 'c-v2', title: 'L2.1', orderIndex: 1, filePath: '/3.mp4', fileName: '3.mp4', fileExtension: 'mp4', mediaType: 'video', duration: 1200, fileSize: 100, availability: 'local', createdAt: now }
+            {
+              id: 'l-v2-1',
+              moduleId: 'm-v2',
+              courseId: 'c-v2',
+              title: 'L2.1',
+              orderIndex: 1,
+              filePath: '/3.mp4',
+              fileName: '3.mp4',
+              fileExtension: 'mp4',
+              mediaType: 'video',
+              duration: 1200,
+              fileSize: 100,
+              availability: 'local',
+              createdAt: now
+            }
           ]
         }
       ]
     )
 
-    dbService.saveLessonProgress({ lessonId: 'l-v1-1', courseId: 'c-v1', currentTime: 1800, duration: 1800, completed: true })
-    dbService.saveLessonProgress({ lessonId: 'l-v1-2', courseId: 'c-v1', currentTime: 600, duration: 1800, completed: false })
-    dbService.saveLessonProgress({ lessonId: 'l-v2-1', courseId: 'c-v2', currentTime: 1200, duration: 1200, completed: true })
+    dbService.saveLessonProgress({
+      lessonId: 'l-v1-1',
+      courseId: 'c-v1',
+      currentTime: 1800,
+      duration: 1800,
+      completed: true
+    })
+    dbService.saveLessonProgress({
+      lessonId: 'l-v1-2',
+      courseId: 'c-v1',
+      currentTime: 600,
+      duration: 1800,
+      completed: false
+    })
+    dbService.saveLessonProgress({
+      lessonId: 'l-v2-1',
+      courseId: 'c-v2',
+      currentTime: 1200,
+      duration: 1200,
+      completed: true
+    })
 
     const stats = dbService.getVaultStats()
     expect(stats).toEqual({
@@ -1297,7 +1604,21 @@ describe('DatabaseService Core Engine', () => {
           lessonCount: 1,
           createdAt: now,
           lessons: [
-            { id: 'l-notes-1', moduleId: 'm-notes', courseId: 'c-notes', title: 'L1', orderIndex: 1, filePath: '/1.mp4', fileName: '1.mp4', fileExtension: 'mp4', mediaType: 'video', duration: 600, fileSize: 100, availability: 'local', createdAt: now }
+            {
+              id: 'l-notes-1',
+              moduleId: 'm-notes',
+              courseId: 'c-notes',
+              title: 'L1',
+              orderIndex: 1,
+              filePath: '/1.mp4',
+              fileName: '1.mp4',
+              fileExtension: 'mp4',
+              mediaType: 'video',
+              duration: 600,
+              fileSize: 100,
+              availability: 'local',
+              createdAt: now
+            }
           ]
         }
       ]
@@ -1328,7 +1649,9 @@ describe('DatabaseService Core Engine', () => {
     // Update note
     dbService.updateLessonNote(note1.id, 'Updated note content')
     const updatedNotes = dbService.getLessonNotes('l-notes-1')
-    expect(updatedNotes.find((n) => n.id === note1.id)?.content).toBe('Updated note content')
+    expect(updatedNotes.find((n) => n.id === note1.id)?.content).toBe(
+      'Updated note content'
+    )
     // Course notes query
     const courseNotes = dbService.getCourseNotes('c-notes')
     expect(courseNotes.length).toBe(2)
@@ -1364,8 +1687,36 @@ describe('DatabaseService Core Engine', () => {
           lessonCount: 2,
           createdAt: now,
           lessons: [
-            { id: 'l-dur-1', moduleId: 'm-dur-1', courseId: 'c-dur', title: 'L1', orderIndex: 1, filePath: '/1.mp4', fileName: '1.mp4', fileExtension: 'mp4', mediaType: 'video', duration: 0, fileSize: 100, availability: 'local', createdAt: now },
-            { id: 'l-dur-2', moduleId: 'm-dur-1', courseId: 'c-dur', title: 'L2', orderIndex: 2, filePath: '/2.mp4', fileName: '2.mp4', fileExtension: 'mp4', mediaType: 'video', duration: 0, fileSize: 100, availability: 'local', createdAt: now }
+            {
+              id: 'l-dur-1',
+              moduleId: 'm-dur-1',
+              courseId: 'c-dur',
+              title: 'L1',
+              orderIndex: 1,
+              filePath: '/1.mp4',
+              fileName: '1.mp4',
+              fileExtension: 'mp4',
+              mediaType: 'video',
+              duration: 0,
+              fileSize: 100,
+              availability: 'local',
+              createdAt: now
+            },
+            {
+              id: 'l-dur-2',
+              moduleId: 'm-dur-1',
+              courseId: 'c-dur',
+              title: 'L2',
+              orderIndex: 2,
+              filePath: '/2.mp4',
+              fileName: '2.mp4',
+              fileExtension: 'mp4',
+              mediaType: 'video',
+              duration: 0,
+              fileSize: 100,
+              availability: 'local',
+              createdAt: now
+            }
           ]
         }
       ]
@@ -1407,8 +1758,36 @@ describe('DatabaseService Core Engine', () => {
           lessonCount: 2,
           createdAt: now,
           lessons: [
-            { id: 'l-m1', moduleId: 'm-m1', courseId: 'c-merge-1', title: '01 - Intro', orderIndex: 1, filePath: '/1.mp4', fileName: '1.mp4', fileExtension: 'mp4', mediaType: 'video', duration: 50, fileSize: 100, availability: 'local', createdAt: now },
-            { id: 'l-m2', moduleId: 'm-m1', courseId: 'c-merge-1', title: '02 - Variaveis', orderIndex: 2, filePath: '/2.mp4', fileName: '2.mp4', fileExtension: 'mp4', mediaType: 'video', duration: 50, fileSize: 100, availability: 'local', createdAt: now }
+            {
+              id: 'l-m1',
+              moduleId: 'm-m1',
+              courseId: 'c-merge-1',
+              title: '01 - Intro',
+              orderIndex: 1,
+              filePath: '/1.mp4',
+              fileName: '1.mp4',
+              fileExtension: 'mp4',
+              mediaType: 'video',
+              duration: 50,
+              fileSize: 100,
+              availability: 'local',
+              createdAt: now
+            },
+            {
+              id: 'l-m2',
+              moduleId: 'm-m1',
+              courseId: 'c-merge-1',
+              title: '02 - Variaveis',
+              orderIndex: 2,
+              filePath: '/2.mp4',
+              fileName: '2.mp4',
+              fileExtension: 'mp4',
+              mediaType: 'video',
+              duration: 50,
+              fileSize: 100,
+              availability: 'local',
+              createdAt: now
+            }
           ]
         }
       ]
@@ -1437,7 +1816,21 @@ describe('DatabaseService Core Engine', () => {
           lessonCount: 1,
           createdAt: now,
           lessons: [
-            { id: 'l-m3', moduleId: 'm-m2', courseId: 'c-merge-2', title: '01 - Decorators', orderIndex: 1, filePath: '/3.mp4', fileName: '3.mp4', fileExtension: 'mp4', mediaType: 'video', duration: 50, fileSize: 100, availability: 'local', createdAt: now }
+            {
+              id: 'l-m3',
+              moduleId: 'm-m2',
+              courseId: 'c-merge-2',
+              title: '01 - Decorators',
+              orderIndex: 1,
+              filePath: '/3.mp4',
+              fileName: '3.mp4',
+              fileExtension: 'mp4',
+              mediaType: 'video',
+              duration: 50,
+              fileSize: 100,
+              availability: 'local',
+              createdAt: now
+            }
           ]
         }
       ]

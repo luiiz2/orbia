@@ -51,8 +51,10 @@ describe('Settings & Theme Engine', () => {
     }
 
     // Assign to globalThis
-    ;(globalThis as unknown as { window: typeof mockWindow }).window = mockWindow
-    ;(globalThis as unknown as { document: typeof mockDocument }).document = mockDocument
+    ;(globalThis as unknown as { window: typeof mockWindow }).window =
+      mockWindow
+    ;(globalThis as unknown as { document: typeof mockDocument }).document =
+      mockDocument
 
     // Reset store state
     useSettingsStore.setState({
@@ -125,11 +127,15 @@ describe('Settings & Theme Engine', () => {
   })
 
   it('updates generic settings and handles errors gracefully', async () => {
-    await useSettingsStore.getState().updateSetting('defaultPlaybackSpeed', 1.75)
+    await useSettingsStore
+      .getState()
+      .updateSetting('defaultPlaybackSpeed', 1.75)
     expect(useSettingsStore.getState().settings.defaultPlaybackSpeed).toBe(1.75)
 
     // Simulate IPC error
-    vi.mocked(window.api.settings.set).mockRejectedValueOnce(new Error('IPC Disk Write Failure'))
+    vi.mocked(window.api.settings.set).mockRejectedValueOnce(
+      new Error('IPC Disk Write Failure')
+    )
 
     await useSettingsStore.getState().updateSetting('autoPlayNext', true)
     expect(useSettingsStore.getState().error).toBe('IPC Disk Write Failure')

@@ -246,6 +246,7 @@ describe('AI core routing and privacy', () => {
 
   it('allows an explicitly configured cloud route in HYBRID mode', async () => {
     service.setPrivacyMode('HYBRID')
+    service.setAllowedCloudDataTypes(['user_metadata'])
     service.setRoute('chat', {
       primary: {
         providerId: 'openai',
@@ -256,9 +257,49 @@ describe('AI core routing and privacy', () => {
     })
 
     await expect(
-      service.chat({ messages: [{ role: 'user', content: 'hello' }] })
+      service.chat({
+        messages: [{ role: 'user', content: 'hello' }],
+        dataTypes: ['user_metadata'],
+        cloudConsent: true
+      })
     ).resolves.toMatchObject({ content: 'cloud' })
     expect(cloudChat).toHaveBeenCalledOnce()
+  })
+
+  it('blocks cloud chat and embeddings without explicit data classification', async () => {
+    service.setPrivacyMode('HYBRID')
+    service.setAllowedCloudDataTypes(['user_metadata'])
+    service.setRoute('chat', {
+      primary: {
+        providerId: 'openai',
+        modelId: 'cloud-chat',
+        capabilities: ['CHAT']
+      },
+      fallback: null
+    })
+
+    await expect(
+      service.chat({
+        messages: [{ role: 'user', content: 'unclassified content' }],
+        cloudConsent: true
+      })
+    ).rejects.toMatchObject({ code: 'PRIVACY_BLOCKED' })
+
+    service.setRoute('embeddings', {
+      primary: {
+        providerId: 'openai',
+        modelId: 'cloud-chat',
+        capabilities: ['EMBEDDINGS']
+      },
+      fallback: null
+    })
+
+    await expect(
+      service.embed({ input: 'unclassified content', cloudConsent: true })
+    ).rejects.toMatchObject({ code: 'PRIVACY_BLOCKED' })
+
+    expect(cloudChat).not.toHaveBeenCalled()
+    expect(cloudEmbed).not.toHaveBeenCalled()
   })
 
   it('uses an explicitly configured fallback after a provider failure', async () => {
@@ -270,6 +311,7 @@ describe('AI core routing and privacy', () => {
       )
     )
     service.setPrivacyMode('HYBRID')
+    service.setAllowedCloudDataTypes(['user_metadata'])
     service.setRoute('chat', {
       primary: {
         providerId: 'ollama',
@@ -284,7 +326,11 @@ describe('AI core routing and privacy', () => {
     })
 
     await expect(
-      service.chat({ messages: [{ role: 'user', content: 'hello' }] })
+      service.chat({
+        messages: [{ role: 'user', content: 'hello' }],
+        dataTypes: ['user_metadata'],
+        cloudConsent: true
+      })
     ).resolves.toMatchObject({ content: 'cloud' })
     expect(localChat).toHaveBeenCalledOnce()
     expect(cloudChat).toHaveBeenCalledOnce()
@@ -483,6 +529,7 @@ describe('AI core routing and privacy', () => {
 
   it('requires structured-output capability for structured chat requests', async () => {
     service.setPrivacyMode('HYBRID')
+    service.setAllowedCloudDataTypes(['user_metadata'])
     service.setRoute('chat', {
       primary: {
         providerId: 'openai',
@@ -498,7 +545,9 @@ describe('AI core routing and privacy', () => {
     await expect(
       service.chat({
         messages: [{ role: 'user', content: 'json' }],
-        structured: true
+        structured: true,
+        dataTypes: ['user_metadata'],
+        cloudConsent: true
       })
     ).rejects.toMatchObject({ code: 'CAPABILITY_UNSUPPORTED' })
     expect(cloudChat).not.toHaveBeenCalled()
@@ -516,6 +565,7 @@ describe('AI core routing and privacy', () => {
 
   it('does not trust renderer-supplied capabilities over discovered model capabilities', async () => {
     service.setPrivacyMode('HYBRID')
+    service.setAllowedCloudDataTypes(['user_metadata'])
     service.setRoute('chat', {
       primary: {
         providerId: 'openai',
@@ -529,7 +579,11 @@ describe('AI core routing and privacy', () => {
     ])
 
     await expect(
-      service.chat({ messages: [{ role: 'user', content: 'hello' }] })
+      service.chat({
+        messages: [{ role: 'user', content: 'hello' }],
+        dataTypes: ['user_metadata'],
+        cloudConsent: true
+      })
     ).rejects.toMatchObject({
       code: 'CAPABILITY_UNSUPPORTED'
     })

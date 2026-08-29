@@ -43,6 +43,7 @@ import {
   TEMP_COVERS_DIR
 } from '../utils/cover-generator'
 import { logger } from './logger.service'
+import { isExistingPathWithin, isPathWithin } from '../utils/path-security'
 
 interface MergePreviewTargetModule {
   courseId: string
@@ -4505,13 +4506,68 @@ export class DatabaseService {
   ): { success: boolean; error?: string } {
     this.ensureConnected()
     const lesson = this.db!.prepare(
-      `SELECT file_path as filePath, course_id as courseId FROM lessons WHERE id = ?`
-    ).get(lessonId) as { filePath: string; courseId: string } | undefined
+      `
+        SELECT
+          l.file_path as filePath,
+          l.course_id as courseId,
+          c.source_type as sourceType,
+          c.root_path as rootPath
+        FROM lessons l
+        JOIN courses c ON c.id = l.course_id
+        WHERE l.id = ?
+      `
+    ).get(lessonId) as
+      | {
+          filePath: string
+          courseId: string
+          sourceType: string
+          rootPath: string
+        }
+      | undefined
     if (!lesson) return { success: false, error: 'Lesson not found' }
 
     if (deleteFileFromDisk && lesson.filePath) {
+      if (lesson.sourceType !== 'local-vault') {
+        return {
+          success: false,
+          error:
+            'Physical lesson deletion is only allowed for managed vault courses.'
+        }
+      }
+
+      const vaultPath = this.currentVaultPath
+      const fileIsLexicallyScoped = Boolean(
+        vaultPath &&
+        isPathWithin(vaultPath, lesson.filePath, false) &&
+        isPathWithin(lesson.rootPath, lesson.filePath, false)
+      )
+      if (!fileIsLexicallyScoped) {
+        return {
+          success: false,
+          error: 'Physical lesson deletion is outside the managed vault scope.'
+        }
+      }
+
       try {
         if (fs.existsSync(lesson.filePath)) {
+          if (
+            !vaultPath ||
+            !isExistingPathWithin(vaultPath, lesson.filePath) ||
+            !isExistingPathWithin(lesson.rootPath, lesson.filePath)
+          ) {
+            return {
+              success: false,
+              error:
+                'Physical lesson deletion is outside the managed vault scope.'
+            }
+          }
+          const stat = fs.lstatSync(lesson.filePath)
+          if (!stat.isFile() || stat.isSymbolicLink()) {
+            return {
+              success: false,
+              error: 'Only regular managed lesson files can be deleted.'
+            }
+          }
           fs.unlinkSync(lesson.filePath)
         }
       } catch (err) {

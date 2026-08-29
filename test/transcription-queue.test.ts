@@ -10,14 +10,22 @@ describe('shared background queue transcription jobs', () => {
   let vaultDir: string
 
   beforeEach(() => {
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'orbia-transcription-queue-'))
+    tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), 'orbia-transcription-queue-')
+    )
     vaultDir = path.join(tempDir, 'vault')
     fs.mkdirSync(vaultDir, { recursive: true })
     databaseService.connect(vaultDir)
     const db = databaseService.getDatabase()!
-    db.prepare(`INSERT INTO courses (id, title, slug, source_type, root_path, created_at, updated_at) VALUES ('course-1', 'Course', 'course', 'managed', ?, 1, 1)`).run(vaultDir)
-    db.prepare(`INSERT INTO modules (id, course_id, title, order_index, duration, lesson_count, created_at) VALUES ('module-1', 'course-1', 'Module', 1, 10, 1, 1)`).run()
-    db.prepare(`INSERT INTO lessons (id, module_id, course_id, title, order_index, file_path, file_name, file_extension, media_type, duration, file_size, created_at) VALUES ('lesson-1', 'module-1', 'course-1', 'Lesson', 1, ?, 'lesson.mp4', '.mp4', 'video', 10, 10, 1)`).run(path.join(vaultDir, 'lesson.mp4'))
+    db.prepare(
+      `INSERT INTO courses (id, title, slug, source_type, root_path, created_at, updated_at) VALUES ('course-1', 'Course', 'course', 'managed', ?, 1, 1)`
+    ).run(vaultDir)
+    db.prepare(
+      `INSERT INTO modules (id, course_id, title, order_index, duration, lesson_count, created_at) VALUES ('module-1', 'course-1', 'Module', 1, 10, 1, 1)`
+    ).run()
+    db.prepare(
+      `INSERT INTO lessons (id, module_id, course_id, title, order_index, file_path, file_name, file_extension, media_type, duration, file_size, created_at) VALUES ('lesson-1', 'module-1', 'course-1', 'Lesson', 1, ?, 'lesson.mp4', '.mp4', 'video', 10, 10, 1)`
+    ).run(path.join(vaultDir, 'lesson.mp4'))
   })
 
   afterEach(() => {
@@ -56,7 +64,11 @@ describe('shared background queue transcription jobs', () => {
       sourcePath: path.join(vaultDir, 'lesson.mp4'),
       sourceRevision: 'revision-1'
     })
-    const tempOutputPath = path.join(vaultDir, '.orbia', 'transcription.partial.wav')
+    const tempOutputPath = path.join(
+      vaultDir,
+      '.orbia',
+      'transcription.partial.wav'
+    )
     fs.writeFileSync(tempOutputPath, 'partial')
     optimizationQueueService.updateJob(job.id, {
       status: 'transcribing',
@@ -66,13 +78,18 @@ describe('shared background queue transcription jobs', () => {
 
     optimizationQueueService.recoverInterruptedJobs()
     expect(fs.existsSync(tempOutputPath)).toBe(false)
-    expect(optimizationQueueService.listTranscriptionQueue()[0]).toMatchObject({ status: 'queued', progressPercent: 0 })
+    expect(optimizationQueueService.listTranscriptionQueue()[0]).toMatchObject({
+      status: 'queued',
+      progressPercent: 0
+    })
 
     expect(optimizationQueueService.pauseJob(job.id)).toBe(true)
     expect(optimizationQueueService.resumeJob(job.id)).toBe(true)
     expect(optimizationQueueService.cancelJob(job.id)).toBe(true)
     expect(optimizationQueueService.retryJob(job.id)).toBe(true)
-    expect(optimizationQueueService.listTranscriptionQueue()[0]).toMatchObject({ status: 'queued', retryCount: 0 })
+    expect(optimizationQueueService.listTranscriptionQueue()[0]).toMatchObject({
+      status: 'queued',
+      retryCount: 0
+    })
   })
 })
-

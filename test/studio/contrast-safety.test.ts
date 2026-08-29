@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import { getContrastRatio, evaluateContrast } from '../../src/renderer/src/lib/contrast-safety'
+import {
+  getContrastRatio,
+  evaluateContrast
+} from '../../src/renderer/src/lib/contrast-safety'
 
 describe('Contrast Safety & WCAG 2.1 Evaluator', () => {
   it('calculates 21:1 contrast for black on white', () => {

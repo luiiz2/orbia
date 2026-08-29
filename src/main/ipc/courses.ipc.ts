@@ -4,34 +4,28 @@ import fs from 'node:fs'
 import crypto from 'node:crypto'
 import type {
   CommitImportSessionInput,
+  ImportSessionPreparation,
   ImportSessionTitleEdit,
   ImportSessionTitleEdits,
   ImportSourceCapability,
-  SelectedCourseSource,
-  Course,
-  ProposedCourseStructure,
   OrganizationPlan,
   ImportHistoryEntry
 } from '../../types'
 import { databaseService } from '../services/database.service'
 import { vaultService } from '../services/vault.service'
 import { archiveService } from '../services/archive.service'
-import {
-  courseImportService,
-  buildCourseHierarchy
-} from '../services/course-import.service'
+import { courseImportService } from '../services/course-import.service'
 import { importSessionService } from '../services/import-session.service'
 import { scannerService } from '../services/scanner.service'
-import { parserService } from '../services/parser.service'
 import { logger } from '../services/logger.service'
 import { reorganizerService } from '../services/reorganizer.service'
 import { courseMergeService } from '../services/organization/course-merge.service'
 import { organizationPlanService } from '../services/organization/organization-plan.service'
 import { convertSrtToVtt } from '../utils/subtitle-utils'
 import { isSubtitleFile } from '../utils/file-utils'
-import { transcriptionService } from '../services/transcription/transcription.service'
+import { isRegisteredPath } from '../utils/path-security'
 
-type ImportSourceCapabilityKind = 'zip' | 'folder'
+type ImportSourceCapabilityKind = 'zip' | 'folder' | 'multi-folder'
 
 interface ImportSourceCapabilityRecord {
   absolutePath: string
@@ -373,7 +367,8 @@ export function registerCoursesIpc(): void {
     }
   })
 
-  // Select either course folders OR course .zip files (fallback)
+  // Select either course folders OR course .zip files (fallback).
+  // Only opaque capabilities cross the bridge.
   ipcMain.handle('courses:select-source', async () => {
     try {
       const result = await dialog.showOpenDialog({
@@ -389,19 +384,12 @@ export function registerCoursesIpc(): void {
         return null
       }
 
-      const selectedSources: SelectedCourseSource[] = result.filePaths.map(
-        (selectedPath) => {
-          const isZip = archiveService.isZipFile(selectedPath)
-          const name = isZip
-            ? path.basename(selectedPath, path.extname(selectedPath))
-            : path.basename(selectedPath)
-          return {
-            path: selectedPath,
-            name,
-            isZip
-          }
-        }
-      )
+      const selectedSources = result.filePaths.map((selectedPath) => {
+        const kind = fs.statSync(selectedPath).isDirectory()
+          ? ('folder' as const)
+          : ('zip' as const)
+        return importSourceCapabilityRegistry.issue(selectedPath, kind)
+      })
 
       return selectedSources
     } catch (err) {
@@ -848,7 +836,7 @@ export function registerCoursesIpc(): void {
         return null
       }
       const folderPath = result.filePaths[0]
-      return { path: folderPath, name: path.basename(folderPath) }
+      return importSourceCapabilityRegistry.issue(folderPath, 'multi-folder')
     } catch (err) {
       logger.error('[IPC] courses:select-multi-course-folder error:', err)
       return null
@@ -857,16 +845,16 @@ export function registerCoursesIpc(): void {
 
   ipcMain.handle(
     'courses:scan-multi-course-folder',
-    async (_event, payload: { folderPath: string }) => {
+    async (_event, payload: unknown) => {
       try {
-        if (
-          !payload ||
-          typeof payload.folderPath !== 'string' ||
-          !payload.folderPath.trim()
-        ) {
-          return { success: false, error: 'Caminho de pasta inválido' }
+        const token = normalizeImportSourceCapabilityToken(payload)
+        if (!token) {
+          return legacyImportUnavailableResult()
         }
-        const folderPath = payload.folderPath.trim()
+        const folderPath = importSourceCapabilityRegistry.consume(
+          token,
+          'multi-folder'
+        )
         if (
           !fs.existsSync(folderPath) ||
           !fs.statSync(folderPath).isDirectory()
@@ -875,10 +863,24 @@ export function registerCoursesIpc(): void {
         }
 
         const scannedDirs = await scannerService.scanMultiCourseRoot(folderPath)
-        const proposals = await Promise.all(
-          scannedDirs.map((dir) => parserService.parseCourseHierarchy(dir))
-        )
-        return { success: true, proposals }
+        const preparations: ImportSessionPreparation[] = []
+        try {
+          for (const dir of scannedDirs) {
+            preparations.push(
+              await importSessionService.prepareFolderImport(dir.fullPath)
+            )
+          }
+        } catch (error) {
+          await Promise.all(
+            preparations.map((preparation) =>
+              importSessionService
+                .cancel(preparation.sessionId)
+                .catch(() => undefined)
+            )
+          )
+          throw error
+        }
+        return { success: true, preparations }
       } catch (err) {
         logger.error('[IPC] courses:scan-multi-course-folder error:', err)
         return {
@@ -894,71 +896,8 @@ export function registerCoursesIpc(): void {
   )
   ipcMain.handle('courses:import', async () => legacyImportUnavailableResult())
 
-  ipcMain.handle(
-    'courses:import-batch',
-    async (
-      _event,
-      payload: {
-        items: Array<{
-          proposal: ProposedCourseStructure
-          isExternal?: boolean
-        }>
-      }
-    ) => {
-      try {
-        if (
-          !payload ||
-          !Array.isArray(payload.items) ||
-          payload.items.length === 0
-        ) {
-          return {
-            success: false,
-            error: 'Nenhum curso selecionado para importação'
-          }
-        }
-
-        const now = Date.now()
-        const importedCourses: Course[] = []
-
-        for (const item of payload.items) {
-          const courseId = `course-${now}-${Math.random().toString(36).substring(2, 7)}`
-          const { course, modules } = buildCourseHierarchy(item.proposal, {
-            courseId,
-            sourceType: item.isExternal ? 'local-ref' : 'local-vault',
-            rootPath: item.proposal.rootPath,
-            now,
-            createId: () =>
-              `m-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`
-          })
-
-          databaseService.saveCourseWithHierarchy(course, modules)
-          importedCourses.push(course)
-
-          databaseService.recordImportHistory({
-            fileName: path.basename(course.rootPath),
-            filePath: course.rootPath,
-            fileSize: 0,
-            status: 'completed',
-            courseId: course.id,
-            courseTitle: course.title,
-            extractedFiles: course.lessonCount
-          })
-          transcriptionService.enqueueAutomaticallyIfEnabled(course.id)
-        }
-
-        return {
-          success: true,
-          importedCount: importedCourses.length,
-          courses: importedCourses
-        }
-      } catch (err) {
-        logger.error('[IPC] courses:import-batch error:', err)
-        return {
-          success: false,
-          error: err instanceof Error ? err.message : String(err)
-        }
-      }
-    }
+  ipcMain.handle('courses:import-batch', async () =>
+    legacyImportUnavailableResult()
   )
 
   ipcMain.handle('courses:list', async () => {
@@ -1165,6 +1104,17 @@ export function registerCoursesIpc(): void {
             success: false,
             error:
               'File is not a supported subtitle file (.srt, .vtt, .sub, .ass)'
+          }
+        }
+        if (
+          !isRegisteredPath(
+            trimmedPath,
+            databaseService.getRegisteredMediaPaths()
+          )
+        ) {
+          return {
+            success: false,
+            error: 'Subtitle file is not registered in the active library'
           }
         }
         if (!fs.existsSync(trimmedPath)) {

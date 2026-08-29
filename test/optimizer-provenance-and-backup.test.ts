@@ -45,12 +45,19 @@ describe('Optimizer Provenance, Backups & Exclusions', () => {
     // Exclude entire course
     provenanceAndExclusionsService.setExclusion('course', 'crs_100', true)
 
-    expect(provenanceAndExclusionsService.isExcluded({ courseId: 'crs_100' })).toBe(true)
-    expect(provenanceAndExclusionsService.isExcluded({ courseId: 'crs_200' })).toBe(false)
+    expect(
+      provenanceAndExclusionsService.isExcluded({ courseId: 'crs_100' })
+    ).toBe(true)
+    expect(
+      provenanceAndExclusionsService.isExcluded({ courseId: 'crs_200' })
+    ).toBe(false)
 
     // Module inherits course exclusion unless checked at module level
     expect(
-      provenanceAndExclusionsService.isExcluded({ courseId: 'crs_100', moduleId: 'mod_1' })
+      provenanceAndExclusionsService.isExcluded({
+        courseId: 'crs_100',
+        moduleId: 'mod_1'
+      })
     ).toBe(true)
 
     // Lesson specific override to NOT exclude (false)
@@ -66,8 +73,12 @@ describe('Optimizer Provenance, Backups & Exclusions', () => {
 
     // Codec level exclusion
     provenanceAndExclusionsService.setExclusion('codec', 'av1', true)
-    expect(provenanceAndExclusionsService.isExcluded({ codec: 'av1' })).toBe(true)
-    expect(provenanceAndExclusionsService.isExcluded({ codec: 'h264' })).toBe(false)
+    expect(provenanceAndExclusionsService.isExcluded({ codec: 'av1' })).toBe(
+      true
+    )
+    expect(provenanceAndExclusionsService.isExcluded({ codec: 'h264' })).toBe(
+      false
+    )
   })
 
   it('creates media backup, validates size, and restores on request', async () => {
@@ -77,7 +88,10 @@ describe('Optimizer Provenance, Backups & Exclusions', () => {
     fs.writeFileSync(sourceVideoPath, Buffer.alloc(1024 * 1024, 0x55)) // 1 MB test file
 
     // 1. Create backup
-    const backupRes = await mediaBackupService.createBackup(vaultDir, sourceVideoPath)
+    const backupRes = await mediaBackupService.createBackup(
+      vaultDir,
+      sourceVideoPath
+    )
     expect(backupRes.success).toBe(true)
     expect(fs.existsSync(backupRes.backupPath)).toBe(true)
 
@@ -90,7 +104,10 @@ describe('Optimizer Provenance, Backups & Exclusions', () => {
     expect(fs.existsSync(sourceVideoPath)).toBe(false)
 
     // 3. Restore backup
-    const restoreRes = await mediaBackupService.restoreBackup(backupRes.backupPath, sourceVideoPath)
+    const restoreRes = await mediaBackupService.restoreBackup(
+      backupRes.backupPath,
+      sourceVideoPath
+    )
     expect(restoreRes.success).toBe(true)
     expect(fs.existsSync(sourceVideoPath)).toBe(true)
     expect(fs.statSync(sourceVideoPath).size).toBe(1024 * 1024)
@@ -103,23 +120,32 @@ describe('Optimizer Provenance, Backups & Exclusions', () => {
     fs.writeFileSync(sourceVideoPath, 'ORIGINAL_MEDIA_DATA')
 
     const db = databaseService.getDatabase()!
-    db.prepare(`
+    db.prepare(
+      `
       INSERT INTO courses (id, title, slug, source_type, root_path, created_at, updated_at)
       VALUES ('crs_1', 'Course 1', 'course-1', 'managed', ?, 1, 1)
-    `).run(courseDir)
+    `
+    ).run(courseDir)
 
-    db.prepare(`
+    db.prepare(
+      `
       INSERT INTO modules (id, course_id, title, order_index, folder_path, duration, lesson_count, created_at)
       VALUES ('mod_1', 'crs_1', 'Module 1', 1, ?, 300, 1, 1)
-    `).run(courseDir)
+    `
+    ).run(courseDir)
 
-    db.prepare(`
+    db.prepare(
+      `
       INSERT INTO lessons (id, module_id, course_id, title, order_index, file_path, file_name, file_extension, media_type, duration, file_size, created_at)
       VALUES ('les_1', 'mod_1', 'crs_1', 'Lesson 1', 1, ?, 'Lesson1.mp4', '.mp4', 'video', 300, 1000, 1)
-    `).run(sourceVideoPath)
+    `
+    ).run(sourceVideoPath)
 
     // Create backup
-    const backupRes = await mediaBackupService.createBackup(vaultDir, sourceVideoPath)
+    const backupRes = await mediaBackupService.createBackup(
+      vaultDir,
+      sourceVideoPath
+    )
 
     // Record provenance
     const recordId = 'rec_test_1'
@@ -150,7 +176,8 @@ describe('Optimizer Provenance, Backups & Exclusions', () => {
     fs.writeFileSync(sourceVideoPath, 'OPTIMIZED_MEDIA_DATA')
 
     // Restore via Provenance Service
-    const restoreRes = await provenanceAndExclusionsService.restoreOriginal(recordId)
+    const restoreRes =
+      await provenanceAndExclusionsService.restoreOriginal(recordId)
     expect(restoreRes.success).toBe(true)
 
     // Check that pristine original content was restored

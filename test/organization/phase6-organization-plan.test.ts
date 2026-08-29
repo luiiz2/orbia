@@ -14,7 +14,10 @@ describe('Phase 6: Organization Plan Engine', () => {
   let planService: OrganizationPlanService
 
   beforeEach(() => {
-    tempVaultDir = path.join(os.tmpdir(), `orbia-plan-test-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`)
+    tempVaultDir = path.join(
+      os.tmpdir(),
+      `orbia-plan-test-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+    )
     courseDir = path.join(tempVaultDir, 'Courses', 'Sample Course')
     fs.mkdirSync(path.join(courseDir, 'Module 1'), { recursive: true })
     dbService = new DatabaseService()
@@ -64,9 +67,51 @@ describe('Phase 6: Organization Plan Engine', () => {
     }
 
     const lessons: Lesson[] = [
-      { id: 'l1', moduleId: module1.id, courseId: course.id, title: 'Intro', orderIndex: 1, filePath: vid1, fileName: '01 - Intro.mp4', fileExtension: 'mp4', mediaType: 'video', duration: 100, fileSize: 1000, availability: 'local', createdAt: 1000 },
-      { id: 'l2', moduleId: module1.id, courseId: course.id, title: 'Old Name', orderIndex: 2, filePath: path.join(mod1Dir, '02_old.mp4'), fileName: '02_old.mp4', fileExtension: 'mp4', mediaType: 'video', duration: 100, fileSize: Buffer.from('unique content of lesson 2').length, availability: 'local', createdAt: 1000 },
-      { id: 'l4', moduleId: module1.id, courseId: course.id, title: 'Advanced', orderIndex: 3, filePath: vid4, fileName: '04 - Advanced.mp4', fileExtension: 'mp4', mediaType: 'video', duration: 100, fileSize: 4000, availability: 'local', createdAt: 1000 }
+      {
+        id: 'l1',
+        moduleId: module1.id,
+        courseId: course.id,
+        title: 'Intro',
+        orderIndex: 1,
+        filePath: vid1,
+        fileName: '01 - Intro.mp4',
+        fileExtension: 'mp4',
+        mediaType: 'video',
+        duration: 100,
+        fileSize: 1000,
+        availability: 'local',
+        createdAt: 1000
+      },
+      {
+        id: 'l2',
+        moduleId: module1.id,
+        courseId: course.id,
+        title: 'Old Name',
+        orderIndex: 2,
+        filePath: path.join(mod1Dir, '02_old.mp4'),
+        fileName: '02_old.mp4',
+        fileExtension: 'mp4',
+        mediaType: 'video',
+        duration: 100,
+        fileSize: Buffer.from('unique content of lesson 2').length,
+        availability: 'local',
+        createdAt: 1000
+      },
+      {
+        id: 'l4',
+        moduleId: module1.id,
+        courseId: course.id,
+        title: 'Advanced',
+        orderIndex: 3,
+        filePath: vid4,
+        fileName: '04 - Advanced.mp4',
+        fileExtension: 'mp4',
+        mediaType: 'video',
+        duration: 100,
+        fileSize: 4000,
+        availability: 'local',
+        createdAt: 1000
+      }
     ]
 
     dbService.saveCourseWithHierarchy(course, [{ ...module1, lessons }])
@@ -77,14 +122,39 @@ describe('Phase 6: Organization Plan Engine', () => {
     expect(plan.totalItems).toBeGreaterThan(0)
 
     // Check Safe Corrections has the renamed file
-    const relinkItem = plan.safeCorrections.find((i) => i.actionType === 'RELINK_RENAMED_FILE')
+    const relinkItem = plan.safeCorrections.find(
+      (i) => i.actionType === 'RELINK_RENAMED_FILE'
+    )
     expect(relinkItem).toBeDefined()
     expect(relinkItem?.entityId).toBe('l2')
 
     // Check Conflicts has the detected sequence gap for lesson 03
-    const gapItem = plan.conflicts.find((i) => i.actionType === 'FLAG_SEQUENCE_GAP')
+    const gapItem = plan.conflicts.find(
+      (i) => i.actionType === 'FLAG_SEQUENCE_GAP'
+    )
     expect(gapItem).toBeDefined()
     expect((gapItem?.details as any)?.expectedNumber).toBe(3)
+
+    const forgedPlan = {
+      ...plan,
+      safeCorrections: plan.safeCorrections.map((item) =>
+        item.id === relinkItem!.id
+          ? {
+              ...item,
+              details: {
+                ...(item.details ?? {}),
+                newFilePath: path.join(tempVaultDir, 'outside.mp4')
+              }
+            }
+          : item
+      )
+    }
+    expect(() => planService.applyPlan(forgedPlan)).toThrow(
+      /plan|expired|match|outside/i
+    )
+    expect(dbService.getLessonById('l2')?.filePath).toBe(
+      path.join(mod1Dir, '02_old.mp4')
+    )
 
     // Apply Plan
     const applyResult = planService.applyPlan(plan)

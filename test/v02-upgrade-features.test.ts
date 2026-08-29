@@ -10,7 +10,10 @@ describe('Orbia v0.2 Upgrade Features', () => {
   let dbService: DatabaseService
 
   beforeEach(() => {
-    tempVaultDir = path.join(os.tmpdir(), `orbia-v02-test-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`)
+    tempVaultDir = path.join(
+      os.tmpdir(),
+      `orbia-v02-test-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+    )
     fs.mkdirSync(tempVaultDir, { recursive: true })
     dbService = new DatabaseService()
     dbService.connect(tempVaultDir)
@@ -26,8 +29,12 @@ describe('Orbia v0.2 Upgrade Features', () => {
   })
 
   it('records migrations in _migrations table', () => {
-    const db = (dbService as unknown as { db: import('better-sqlite3').Database }).db
-    const rows = db.prepare('SELECT id FROM _migrations').all() as Array<{ id: string }>
+    const db = (
+      dbService as unknown as { db: import('better-sqlite3').Database }
+    ).db
+    const rows = db.prepare('SELECT id FROM _migrations').all() as Array<{
+      id: string
+    }>
     const migrationIds = rows.map((r) => r.id)
     expect(migrationIds).toContain('002_v0.2_metadata_and_favorites')
   })
@@ -76,9 +83,15 @@ describe('Orbia v0.2 Upgrade Features', () => {
     dbService.saveCourseWithHierarchy(course, [module])
 
     // Update custom titles
-    dbService.updateCourseMetadata(course.id, { customTitle: 'Custom Course Name' })
-    dbService.updateModuleMetadata(module.id, { customTitle: 'Custom Module Name' })
-    dbService.updateLessonMetadata(module.lessons[0].id, { customTitle: 'Custom Lesson Name' })
+    dbService.updateCourseMetadata(course.id, {
+      customTitle: 'Custom Course Name'
+    })
+    dbService.updateModuleMetadata(module.id, {
+      customTitle: 'Custom Module Name'
+    })
+    dbService.updateLessonMetadata(module.lessons[0].id, {
+      customTitle: 'Custom Lesson Name'
+    })
 
     const retrieved = dbService.getCourseById(course.id)
     expect(retrieved).not.toBeNull()
@@ -87,7 +100,9 @@ describe('Orbia v0.2 Upgrade Features', () => {
     expect(retrieved!.modules[0].title).toBe('Original Module Title')
     expect(retrieved!.modules[0].customTitle).toBe('Custom Module Name')
     expect(retrieved!.modules[0].lessons[0].title).toBe('Original Lesson Title')
-    expect(retrieved!.modules[0].lessons[0].customTitle).toBe('Custom Lesson Name')
+    expect(retrieved!.modules[0].lessons[0].customTitle).toBe(
+      'Custom Lesson Name'
+    )
   })
 
   it('supports reordering modules and lessons up and down', () => {
@@ -308,7 +323,11 @@ describe('Orbia v0.2 Upgrade Features', () => {
     dbService.saveCourseWithHierarchy(course, [mod])
 
     // Mark entire module completed
-    const affected = dbService.toggleModuleCompletion('mod-batch', course.id, true)
+    const affected = dbService.toggleModuleCompletion(
+      'mod-batch',
+      course.id,
+      true
+    )
     expect(affected).toBe(3)
 
     const progress = dbService.getLessonsProgress(course.id)
@@ -316,7 +335,11 @@ describe('Orbia v0.2 Upgrade Features', () => {
     expect(progress.every((p) => p.completed)).toBe(true)
 
     // Unmark entire module
-    const unmarkAffected = dbService.toggleModuleCompletion('mod-batch', course.id, false)
+    const unmarkAffected = dbService.toggleModuleCompletion(
+      'mod-batch',
+      course.id,
+      false
+    )
     expect(unmarkAffected).toBe(3)
 
     const unmarkProgress = dbService.getLessonsProgress(course.id)
@@ -368,14 +391,20 @@ describe('Orbia v0.2 Upgrade Features', () => {
 
     // Search for course
     const courseResults = dbService.searchGlobal('TypeScript')
-    expect(courseResults.some((r) => r.type === 'course' && r.id === 'course-search')).toBe(true)
+    expect(
+      courseResults.some((r) => r.type === 'course' && r.id === 'course-search')
+    ).toBe(true)
 
     // Search for module
     const moduleResults = dbService.searchGlobal('Generics')
-    expect(moduleResults.some((r) => r.type === 'module' && r.id === 'mod-search')).toBe(true)
+    expect(
+      moduleResults.some((r) => r.type === 'module' && r.id === 'mod-search')
+    ).toBe(true)
 
     // Search for lesson
     const lessonResults = dbService.searchGlobal('Conditional')
-    expect(lessonResults.some((r) => r.type === 'lesson' && r.id === 'les-search')).toBe(true)
+    expect(
+      lessonResults.some((r) => r.type === 'lesson' && r.id === 'les-search')
+    ).toBe(true)
   })
 })

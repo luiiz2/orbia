@@ -15,7 +15,9 @@ afterEach(() => {
 })
 
 function createTemporaryRoot(): string {
-  const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'orbia-import-session-'))
+  const temporaryRoot = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'orbia-import-session-')
+  )
   temporaryRoots.push(temporaryRoot)
   return temporaryRoot
 }
@@ -75,12 +77,14 @@ describe('ImportSessionService', () => {
               mediaType: 'video',
               fileSize: 10,
               orderIndex: 1,
-              coverPath: 'C:/staging/orbia-import-a/content/Dia 1/01 - Aula.png',
+              coverPath:
+                'C:/staging/orbia-import-a/content/Dia 1/01 - Aula.png',
               contentResources: [
                 {
                   id: 'lesson-resource-1',
                   name: 'C:/staging/orbia-import-a/content/Dia 1/01 - Aula.pt-BR.vtt',
-                  filePath: 'C:/staging/orbia-import-a/content/Dia 1/01 - Aula.pt-BR.vtt',
+                  filePath:
+                    'C:/staging/orbia-import-a/content/Dia 1/01 - Aula.pt-BR.vtt',
                   fileExtension: 'vtt',
                   fileSize: 3,
                   type: 'document',
@@ -113,7 +117,9 @@ describe('ImportSessionService', () => {
       discardPreparedArchive: vi.fn()
     }
     const scanner = { scanDirectory: vi.fn().mockResolvedValue({}) }
-    const parser = { parseCourseHierarchy: vi.fn().mockResolvedValue(privateProposal) }
+    const parser = {
+      parseCourseHierarchy: vi.fn().mockResolvedValue(privateProposal)
+    }
     const sessions = new ImportSessionService({
       archive,
       scanner,
@@ -173,16 +179,30 @@ describe('ImportSessionService', () => {
       }
     })
     expect(JSON.stringify(result)).not.toContain('C:/staging/orbia-import-a')
-    expect(JSON.stringify(result)).not.toContain('private-module-resource-fingerprint')
-    expect(JSON.stringify(result)).not.toContain('private-lesson-resource-fingerprint')
+    expect(JSON.stringify(result)).not.toContain(
+      'private-module-resource-fingerprint'
+    )
+    expect(JSON.stringify(result)).not.toContain(
+      'private-lesson-resource-fingerprint'
+    )
     expect(result.preview).not.toHaveProperty('rootPath')
     expect(result.preview!.modules[0]).not.toHaveProperty('folderPath')
-    expect(result.preview!.modules[0].resources[0]).not.toHaveProperty('filePath')
-    expect(result.preview!.modules[0].resources[0]).not.toHaveProperty('fingerprint')
+    expect(result.preview!.modules[0].resources[0]).not.toHaveProperty(
+      'filePath'
+    )
+    expect(result.preview!.modules[0].resources[0]).not.toHaveProperty(
+      'fingerprint'
+    )
     expect(result.preview!.modules[0].lessons[0]).not.toHaveProperty('filePath')
-    expect(result.preview!.modules[0].lessons[0]).not.toHaveProperty('coverPath')
-    expect(result.preview!.modules[0].lessons[0].contentResources[0]).not.toHaveProperty('filePath')
-    expect(result.preview!.modules[0].lessons[0].contentResources[0]).not.toHaveProperty('fingerprint')
+    expect(result.preview!.modules[0].lessons[0]).not.toHaveProperty(
+      'coverPath'
+    )
+    expect(
+      result.preview!.modules[0].lessons[0].contentResources[0]
+    ).not.toHaveProperty('filePath')
+    expect(
+      result.preview!.modules[0].lessons[0].contentResources[0]
+    ).not.toHaveProperty('fingerprint')
     expect(result.preview!.duplicates![0]).not.toHaveProperty('paths')
 
     await sessions.cancel(result.sessionId)
@@ -191,7 +211,9 @@ describe('ImportSessionService', () => {
       preparedArchive.stagingRoot,
       'C:/staging'
     )
-    expect(() => sessions.getSession(result.sessionId)).toThrow('Import session not found')
+    expect(() => sessions.getSession(result.sessionId)).toThrow(
+      'Import session not found'
+    )
   })
 
   it('returns validation errors without scanning a partially prepared ZIP', async () => {
@@ -207,7 +229,12 @@ describe('ImportSessionService', () => {
     }
     const scanner = { scanDirectory: vi.fn() }
     const parser = { parseCourseHierarchy: vi.fn() }
-    const sessions = new ImportSessionService({ archive, scanner, parser, createId: () => 'session-2' })
+    const sessions = new ImportSessionService({
+      archive,
+      scanner,
+      parser,
+      createId: () => 'session-2'
+    })
 
     const result = await sessions.prepareZipImport({
       zipPath: invalidArchive.sourcePath,
@@ -235,8 +262,18 @@ describe('ImportSessionService', () => {
       ...preparedArchive,
       sourcePath: sourceZip,
       stagingRoot: path.join(temporaryRoot, 'staging', 'orbia-import-a'),
-      stagedArchivePath: path.join(temporaryRoot, 'staging', 'orbia-import-a', 'curso.zip'),
-      extractedPath: path.join(temporaryRoot, 'staging', 'orbia-import-a', 'content')
+      stagedArchivePath: path.join(
+        temporaryRoot,
+        'staging',
+        'orbia-import-a',
+        'curso.zip'
+      ),
+      extractedPath: path.join(
+        temporaryRoot,
+        'staging',
+        'orbia-import-a',
+        'content'
+      )
     }
     const archive = {
       prepareZip: vi.fn(async () => {
@@ -260,10 +297,16 @@ describe('ImportSessionService', () => {
     })
 
     expect(result.validation.verificationOk).toBe(false)
-    expect(result.validation.warnings).toContain('The original ZIP changed during preparation and was kept.')
-    expect(fs.readFileSync(sourceZip, 'utf8')).toBe('replacement archive with a different size')
+    expect(result.validation.warnings).toContain(
+      'The original ZIP changed during preparation and was kept.'
+    )
+    expect(fs.readFileSync(sourceZip, 'utf8')).toBe(
+      'replacement archive with a different size'
+    )
     expect(scanner.scanDirectory).not.toHaveBeenCalled()
-    await expect(sessions.beginCommit(result.sessionId)).rejects.toThrow('did not pass validation')
+    await expect(sessions.beginCommit(result.sessionId)).rejects.toThrow(
+      'did not pass validation'
+    )
   })
 
   it('rejects a folder commit when a scanned file changes after preview', async () => {
@@ -272,16 +315,27 @@ describe('ImportSessionService', () => {
     const lessonPath = path.join(courseRoot, 'Modulo 01', 'aula.mp4')
     fs.mkdirSync(path.dirname(lessonPath), { recursive: true })
     fs.writeFileSync(lessonPath, 'first!')
-    const parser = { parseCourseHierarchy: vi.fn().mockResolvedValue({ ...proposal, rootPath: courseRoot }) }
-    const sessions = new ImportSessionService({ parser, createId: () => 'session-folder-change' })
+    const parser = {
+      parseCourseHierarchy: vi
+        .fn()
+        .mockResolvedValue({ ...proposal, rootPath: courseRoot })
+    }
+    const sessions = new ImportSessionService({
+      parser,
+      createId: () => 'session-folder-change'
+    })
 
     const result = await sessions.prepareFolderImport(courseRoot)
     fs.writeFileSync(lessonPath, 'second')
 
-    await expect(sessions.beginCommit(result.sessionId)).rejects.toThrow('changed after preview')
+    await expect(sessions.beginCommit(result.sessionId)).rejects.toThrow(
+      'changed after preview'
+    )
 
     await sessions.cancel(result.sessionId)
-    expect(() => sessions.getSession(result.sessionId)).toThrow('Import session not found')
+    expect(() => sessions.getSession(result.sessionId)).toThrow(
+      'Import session not found'
+    )
   })
 
   it('blocks a managed folder move when a hidden file is added after preview', async () => {
@@ -292,13 +346,22 @@ describe('ImportSessionService', () => {
     fs.mkdirSync(path.dirname(lessonPath), { recursive: true })
     fs.writeFileSync(lessonPath, 'lesson bytes')
 
-    const parser = { parseCourseHierarchy: vi.fn().mockResolvedValue({ ...proposal, rootPath: courseRoot }) }
-    const sessions = new ImportSessionService({ parser, createId: () => 'session-hidden-file' })
+    const parser = {
+      parseCourseHierarchy: vi
+        .fn()
+        .mockResolvedValue({ ...proposal, rootPath: courseRoot })
+    }
+    const sessions = new ImportSessionService({
+      parser,
+      createId: () => 'session-hidden-file'
+    })
     const result = await sessions.prepareFolderImport(courseRoot)
 
     fs.writeFileSync(hiddenPath, 'added after preview')
 
-    await expect(sessions.beginCommit(result.sessionId)).rejects.toThrow('changed after preview')
+    await expect(sessions.beginCommit(result.sessionId)).rejects.toThrow(
+      'changed after preview'
+    )
     expect(fs.existsSync(courseRoot)).toBe(true)
     expect(fs.existsSync(hiddenPath)).toBe(true)
   })
@@ -307,19 +370,36 @@ describe('ImportSessionService', () => {
     const temporaryRoot = createTemporaryRoot()
     const courseRoot = path.join(temporaryRoot, 'curso')
     const lessonPath = path.join(courseRoot, 'Modulo 01', 'aula.mp4')
-    const ignoredPath = path.join(courseRoot, 'node_modules', 'dependency', 'package.json')
+    const ignoredPath = path.join(
+      courseRoot,
+      'node_modules',
+      'dependency',
+      'package.json'
+    )
     fs.mkdirSync(path.dirname(lessonPath), { recursive: true })
     fs.mkdirSync(path.dirname(ignoredPath), { recursive: true })
     fs.writeFileSync(lessonPath, 'lesson bytes')
     fs.writeFileSync(ignoredPath, '{"version":"1"}')
 
-    const parser = { parseCourseHierarchy: vi.fn().mockResolvedValue({ ...proposal, rootPath: courseRoot }) }
-    const sessions = new ImportSessionService({ parser, createId: () => 'session-ignored-directory' })
+    const parser = {
+      parseCourseHierarchy: vi
+        .fn()
+        .mockResolvedValue({ ...proposal, rootPath: courseRoot })
+    }
+    const sessions = new ImportSessionService({
+      parser,
+      createId: () => 'session-ignored-directory'
+    })
     const result = await sessions.prepareFolderImport(courseRoot)
 
-    fs.writeFileSync(ignoredPath, '{"version":"2","content":"changed after preview"}')
+    fs.writeFileSync(
+      ignoredPath,
+      '{"version":"2","content":"changed after preview"}'
+    )
 
-    await expect(sessions.beginCommit(result.sessionId)).rejects.toThrow('changed after preview')
+    await expect(sessions.beginCommit(result.sessionId)).rejects.toThrow(
+      'changed after preview'
+    )
     expect(fs.existsSync(courseRoot)).toBe(true)
     expect(fs.existsSync(ignoredPath)).toBe(true)
   })
@@ -342,9 +422,15 @@ describe('ImportSessionService', () => {
       stagingBaseDir: 'C:/staging'
     })
 
-    await expect(sessions.beginCommit(result.sessionId)).resolves.toMatchObject({ id: result.sessionId })
-    await expect(sessions.beginCommit(result.sessionId)).rejects.toThrow('already being committed')
-    await expect(sessions.cancel(result.sessionId)).rejects.toThrow('cannot be cancelled while it is committing')
+    await expect(sessions.beginCommit(result.sessionId)).resolves.toMatchObject(
+      { id: result.sessionId }
+    )
+    await expect(sessions.beginCommit(result.sessionId)).rejects.toThrow(
+      'already being committed'
+    )
+    await expect(sessions.cancel(result.sessionId)).rejects.toThrow(
+      'cannot be cancelled while it is committing'
+    )
 
     sessions.releaseCommit(result.sessionId)
     await expect(sessions.cancel(result.sessionId)).resolves.toBeUndefined()
@@ -375,6 +461,8 @@ describe('ImportSessionService', () => {
       preparedArchive.stagingRoot,
       'C:/staging'
     )
-    expect(() => sessions.getSession(result.sessionId)).toThrow('Import session not found')
+    expect(() => sessions.getSession(result.sessionId)).toThrow(
+      'Import session not found'
+    )
   })
 })

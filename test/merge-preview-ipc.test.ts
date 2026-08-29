@@ -21,9 +21,19 @@ describe('merge preview IPC payload', () => {
   })
 
   it('rejects malformed or insufficient selections', () => {
-    expect(normalizeMergePreviewCourseIds({ courseIds: ['course-a'] })).toBeNull()
-    expect(normalizeMergePreviewCourseIds({ courseIds: ['course-a', 42] })).toBeNull()
-    expect(normalizeMergePreviewCourseIds({ courseIds: 'course-a,course-b' })).toBeNull()
-    expect(normalizeMergePreviewCourseIds({ courseIds: ['C:/private/course', 'course-b'] })).toBeNull()
+    expect(
+      normalizeMergePreviewCourseIds({ courseIds: ['course-a'] })
+    ).toBeNull()
+    expect(
+      normalizeMergePreviewCourseIds({ courseIds: ['course-a', 42] })
+    ).toBeNull()
+    expect(
+      normalizeMergePreviewCourseIds({ courseIds: 'course-a,course-b' })
+    ).toBeNull()
+    expect(
+      normalizeMergePreviewCourseIds({
+        courseIds: ['C:/private/course', 'course-b']
+      })
+    ).toBeNull()
   })
 })

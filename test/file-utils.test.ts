@@ -85,5 +85,4 @@ describe('File Utils', () => {
     expect(isIgnoredPath('._video.mp4')).toBe(true)
     expect(isIgnoredPath('01 - Lesson.mp4')).toBe(false)
   })
-
 })

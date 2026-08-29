@@ -5,7 +5,9 @@ import path from 'node:path'
 import AdmZip from 'adm-zip'
 import { ArchiveService } from '../src/main/services/archive.service'
 
-const TEST_TMP_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'orbia-archive-test-'))
+const TEST_TMP_DIR = fs.mkdtempSync(
+  path.join(os.tmpdir(), 'orbia-archive-test-')
+)
 const archiveService = new ArchiveService({
   validateMedia: async () => ({ valid: true, failedFiles: [], warnings: [] })
 })
@@ -27,7 +29,10 @@ describe('ArchiveService (.zip extraction)', () => {
   it('should extract a valid zip archive with lessons and modules', async () => {
     const zip = new AdmZip()
     zip.addFile('Module 01/01 - Introduction.mp4', Buffer.from('fake video 1'))
-    zip.addFile('Module 01/02 - Environment Setup.mp4', Buffer.from('fake video 2'))
+    zip.addFile(
+      'Module 01/02 - Environment Setup.mp4',
+      Buffer.from('fake video 2')
+    )
     zip.addFile('Module 02/01 - Deep Dive.mp4', Buffer.from('fake video 3'))
 
     const zipFilePath = path.join(TEST_TMP_DIR, 'python-course.zip')
@@ -54,8 +59,16 @@ describe('ArchiveService (.zip extraction)', () => {
 
     // Preparing an import must never move or delete the user's ZIP.
     expect(fs.existsSync(zipFilePath)).toBe(true)
-    expect(fs.existsSync(path.join(result.extractedPath, 'Module 01', '01 - Introduction.mp4'))).toBe(true)
-    expect(fs.existsSync(path.join(result.extractedPath, 'Module 02', '01 - Deep Dive.mp4'))).toBe(true)
+    expect(
+      fs.existsSync(
+        path.join(result.extractedPath, 'Module 01', '01 - Introduction.mp4')
+      )
+    ).toBe(true)
+    expect(
+      fs.existsSync(
+        path.join(result.extractedPath, 'Module 02', '01 - Deep Dive.mp4')
+      )
+    ).toBe(true)
   })
 
   it('should unwrap single root folder inside zip for clean hierarchy', async () => {
@@ -73,7 +86,9 @@ describe('ArchiveService (.zip extraction)', () => {
     })
 
     expect(path.basename(result.extractedPath)).toBe('Masterclass_Root')
-    expect(fs.existsSync(path.join(result.extractedPath, '01 - Lesson.mp4'))).toBe(true)
+    expect(
+      fs.existsSync(path.join(result.extractedPath, '01 - Lesson.mp4'))
+    ).toBe(true)
   })
 
   it('skips unsafe zip-slip paths and reports them as warnings', async () => {
@@ -98,8 +113,12 @@ describe('ArchiveService (.zip extraction)', () => {
     })
 
     expect(result.totalExtractedFiles).toBe(1)
-    expect(result.warnings.some((w) => w.includes('Skipped unsafe path'))).toBe(true)
-    expect(fs.existsSync(path.join(result.extractedPath, 'safe-lesson.mp4'))).toBe(true)
+    expect(result.warnings.some((w) => w.includes('Skipped unsafe path'))).toBe(
+      true
+    )
+    expect(
+      fs.existsSync(path.join(result.extractedPath, 'safe-lesson.mp4'))
+    ).toBe(true)
     expect(fs.existsSync(path.join(TEST_TMP_DIR, 'evil.mp4'))).toBe(false)
   })
 
@@ -108,11 +127,18 @@ describe('ArchiveService (.zip extraction)', () => {
     // name into the first one's (same byte length) to simulate a real duplicate zip.
     const zip = new AdmZip()
     zip.addFile('Module 01/01 - Lesson.mp4', Buffer.from('video data'))
-    zip.addFile('Module 01/02 - Lesson.mp4', Buffer.from('video data overwrite'))
+    zip.addFile(
+      'Module 01/02 - Lesson.mp4',
+      Buffer.from('video data overwrite')
+    )
 
     const zipFilePath = path.join(TEST_TMP_DIR, 'dupe-entry.zip')
     const patched = Buffer.from(
-      zip.toBuffer().toString('latin1').split('02 - Lesson.mp4').join('01 - Lesson.mp4'),
+      zip
+        .toBuffer()
+        .toString('latin1')
+        .split('02 - Lesson.mp4')
+        .join('01 - Lesson.mp4'),
       'latin1'
     )
     fs.writeFileSync(zipFilePath, patched)
@@ -127,7 +153,9 @@ describe('ArchiveService (.zip extraction)', () => {
     // The conflicting entry is never allowed to overwrite the first staged file.
     expect(result.totalExtractedFiles).toBe(1)
     expect(result.verificationOk).toBe(false)
-    expect(result.warnings.some((w) => w.includes('Duplicate destination path'))).toBe(true)
+    expect(
+      result.warnings.some((w) => w.includes('Duplicate destination path'))
+    ).toBe(true)
   })
 
   it('prepares a ZIP in a unique staging directory without moving the source', async () => {
@@ -146,7 +174,9 @@ describe('ArchiveService (.zip extraction)', () => {
     expect(fs.existsSync(zipFilePath)).toBe(true)
     expect(result.stagingRoot).toMatch(/orbia-import-/)
     expect(result.extractedPath).toContain(result.stagingRoot)
-    expect(fs.existsSync(path.join(result.extractedPath, '01 - Lesson.mp4'))).toBe(true)
+    expect(
+      fs.existsSync(path.join(result.extractedPath, '01 - Lesson.mp4'))
+    ).toBe(true)
   })
 
   it('cleans the copied staging directory when the ZIP cannot be read', async () => {
@@ -183,8 +213,9 @@ describe('ArchiveService (.zip extraction)', () => {
 
       expect(fs.existsSync(zipFilePath)).toBe(true)
       expect(fs.readdirSync(stagingBaseDir)).toEqual([])
-      const stagingWrites = writeFileSync.mock.calls.filter(([target]) =>
-        typeof target === 'string' && target.startsWith(stagingBaseDir)
+      const stagingWrites = writeFileSync.mock.calls.filter(
+        ([target]) =>
+          typeof target === 'string' && target.startsWith(stagingBaseDir)
       )
       expect(stagingWrites).toHaveLength(0)
     } finally {
@@ -207,7 +238,9 @@ describe('ArchiveService (.zip extraction)', () => {
     })
 
     expect(fs.existsSync(zipFilePath)).toBe(true)
-    expect(fs.existsSync(path.join(result.extractedPath, '01 - Lesson.mp4'))).toBe(true)
+    expect(
+      fs.existsSync(path.join(result.extractedPath, '01 - Lesson.mp4'))
+    ).toBe(true)
   })
 
   it('blocks a prepared ZIP when full media validation reports a corrupt file', async () => {
@@ -231,7 +264,9 @@ describe('ArchiveService (.zip extraction)', () => {
 
     expect(result.verificationOk).toBe(false)
     expect(result.failedEntries).toContain('Module 01/01 - Broken.mp4')
-    expect(result.warnings).toContain('FFmpeg could not decode the staged lesson.')
+    expect(result.warnings).toContain(
+      'FFmpeg could not decode the staged lesson.'
+    )
     expect(fs.existsSync(zipFilePath)).toBe(true)
   })
 
@@ -253,7 +288,9 @@ describe('ArchiveService (.zip extraction)', () => {
     })
 
     expect(result.verificationOk).toBe(false)
-    expect(result.warnings).toContain('Media validation could not run: validator unavailable')
+    expect(result.warnings).toContain(
+      'Media validation could not run: validator unavailable'
+    )
     expect(fs.existsSync(zipFilePath)).toBe(true)
   })
 })

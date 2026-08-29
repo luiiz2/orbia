@@ -13,7 +13,9 @@ describe('TranscriptRepository', () => {
   let repository: TranscriptRepository
 
   beforeEach(() => {
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'orbia-transcript-storage-'))
+    tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), 'orbia-transcript-storage-')
+    )
     vaultDir = path.join(tempDir, 'vault')
     fs.mkdirSync(vaultDir, { recursive: true })
     mediaPath = path.join(vaultDir, 'lesson.mp4')
@@ -21,14 +23,27 @@ describe('TranscriptRepository', () => {
     database = new DatabaseService()
     database.connect(vaultDir)
     const db = database.getDatabase()!
-    db.prepare(`INSERT INTO courses (id, title, slug, source_type, root_path, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)`).run(
-      'course-1', 'Course', 'course', 'managed', vaultDir, 1, 1
-    )
-    db.prepare(`INSERT INTO modules (id, course_id, title, order_index, duration, lesson_count, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`).run(
-      'module-1', 'course-1', 'Module', 1, 10, 1, 1
-    )
-    db.prepare(`INSERT INTO lessons (id, module_id, course_id, title, order_index, file_path, file_name, file_extension, media_type, duration, file_size, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
-      'lesson-1', 'module-1', 'course-1', 'Lesson', 1, mediaPath, 'lesson.mp4', '.mp4', 'video', 10, 5, 1
+    db.prepare(
+      `INSERT INTO courses (id, title, slug, source_type, root_path, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)`
+    ).run('course-1', 'Course', 'course', 'managed', vaultDir, 1, 1)
+    db.prepare(
+      `INSERT INTO modules (id, course_id, title, order_index, duration, lesson_count, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`
+    ).run('module-1', 'course-1', 'Module', 1, 10, 1, 1)
+    db.prepare(
+      `INSERT INTO lessons (id, module_id, course_id, title, order_index, file_path, file_name, file_extension, media_type, duration, file_size, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run(
+      'lesson-1',
+      'module-1',
+      'course-1',
+      'Lesson',
+      1,
+      mediaPath,
+      'lesson.mp4',
+      '.mp4',
+      'video',
+      10,
+      5,
+      1
     )
     repository = new TranscriptRepository(database)
   })
@@ -66,7 +81,10 @@ describe('TranscriptRepository', () => {
       segments: [{ sequence: 0, start: 0, end: 2, text: 'Versão final' }]
     })
 
-    const rows = database.getDatabase()!.prepare(`SELECT is_current FROM transcripts WHERE id = ?`).get(first.id) as { is_current: number }
+    const rows = database
+      .getDatabase()!
+      .prepare(`SELECT is_current FROM transcripts WHERE id = ?`)
+      .get(first.id) as { is_current: number }
     expect(rows.is_current).toBe(0)
   })
 
@@ -74,18 +92,24 @@ describe('TranscriptRepository', () => {
     const original = repository.getLessonSource('lesson-1')!
     const movedPath = path.join(vaultDir, 'moved-lesson.mp4')
     fs.renameSync(mediaPath, movedPath)
-    database.getDatabase()!.prepare(`UPDATE lessons SET file_path = ?, file_name = ? WHERE id = ?`).run(movedPath, 'moved-lesson.mp4', 'lesson-1')
+    database
+      .getDatabase()!
+      .prepare(`UPDATE lessons SET file_path = ?, file_name = ? WHERE id = ?`)
+      .run(movedPath, 'moved-lesson.mp4', 'lesson-1')
 
-    expect(repository.getLessonSource('lesson-1')!.sourceRevision).toBe(original.sourceRevision)
+    expect(repository.getLessonSource('lesson-1')!.sourceRevision).toBe(
+      original.sourceRevision
+    )
   })
 
   it('reads vault and course automatic-transcription settings with opt-in defaults', () => {
     expect(repository.getSettings().autoTranscribeNewLessons).toBe(false)
-    expect(repository.setSettings({ autoTranscribeNewLessons: true })).toBe(true)
+    expect(repository.setSettings({ autoTranscribeNewLessons: true })).toBe(
+      true
+    )
     expect(repository.getSettings().autoTranscribeNewLessons).toBe(true)
     expect(repository.getCourseAutoTranscribe('course-1')).toBe(false)
     expect(repository.setCourseAutoTranscribe('course-1', true)).toBe(true)
     expect(repository.getCourseAutoTranscribe('course-1')).toBe(true)
   })
 })
-

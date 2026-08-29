@@ -57,4 +57,17 @@ describe('VaultService - Vault Deletion & Unlinking', () => {
     // Physical directory is removed
     expect(fs.existsSync(TEST_VAULT_2)).toBe(false)
   })
+
+  it('refuses to delete an unregistered directory even when deleteFiles is true', async () => {
+    const unregisteredPath = path.join(TEST_DIR, 'NotARegisteredVault')
+    fs.mkdirSync(unregisteredPath, { recursive: true })
+    fs.writeFileSync(path.join(unregisteredPath, 'keep.txt'), 'keep')
+
+    await expect(
+      vaultService.deleteVault(unregisteredPath, true)
+    ).rejects.toThrow(/registered/i)
+
+    expect(fs.existsSync(unregisteredPath)).toBe(true)
+    expect(fs.existsSync(path.join(unregisteredPath, 'keep.txt'))).toBe(true)
+  })
 })

@@ -40,13 +40,17 @@ describe('Studio History & Transactional Undo Service', () => {
       updated_at: now
     }
 
-    db.prepare(`
+    db.prepare(
+      `
       INSERT INTO library_appearances (id, entity_type, entity_id, root_course_id, custom_title, display_order, is_reference, is_hidden, tags, custom_metadata, created_at, updated_at)
       VALUES (@id, @entity_type, @entity_id, @root_course_id, @custom_title, @display_order, @is_reference, @is_hidden, @tags, @custom_metadata, @created_at, @updated_at)
-    `).run(appBefore)
+    `
+    ).run(appBefore)
 
     // Simulate update to new title
-    db.prepare(`UPDATE library_appearances SET custom_title = 'Título Novo' WHERE id = 'app_test'`).run()
+    db.prepare(
+      `UPDATE library_appearances SET custom_title = 'Título Novo' WHERE id = 'app_test'`
+    ).run()
 
     // Record in history
     const histId = studioHistoryService.recordOperation(
@@ -66,7 +70,11 @@ describe('Studio History & Transactional Undo Service', () => {
     expect(undoRes.success).toBe(true)
 
     // Verify title was restored
-    const restoredApp = db.prepare(`SELECT custom_title FROM library_appearances WHERE id = 'app_test'`).get() as { custom_title: string }
+    const restoredApp = db
+      .prepare(
+        `SELECT custom_title FROM library_appearances WHERE id = 'app_test'`
+      )
+      .get() as { custom_title: string }
     expect(restoredApp.custom_title).toBe('Título Antigo')
 
     // Second undo should fail safely

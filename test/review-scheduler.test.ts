@@ -44,7 +44,11 @@ describe('Review Scheduler (Spaced Repetition)', () => {
 
     // 2nd GOOD
     const r2 = calculateNextReview(
-      { state: r1.state, intervalDays: r1.intervalDays, successCount: r1.successCount },
+      {
+        state: r1.state,
+        intervalDays: r1.intervalDays,
+        successCount: r1.successCount
+      },
       'GOOD',
       baseTime
     )
@@ -54,7 +58,11 @@ describe('Review Scheduler (Spaced Repetition)', () => {
 
     // 3rd GOOD
     const r3 = calculateNextReview(
-      { state: r2.state, intervalDays: r2.intervalDays, successCount: r2.successCount },
+      {
+        state: r2.state,
+        intervalDays: r2.intervalDays,
+        successCount: r2.successCount
+      },
       'GOOD',
       baseTime
     )
@@ -64,7 +72,11 @@ describe('Review Scheduler (Spaced Repetition)', () => {
 
     // 4th GOOD
     const r4 = calculateNextReview(
-      { state: r3.state, intervalDays: r3.intervalDays, successCount: r3.successCount },
+      {
+        state: r3.state,
+        intervalDays: r3.intervalDays,
+        successCount: r3.successCount
+      },
       'GOOD',
       baseTime
     )
@@ -74,7 +86,11 @@ describe('Review Scheduler (Spaced Repetition)', () => {
 
     // 5th GOOD (capped at 30 days)
     const r5 = calculateNextReview(
-      { state: r4.state, intervalDays: r4.intervalDays, successCount: r4.successCount },
+      {
+        state: r4.state,
+        intervalDays: r4.intervalDays,
+        successCount: r4.successCount
+      },
       'GOOD',
       baseTime
     )

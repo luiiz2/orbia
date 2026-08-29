@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const state = vi.hoisted(() => ({
-  handlers: new Map<string, (event: unknown, payload?: unknown) => Promise<unknown> | unknown>(),
+  handlers: new Map<
+    string,
+    (event: unknown, payload?: unknown) => Promise<unknown> | unknown
+  >(),
   getMergePreview: vi.fn(),
   mergeDuplicateCourses: vi.fn(),
   mergeCourses: vi.fn()
@@ -11,7 +14,10 @@ vi.mock('electron', () => ({
   app: { getPath: vi.fn(() => 'C:/temp') },
   dialog: { showOpenDialog: vi.fn() },
   ipcMain: {
-    handle: (channel: string, handler: (event: unknown, payload?: unknown) => Promise<unknown> | unknown) => {
+    handle: (
+      channel: string,
+      handler: (event: unknown, payload?: unknown) => Promise<unknown> | unknown
+    ) => {
       state.handlers.set(channel, handler)
     }
   }
@@ -37,13 +43,21 @@ describe('Course Merge IPC Handlers', () => {
   })
 
   it('provides read-only merge preview', async () => {
-    state.getMergePreview.mockReturnValue({ canonicalCourseId: 'course-a', selectedCourseIds: ['course-a', 'course-b'] })
+    state.getMergePreview.mockReturnValue({
+      canonicalCourseId: 'course-a',
+      selectedCourseIds: ['course-a', 'course-b']
+    })
     const handler = state.handlers.get('courses:get-merge-preview')
 
     expect(handler).toBeDefined()
-    await expect(handler!({}, { courseIds: ['course-a', 'course-b'] })).resolves.toEqual({
+    await expect(
+      handler!({}, { courseIds: ['course-a', 'course-b'] })
+    ).resolves.toEqual({
       success: true,
-      preview: { canonicalCourseId: 'course-a', selectedCourseIds: ['course-a', 'course-b'] }
+      preview: {
+        canonicalCourseId: 'course-a',
+        selectedCourseIds: ['course-a', 'course-b']
+      }
     })
     expect(state.getMergePreview).toHaveBeenCalledWith(['course-a', 'course-b'])
     expect(state.mergeDuplicateCourses).not.toHaveBeenCalled()

@@ -72,7 +72,9 @@ describe('ContinueWatchingRail', () => {
   })
 
   it('includes in-progress videos and excludes videos with 0 progress', () => {
-    const markup = renderToStaticMarkup(React.createElement(ContinueWatchingRail, { isLoading: false }))
+    const markup = renderToStaticMarkup(
+      React.createElement(ContinueWatchingRail, { isLoading: false })
+    )
 
     expect(markup).toContain('In progress video')
     expect(markup).not.toContain('Zero progress video')

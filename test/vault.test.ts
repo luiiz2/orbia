@@ -42,7 +42,8 @@ describe('Vault & Database Services', () => {
     expect(vault.path).toBe(tempVaultDir)
     expect(fs.existsSync(path.join(tempVaultDir, 'Inbox'))).toBe(true)
     expect(fs.existsSync(path.join(tempVaultDir, 'Courses'))).toBe(true)
-    expect(fs.existsSync(path.join(tempVaultDir, '.orbia', 'library.db'))).toBe(true)
+    expect(fs.existsSync(path.join(tempVaultDir, '.orbia', 'library.db'))).toBe(
+      true
+    )
   })
-
 })

@@ -198,6 +198,16 @@ export function isImportableFile(filePath: string): boolean {
 }
 
 /**
+ * Files that may be handed to the OS shell after Main verifies ownership.
+ * Link containers are deliberately excluded so opening a library item cannot
+ * redirect execution or navigation through a .lnk/.url/.webloc/html file.
+ */
+export function isShellOpenableFile(filePath: string): boolean {
+  const ext = path.extname(filePath).toLowerCase()
+  return isImportableFile(filePath) && !LINK_EXTENSIONS.has(ext)
+}
+
+/**
  * Identifies a file that belongs to a scanned course inventory.
  *
  * This is intentionally broader than `isImportableFile`: importing must

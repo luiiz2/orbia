@@ -16,7 +16,9 @@ describe('UX Hardening & Error Boundary Resilience', () => {
     const derivedState = ErrorBoundary.getDerivedStateFromError(criticalError)
 
     expect(derivedState.hasError).toBe(true)
-    expect(derivedState.error?.message).toBe('Cannot read property of undefined')
+    expect(derivedState.error?.message).toBe(
+      'Cannot read property of undefined'
+    )
   })
 
   it('ErrorBoundary preserves error and derived state', () => {

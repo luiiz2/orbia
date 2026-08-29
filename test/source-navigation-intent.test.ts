@@ -1,5 +1,8 @@
 import { describe, expect, it, beforeEach } from 'vitest'
-import { useNavigationStore, type SourceNavigationIntent } from '../src/renderer/src/stores/useNavigationStore'
+import {
+  useNavigationStore,
+  type SourceNavigationIntent
+} from '../src/renderer/src/stores/useNavigationStore'
 
 describe('useNavigationStore source navigation intent', () => {
   beforeEach(() => {

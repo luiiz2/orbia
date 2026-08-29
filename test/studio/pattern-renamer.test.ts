@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import { applyTitleTransformations, generateRenamePreview } from '../../src/main/services/studio/pattern-renamer'
+import {
+  applyTitleTransformations,
+  generateRenamePreview
+} from '../../src/main/services/studio/pattern-renamer'
 import type { BulkRenameOptions } from '../../src/types/studio'
 
 describe('Pattern Renamer Engine', () => {
@@ -26,7 +29,11 @@ describe('Pattern Renamer Engine', () => {
       cleanCodecs: true,
       cleanTags: true
     }
-    const res = applyTitleTransformations('01. Fundamentos [SiteCurso] 1080p x264', options, 0)
+    const res = applyTitleTransformations(
+      '01. Fundamentos [SiteCurso] 1080p x264',
+      options,
+      0
+    )
     expect(res).toBe('01. Fundamentos')
   })
 
@@ -34,7 +41,11 @@ describe('Pattern Renamer Engine', () => {
     const options: BulkRenameOptions = {
       caseTransform: 'titlecase'
     }
-    const res = applyTitleTransformations('curso COMPLETO de typescript', options, 0)
+    const res = applyTitleTransformations(
+      'curso COMPLETO de typescript',
+      options,
+      0
+    )
     expect(res).toBe('Curso Completo De Typescript')
   })
 
@@ -50,7 +61,12 @@ describe('Pattern Renamer Engine', () => {
 
   it('generates multi-item preview accurately', () => {
     const items = [
-      { id: '1', appearanceId: 'app1', type: 'lesson' as const, title: 'intro' },
+      {
+        id: '1',
+        appearanceId: 'app1',
+        type: 'lesson' as const,
+        title: 'intro'
+      },
       { id: '2', appearanceId: 'app2', type: 'lesson' as const, title: 'setup' }
     ]
     const options: BulkRenameOptions = {

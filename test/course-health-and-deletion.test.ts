@@ -10,7 +10,10 @@ describe('Course Health Diagnosis & Lesson Deletion', () => {
   let dbService: DatabaseService
 
   beforeEach(() => {
-    tempVaultDir = path.join(os.tmpdir(), `orbia-health-test-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`)
+    tempVaultDir = path.join(
+      os.tmpdir(),
+      `orbia-health-test-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+    )
     fs.mkdirSync(tempVaultDir, { recursive: true })
     dbService = new DatabaseService()
     dbService.connect(tempVaultDir)
@@ -202,13 +205,29 @@ describe('Course Health Diagnosis & Lesson Deletion', () => {
       }
     ]
 
-    dbService.saveCourseWithHierarchy(course, [{ ...module, lessons: [lessons[0], lessons[1], lessons[3]] }])
+    dbService.saveCourseWithHierarchy(course, [
+      { ...module, lessons: [lessons[0], lessons[1], lessons[3]] }
+    ])
     // Simulate legacy non-media lesson in database
     const insertRaw = (dbService as any).db.prepare(`
       INSERT INTO lessons (id, module_id, course_id, title, order_index, file_path, file_name, file_extension, media_type, duration, file_size, availability, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `)
-    insertRaw.run('l-ts', module.id, course.id, 'Typescript Code', 2, typescriptFile, '03 - script.ts', 'ts', 'video', 0, 20, 'local', Date.now())
+    insertRaw.run(
+      'l-ts',
+      module.id,
+      course.id,
+      'Typescript Code',
+      2,
+      typescriptFile,
+      '03 - script.ts',
+      'ts',
+      'video',
+      0,
+      20,
+      'local',
+      Date.now()
+    )
 
     const health = dbService.getCourseHealth(course.id)
     expect(health.healthy).toBe(false)
@@ -286,7 +305,21 @@ describe('Course Health Diagnosis & Lesson Deletion', () => {
       INSERT INTO lessons (id, module_id, course_id, title, order_index, file_path, file_name, file_extension, media_type, duration, file_size, availability, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `)
-    insertRaw.run('l-code', module.id, course.id, 'Exercises', 1, codePath, '02 - exercises.ts', 'ts', 'video', 0, 20, 'local', Date.now())
+    insertRaw.run(
+      'l-code',
+      module.id,
+      course.id,
+      'Exercises',
+      1,
+      codePath,
+      '02 - exercises.ts',
+      'ts',
+      'video',
+      0,
+      20,
+      'local',
+      Date.now()
+    )
 
     const fixResult = dbService.fixCourseProblems(course.id)
     expect(fixResult.success).toBe(true)
@@ -337,9 +370,51 @@ describe('Course Health Diagnosis & Lesson Deletion', () => {
     }
 
     const lessons: Lesson[] = [
-      { id: 'l-good', moduleId: module.id, courseId: course.id, title: 'Good', orderIndex: 0, filePath: validVideo, fileName: '01 - Good.mp4', fileExtension: 'mp4', mediaType: 'video', duration: 100, fileSize: 1024, availability: 'local', createdAt: Date.now() },
-      { id: 'l-zero', moduleId: module.id, courseId: course.id, title: 'Corrupt', orderIndex: 1, filePath: zeroByteVideo, fileName: '02 - Corrupt.mp4', fileExtension: 'mp4', mediaType: 'video', duration: 0, fileSize: 0, availability: 'local', createdAt: Date.now() },
-      { id: 'l-ghost', moduleId: module.id, courseId: course.id, title: 'Ghost', orderIndex: 2, filePath: path.join(modDir, 'non-existent.mp4'), fileName: 'non-existent.mp4', fileExtension: 'mp4', mediaType: 'video', duration: 0, fileSize: 500, availability: 'local', createdAt: Date.now() }
+      {
+        id: 'l-good',
+        moduleId: module.id,
+        courseId: course.id,
+        title: 'Good',
+        orderIndex: 0,
+        filePath: validVideo,
+        fileName: '01 - Good.mp4',
+        fileExtension: 'mp4',
+        mediaType: 'video',
+        duration: 100,
+        fileSize: 1024,
+        availability: 'local',
+        createdAt: Date.now()
+      },
+      {
+        id: 'l-zero',
+        moduleId: module.id,
+        courseId: course.id,
+        title: 'Corrupt',
+        orderIndex: 1,
+        filePath: zeroByteVideo,
+        fileName: '02 - Corrupt.mp4',
+        fileExtension: 'mp4',
+        mediaType: 'video',
+        duration: 0,
+        fileSize: 0,
+        availability: 'local',
+        createdAt: Date.now()
+      },
+      {
+        id: 'l-ghost',
+        moduleId: module.id,
+        courseId: course.id,
+        title: 'Ghost',
+        orderIndex: 2,
+        filePath: path.join(modDir, 'non-existent.mp4'),
+        fileName: 'non-existent.mp4',
+        fileExtension: 'mp4',
+        mediaType: 'video',
+        duration: 0,
+        fileSize: 500,
+        availability: 'local',
+        createdAt: Date.now()
+      }
     ]
 
     dbService.saveCourseWithHierarchy(course, [{ ...module, lessons }])
@@ -527,6 +602,62 @@ describe('Course Health Diagnosis & Lesson Deletion', () => {
     expect(fetched?.modules[0].resources?.[0].role).toBe('resource')
   })
 
+  it('does not delete physical files for lessons referenced outside the managed vault', () => {
+    const externalCourseDir = path.join(tempVaultDir, 'external-course')
+    fs.mkdirSync(externalCourseDir, { recursive: true })
+    const externalFile = path.join(externalCourseDir, 'lesson.mp4')
+    fs.writeFileSync(externalFile, Buffer.alloc(32))
+
+    const course: Course = {
+      id: 'course-external-delete',
+      title: 'External Course',
+      slug: 'external-course',
+      sourceType: 'local-ref',
+      rootPath: externalCourseDir,
+      totalDuration: 1,
+      moduleCount: 1,
+      lessonCount: 1,
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    }
+    const module: Module = {
+      id: 'module-external-delete',
+      courseId: course.id,
+      title: 'Module 1',
+      orderIndex: 0,
+      folderPath: externalCourseDir,
+      duration: 1,
+      lessonCount: 1,
+      createdAt: Date.now()
+    }
+    const lesson: Lesson = {
+      id: 'lesson-external-delete',
+      moduleId: module.id,
+      courseId: course.id,
+      title: 'External Lesson',
+      orderIndex: 0,
+      filePath: externalFile,
+      fileName: 'lesson.mp4',
+      fileExtension: '.mp4',
+      mediaType: 'video',
+      duration: 1,
+      fileSize: 32,
+      availability: 'local',
+      createdAt: Date.now()
+    }
+
+    dbService.saveCourseWithHierarchy(course, [
+      { ...module, lessons: [lesson] }
+    ])
+
+    const result = dbService.deleteLesson(lesson.id, true)
+
+    expect(result).toMatchObject({ success: false })
+    expect(result.error).toMatch(/managed vault/i)
+    expect(fs.existsSync(externalFile)).toBe(true)
+    expect(dbService.getLessonById(lesson.id)).toBeDefined()
+  })
+
   it('cleanupNonMediaLessons automatically heals existing courses with non-media lessons on connect', () => {
     const courseDir = path.join(tempVaultDir, 'Courses', 'Legacy Course')
     const modDir = path.join(courseDir, 'Module 1')
@@ -563,7 +694,7 @@ describe('Course Health Diagnosis & Lesson Deletion', () => {
 
     // Direct insertion of a non-media lesson simulating legacy database state
     dbService.saveCourseWithHierarchy(course, [{ ...module, lessons: [] }])
-    
+
     // Manually force-insert legacy non-media lesson into lessons table
     const stmt = (dbService as any).db.prepare(`
       INSERT INTO lessons (
@@ -572,8 +703,36 @@ describe('Course Health Diagnosis & Lesson Deletion', () => {
         duration, file_size, availability, created_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `)
-    stmt.run('l-vid', module.id, course.id, 'Intro Video', 1, video1, '01 - Intro.mp4', 'mp4', 'video', 120, 1024, 'local', Date.now())
-    stmt.run('l-doc', module.id, course.id, 'Apostila', 2, docFile, 'Apostila.pdf', 'pdf', 'document', 0, 512, 'local', Date.now())
+    stmt.run(
+      'l-vid',
+      module.id,
+      course.id,
+      'Intro Video',
+      1,
+      video1,
+      '01 - Intro.mp4',
+      'mp4',
+      'video',
+      120,
+      1024,
+      'local',
+      Date.now()
+    )
+    stmt.run(
+      'l-doc',
+      module.id,
+      course.id,
+      'Apostila',
+      2,
+      docFile,
+      'Apostila.pdf',
+      'pdf',
+      'document',
+      0,
+      512,
+      'local',
+      Date.now()
+    )
 
     // Run cleanup
     dbService.cleanupNonMediaLessons()

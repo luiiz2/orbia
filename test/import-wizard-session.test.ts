@@ -75,7 +75,10 @@ describe('ImportWizard secure session payload', () => {
     const commit = normalizeCommitImportSessionPayload({
       sessionId: ' session-1 ',
       isExternal: false,
-      proposal: { rootPath: 'C:/private/source', coverPath: 'C:/private/cover.png' },
+      proposal: {
+        rootPath: 'C:/private/source',
+        coverPath: 'C:/private/cover.png'
+      },
       titleEdits: {
         courseTitle: 'Curso Renomeado',
         modules: [

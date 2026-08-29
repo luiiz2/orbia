@@ -245,16 +245,13 @@ export interface OrbiaApi {
 
   // Course scanning & management
   courses: {
-    selectSource: () => Promise<SelectedCourseSource[] | null>
+    selectSource: () => Promise<ImportSourceCapability[] | null>
     selectZip: () => Promise<ImportSourceCapability[] | null>
     selectFolder: () => Promise<ImportSourceCapability[] | null>
-    selectMultiCourseFolder: () => Promise<{
-      path: string
-      name: string
-    } | null>
-    scanMultiCourseFolder: (folderPath: string) => Promise<{
+    selectMultiCourseFolder: () => Promise<ImportSourceCapability | null>
+    scanMultiCourseFolder: (input: PrepareImportSourceInput) => Promise<{
       success: boolean
-      proposals?: ProposedCourseStructure[]
+      preparations?: ImportSessionPreparation[]
       error?: string
     }>
     prepareZipImport: (

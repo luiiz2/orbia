@@ -57,13 +57,20 @@ describe('Orbia v0.9 Hardening - Source Grounding & Navigation Security', () => 
   }
 
   beforeEach(() => {
-    tempVaultDir = fs.mkdtempSync(path.join(os.tmpdir(), 'orbia-grounding-test-'))
+    tempVaultDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), 'orbia-grounding-test-')
+    )
     dbService = new DatabaseService()
     dbService.connect(tempVaultDir)
-    dbService.saveCourseWithHierarchy(testCourse, [{ ...testModule, lessons: [testLesson] }])
+    dbService.saveCourseWithHierarchy(testCourse, [
+      { ...testModule, lessons: [testLesson] }
+    ])
 
     chatRepo = new ChatRepository(dbService)
-    navService = new SourceNavigationService({ databaseService: dbService, chatRepository: chatRepo })
+    navService = new SourceNavigationService({
+      databaseService: dbService,
+      chatRepository: chatRepo
+    })
   })
 
   afterEach(() => {
@@ -87,46 +94,62 @@ describe('Orbia v0.9 Hardening - Source Grounding & Navigation Security', () => 
     locator: Record<string, unknown>
   }): void {
     const rawDb = (dbService as any).db
-    rawDb.prepare(`
+    rawDb
+      .prepare(
+        `
       INSERT OR IGNORE INTO chat_conversations (id, title, created_at, updated_at)
       VALUES ('conv-1', 'Test Conv', ${Date.now()}, ${Date.now()})
-    `).run()
-    rawDb.prepare(`
+    `
+      )
+      .run()
+    rawDb
+      .prepare(
+        `
       INSERT OR IGNORE INTO chat_messages (id, conversation_id, role, content, status, created_at)
       VALUES ('msg-1', 'conv-1', 'assistant', 'Answer', 'answered', ${Date.now()})
-    `).run()
-    rawDb.prepare(`
+    `
+      )
+      .run()
+    rawDb
+      .prepare(
+        `
       INSERT INTO chat_message_sources (
         id, message_id, ordinal, chunk_id, source_kind, source_id, course_id,
         module_id, lesson_id, resource_id, transcript_id, note_id, source_revision,
         locator_json, display_label, created_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      source.id,
-      'msg-1',
-      0,
-      'chk-1',
-      source.sourceKind,
-      source.id,
-      source.courseId,
-      source.moduleId || null,
-      source.lessonId || null,
-      source.resourceId || null,
-      source.transcriptId || null,
-      source.noteId || null,
-      'rev1',
-      JSON.stringify(source.locator),
-      'Display Label',
-      Date.now()
-    )
+    `
+      )
+      .run(
+        source.id,
+        'msg-1',
+        0,
+        'chk-1',
+        source.sourceKind,
+        source.id,
+        source.courseId,
+        source.moduleId || null,
+        source.lessonId || null,
+        source.resourceId || null,
+        source.transcriptId || null,
+        source.noteId || null,
+        'rev1',
+        JSON.stringify(source.locator),
+        'Display Label',
+        Date.now()
+      )
   }
 
   it('Resolves valid lesson transcript source with bounded timestamp', () => {
     const rawDb = (dbService as any).db
-    rawDb.prepare(`
+    rawDb
+      .prepare(
+        `
       INSERT INTO transcripts (id, lesson_id, version, language, provider, model, created_at, source_revision, settings_json, status, is_current)
       VALUES ('tr-1', 'lesson-real-1', 1, 'pt', 'whisper', 'small', ${Date.now()}, 'rev1', '{}', 'completed', 1)
-    `).run()
+    `
+      )
+      .run()
 
     insertSource({
       id: 'src-valid-1',

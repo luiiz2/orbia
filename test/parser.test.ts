@@ -51,8 +51,13 @@ describe('Parser Service', () => {
 
     expect(proposal.modules.length).toBe(2)
     expect(proposal.totalLessons).toBe(3)
-    expect(proposal.modules[0].lessons.map((l) => l.title)).toEqual(['01 - Introducao', '02 - Aula Real'])
-    expect(proposal.modules[1].lessons.map((l) => l.title)).toEqual(['01 - Introducao'])
+    expect(proposal.modules[0].lessons.map((l) => l.title)).toEqual([
+      '01 - Introducao',
+      '02 - Aula Real'
+    ])
+    expect(proposal.modules[1].lessons.map((l) => l.title)).toEqual([
+      '01 - Introducao'
+    ])
     expect(proposal.modules[0].lessons.map((l) => l.orderIndex)).toEqual([1, 2])
     expect(proposal.modules[1].lessons.map((l) => l.orderIndex)).toEqual([1])
     expect(proposal.duplicates).toHaveLength(1)
@@ -132,7 +137,8 @@ describe('Parser Service', () => {
             },
             {
               name: 'links - material.url',
-              fullPath: '/courses/keep-everything/01 - Modulo/links - material.url',
+              fullPath:
+                '/courses/keep-everything/01 - Modulo/links - material.url',
               extension: '.url',
               sizeBytes: 100,
               isDirectory: false
@@ -196,27 +202,64 @@ describe('Parser Service', () => {
       coverPath: '/courses/keep-everything/01 - Modulo/01 - Aula.jpg'
     })
 
-    const lessonResources = (lesson as {
-      contentResources?: Array<{ name: string; role: string; type: string; filePath: string }>
-    }).contentResources
-    const moduleResources = (proposal.modules[0] as {
-      resources?: Array<{ name: string; role: string; type: string; filePath: string }>
-    }).resources
+    const lessonResources = (
+      lesson as {
+        contentResources?: Array<{
+          name: string
+          role: string
+          type: string
+          filePath: string
+        }>
+      }
+    ).contentResources
+    const moduleResources = (
+      proposal.modules[0] as {
+        resources?: Array<{
+          name: string
+          role: string
+          type: string
+          filePath: string
+        }>
+      }
+    ).resources
 
     expect(lessonResources).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ name: '01 - Aula.jpg', role: 'resource', type: 'image' }),
-        expect.objectContaining({ name: '01 - Aula.srt', role: 'subtitle', type: 'document' }),
-        expect.objectContaining({ name: '01 - Aula.vtt', role: 'subtitle', type: 'document' }),
-        expect.objectContaining({ name: '01 - Aula.ass', role: 'subtitle', type: 'document' }),
-        expect.objectContaining({ name: '01 - Aula.sub', role: 'subtitle', type: 'document' })
+        expect.objectContaining({
+          name: '01 - Aula.jpg',
+          role: 'resource',
+          type: 'image'
+        }),
+        expect.objectContaining({
+          name: '01 - Aula.srt',
+          role: 'subtitle',
+          type: 'document'
+        }),
+        expect.objectContaining({
+          name: '01 - Aula.vtt',
+          role: 'subtitle',
+          type: 'document'
+        }),
+        expect.objectContaining({
+          name: '01 - Aula.ass',
+          role: 'subtitle',
+          type: 'document'
+        }),
+        expect.objectContaining({
+          name: '01 - Aula.sub',
+          role: 'subtitle',
+          type: 'document'
+        })
       ])
     )
     expect(moduleResources).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ name: 'apostila.pdf', type: 'pdf' }),
         expect.objectContaining({ name: 'readme.txt', type: 'document' }),
-        expect.objectContaining({ name: 'links - material.url', type: 'other' }),
+        expect.objectContaining({
+          name: 'links - material.url',
+          type: 'other'
+        }),
         expect.objectContaining({ name: 'diagram.png', type: 'image' }),
         expect.objectContaining({ name: 'extra.zip', type: 'archive' }),
         expect.objectContaining({ name: 'cover.jpg', type: 'image' }),
@@ -225,9 +268,14 @@ describe('Parser Service', () => {
       ])
     )
 
-    const preservedPaths = [...(lessonResources || []), ...(moduleResources || [])].map((resource) => resource.filePath)
+    const preservedPaths = [
+      ...(lessonResources || []),
+      ...(moduleResources || [])
+    ].map((resource) => resource.filePath)
     expect(preservedPaths).toHaveLength(13)
-    expect(preservedPaths).not.toContain('/courses/keep-everything/01 - Modulo/.DS_Store')
+    expect(preservedPaths).not.toContain(
+      '/courses/keep-everything/01 - Modulo/.DS_Store'
+    )
   })
 
   it('keeps root and nested modules that contain only materials', async () => {
@@ -273,12 +321,14 @@ describe('Parser Service', () => {
     expect(proposal.modules).toHaveLength(2)
     expect(proposal.totalLessons).toBe(0)
     expect(proposal.modules[0].title).toBe('Materials Only')
-    expect((proposal.modules[0] as { resources?: Array<{ name: string }> }).resources).toEqual([
-      expect.objectContaining({ name: 'course-guide.pdf' })
-    ])
+    expect(
+      (proposal.modules[0] as { resources?: Array<{ name: string }> }).resources
+    ).toEqual([expect.objectContaining({ name: 'course-guide.pdf' })])
     expect(proposal.modules[1].title).toBe('01 - Workbook')
     expect(proposal.modules[1].lessons).toEqual([])
-    expect((proposal.modules[1] as { resources?: Array<{ name: string }> }).resources).toEqual(
+    expect(
+      (proposal.modules[1] as { resources?: Array<{ name: string }> }).resources
+    ).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ name: 'exercise.docx' }),
         expect.objectContaining({ name: 'cover.jpg' })
@@ -305,7 +355,8 @@ describe('Parser Service', () => {
             },
             {
               name: '01 - Instalação - material.pdf',
-              fullPath: '/courses/curso-instalacao/01/01 - Instalação - material.pdf',
+              fullPath:
+                '/courses/curso-instalacao/01/01 - Instalação - material.pdf',
               extension: '.pdf',
               sizeBytes: 50000,
               isDirectory: false
@@ -348,14 +399,16 @@ describe('Parser Service', () => {
               files: [
                 {
                   name: 'video.mp4',
-                  fullPath: '/courses/curso-pratica/dia-1/aula-pratica/video.mp4',
+                  fullPath:
+                    '/courses/curso-pratica/dia-1/aula-pratica/video.mp4',
                   extension: '.mp4',
                   sizeBytes: 1000000,
                   isDirectory: false
                 },
                 {
                   name: 'guia.pdf',
-                  fullPath: '/courses/curso-pratica/dia-1/aula-pratica/guia.pdf',
+                  fullPath:
+                    '/courses/curso-pratica/dia-1/aula-pratica/guia.pdf',
                   extension: '.pdf',
                   sizeBytes: 50000,
                   isDirectory: false
@@ -372,7 +425,11 @@ describe('Parser Service', () => {
     const [module] = proposal.modules
 
     expect(module.lessons[0].contentResources).toEqual([
-      expect.objectContaining({ name: 'guia.pdf', role: 'resource', type: 'pdf' })
+      expect.objectContaining({
+        name: 'guia.pdf',
+        role: 'resource',
+        type: 'pdf'
+      })
     ])
     expect(module.resources).toEqual([])
   })
@@ -397,14 +454,16 @@ describe('Parser Service', () => {
           files: [
             {
               name: '01 - If Else.mp4',
-              fullPath: '/courses/python-masterclass/02 - Control Flow/01 - If Else.mp4',
+              fullPath:
+                '/courses/python-masterclass/02 - Control Flow/01 - If Else.mp4',
               extension: '.mp4',
               sizeBytes: 50000000,
               isDirectory: false
             },
             {
               name: '02 - Loops.mp4',
-              fullPath: '/courses/python-masterclass/02 - Control Flow/02 - Loops.mp4',
+              fullPath:
+                '/courses/python-masterclass/02 - Control Flow/02 - Loops.mp4',
               extension: '.mp4',
               sizeBytes: 60000000,
               isDirectory: false
@@ -418,14 +477,16 @@ describe('Parser Service', () => {
           files: [
             {
               name: '01 - Welcome.mp4',
-              fullPath: '/courses/python-masterclass/01 - Introduction/01 - Welcome.mp4',
+              fullPath:
+                '/courses/python-masterclass/01 - Introduction/01 - Welcome.mp4',
               extension: '.mp4',
               sizeBytes: 20000000,
               isDirectory: false
             },
             {
               name: '02 - Setup.mp4',
-              fullPath: '/courses/python-masterclass/01 - Introduction/02 - Setup.mp4',
+              fullPath:
+                '/courses/python-masterclass/01 - Introduction/02 - Setup.mp4',
               extension: '.mp4',
               sizeBytes: 30000000,
               isDirectory: false
@@ -439,7 +500,8 @@ describe('Parser Service', () => {
           files: [
             {
               name: '01 - Decorators.mp4',
-              fullPath: '/courses/python-masterclass/10 - Advanced Decorators/01 - Decorators.mp4',
+              fullPath:
+                '/courses/python-masterclass/10 - Advanced Decorators/01 - Decorators.mp4',
               extension: '.mp4',
               sizeBytes: 40000000,
               isDirectory: false
@@ -459,9 +521,9 @@ describe('Parser Service', () => {
 
     // Verify natural ordering of modules (01 -> 02 -> 10)
     expect(proposal.modules[0].title).toBe('01 - Introduction')
-    expect((proposal.modules[0] as { resources?: Array<{ name: string }> }).resources).toEqual([
-      expect.objectContaining({ name: 'cover.jpg' })
-    ])
+    expect(
+      (proposal.modules[0] as { resources?: Array<{ name: string }> }).resources
+    ).toEqual([expect.objectContaining({ name: 'cover.jpg' })])
     expect(proposal.modules[0].orderIndex).toBe(1)
     expect(proposal.modules[0].lessons[0].title).toBe('01 - Welcome')
     expect(proposal.modules[0].lessons[1].title).toBe('02 - Setup')
@@ -539,7 +601,8 @@ describe('Parser Service', () => {
             },
             {
               name: '02 - Conteudo Diferente.mp4',
-              fullPath: '/courses/fp-course/01 - Modulo A/02 - Conteudo Diferente.mp4',
+              fullPath:
+                '/courses/fp-course/01 - Modulo A/02 - Conteudo Diferente.mp4',
               extension: '.mp4',
               sizeBytes: 400,
               isDirectory: false,

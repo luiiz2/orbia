@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const state = vi.hoisted(() => ({
-  handlers: new Map<string, (event: unknown, payload?: unknown) => Promise<unknown> | unknown>(),
+  handlers: new Map<
+    string,
+    (event: unknown, payload?: unknown) => Promise<unknown> | unknown
+  >(),
   isZipFile: vi.fn(),
   extractZip: vi.fn(),
   existsSync: vi.fn(),
@@ -18,7 +21,10 @@ vi.mock('electron', () => ({
   app: { getPath: vi.fn(() => 'C:/temp') },
   dialog: { showOpenDialog: vi.fn() },
   ipcMain: {
-    handle: (channel: string, handler: (event: unknown, payload?: unknown) => Promise<unknown> | unknown) => {
+    handle: (
+      channel: string,
+      handler: (event: unknown, payload?: unknown) => Promise<unknown> | unknown
+    ) => {
       state.handlers.set(channel, handler)
     }
   }
@@ -80,7 +86,11 @@ describe('legacy import IPC safety gate', () => {
     state.materializeProposalCovers.mockReset()
     state.isZipFile.mockReturnValue(true)
     state.existsSync.mockReturnValue(true)
-    state.statSync.mockReturnValue({ isFile: () => true, isDirectory: () => true, size: 1 })
+    state.statSync.mockReturnValue({
+      isFile: () => true,
+      isDirectory: () => true,
+      size: 1
+    })
     state.getCurrentVault.mockReturnValue({ path: 'C:/vault' })
     state.extractZip.mockResolvedValue({
       extractedPath: 'C:/vault/Inbox/course',
@@ -90,8 +100,13 @@ describe('legacy import IPC safety gate', () => {
       warnings: []
     })
     state.scanDirectory.mockResolvedValue({})
-    state.parseCourseHierarchy.mockResolvedValue({ suggestedTitle: 'Parsed', modules: [] })
-    state.materializeProposalCovers.mockImplementation(async (proposal) => proposal)
+    state.parseCourseHierarchy.mockResolvedValue({
+      suggestedTitle: 'Parsed',
+      modules: []
+    })
+    state.materializeProposalCovers.mockImplementation(
+      async (proposal) => proposal
+    )
     registerCoursesIpc()
   })
 
@@ -99,15 +114,48 @@ describe('legacy import IPC safety gate', () => {
     const handlers = [
       state.handlers.get('courses:extract-zip'),
       state.handlers.get('courses:scan-folder'),
-      state.handlers.get('courses:import')
+      state.handlers.get('courses:import'),
+      state.handlers.get('courses:scan-multi-course-folder'),
+      state.handlers.get('courses:import-batch')
     ]
 
     expect(handlers.every(Boolean)).toBe(true)
 
     const results = await Promise.all([
-      handlers[0]!({ sender: { send: vi.fn() } }, { zipPath: 'C:/private/course.zip', deleteSourceArchive: true }),
+      handlers[0]!(
+        { sender: { send: vi.fn() } },
+        { zipPath: 'C:/private/course.zip', deleteSourceArchive: true }
+      ),
       handlers[1]!({}, { folderPath: 'C:/private/course' }),
-      handlers[2]!({}, { proposal: { suggestedTitle: 'Injected', modules: [], rootPath: 'C:/private/course' }, isExternal: false })
+      handlers[2]!(
+        {},
+        {
+          proposal: {
+            suggestedTitle: 'Injected',
+            modules: [],
+            rootPath: 'C:/private/course'
+          },
+          isExternal: false
+        }
+      ),
+      handlers[3]!({}, { folderPath: 'C:/private/multiple-courses' }),
+      handlers[4]!(
+        {},
+        {
+          items: [
+            {
+              proposal: {
+                suggestedTitle: 'Injected',
+                modules: [],
+                rootPath: 'C:/private/course',
+                totalLessons: 0,
+                totalFilesScanned: 0
+              },
+              isExternal: true
+            }
+          ]
+        }
+      )
     ])
 
     for (const result of results) {

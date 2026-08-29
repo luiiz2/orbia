@@ -118,7 +118,10 @@ describe('usePlayerStore v0.4 Streaming Experience', () => {
     // 4. Remove from queue
     store.removeFromQueue('lesson-3')
     expect(usePlayerStore.getState().playbackQueue).toHaveLength(2)
-    expect(usePlayerStore.getState().playbackQueue.map((l) => l.id)).toEqual(['lesson-2', 'lesson-1'])
+    expect(usePlayerStore.getState().playbackQueue.map((l) => l.id)).toEqual([
+      'lesson-2',
+      'lesson-1'
+    ])
 
     // 5. Clear queue
     store.clearQueue()
@@ -130,7 +133,19 @@ describe('usePlayerStore v0.4 Streaming Experience', () => {
 
     await store.loadHierarchy(
       mockCourse,
-      [{ ...mockCourse, courseId: 'course-1', id: 'module-1', title: 'Módulo 1', orderIndex: 1, duration: 3600, lessonCount: 3, createdAt: Date.now(), lessons: [mockLesson1, mockLesson2] }],
+      [
+        {
+          ...mockCourse,
+          courseId: 'course-1',
+          id: 'module-1',
+          title: 'Módulo 1',
+          orderIndex: 1,
+          duration: 3600,
+          lessonCount: 3,
+          createdAt: Date.now(),
+          lessons: [mockLesson1, mockLesson2]
+        }
+      ],
       'lesson-1'
     )
 

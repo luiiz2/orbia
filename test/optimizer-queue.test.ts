@@ -21,23 +21,35 @@ describe('OptimizationQueueService', () => {
     databaseService.connect(vaultDir)
 
     const db = databaseService.getDatabase()!
-    db.prepare(`
+    db.prepare(
+      `
       INSERT INTO courses (id, title, slug, source_type, root_path, created_at, updated_at)
       VALUES ('crs_1', 'Course 1', 'course-1', 'managed', ?, 1, 1)
-    `).run(vaultDir)
+    `
+    ).run(vaultDir)
 
-    db.prepare(`
+    db.prepare(
+      `
       INSERT INTO modules (id, course_id, title, order_index, folder_path, duration, lesson_count, created_at)
       VALUES ('mod_1', 'crs_1', 'Module 1', 1, ?, 300, 1, 1)
-    `).run(vaultDir)
+    `
+    ).run(vaultDir)
 
     const lessonIds = ['les_1', 'les_2', 'les_3', 'les_crash', 'les_ctrl']
     for (let i = 0; i < lessonIds.length; i++) {
       const lid = lessonIds[i]
-      db.prepare(`
+      db.prepare(
+        `
         INSERT INTO lessons (id, module_id, course_id, title, order_index, file_path, file_name, file_extension, media_type, duration, file_size, created_at)
         VALUES (?, 'mod_1', 'crs_1', ?, ?, ?, ?, '.mp4', 'video', 300, 1000, 1)
-      `).run(lid, `Lesson ${i + 1}`, i + 1, path.join(vaultDir, `${lid}.mp4`), `${lid}.mp4`)
+      `
+      ).run(
+        lid,
+        `Lesson ${i + 1}`,
+        i + 1,
+        path.join(vaultDir, `${lid}.mp4`),
+        `${lid}.mp4`
+      )
     }
   })
 
@@ -112,7 +124,9 @@ describe('OptimizationQueueService', () => {
       etaSeconds: 30
     })
 
-    const updated = optimizationQueueService.listQueue().find((q) => q.id === job.id)
+    const updated = optimizationQueueService
+      .listQueue()
+      .find((q) => q.id === job.id)
     expect(updated?.status).toBe('encoding')
     expect(updated?.progressPercent).toBe(45.5)
     expect(updated?.currentFps).toBe(120)
@@ -148,7 +162,9 @@ describe('OptimizationQueueService', () => {
     expect(fs.existsSync(danglingTempFile)).toBe(false)
 
     // Job should be reset to queued with 0% progress
-    const recovered = optimizationQueueService.listQueue().find((q) => q.id === job.id)
+    const recovered = optimizationQueueService
+      .listQueue()
+      .find((q) => q.id === job.id)
     expect(recovered?.status).toBe('queued')
     expect(recovered?.progressPercent).toBe(0)
   })
@@ -162,18 +178,26 @@ describe('OptimizationQueueService', () => {
 
     // Pause
     optimizationQueueService.pauseJob(job.id)
-    expect(optimizationQueueService.listQueue().find((q) => q.id === job.id)?.status).toBe('paused')
+    expect(
+      optimizationQueueService.listQueue().find((q) => q.id === job.id)?.status
+    ).toBe('paused')
 
     // Resume
     optimizationQueueService.resumeJob(job.id)
-    expect(optimizationQueueService.listQueue().find((q) => q.id === job.id)?.status).toBe('queued')
+    expect(
+      optimizationQueueService.listQueue().find((q) => q.id === job.id)?.status
+    ).toBe('queued')
 
     // Cancel
     optimizationQueueService.cancelJob(job.id)
-    expect(optimizationQueueService.listQueue().find((q) => q.id === job.id)?.status).toBe('cancelled')
+    expect(
+      optimizationQueueService.listQueue().find((q) => q.id === job.id)?.status
+    ).toBe('cancelled')
 
     // Clear completed/cancelled
     optimizationQueueService.clearCompleted()
-    expect(optimizationQueueService.listQueue().find((q) => q.id === job.id)).toBeUndefined()
+    expect(
+      optimizationQueueService.listQueue().find((q) => q.id === job.id)
+    ).toBeUndefined()
   })
 })

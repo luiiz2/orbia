@@ -59,7 +59,13 @@ vi.mock('../src/renderer/src/components/ui', async () => {
     ReactModule.createElement(ReactModule.Fragment, null, children)
 
   return {
-    Button: ({ children, ...props }: { children?: React.ReactNode; onClick?: () => void }) => {
+    Button: ({
+      children,
+      ...props
+    }: {
+      children?: React.ReactNode
+      onClick?: () => void
+    }) => {
       state.buttons.push({ children, onClick: props.onClick })
       return ReactModule.createElement('button', props, children)
     },
@@ -162,7 +168,9 @@ describe('VideoPlayer media URL', () => {
 
     renderToStaticMarkup(React.createElement(VideoPlayer))
 
-    const skipGlitch = state.buttons.find((button) => button.children === 'player.skipGlitch')
+    const skipGlitch = state.buttons.find(
+      (button) => button.children === 'player.skipGlitch'
+    )
     expect(skipGlitch?.onClick).toBeTypeOf('function')
     skipGlitch?.onClick?.()
 

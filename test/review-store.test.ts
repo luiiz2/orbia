@@ -16,10 +16,30 @@ describe('useReviewStore', () => {
     const mockApi = {
       flashcards: {
         getDue: vi.fn().mockResolvedValue([
-          { id: 'c1', question: 'Q1', answer: 'A1', state: 'DUE', dueAt: Date.now() - 1000, intervalDays: 0, successCount: 0, createdAt: 1, updatedAt: 1 }
+          {
+            id: 'c1',
+            question: 'Q1',
+            answer: 'A1',
+            state: 'DUE',
+            dueAt: Date.now() - 1000,
+            intervalDays: 0,
+            successCount: 0,
+            createdAt: 1,
+            updatedAt: 1
+          }
         ]),
         listAll: vi.fn().mockResolvedValue([
-          { id: 'c1', question: 'Q1', answer: 'A1', state: 'DUE', dueAt: Date.now() - 1000, intervalDays: 0, successCount: 0, createdAt: 1, updatedAt: 1 }
+          {
+            id: 'c1',
+            question: 'Q1',
+            answer: 'A1',
+            state: 'DUE',
+            dueAt: Date.now() - 1000,
+            intervalDays: 0,
+            successCount: 0,
+            createdAt: 1,
+            updatedAt: 1
+          }
         ]),
         listByLesson: vi.fn().mockResolvedValue([]),
         create: vi.fn().mockImplementation(async (data) => ({
@@ -44,7 +64,15 @@ describe('useReviewStore', () => {
       },
       bookmarks: {
         listRecent: vi.fn().mockResolvedValue([
-          { id: 'b1', courseId: 'crs1', lessonId: 'les1', timestamp: 120, title: 'B1', createdAt: 1, updatedAt: 1 }
+          {
+            id: 'b1',
+            courseId: 'crs1',
+            lessonId: 'les1',
+            timestamp: 120,
+            title: 'B1',
+            createdAt: 1,
+            updatedAt: 1
+          }
         ]),
         listByLesson: vi.fn().mockResolvedValue([]),
         listByCourse: vi.fn().mockResolvedValue([]),
@@ -70,7 +98,8 @@ describe('useReviewStore', () => {
     }
 
     if (typeof globalThis.window === 'undefined') {
-      globalThis.window = { api: mockApi } as unknown as Window & typeof globalThis
+      globalThis.window = { api: mockApi } as unknown as Window &
+        typeof globalThis
     } else {
       globalThis.window.api = mockApi as unknown as typeof window.api
     }
@@ -98,5 +127,4 @@ describe('useReviewStore', () => {
     await store.reviewCard('c1', 'AGAIN')
     expect(window.api.flashcards.review).toHaveBeenCalledWith('c1', 'AGAIN')
   })
-
 })

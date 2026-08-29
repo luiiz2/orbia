@@ -217,7 +217,14 @@ describe('DatabaseService - Course Merging & Deduplication', () => {
   })
 
   it('merges user-selected courses into one canonical course preserving all modules', () => {
-    const makeCourse = (id: string, title: string, modId: string, lesId: string, modTitle: string, lessonTitle: string): void => {
+    const makeCourse = (
+      id: string,
+      title: string,
+      modId: string,
+      lesId: string,
+      modTitle: string,
+      lessonTitle: string
+    ): void => {
       const course: Course = {
         id,
         title,
@@ -259,9 +266,30 @@ describe('DatabaseService - Course Merging & Deduplication', () => {
       dbService.saveCourseWithHierarchy(course, [mod])
     }
 
-    makeCourse('part-1', 'Curso.dev-1-001', 'mod-p1', 'les-p1', 'Dia 1', 'Aula 01')
-    makeCourse('part-2', 'Curso.dev-1-011', 'mod-p2', 'les-p2', 'Dia 11', 'Aula 41')
-    makeCourse('part-3', 'Curso.dev-1-013', 'mod-p3', 'les-p3', 'Dia 13', 'Aula 61')
+    makeCourse(
+      'part-1',
+      'Curso.dev-1-001',
+      'mod-p1',
+      'les-p1',
+      'Dia 1',
+      'Aula 01'
+    )
+    makeCourse(
+      'part-2',
+      'Curso.dev-1-011',
+      'mod-p2',
+      'les-p2',
+      'Dia 11',
+      'Aula 41'
+    )
+    makeCourse(
+      'part-3',
+      'Curso.dev-1-013',
+      'mod-p3',
+      'les-p3',
+      'Dia 13',
+      'Aula 61'
+    )
 
     // Track progress on a secondary lesson to verify re-pointing
     dbService.saveLessonProgress({
@@ -272,7 +300,10 @@ describe('DatabaseService - Course Merging & Deduplication', () => {
       completed: false
     })
 
-    const result = dbService.mergeCoursesByIds(['part-1', 'part-2', 'part-3'], 'Curso.dev Completo')
+    const result = dbService.mergeCoursesByIds(
+      ['part-1', 'part-2', 'part-3'],
+      'Curso.dev Completo'
+    )
 
     expect(result.success).toBe(true)
     expect(result.removedCoursesCount).toBe(2)
@@ -338,7 +369,13 @@ describe('DatabaseService - Course Merging & Deduplication', () => {
       duration: 120,
       lessonCount: 2,
       createdAt: now,
-      resources: [resource('preview-a-module-material', courseA.id, 'preview-module-a-day-1')],
+      resources: [
+        resource(
+          'preview-a-module-material',
+          courseA.id,
+          'preview-module-a-day-1'
+        )
+      ],
       lessons: [
         {
           id: 'preview-lesson-a-duplicate',
@@ -400,7 +437,13 @@ describe('DatabaseService - Course Merging & Deduplication', () => {
       duration: 60,
       lessonCount: 1,
       createdAt: now + 1,
-      resources: [resource('preview-b-day-1-module-material', courseB.id, 'preview-module-b-day-1')],
+      resources: [
+        resource(
+          'preview-b-day-1-module-material',
+          courseB.id,
+          'preview-module-b-day-1'
+        )
+      ],
       lessons: [
         {
           id: 'preview-lesson-b-duplicate',
@@ -435,7 +478,13 @@ describe('DatabaseService - Course Merging & Deduplication', () => {
       duration: 60,
       lessonCount: 1,
       createdAt: now + 1,
-      resources: [resource('preview-b-day-2-module-material', courseB.id, 'preview-module-b-day-2')],
+      resources: [
+        resource(
+          'preview-b-day-2-module-material',
+          courseB.id,
+          'preview-module-b-day-2'
+        )
+      ],
       lessons: [
         {
           id: 'preview-lesson-b-new',
@@ -469,9 +518,14 @@ describe('DatabaseService - Course Merging & Deduplication', () => {
     const dbPath = path.join(TEST_VAULT_DIR, '.orbia', 'library.db')
     const snapshotDatabaseFiles = (): Record<string, string | undefined> => ({
       database: fs.readFileSync(dbPath).toString('base64'),
-      wal: fs.existsSync(`${dbPath}-wal`) ? fs.readFileSync(`${dbPath}-wal`).toString('base64') : undefined
+      wal: fs.existsSync(`${dbPath}-wal`)
+        ? fs.readFileSync(`${dbPath}-wal`).toString('base64')
+        : undefined
     })
-    const beforeHierarchy = [dbService.getCourseById(courseA.id), dbService.getCourseById(courseB.id)]
+    const beforeHierarchy = [
+      dbService.getCourseById(courseA.id),
+      dbService.getCourseById(courseB.id)
+    ]
     const beforeDatabaseFiles = snapshotDatabaseFiles()
     const preview = dbService.getMergePreview([courseA.id, courseB.id])
 
@@ -504,17 +558,26 @@ describe('DatabaseService - Course Merging & Deduplication', () => {
         reason: 'same-title'
       })
     ])
-    expect([dbService.getCourseById(courseA.id), dbService.getCourseById(courseB.id)]).toEqual(beforeHierarchy)
+    expect([
+      dbService.getCourseById(courseA.id),
+      dbService.getCourseById(courseB.id)
+    ]).toEqual(beforeHierarchy)
     expect(snapshotDatabaseFiles()).toEqual(beforeDatabaseFiles)
   })
 
   it('validates a merge preview selection before calculating it', () => {
-    expect(() => dbService.getMergePreview(['only-one'])).toThrow(/at least two courses/i)
-    expect(() => dbService.getMergePreview(['missing-a', 'missing-b'])).toThrow(/no longer exist/i)
+    expect(() => dbService.getMergePreview(['only-one'])).toThrow(
+      /at least two courses/i
+    )
+    expect(() => dbService.getMergePreview(['missing-a', 'missing-b'])).toThrow(
+      /no longer exist/i
+    )
   })
 
   it('rejects merging fewer than two courses', () => {
-    expect(() => dbService.mergeCoursesByIds(['only-one'])).toThrow(/two courses/i)
+    expect(() => dbService.mergeCoursesByIds(['only-one'])).toThrow(
+      /two courses/i
+    )
   })
 
   it('separates mistakenly merged courses that originate from distinct folder trees', () => {
@@ -551,21 +614,23 @@ describe('DatabaseService - Course Merging & Deduplication', () => {
       lessonCount: 1,
       folderPath: path.join(courseDecRoot, 'Mod 1'),
       createdAt: 1000,
-      lessons: [{
-        id: 'l-dec-1',
-        moduleId: 'm-dec-1',
-        courseId: mergedCourse.id,
-        title: 'Aula Dec',
-        fileName: '01 - Dec.mp4',
-        filePath: vid1,
-        fileExtension: 'mp4',
-        mediaType: 'video',
-        duration: 60,
-        fileSize: 1024,
-        orderIndex: 1,
-        availability: 'local',
-        createdAt: 1000
-      }]
+      lessons: [
+        {
+          id: 'l-dec-1',
+          moduleId: 'm-dec-1',
+          courseId: mergedCourse.id,
+          title: 'Aula Dec',
+          fileName: '01 - Dec.mp4',
+          filePath: vid1,
+          fileExtension: 'mp4',
+          mediaType: 'video',
+          duration: 60,
+          fileSize: 1024,
+          orderIndex: 1,
+          availability: 'local',
+          createdAt: 1000
+        }
+      ]
     }
 
     const mod2: Module & { lessons: Lesson[] } = {
@@ -577,21 +642,23 @@ describe('DatabaseService - Course Merging & Deduplication', () => {
       lessonCount: 1,
       folderPath: path.join(vossRoot, 'Intro'),
       createdAt: 1000,
-      lessons: [{
-        id: 'l-voss-1',
-        moduleId: 'm-voss-1',
-        courseId: mergedCourse.id,
-        title: 'Aula Voss',
-        fileName: '01 - Voss.mp4',
-        filePath: vid2,
-        fileExtension: 'mp4',
-        mediaType: 'video',
-        duration: 60,
-        fileSize: 1024,
-        orderIndex: 2,
-        availability: 'local',
-        createdAt: 1000
-      }]
+      lessons: [
+        {
+          id: 'l-voss-1',
+          moduleId: 'm-voss-1',
+          courseId: mergedCourse.id,
+          title: 'Aula Voss',
+          fileName: '01 - Voss.mp4',
+          filePath: vid2,
+          fileExtension: 'mp4',
+          mediaType: 'video',
+          duration: 60,
+          fileSize: 1024,
+          orderIndex: 2,
+          availability: 'local',
+          createdAt: 1000
+        }
+      ]
     }
 
     dbService.saveCourseWithHierarchy(mergedCourse, [mod1, mod2])
@@ -609,8 +676,12 @@ describe('DatabaseService - Course Merging & Deduplication', () => {
     const allCourses = dbService.getAllCourses()
     expect(allCourses.length).toBe(2)
 
-    const decCourse = allCourses.find((c) => c.title.toLowerCase().includes('dec'))
-    const vossCourse = allCourses.find((c) => c.title.toLowerCase().includes('voss'))
+    const decCourse = allCourses.find((c) =>
+      c.title.toLowerCase().includes('dec')
+    )
+    const vossCourse = allCourses.find((c) =>
+      c.title.toLowerCase().includes('voss')
+    )
     expect(decCourse).toBeDefined()
     expect(vossCourse).toBeDefined()
 
@@ -621,5 +692,4 @@ describe('DatabaseService - Course Merging & Deduplication', () => {
     expect(vossHierarchy?.modules.length).toBe(1)
     expect(vossHierarchy?.modules[0].title).toBe('Intro')
   })
-
 })

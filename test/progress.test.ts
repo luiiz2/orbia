@@ -176,10 +176,38 @@ describe('Course & Lesson Progress Calculations', () => {
 
   it('marks course 100% completed when all lessons are completed', () => {
     const fullProgress: Record<string, LessonProgress> = {
-      'l-1': { lessonId: 'l-1', courseId: 'c1', currentTime: 1000, duration: 1000, completed: true, updatedAt: 1000 },
-      'l-2': { lessonId: 'l-2', courseId: 'c1', currentTime: 1000, duration: 1000, completed: true, updatedAt: 1000 },
-      'l-3': { lessonId: 'l-3', courseId: 'c1', currentTime: 1000, duration: 1000, completed: true, updatedAt: 1000 },
-      'l-4': { lessonId: 'l-4', courseId: 'c1', currentTime: 1000, duration: 1000, completed: true, updatedAt: 1000 }
+      'l-1': {
+        lessonId: 'l-1',
+        courseId: 'c1',
+        currentTime: 1000,
+        duration: 1000,
+        completed: true,
+        updatedAt: 1000
+      },
+      'l-2': {
+        lessonId: 'l-2',
+        courseId: 'c1',
+        currentTime: 1000,
+        duration: 1000,
+        completed: true,
+        updatedAt: 1000
+      },
+      'l-3': {
+        lessonId: 'l-3',
+        courseId: 'c1',
+        currentTime: 1000,
+        duration: 1000,
+        completed: true,
+        updatedAt: 1000
+      },
+      'l-4': {
+        lessonId: 'l-4',
+        courseId: 'c1',
+        currentTime: 1000,
+        duration: 1000,
+        completed: true,
+        updatedAt: 1000
+      }
     }
 
     const result = calculateProgressDetails({

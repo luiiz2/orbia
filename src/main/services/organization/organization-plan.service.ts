@@ -1,4 +1,5 @@
 import crypto from 'node:crypto'
+import fs from 'node:fs'
 import { databaseService, type DatabaseService } from '../database.service'
 import { scannerService, type ScannerService } from '../scanner.service'
 import { normalizeCourseHierarchy } from './hierarchy-normalizer'
@@ -7,6 +8,9 @@ import {
   resolveSequenceOrdering,
   extractExplicitNumber
 } from './title-sequence-resolver'
+import { isExistingPathWithin, isPathWithin } from '../../utils/path-security'
+
+const ORGANIZATION_PLAN_TTL_MS = 5 * 60 * 1_000
 
 export interface OrganizationPlanItem {
   id: string
@@ -50,6 +54,10 @@ export interface ApplyOrganizationPlanResult {
 export class OrganizationPlanService {
   private readonly db: DatabaseService
   private readonly scanner: ScannerService
+  private readonly pendingPlans = new Map<
+    string,
+    { plan: OrganizationPlan; expiresAt: number }
+  >()
 
   public constructor(
     db: DatabaseService = databaseService,
@@ -203,7 +211,7 @@ export class OrganizationPlanService {
       }
     }
 
-    return {
+    const plan: OrganizationPlan = {
       planId,
       courseId,
       courseTitle: course.title,
@@ -212,6 +220,12 @@ export class OrganizationPlanService {
       conflicts,
       totalItems: safeCorrections.length + suggestions.length + conflicts.length
     }
+    this.pruneExpiredPlans(Date.now())
+    this.pendingPlans.set(planId, {
+      plan,
+      expiresAt: Date.now() + ORGANIZATION_PLAN_TTL_MS
+    })
+    return plan
   }
 
   /**
@@ -221,14 +235,19 @@ export class OrganizationPlanService {
     const rawDb = this.db.getDatabase()
     if (!rawDb) throw new Error('Database is not connected.')
 
+    const trustedPlan = this.claimPlan(plan)
+    const hierarchy = this.db.getCourseById(trustedPlan.courseId)
+    if (!hierarchy) throw new Error('Organization plan course is unavailable.')
+    validatePlanItems(trustedPlan, hierarchy.course.rootPath, hierarchy.modules)
+
     let safeCount = 0
     let suggestionsCount = 0
     let conflictsCount = 0
 
     const allApprovedItems = [
-      ...plan.safeCorrections.filter((i) => i.approved),
-      ...plan.suggestions.filter((i) => i.approved),
-      ...plan.conflicts.filter((i) => i.approved)
+      ...trustedPlan.safeCorrections.filter((i) => i.approved),
+      ...trustedPlan.suggestions.filter((i) => i.approved),
+      ...trustedPlan.conflicts.filter((i) => i.approved)
     ]
 
     const tx = rawDb.transaction(() => {
@@ -302,10 +321,11 @@ export class OrganizationPlanService {
         else if (item.category === 'CONFLICT_DECISION') conflictsCount++
       }
 
-      this.db.reindexCourseHierarchy(plan.courseId)
+      this.db.reindexCourseHierarchy(trustedPlan.courseId)
     })
 
     tx()
+    this.pendingPlans.delete(trustedPlan.planId)
 
     return {
       success: true,
@@ -315,6 +335,160 @@ export class OrganizationPlanService {
       conflictsCount
     }
   }
+
+  private claimPlan(plan: OrganizationPlan): OrganizationPlan {
+    this.pruneExpiredPlans(Date.now())
+    const stored = this.pendingPlans.get(plan?.planId)
+    if (!stored || Date.now() >= stored.expiresAt) {
+      throw new Error('Organization plan is invalid or expired.')
+    }
+    if (
+      plan.courseId !== stored.plan.courseId ||
+      plan.courseTitle !== stored.plan.courseTitle ||
+      plan.totalItems !== stored.plan.totalItems
+    ) {
+      throw new Error(
+        'Organization plan no longer matches the generated preview.'
+      )
+    }
+
+    const submittedItems = allPlanItems(plan)
+    const expectedItems = allPlanItems(stored.plan)
+    if (submittedItems.length !== expectedItems.length) {
+      throw new Error(
+        'Organization plan no longer matches the generated preview.'
+      )
+    }
+    const submittedById = new Map(submittedItems.map((item) => [item.id, item]))
+    if (submittedById.size !== expectedItems.length) {
+      throw new Error('Organization plan contains duplicate items.')
+    }
+
+    for (const expected of expectedItems) {
+      const submitted = submittedById.get(expected.id)
+      if (
+        !submitted ||
+        typeof submitted.approved !== 'boolean' ||
+        itemWithoutApproval(expected) !== itemWithoutApproval(submitted)
+      ) {
+        throw new Error(
+          'Organization plan no longer matches the generated preview.'
+        )
+      }
+    }
+
+    return {
+      ...stored.plan,
+      safeCorrections: applyApprovalOverrides(
+        stored.plan.safeCorrections,
+        submittedById
+      ),
+      suggestions: applyApprovalOverrides(
+        stored.plan.suggestions,
+        submittedById
+      ),
+      conflicts: applyApprovalOverrides(stored.plan.conflicts, submittedById)
+    }
+  }
+
+  private pruneExpiredPlans(now: number): void {
+    for (const [planId, stored] of this.pendingPlans) {
+      if (now >= stored.expiresAt) this.pendingPlans.delete(planId)
+    }
+  }
 }
 
 export const organizationPlanService = new OrganizationPlanService()
+
+function allPlanItems(plan: OrganizationPlan): OrganizationPlanItem[] {
+  return [...plan.safeCorrections, ...plan.suggestions, ...plan.conflicts]
+}
+
+function itemWithoutApproval(item: OrganizationPlanItem): string {
+  const immutable = { ...item } as Partial<OrganizationPlanItem>
+  delete immutable.approved
+  return JSON.stringify(immutable)
+}
+
+function applyApprovalOverrides(
+  items: OrganizationPlanItem[],
+  submittedById: Map<string, OrganizationPlanItem>
+): OrganizationPlanItem[] {
+  return items.map((item) => ({
+    ...item,
+    approved: submittedById.get(item.id)!.approved
+  }))
+}
+
+function validatePlanItems(
+  plan: OrganizationPlan,
+  courseRoot: string,
+  modules: Array<{ id: string; lessons: Array<{ id: string }> }>
+): void {
+  const moduleIds = new Set(modules.map((module) => module.id))
+  const lessonIds = new Set(
+    modules.flatMap((module) => module.lessons.map((lesson) => lesson.id))
+  )
+
+  for (const item of allPlanItems(plan)) {
+    if (
+      item.targetEntity === 'LESSON' &&
+      item.entityId &&
+      !lessonIds.has(item.entityId)
+    ) {
+      throw new Error('Organization plan targets a lesson outside the course.')
+    }
+    if (
+      item.targetEntity === 'MODULE' &&
+      item.entityId &&
+      !moduleIds.has(item.entityId)
+    ) {
+      throw new Error('Organization plan targets a module outside the course.')
+    }
+
+    if (
+      item.actionType === 'RELINK_RENAMED_FILE' ||
+      item.actionType === 'RELINK_MOVED_FILE'
+    ) {
+      const details = item.details
+      if (
+        !details ||
+        typeof details.newFilePath !== 'string' ||
+        typeof details.newFileName !== 'string' ||
+        !item.entityId ||
+        !lessonIds.has(item.entityId) ||
+        /[\\/]/.test(details.newFileName) ||
+        !isPathWithin(courseRoot, details.newFilePath, false) ||
+        !fs.existsSync(details.newFilePath) ||
+        !isExistingPathWithin(courseRoot, details.newFilePath) ||
+        !fs.lstatSync(details.newFilePath).isFile() ||
+        fs.lstatSync(details.newFilePath).isSymbolicLink()
+      ) {
+        throw new Error('Organization plan contains an unauthorized file path.')
+      }
+      if (
+        item.actionType === 'RELINK_MOVED_FILE' &&
+        details.newModuleId !== undefined &&
+        (typeof details.newModuleId !== 'string' ||
+          !moduleIds.has(details.newModuleId))
+      ) {
+        throw new Error(
+          'Organization plan targets a module outside the course.'
+        )
+      }
+    }
+
+    if (item.actionType === 'REORDER_NATURAL') {
+      const details = item.details
+      if (
+        !details ||
+        !Array.isArray(details.orderedLessonIds) ||
+        details.orderedLessonIds.some(
+          (lessonId) => typeof lessonId !== 'string' || !lessonIds.has(lessonId)
+        )
+      ) {
+        throw new Error('Organization plan contains unauthorized lesson IDs.')
+      }
+    }
+  }
+}

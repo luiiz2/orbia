@@ -25,6 +25,7 @@
 ### Task 1: Establish the baseline and audit map
 
 **Files:**
+
 - Read: `test/**/*.test.ts`, `test/**/*.test.tsx`
 - Read: production modules covered by the tests
 - Read: `package.json`, `vitest.config.*`, `tsconfig*.json`, `eslint.config.*`
@@ -47,6 +48,7 @@ For every candidate, assign one decision: `KEEP`, `MERGE`, `REMOVE`, or `IMPROVE
 ### Task 2: Remove low-value cases in place
 
 **Files:**
+
 - Modify: only existing `test/**/*.test.ts` and `test/**/*.test.tsx` files containing confirmed candidates
 - Do not create: any test file
 
@@ -69,6 +71,7 @@ Confirm the count decreased, every deletion has a documented rationale, no new t
 ### Task 3: Validate the reduced suite and hand off findings
 
 **Files:**
+
 - Read: final `test/**/*.test.ts`, `test/**/*.test.tsx`
 - Read: final diff and worktree status
 

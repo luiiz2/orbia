@@ -157,22 +157,22 @@ describe('CourseView resources', () => {
                   name: 'material-canonico.pdf',
                   filePath: 'C:/course/material-canonico.pdf',
                   fileExtension: 'pdf',
-                fileSize: 20,
-                type: 'pdf'
-              },
-              {
-                id: 'lesson-resource-unsupported',
-                courseId: 'course-1',
-                moduleId: 'module-1',
-                lessonId: 'lesson-1',
-                role: 'resource',
-                name: 'legenda.ass',
-                filePath: 'C:/course/legenda.ass',
-                fileExtension: 'ass',
-                fileSize: 2,
-                type: 'document'
-              }
-            ],
+                  fileSize: 20,
+                  type: 'pdf'
+                },
+                {
+                  id: 'lesson-resource-unsupported',
+                  courseId: 'course-1',
+                  moduleId: 'module-1',
+                  lessonId: 'lesson-1',
+                  role: 'resource',
+                  name: 'legenda.ass',
+                  filePath: 'C:/course/legenda.ass',
+                  fileExtension: 'ass',
+                  fileSize: 2,
+                  type: 'document'
+                }
+              ],
               resources: [
                 {
                   id: 'legacy-resource-1',

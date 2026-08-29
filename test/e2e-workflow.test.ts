@@ -14,7 +14,10 @@ describe('End-to-End Core Workflow Integration Test', () => {
   const testRootDir = path.join(__dirname, 'tmp_e2e_vault')
   const testConfigDbPath = path.join(testRootDir, 'test-config.db')
   const testVaultDir = path.join(testRootDir, 'MyStudyVault')
-  const testZipSource = path.join(testRootDir, 'Python_Masterclass_Complete.zip')
+  const testZipSource = path.join(
+    testRootDir,
+    'Python_Masterclass_Complete.zip'
+  )
 
   beforeEach(() => {
     // Setup clean temporary test directories
@@ -43,7 +46,9 @@ describe('End-to-End Core Workflow Integration Test', () => {
     const vault = await vaultService.createVault(testVaultDir, 'My Study Vault')
     expect(vault).toBeDefined()
     expect(vault.name).toBe('My Study Vault')
-    expect(fs.existsSync(path.join(testVaultDir, '.orbia', 'library.db'))).toBe(true)
+    expect(fs.existsSync(path.join(testVaultDir, '.orbia', 'library.db'))).toBe(
+      true
+    )
     expect(fs.existsSync(path.join(testVaultDir, 'Courses'))).toBe(true)
     expect(fs.existsSync(path.join(testVaultDir, 'Inbox'))).toBe(true)
 
@@ -99,20 +104,32 @@ describe('End-to-End Core Workflow Integration Test', () => {
     expect(progressUpdates[progressUpdates.length - 1]).toBe(100)
 
     // 4. Scan and parse the extracted hierarchy
-    const scannedDir = await scannerService.scanDirectory(extractResult.extractedPath)
-    expect(scannedDir.files.length + scannedDir.subDirectories.length).toBeGreaterThan(0)
+    const scannedDir = await scannerService.scanDirectory(
+      extractResult.extractedPath
+    )
+    expect(
+      scannedDir.files.length + scannedDir.subDirectories.length
+    ).toBeGreaterThan(0)
 
     const proposal = await parserService.parseCourseHierarchy(scannedDir)
     expect(proposal.modules.length).toBe(2)
     expect(proposal.totalLessons).toBe(4)
-    expect(proposal.modules[0].resources?.some((r) => r.type === 'pdf')).toBe(true)
+    expect(proposal.modules[0].resources?.some((r) => r.type === 'pdf')).toBe(
+      true
+    )
 
     // Verify Title Cleaner cleaned up raw technical strings
     expect(proposal.modules[0].title).toBe('01 - Fundamentos do Python')
-    expect(proposal.modules[0].lessons[0].title).toBe('001 - Aula 01 - Instalacao e Configuracao')
-    expect(proposal.modules[0].lessons[1].title).toBe('002 - Aula 02 - Variaveis e Tipos de Dados')
+    expect(proposal.modules[0].lessons[0].title).toBe(
+      '001 - Aula 01 - Instalacao e Configuracao'
+    )
+    expect(proposal.modules[0].lessons[1].title).toBe(
+      '002 - Aula 02 - Variaveis e Tipos de Dados'
+    )
     expect(proposal.modules[1].title).toBe('02 - Estruturas de Controle')
-    expect(proposal.modules[1].lessons[0].title).toBe('01 - Estruturas Condicionais (If Else)')
+    expect(proposal.modules[1].lessons[0].title).toBe(
+      '01 - Estruturas Condicionais (If Else)'
+    )
 
     // 5. Commit course into the SQLite database
     const courseId = 'course-e2e-001'
@@ -130,36 +147,37 @@ describe('End-to-End Core Workflow Integration Test', () => {
       updatedAt: Date.now()
     }
 
-    const modulesWithLessons: (Module & { lessons: Lesson[] })[] = proposal.modules.map((m, mIdx) => {
-      const moduleId = `mod-${mIdx + 1}`
-      const lessons: Lesson[] = m.lessons.map((l, lIdx) => ({
-        id: `les-${mIdx + 1}-${lIdx + 1}`,
-        moduleId,
-        courseId,
-        title: l.title,
-        orderIndex: l.orderIndex,
-        filePath: l.filePath,
-        fileName: l.originalFileName,
-        fileExtension: l.fileExtension,
-        mediaType: l.mediaType,
-        duration: 300,
-        fileSize: l.fileSize,
-        availability: 'local',
-        createdAt: Date.now()
-      }))
+    const modulesWithLessons: (Module & { lessons: Lesson[] })[] =
+      proposal.modules.map((m, mIdx) => {
+        const moduleId = `mod-${mIdx + 1}`
+        const lessons: Lesson[] = m.lessons.map((l, lIdx) => ({
+          id: `les-${mIdx + 1}-${lIdx + 1}`,
+          moduleId,
+          courseId,
+          title: l.title,
+          orderIndex: l.orderIndex,
+          filePath: l.filePath,
+          fileName: l.originalFileName,
+          fileExtension: l.fileExtension,
+          mediaType: l.mediaType,
+          duration: 300,
+          fileSize: l.fileSize,
+          availability: 'local',
+          createdAt: Date.now()
+        }))
 
-      return {
-        id: moduleId,
-        courseId,
-        title: m.title,
-        orderIndex: m.orderIndex,
-        folderPath: m.folderPath,
-        duration: 600,
-        lessonCount: lessons.length,
-        createdAt: Date.now(),
-        lessons
-      }
-    })
+        return {
+          id: moduleId,
+          courseId,
+          title: m.title,
+          orderIndex: m.orderIndex,
+          folderPath: m.folderPath,
+          duration: 600,
+          lessonCount: lessons.length,
+          createdAt: Date.now(),
+          lessons
+        }
+      })
 
     databaseService.saveCourseWithHierarchy(course, modulesWithLessons)
 
@@ -243,7 +261,8 @@ describe('End-to-End Core Workflow Integration Test', () => {
     const afterDelete = databaseService.getCourseById(courseId)
     expect(afterDelete).toBeNull()
 
-    const summaryAfterDelete = databaseService.getCourseProgressSummary(courseId)
+    const summaryAfterDelete =
+      databaseService.getCourseProgressSummary(courseId)
     expect(summaryAfterDelete).toBeNull()
   }, 15_000)
 })

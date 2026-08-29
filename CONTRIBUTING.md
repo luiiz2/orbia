@@ -7,6 +7,7 @@ Thank you for your interest in contributing to **Orbia**! We are building the mo
 ## 🛠️ Development Setup
 
 ### Prerequisites
+
 - **Node.js**: >= 20.0.0
 - **npm**: >= 10.0.0
 - **C++ Build Tools**: Visual Studio Build Tools (Windows) or Xcode Command Line Tools (macOS) for compiling `better-sqlite3`.
@@ -14,23 +15,27 @@ Thank you for your interest in contributing to **Orbia**! We are building the mo
 ### Getting Started
 
 1. **Clone the repository**:
+
    ```bash
    git clone https://github.com/orbia/orbia.git
    cd orbia
    ```
 
 2. **Install dependencies & rebuild native modules**:
+
    ```bash
    npm install
    npm run rebuild
    ```
 
 3. **Start Development Server**:
+
    ```bash
    npm run dev
    ```
 
 4. **Run Tests**:
+
    ```bash
    npm test
    ```

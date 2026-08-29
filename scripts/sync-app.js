@@ -17,11 +17,17 @@ try {
 
 // 2. Build do Electron-Vite
 console.log('2. Compilando bundles de produção (electron-vite build)...')
-execSync('npm run build', { stdio: 'inherit', cwd: path.resolve(__dirname, '..') })
+execSync('npm run build', {
+  stdio: 'inherit',
+  cwd: path.resolve(__dirname, '..')
+})
 
 // 3. Empacotamento Unpacked
 console.log('3. Gerando executável e pacotes (electron-builder --dir)...')
-execSync('npx electron-builder --dir', { stdio: 'inherit', cwd: path.resolve(__dirname, '..') })
+execSync('npx electron-builder --dir', {
+  stdio: 'inherit',
+  cwd: path.resolve(__dirname, '..')
+})
 
 // 4. Copiar para o diretório instalado do usuário
 const targetDir = path.join(process.env.LOCALAPPDATA || '', 'Programs', 'orbia')
@@ -53,7 +59,9 @@ try {
   console.log('5. Atualizando atalhos do Desktop e Menu Iniciar...')
   const psScript = path.resolve(__dirname, 'fix-all-shortcuts.ps1')
   if (fs.existsSync(psScript)) {
-    execSync(`powershell -ExecutionPolicy Bypass -File "${psScript}"`, { stdio: 'inherit' })
+    execSync(`powershell -ExecutionPolicy Bypass -File "${psScript}"`, {
+      stdio: 'inherit'
+    })
   }
 } catch (err) {
   console.warn('   Aviso ao atualizar atalhos:', err.message)

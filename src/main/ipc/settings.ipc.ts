@@ -1,8 +1,10 @@
 import { ipcMain, app, shell } from 'electron'
 import type { AppSettings } from '../../types'
 import { appConfigService } from '../services/app-config.service'
+import { databaseService } from '../services/database.service'
 import { logger } from '../services/logger.service'
-import { isImportableFile } from '../utils/file-utils'
+import { isRegisteredPath } from '../utils/path-security'
+import { isShellOpenableFile } from '../utils/file-utils'
 import fs from 'node:fs'
 
 const ALLOWED_SETTING_KEYS = new Set<string>([
@@ -76,19 +78,20 @@ export function registerSettingsIpc(): void {
     }
   })
 
-  // Opens an importable file with the OS default application.
-  // Restricted to importable extensions — never executes arbitrary paths.
+  // Opens a registered, non-link library file with the OS default application.
   ipcMain.handle('system:open-path', async (_event, filePath: string) => {
     try {
       if (
         typeof filePath !== 'string' ||
-        !filePath ||
-        !isImportableFile(filePath)
+        !filePath.trim() ||
+        !isShellOpenableFile(filePath)
       )
         return false
-      const stat = await fs.promises.stat(filePath)
-      if (!stat.isFile()) return false
-      const error = await shell.openPath(filePath)
+      const registeredPaths = databaseService.getRegisteredMediaPaths()
+      if (!isRegisteredPath(filePath, registeredPaths)) return false
+      const stat = await fs.promises.lstat(filePath)
+      if (!stat.isFile() || stat.isSymbolicLink()) return false
+      const error = await shell.openPath(filePath.trim())
       return error === ''
     } catch (err) {
       logger.error('[IPC] system:open-path error:', err)

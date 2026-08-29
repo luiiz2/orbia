@@ -14,8 +14,14 @@ describe('Multi-Course Batch Importer Engine', () => {
   let dbService: DatabaseService
 
   beforeEach(() => {
-    tempRoot = path.join(os.tmpdir(), `orbia-batch-root-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`)
-    tempVaultDir = path.join(os.tmpdir(), `orbia-batch-vault-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`)
+    tempRoot = path.join(
+      os.tmpdir(),
+      `orbia-batch-root-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+    )
+    tempVaultDir = path.join(
+      os.tmpdir(),
+      `orbia-batch-vault-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+    )
     fs.mkdirSync(tempRoot, { recursive: true })
     fs.mkdirSync(tempVaultDir, { recursive: true })
 

@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.0-mvp] - 2026-08-18
 
 ### Added
+
 - **Core Architecture**:
   - Dual SQLite database engine (`better-sqlite3`) with WAL mode and foreign key constraints.
   - App-level config DB in `%APPDATA%/orbia/config.db` and portable Vault library DB in `{vault}/.orbia/library.db`.
@@ -26,7 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Automatic module and lesson hierarchy parser (`parser.service.ts`).
   - Regex-based title cleaner removing release tags, resolutions, and redundant numbers (`title-cleaner.ts`).
   - Natural alphanumeric sorting using `Intl.Collator` (`natural-sort.ts`).
-  - Multi-step interactive Import Wizard with hierarchy preview, inline title editing, and storage mode selector (*Store in Vault* vs *Link by Reference*).
+  - Multi-step interactive Import Wizard with hierarchy preview, inline title editing, and storage mode selector (_Store in Vault_ vs _Link by Reference_).
 
 - **Cinematic Video Player**:
   - Custom video controls overlay with 2.5s inactivity fade-out.
@@ -39,7 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - 5-second auto-advance countdown banner upon lesson completion.
 
 - **Library & Progress Views**:
-  - Home page with *Continue Studying* resume rail and responsive course grid.
+  - Home page with _Continue Studying_ resume rail and responsive course grid.
   - Course detail view with module syllabus accordion, progress indicators, and course deletion.
   - Chronological watch history page grouped by date.
   - Settings page with instant English / Portuguese (`pt-BR`) language switching and theme customization (`Dark`, `Light`, `System`).

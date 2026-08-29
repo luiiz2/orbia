@@ -1,8 +1,19 @@
 import { describe, it, expect, vi } from 'vitest'
 import { AiCoreService } from '../src/main/services/ai/ai-core.service'
-import { AiProviderError, AiProviderRegistry, type AiProviderAdapter } from '../src/main/services/ai/ai-provider'
-import { assertPrivacyAllows, shouldTryAiFallback } from '../src/main/services/ai/ai-routing.service'
-import type { AiPrivacyMode, AiProviderConfig, AiSettingsSnapshot } from '../src/types/ai'
+import {
+  AiProviderError,
+  AiProviderRegistry,
+  type AiProviderAdapter
+} from '../src/main/services/ai/ai-provider'
+import {
+  assertPrivacyAllows,
+  shouldTryAiFallback
+} from '../src/main/services/ai/ai-routing.service'
+import type {
+  AiPrivacyMode,
+  AiProviderConfig,
+  AiSettingsSnapshot
+} from '../src/types/ai'
 
 describe('Orbia v0.9 Hardening - Privacy & Security Audit', () => {
   const cloudProviderConfig: AiProviderConfig = {
@@ -63,6 +74,15 @@ describe('Orbia v0.9 Hardening - Privacy & Security Audit', () => {
     }).toThrowError(/Selected data is not allowed for cloud AI/)
   })
 
+  it('HYBRID privacy mode rejects cloud requests without data classification', () => {
+    expect(() => {
+      assertPrivacyAllows('HYBRID', cloudProviderConfig, {
+        cloudConsent: true,
+        allowedDataTypes: ['user_metadata']
+      })
+    }).toThrowError(/data classification is required/i)
+  })
+
   it('Cloud fallback is strictly subject to privacy rules and cannot bypass LOCAL_ONLY', async () => {
     const mockConfig = {
       getAiSettings: vi.fn().mockReturnValue({
@@ -71,9 +91,30 @@ describe('Orbia v0.9 Hardening - Privacy & Security Audit', () => {
         providers: {
           ollama: localProviderConfig,
           openai: cloudProviderConfig,
-          'openai-compatible': { providerId: 'openai-compatible', kind: 'local', displayName: 'Local', baseUrl: 'http://127.0.0.1:1234/v1', enabled: true, apiKeyConfigured: false },
-          openrouter: { providerId: 'openrouter', kind: 'cloud', displayName: 'OpenRouter', baseUrl: 'https://openrouter.ai/api/v1', enabled: false, apiKeyConfigured: false },
-          nvidia: { providerId: 'nvidia', kind: 'cloud', displayName: 'NVIDIA', baseUrl: 'https://integrate.api.nvidia.com/v1', enabled: false, apiKeyConfigured: false }
+          'openai-compatible': {
+            providerId: 'openai-compatible',
+            kind: 'local',
+            displayName: 'Local',
+            baseUrl: 'http://127.0.0.1:1234/v1',
+            enabled: true,
+            apiKeyConfigured: false
+          },
+          openrouter: {
+            providerId: 'openrouter',
+            kind: 'cloud',
+            displayName: 'OpenRouter',
+            baseUrl: 'https://openrouter.ai/api/v1',
+            enabled: false,
+            apiKeyConfigured: false
+          },
+          nvidia: {
+            providerId: 'nvidia',
+            kind: 'cloud',
+            displayName: 'NVIDIA',
+            baseUrl: 'https://integrate.api.nvidia.com/v1',
+            enabled: false,
+            apiKeyConfigured: false
+          }
         },
         routes: {
           chat: {
@@ -102,15 +143,31 @@ describe('Orbia v0.9 Hardening - Privacy & Security Audit', () => {
       providerId: 'ollama',
       kind: 'local',
       capabilities: ['CHAT'],
-      discoverModels: vi.fn().mockResolvedValue([{ id: 'llama3:8b', providerId: 'ollama', capabilities: ['CHAT'] }]),
-      chat: vi.fn().mockRejectedValue(new AiProviderError('CONNECTION_FAILED', 'Ollama is offline', 'ollama'))
+      discoverModels: vi
+        .fn()
+        .mockResolvedValue([
+          { id: 'llama3:8b', providerId: 'ollama', capabilities: ['CHAT'] }
+        ]),
+      chat: vi
+        .fn()
+        .mockRejectedValue(
+          new AiProviderError(
+            'CONNECTION_FAILED',
+            'Ollama is offline',
+            'ollama'
+          )
+        )
     }
 
     const openaiSpy: AiProviderAdapter = {
       providerId: 'openai',
       kind: 'cloud',
       capabilities: ['CHAT'],
-      discoverModels: vi.fn().mockResolvedValue([{ id: 'gpt-4o', providerId: 'openai', capabilities: ['CHAT'] }]),
+      discoverModels: vi
+        .fn()
+        .mockResolvedValue([
+          { id: 'gpt-4o', providerId: 'openai', capabilities: ['CHAT'] }
+        ]),
       chat: vi.fn().mockResolvedValue({ content: 'Cloud answer' })
     }
 
@@ -133,7 +190,11 @@ describe('Orbia v0.9 Hardening - Privacy & Security Audit', () => {
   })
 
   it('No plaintext API keys leak in logs or error messages', () => {
-    const error = new AiProviderError('INVALID_CREDENTIALS', 'Credential rejected', 'openai')
+    const error = new AiProviderError(
+      'INVALID_CREDENTIALS',
+      'Credential rejected',
+      'openai'
+    )
     expect(error.message).not.toContain('sk-')
     expect(JSON.stringify(error)).not.toContain('sk-')
   })

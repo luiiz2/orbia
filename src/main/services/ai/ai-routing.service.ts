@@ -62,6 +62,8 @@ export function assertPrivacyAllows(
     dataTypes?: readonly AiDataType[]
     cloudConsent?: boolean
     allowedDataTypes?: readonly AiDataType[]
+    /** Control-plane calls such as health checks carry no user content. */
+    allowUnclassifiedCloud?: boolean
   }
 ): void {
   if (provider.kind !== 'cloud') return
@@ -69,6 +71,16 @@ export function assertPrivacyAllows(
     throw new AiProviderError(
       'PRIVACY_BLOCKED',
       'Cloud AI is blocked by LOCAL_ONLY privacy mode',
+      provider.providerId
+    )
+  }
+  if (
+    request.allowUnclassifiedCloud !== true &&
+    (!request.dataTypes || request.dataTypes.length === 0)
+  ) {
+    throw new AiProviderError(
+      'PRIVACY_BLOCKED',
+      'Explicit data classification is required for cloud AI',
       provider.providerId
     )
   }

@@ -103,7 +103,6 @@ describe('source summaries IPC', () => {
     await expect(
       state.handlers.get('sources:list-summaries')!({})
     ).resolves.toEqual(summaries)
-
   })
 
   it('returns an empty list and logs no service error details when summaries fail', async () => {

@@ -74,7 +74,10 @@ describe('Notes, Favorites and Subtitle Utilities', () => {
   }
 
   beforeEach(() => {
-    tempVaultDir = path.join(os.tmpdir(), `orbia-notes-test-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`)
+    tempVaultDir = path.join(
+      os.tmpdir(),
+      `orbia-notes-test-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+    )
     fs.mkdirSync(tempVaultDir, { recursive: true })
     dbService = new DatabaseService()
     dbService.connect(tempVaultDir)
@@ -104,14 +107,17 @@ describe('Notes, Favorites and Subtitle Utilities', () => {
         lessonId,
         courseId,
         timestampSeconds: 120.5,
-        content: 'Remember to clean up event listeners inside useEffect return callback.'
+        content:
+          'Remember to clean up event listeners inside useEffect return callback.'
       })
 
       expect(note1.id).toBeDefined()
       expect(note1.lessonId).toBe(lessonId)
       expect(note1.courseId).toBe(courseId)
       expect(note1.timestampSeconds).toBe(120.5)
-      expect(note1.content).toBe('Remember to clean up event listeners inside useEffect return callback.')
+      expect(note1.content).toBe(
+        'Remember to clean up event listeners inside useEffect return callback.'
+      )
       expect(note1.createdAt).toBeGreaterThan(0)
       expect(note1.updatedAt).toBeGreaterThan(0)
 
@@ -149,7 +155,8 @@ describe('Notes, Favorites and Subtitle Utilities', () => {
       // 5. Update a note
       const originalUpdatedAt = note1.updatedAt
       // Small sleep to ensure timestamp differs
-      const updatedContent = 'Updated: Never call setState synchronously without check.'
+      const updatedContent =
+        'Updated: Never call setState synchronously without check.'
       dbService.updateLessonNote(note1.id, updatedContent)
 
       const updatedNotes = dbService.getLessonNotes(lessonId)
@@ -206,9 +213,9 @@ describe('Notes, Favorites and Subtitle Utilities', () => {
     })
 
     it('throws error when toggling favorite on non-existent course', () => {
-      expect(() => dbService.toggleCourseFavorite('non-existent-course-id')).toThrow(
-        'Course with id "non-existent-course-id" not found.'
-      )
+      expect(() =>
+        dbService.toggleCourseFavorite('non-existent-course-id')
+      ).toThrow('Course with id "non-existent-course-id" not found.')
     })
   })
 
@@ -228,7 +235,9 @@ Hoje vamos aprender a organizar sua biblioteca.`
       expect(vttOutput).toContain('00:01:20.000 --> 00:01:23.500')
       expect(vttOutput).toContain('00:01:24.123 --> 00:01:27.890')
       expect(vttOutput).toContain('Bem-vindos ao curso de Orbia.')
-      expect(vttOutput).toContain('Hoje vamos aprender a organizar sua biblioteca.')
+      expect(vttOutput).toContain(
+        'Hoje vamos aprender a organizar sua biblioteca.'
+      )
     })
 
     it('handles empty and whitespace-only subtitles gracefully', () => {

@@ -23,7 +23,11 @@ describe('media validation', () => {
   it('does not attempt to decode documents and unknown attachments', async () => {
     const decodeFile = vi.fn<(_: string) => Promise<void>>()
     const result = await validateMediaFiles(
-      ['C:/course/apostila.pdf', 'C:/course/planilha.xlsx', 'C:/course/code.ts'],
+      [
+        'C:/course/apostila.pdf',
+        'C:/course/planilha.xlsx',
+        'C:/course/code.ts'
+      ],
       { decodeFile }
     )
 

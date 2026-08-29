@@ -29,7 +29,9 @@ describe('mediaUrl', () => {
   it.runIf(process.platform === 'win32')(
     'restores the drive letter from an encoded legacy media host',
     () => {
-      const result = extractAndValidateMediaPath('media://C%3A/Cursos/aula%20%231.mp4')
+      const result = extractAndValidateMediaPath(
+        'media://C%3A/Cursos/aula%20%231.mp4'
+      )
 
       expect(result).toEqual({
         valid: true,

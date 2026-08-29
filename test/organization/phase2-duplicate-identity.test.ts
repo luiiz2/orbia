@@ -12,16 +12,17 @@ import {
   verifyMediaEquality,
   classifyDuplicateScope
 } from '../../src/main/services/organization/duplicate-detector'
-import {
-  resolveLessonIdentities
-} from '../../src/main/services/organization/identity-resolver'
+import { resolveLessonIdentities } from '../../src/main/services/organization/identity-resolver'
 import type { Lesson } from '../../src/types'
 
 describe('Phase 2: Duplicate & Identity Resolution Engine', () => {
   let tempDir: string
 
   beforeEach(() => {
-    tempDir = path.join(os.tmpdir(), `orbia-dup-test-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`)
+    tempDir = path.join(
+      os.tmpdir(),
+      `orbia-dup-test-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+    )
     fs.mkdirSync(tempDir, { recursive: true })
   })
 
@@ -62,7 +63,9 @@ describe('Phase 2: Duplicate & Identity Resolution Engine', () => {
     it('detects identical content with different filenames via staged hash', async () => {
       const fileA = path.join(tempDir, '01 - Intro.mp4')
       const fileB = path.join(tempDir, 'Copy of Intro.mp4')
-      const content = Buffer.from('identical video stream test data byte sequence')
+      const content = Buffer.from(
+        'identical video stream test data byte sequence'
+      )
       fs.writeFileSync(fileA, content)
       fs.writeFileSync(fileB, content)
 
@@ -72,8 +75,16 @@ describe('Phase 2: Duplicate & Identity Resolution Engine', () => {
       expect(hashA).toBe(hashB)
 
       const match = await verifyMediaEquality(
-        { filePath: fileA, fileName: '01 - Intro.mp4', sizeBytes: content.length },
-        { filePath: fileB, fileName: 'Copy of Intro.mp4', sizeBytes: content.length }
+        {
+          filePath: fileA,
+          fileName: '01 - Intro.mp4',
+          sizeBytes: content.length
+        },
+        {
+          filePath: fileB,
+          fileName: 'Copy of Intro.mp4',
+          sizeBytes: content.length
+        }
       )
       expect(match.isDuplicate).toBe(true)
       expect(match.confidence).toBe('CONFIRMED_HASH')
@@ -88,16 +99,54 @@ describe('Phase 2: Duplicate & Identity Resolution Engine', () => {
     })
 
     it('classifies duplicate scopes correctly (same module, cross module, cross course, backup)', () => {
-      const source = { filePath: '/course/mod1/01.mp4', fileName: '01.mp4', sizeBytes: 100, courseId: 'c1', moduleId: 'm1' }
-      const sameMod = { filePath: '/course/mod1/01_copy.mp4', fileName: '01_copy.mp4', sizeBytes: 100, courseId: 'c1', moduleId: 'm1' }
-      const diffMod = { filePath: '/course/mod2/01.mp4', fileName: '01.mp4', sizeBytes: 100, courseId: 'c1', moduleId: 'm2' }
-      const diffCourse = { filePath: '/course2/mod1/01.mp4', fileName: '01.mp4', sizeBytes: 100, courseId: 'c2', moduleId: 'm3' }
-      const backup = { filePath: '/course/Backup/01.mp4', fileName: '01.mp4', sizeBytes: 100, courseId: 'c1', moduleId: 'm1' }
+      const source = {
+        filePath: '/course/mod1/01.mp4',
+        fileName: '01.mp4',
+        sizeBytes: 100,
+        courseId: 'c1',
+        moduleId: 'm1'
+      }
+      const sameMod = {
+        filePath: '/course/mod1/01_copy.mp4',
+        fileName: '01_copy.mp4',
+        sizeBytes: 100,
+        courseId: 'c1',
+        moduleId: 'm1'
+      }
+      const diffMod = {
+        filePath: '/course/mod2/01.mp4',
+        fileName: '01.mp4',
+        sizeBytes: 100,
+        courseId: 'c1',
+        moduleId: 'm2'
+      }
+      const diffCourse = {
+        filePath: '/course2/mod1/01.mp4',
+        fileName: '01.mp4',
+        sizeBytes: 100,
+        courseId: 'c2',
+        moduleId: 'm3'
+      }
+      const backup = {
+        filePath: '/course/Backup/01.mp4',
+        fileName: '01.mp4',
+        sizeBytes: 100,
+        courseId: 'c1',
+        moduleId: 'm1'
+      }
 
-      expect(classifyDuplicateScope(source, sameMod, '/course')).toBe('SAME_MODULE')
-      expect(classifyDuplicateScope(source, diffMod, '/course')).toBe('CROSS_MODULE')
-      expect(classifyDuplicateScope(source, diffCourse, '/course')).toBe('CROSS_COURSE')
-      expect(classifyDuplicateScope(source, backup, '/course')).toBe('BACKUP_FOLDER')
+      expect(classifyDuplicateScope(source, sameMod, '/course')).toBe(
+        'SAME_MODULE'
+      )
+      expect(classifyDuplicateScope(source, diffMod, '/course')).toBe(
+        'CROSS_MODULE'
+      )
+      expect(classifyDuplicateScope(source, diffCourse, '/course')).toBe(
+        'CROSS_COURSE'
+      )
+      expect(classifyDuplicateScope(source, backup, '/course')).toBe(
+        'BACKUP_FOLDER'
+      )
     })
   })
 
@@ -135,7 +184,11 @@ describe('Phase 2: Duplicate & Identity Resolution Engine', () => {
         }
       ]
 
-      const resolved = await resolveLessonIdentities(scanned, [existingLesson], 'course-1')
+      const resolved = await resolveLessonIdentities(
+        scanned,
+        [existingLesson],
+        'course-1'
+      )
       expect(resolved).toHaveLength(1)
       expect(resolved[0].type).toBe('RENAMED_IN_PLACE')
       expect(resolved[0].lessonId).toBe('lesson-uuid-1')
@@ -176,7 +229,11 @@ describe('Phase 2: Duplicate & Identity Resolution Engine', () => {
         }
       ]
 
-      const resolved = await resolveLessonIdentities(scanned, [existingLesson], 'course-1')
+      const resolved = await resolveLessonIdentities(
+        scanned,
+        [existingLesson],
+        'course-1'
+      )
       expect(resolved).toHaveLength(1)
       expect(resolved[0].type).toBe('MOVED_IN_COURSE')
       expect(resolved[0].lessonId).toBe('lesson-uuid-2')
@@ -216,9 +273,15 @@ describe('Phase 2: Duplicate & Identity Resolution Engine', () => {
         }
       ]
 
-      const resolved = await resolveLessonIdentities(scanned, [existingLesson], 'course-B')
+      const resolved = await resolveLessonIdentities(
+        scanned,
+        [existingLesson],
+        'course-B'
+      )
       // Since existing lesson belongs to course-A, it cannot transfer identity into course-B
-      const movedAcross = resolved.find((r) => r.type === 'MOVED_ACROSS_COURSES')
+      const movedAcross = resolved.find(
+        (r) => r.type === 'MOVED_ACROSS_COURSES'
+      )
       expect(movedAcross).toBeDefined()
       expect(movedAcross?.lessonId).toBeUndefined() // no metadata transfer!
     })

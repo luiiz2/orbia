@@ -33,10 +33,22 @@ describe('Scanner Service Integration Test', () => {
     await fs.promises.mkdir(mod2Dir, { recursive: true })
     await fs.promises.mkdir(gitDir, { recursive: true })
 
-    await fs.promises.writeFile(path.join(courseDir, 'cover.jpg'), 'fake-image-bytes')
-    await fs.promises.writeFile(path.join(mod1Dir, '01 - Intro.mp4'), 'fake-video-bytes')
-    await fs.promises.writeFile(path.join(mod1Dir, '02 - Syntax.mp4'), 'fake-video-bytes-2')
-    await fs.promises.writeFile(path.join(mod2Dir, '01 - Async.mp4'), 'fake-video-bytes-3')
+    await fs.promises.writeFile(
+      path.join(courseDir, 'cover.jpg'),
+      'fake-image-bytes'
+    )
+    await fs.promises.writeFile(
+      path.join(mod1Dir, '01 - Intro.mp4'),
+      'fake-video-bytes'
+    )
+    await fs.promises.writeFile(
+      path.join(mod1Dir, '02 - Syntax.mp4'),
+      'fake-video-bytes-2'
+    )
+    await fs.promises.writeFile(
+      path.join(mod2Dir, '01 - Async.mp4'),
+      'fake-video-bytes-3'
+    )
     await fs.promises.writeFile(path.join(gitDir, 'config'), 'git-config')
   })
 

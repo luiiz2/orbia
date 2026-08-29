@@ -5,7 +5,16 @@ import eslintPluginReactHooks from 'eslint-plugin-react-hooks'
 import eslintPluginReactRefresh from 'eslint-plugin-react-refresh'
 
 export default [
-  { ignores: ['node_modules/**', 'dist/**', 'out/**', 'resources/**', 'release/**', 'coverage/**'] },
+  {
+    ignores: [
+      'node_modules/**',
+      'dist/**',
+      'out/**',
+      'resources/**',
+      'release/**',
+      'coverage/**'
+    ]
+  },
   ...tseslint.configs.recommended,
   eslintPluginReact.configs.flat.recommended,
   eslintPluginReact.configs.flat['jsx-runtime'],
@@ -25,7 +34,10 @@ export default [
     rules: {
       ...eslintPluginReactHooks.configs.recommended.rules,
       ...eslintPluginReactRefresh.configs.vite.rules,
-      'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
+      'react-refresh/only-export-components': [
+        'warn',
+        { allowConstantExport: true }
+      ],
       '@typescript-eslint/explicit-function-return-type': 'off',
       'react/no-unescaped-entities': 'off',
       'react-hooks/purity': 'off',

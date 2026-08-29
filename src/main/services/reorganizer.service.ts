@@ -8,6 +8,20 @@ import type {
   ProposedFileMutation,
   FileOperationRecord
 } from '../../types/journal'
+import {
+  isExistingPathWithin,
+  isExistingPathOrAncestorWithin,
+  isPathWithin
+} from '../utils/path-security'
+
+const REORGANIZE_PLAN_TTL_MS = 5 * 60 * 1_000
+
+interface StoredReorganizePlan {
+  plan: OperationPlan
+  courseId: string
+  courseRoot: string
+  expiresAt: number
+}
 
 function sanitizeName(name: string): string {
   return name
@@ -168,6 +182,13 @@ export class ReorganizerService {
           continue
         }
 
+        if (!isPathWithin(course.rootPath, resolvedSource, false)) {
+          conflictDetails.push(
+            `Arquivo fora da pasta do curso (ignorado): ${lesson.fileName || path.basename(resolvedSource)}`
+          )
+          continue
+        }
+
         const normSource = path.normalize(resolvedSource).toLowerCase()
         const normTarget = path.normalize(targetFilePath).toLowerCase()
 
@@ -198,13 +219,22 @@ export class ReorganizerService {
       }
     }
 
-    return {
+    const plan: OperationPlan = {
       groupId,
       courseTitle: course.title,
       proposedMutations,
       hasConflicts: conflictDetails.length > 0,
       conflictDetails: conflictDetails.length > 0 ? conflictDetails : undefined
     }
+
+    this.pruneExpiredPlans(Date.now())
+    this.pendingPlans.set(groupId, {
+      plan,
+      courseId,
+      courseRoot: course.rootPath,
+      expiresAt: Date.now() + REORGANIZE_PLAN_TTL_MS
+    })
+    return plan
   }
 
   /**
@@ -215,10 +245,30 @@ export class ReorganizerService {
     mutations: ProposedFileMutation[],
     courseId: string
   ): { success: boolean; appliedCount: number; error?: string } {
-    let appliedCount = 0
+    const stored = this.pendingPlans.get(groupId)
+    if (!stored || Date.now() >= stored.expiresAt) {
+      this.pendingPlans.delete(groupId)
+      throw new Error('Reorganization plan is invalid or expired.')
+    }
+    if (
+      stored.courseId !== courseId ||
+      !sameMutationList(stored.plan.proposedMutations, mutations)
+    ) {
+      throw new Error(
+        'Reorganization plan no longer matches the approved preview.'
+      )
+    }
 
     const hierarchy = courseId ? databaseService.getCourseById(courseId) : null
     const courseRoot = hierarchy?.course?.rootPath
+    if (!courseRoot || courseRoot !== stored.courseRoot) {
+      throw new Error('Reorganization course is no longer available.')
+    }
+    validateMutations(mutations, courseRoot)
+    this.pendingPlans.delete(groupId)
+    this.appliedGroups.set(groupId, { courseId, courseRoot })
+
+    let appliedCount = 0
 
     for (const mutation of mutations) {
       const operationId = crypto.randomUUID()
@@ -252,6 +302,18 @@ export class ReorganizerService {
             operationId,
             'failed',
             'Source file not found on disk'
+          )
+          continue
+        }
+
+        if (
+          !isPathWithin(courseRoot, resolvedSource, false) ||
+          !isExistingPathWithin(courseRoot, resolvedSource)
+        ) {
+          databaseService.updateFileOperationStatus(
+            operationId,
+            'failed',
+            'Source file is outside the course root'
           )
           continue
         }
@@ -334,6 +396,14 @@ export class ReorganizerService {
       return { success: true, revertedCount: 0 }
     }
 
+    const courseRoot =
+      this.appliedGroups.get(groupId)?.courseRoot ??
+      findCourseRootForOperations(completedOps)
+    if (!courseRoot) {
+      throw new Error('Reorganization undo is not authorized for this group.')
+    }
+    validateJournalOperations(completedOps, courseRoot)
+
     let revertedCount = 0
 
     // Reverse order (LIFO)
@@ -380,6 +450,133 @@ export class ReorganizerService {
       revertedCount
     }
   }
+
+  private readonly pendingPlans = new Map<string, StoredReorganizePlan>()
+  private readonly appliedGroups = new Map<
+    string,
+    { courseId: string; courseRoot: string }
+  >()
+
+  private pruneExpiredPlans(now: number): void {
+    for (const [groupId, stored] of this.pendingPlans) {
+      if (now >= stored.expiresAt) this.pendingPlans.delete(groupId)
+    }
+  }
 }
 
 export const reorganizerService = new ReorganizerService()
+
+function sameMutationList(
+  expected: ProposedFileMutation[],
+  received: ProposedFileMutation[]
+): boolean {
+  return (
+    expected.length === received.length &&
+    expected.every((mutation, index) => {
+      const candidate = received[index]
+      return (
+        candidate !== undefined &&
+        mutation.type === candidate.type &&
+        mutation.sourcePath === candidate.sourcePath &&
+        mutation.destinationPath === candidate.destinationPath &&
+        mutation.originalFileName === candidate.originalFileName &&
+        mutation.newFileName === candidate.newFileName &&
+        mutation.isReversible === candidate.isReversible
+      )
+    })
+  )
+}
+
+function validateMutations(
+  mutations: ProposedFileMutation[],
+  courseRoot: string
+): void {
+  for (const mutation of mutations) {
+    if (
+      mutation.type !== 'move' ||
+      !mutation.isReversible ||
+      !path.isAbsolute(mutation.sourcePath) ||
+      !path.isAbsolute(mutation.destinationPath) ||
+      !mutation.originalFileName ||
+      !mutation.newFileName ||
+      /[\\/]/.test(mutation.originalFileName) ||
+      /[\\/]/.test(mutation.newFileName)
+    ) {
+      throw new Error('Reorganization mutation is invalid.')
+    }
+    if (
+      !isPathWithin(courseRoot, mutation.sourcePath, false) ||
+      !isPathWithin(courseRoot, mutation.destinationPath, false)
+    ) {
+      throw new Error('Reorganization mutation is outside the course root.')
+    }
+    if (fs.existsSync(mutation.sourcePath)) {
+      if (
+        !isExistingPathWithin(courseRoot, mutation.sourcePath) ||
+        !fs.lstatSync(mutation.sourcePath).isFile() ||
+        fs.lstatSync(mutation.sourcePath).isSymbolicLink()
+      ) {
+        throw new Error('Reorganization source is not a regular course file.')
+      }
+    }
+    if (
+      fs.existsSync(mutation.destinationPath) &&
+      !isExistingPathWithin(courseRoot, mutation.destinationPath, true)
+    ) {
+      throw new Error('Reorganization destination is outside the course root.')
+    }
+    if (
+      !isExistingPathOrAncestorWithin(
+        courseRoot,
+        mutation.destinationPath,
+        true
+      )
+    ) {
+      throw new Error('Reorganization destination parent is unauthorized.')
+    }
+  }
+}
+
+function validateJournalOperations(
+  operations: FileOperationRecord[],
+  courseRoot: string
+): void {
+  for (const operation of operations) {
+    if (
+      operation.type !== 'move' ||
+      !isPathWithin(courseRoot, operation.sourcePath, false) ||
+      !isPathWithin(courseRoot, operation.destinationPath, false) ||
+      !isExistingPathOrAncestorWithin(courseRoot, operation.sourcePath, true) ||
+      !isExistingPathOrAncestorWithin(
+        courseRoot,
+        operation.destinationPath,
+        true
+      )
+    ) {
+      throw new Error('Reorganization journal contains an unauthorized path.')
+    }
+    if (
+      fs.existsSync(operation.destinationPath) &&
+      !isExistingPathWithin(courseRoot, operation.destinationPath, true)
+    ) {
+      throw new Error('Reorganization journal destination is unauthorized.')
+    }
+  }
+}
+
+function findCourseRootForOperations(
+  operations: FileOperationRecord[]
+): string | null {
+  if (operations.length === 0) return null
+  return (
+    databaseService
+      .getAllCourses()
+      .find((course) =>
+        operations.every(
+          (operation) =>
+            isPathWithin(course.rootPath, operation.sourcePath, false) &&
+            isPathWithin(course.rootPath, operation.destinationPath, false)
+        )
+      )?.rootPath ?? null
+  )
+}

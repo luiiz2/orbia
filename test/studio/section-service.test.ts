@@ -26,19 +26,27 @@ describe('Library Section Service', () => {
   it('creates, lists, updates, and deletes sections', () => {
     const courseId = 'course_sec_1'
     const now = Date.now()
-    db.prepare(`
+    db.prepare(
+      `
       INSERT INTO courses (id, title, slug, source_type, root_path, total_duration, module_count, lesson_count, is_favorite, created_at, updated_at)
       VALUES (?, 'Curso Seções', 'curso-secoes', 'local-vault', '/sec', 100, 1, 1, 0, ?, ?)
-    `).run(courseId, now, now)
+    `
+    ).run(courseId, now, now)
 
-    const section = librarySectionService.createSection(db, courseId, 'Parte 1 — Teoria')
+    const section = librarySectionService.createSection(
+      db,
+      courseId,
+      'Parte 1 — Teoria'
+    )
     expect(section.title).toBe('Parte 1 — Teoria')
     expect(section.courseId).toBe(courseId)
 
     const list = librarySectionService.listSections(db, courseId)
     expect(list).toHaveLength(1)
 
-    const okUpdate = librarySectionService.updateSection(db, section.id, { title: 'Parte 1 — Conceitos Fundamentais' })
+    const okUpdate = librarySectionService.updateSection(db, section.id, {
+      title: 'Parte 1 — Conceitos Fundamentais'
+    })
     expect(okUpdate).toBe(true)
 
     const updatedList = librarySectionService.listSections(db, courseId)

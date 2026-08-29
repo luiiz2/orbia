@@ -25,26 +25,34 @@ describe('Library Insights Analytics', () => {
 
   it('aggregates library totals and top tags accurately', () => {
     const now = Date.now()
-    db.prepare(`
+    db.prepare(
+      `
       INSERT INTO courses (id, title, slug, source_type, root_path, total_duration, module_count, lesson_count, is_favorite, created_at, updated_at)
       VALUES ('c_py', 'Python Completo', 'python-completo', 'local-vault', '/py', 7200, 1, 2, 1, ?, ?)
-    `).run(now, now)
+    `
+    ).run(now, now)
 
-    db.prepare(`
+    db.prepare(
+      `
       INSERT INTO library_appearances (id, entity_type, entity_id, root_course_id, display_order, is_reference, is_hidden, tags, custom_metadata, created_at, updated_at)
       VALUES ('app_py', 'course', 'c_py', 'c_py', 1, 0, 0, '["Python", "Backend"]', '{}', ?, ?)
-    `).run(now, now)
+    `
+    ).run(now, now)
 
-    db.prepare(`
+    db.prepare(
+      `
       INSERT INTO modules (id, course_id, title, order_index, folder_path, duration, lesson_count, created_at)
       VALUES ('m_py', 'c_py', 'Módulo 1', 1, '/py', 7200, 2, ?)
-    `).run(now)
+    `
+    ).run(now)
 
-    db.prepare(`
+    db.prepare(
+      `
       INSERT INTO lessons (id, module_id, course_id, title, order_index, file_path, file_name, file_extension, media_type, duration, file_size, availability, created_at)
       VALUES ('l_py1', 'm_py', 'c_py', 'Aula 1', 1, '/py1.mp4', 'py1.mp4', '.mp4', 'video', 3600, 100, 'available', ?),
              ('l_py2', 'm_py', 'c_py', 'Aula 2', 2, '/py2.mp4', 'py2.mp4', '.mp4', 'video', 3600, 100, 'available', ?)
-    `).run(now, now)
+    `
+    ).run(now, now)
 
     dbService.addWatchHistory({
       lessonId: 'l_py1',

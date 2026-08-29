@@ -9,7 +9,10 @@ describe('Study Analytics Engine', () => {
   let dbService: DatabaseService
 
   beforeEach(() => {
-    tempVaultDir = path.join(os.tmpdir(), `orbia-analytics-test-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`)
+    tempVaultDir = path.join(
+      os.tmpdir(),
+      `orbia-analytics-test-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+    )
     fs.mkdirSync(tempVaultDir, { recursive: true })
     dbService = new DatabaseService()
     dbService.connect(tempVaultDir)
@@ -65,17 +68,71 @@ describe('Study Analytics Engine', () => {
           lessonCount: 3,
           createdAt: todayMs,
           lessons: [
-            { id: 'l-a1', moduleId: 'm-ana-1', courseId: 'c-ana-1', title: 'A1', orderIndex: 1, filePath: '/1.mp4', fileName: '1.mp4', fileExtension: 'mp4', mediaType: 'video', duration: 1200, fileSize: 100, availability: 'local', createdAt: todayMs },
-            { id: 'l-a2', moduleId: 'm-ana-1', courseId: 'c-ana-1', title: 'A2', orderIndex: 2, filePath: '/2.mp4', fileName: '2.mp4', fileExtension: 'mp4', mediaType: 'video', duration: 1200, fileSize: 100, availability: 'local', createdAt: todayMs },
-            { id: 'l-a3', moduleId: 'm-ana-1', courseId: 'c-ana-1', title: 'A3', orderIndex: 3, filePath: '/3.mp4', fileName: '3.mp4', fileExtension: 'mp4', mediaType: 'video', duration: 1200, fileSize: 100, availability: 'local', createdAt: todayMs }
+            {
+              id: 'l-a1',
+              moduleId: 'm-ana-1',
+              courseId: 'c-ana-1',
+              title: 'A1',
+              orderIndex: 1,
+              filePath: '/1.mp4',
+              fileName: '1.mp4',
+              fileExtension: 'mp4',
+              mediaType: 'video',
+              duration: 1200,
+              fileSize: 100,
+              availability: 'local',
+              createdAt: todayMs
+            },
+            {
+              id: 'l-a2',
+              moduleId: 'm-ana-1',
+              courseId: 'c-ana-1',
+              title: 'A2',
+              orderIndex: 2,
+              filePath: '/2.mp4',
+              fileName: '2.mp4',
+              fileExtension: 'mp4',
+              mediaType: 'video',
+              duration: 1200,
+              fileSize: 100,
+              availability: 'local',
+              createdAt: todayMs
+            },
+            {
+              id: 'l-a3',
+              moduleId: 'm-ana-1',
+              courseId: 'c-ana-1',
+              title: 'A3',
+              orderIndex: 3,
+              filePath: '/3.mp4',
+              fileName: '3.mp4',
+              fileExtension: 'mp4',
+              mediaType: 'video',
+              duration: 1200,
+              fileSize: 100,
+              availability: 'local',
+              createdAt: todayMs
+            }
           ]
         }
       ]
     )
 
     // Complete two lessons
-    dbService.saveLessonProgress({ lessonId: 'l-a1', courseId: 'c-ana-1', currentTime: 1200, duration: 1200, completed: true })
-    dbService.saveLessonProgress({ lessonId: 'l-a2', courseId: 'c-ana-1', currentTime: 1200, duration: 1200, completed: true })
+    dbService.saveLessonProgress({
+      lessonId: 'l-a1',
+      courseId: 'c-ana-1',
+      currentTime: 1200,
+      duration: 1200,
+      completed: true
+    })
+    dbService.saveLessonProgress({
+      lessonId: 'l-a2',
+      courseId: 'c-ana-1',
+      currentTime: 1200,
+      duration: 1200,
+      completed: true
+    })
 
     // Add watch history for Today (Day 0), Yesterday (Day -1), and 2 Days Ago (Day -2) -> 3 day streak!
     dbService.addWatchHistory({
@@ -119,5 +176,4 @@ describe('Study Analytics Engine', () => {
     expect(analytics.topCourses[0].courseTitle).toBe('React Masterclass')
     expect(analytics.topCourses[0].secondsWatched).toBe(3000)
   })
-
 })

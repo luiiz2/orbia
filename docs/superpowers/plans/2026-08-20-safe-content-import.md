@@ -25,12 +25,14 @@
 ### Task 1: Make ZIP preparation source-preserving and strictly validated
 
 **Files:**
+
 - Modify: `src/main/services/archive.service.ts`
 - Create: `src/main/services/media-validation.service.ts`
 - Modify: `test/archive.test.ts`
 - Create: `test/media-validation.test.ts`
 
 **Interfaces:**
+
 - Produces `PreparedArchive` with `sourcePath`, `stagingRoot`, `extractedPath`, `entries`, `verificationOk`, `failedEntries`, and `warnings`.
 - Produces `MediaValidationResult` with `{ valid: boolean; failedFiles: string[]; warnings: string[] }`.
 - Consumed by Task 2's main-process import session; no renderer receives the staging filesystem path as authority.
@@ -39,15 +41,25 @@
 
 ```ts
 it('prepares a ZIP in unique staging without moving or deleting the source', async () => {
-  const result = await archiveService.prepareZip({ zipPath: zipFilePath, stagingBaseDir: stagingDir })
+  const result = await archiveService.prepareZip({
+    zipPath: zipFilePath,
+    stagingBaseDir: stagingDir
+  })
 
   expect(fs.existsSync(zipFilePath)).toBe(true)
-  expect(result.extractedPath).not.toContain(path.join('Inbox', path.basename(zipFilePath, '.zip')))
-  expect(fs.existsSync(path.join(result.extractedPath, 'Module 01', 'Lesson.mp4'))).toBe(true)
+  expect(result.extractedPath).not.toContain(
+    path.join('Inbox', path.basename(zipFilePath, '.zip'))
+  )
+  expect(
+    fs.existsSync(path.join(result.extractedPath, 'Module 01', 'Lesson.mp4'))
+  ).toBe(true)
 })
 
 it('fails validation when two ZIP entries normalize to the same target path', async () => {
-  const result = await archiveService.prepareZip({ zipPath: duplicateEntryZip, stagingBaseDir: stagingDir })
+  const result = await archiveService.prepareZip({
+    zipPath: duplicateEntryZip,
+    stagingBaseDir: stagingDir
+  })
 
   expect(result.verificationOk).toBe(false)
   expect(result.failedEntries).toContain('Module 01/Lesson.mp4')
@@ -89,14 +101,18 @@ Keep `extractZip` only as a compatibility wrapper if another internal caller sti
 
 ```ts
 it('reports a video that FFmpeg cannot decode', async () => {
-  const result = await validateMediaFiles([corruptVideo], { runProcess: failingFfmpeg })
+  const result = await validateMediaFiles([corruptVideo], {
+    runProcess: failingFfmpeg
+  })
 
   expect(result.valid).toBe(false)
   expect(result.failedFiles).toEqual([corruptVideo])
 })
 
 it('does not flag non-media resources for decode validation', async () => {
-  const result = await validateMediaFiles([pdfPath, textPath], { runProcess: failingFfmpeg })
+  const result = await validateMediaFiles([pdfPath, textPath], {
+    runProcess: failingFfmpeg
+  })
 
   expect(result.valid).toBe(true)
 })
@@ -109,7 +125,9 @@ export async function validateMediaFiles(
   filePaths: string[],
   dependencies: MediaValidationDependencies = defaultDependencies
 ): Promise<MediaValidationResult> {
-  const mediaFiles = filePaths.filter((filePath) => isVideoFile(filePath) || isAudioFile(filePath))
+  const mediaFiles = filePaths.filter(
+    (filePath) => isVideoFile(filePath) || isAudioFile(filePath)
+  )
   // Run bundled ffmpeg with `-v error -i <file> -f null -` for each media file.
   // A non-zero exit marks that file invalid; no source or staged content is removed here.
 }
@@ -126,6 +144,7 @@ Expected: all tests pass, the original ZIP remains in place, and invalid staged 
 ### Task 2: Introduce main-process import sessions and deferred managed-vault operations
 
 **Files:**
+
 - Create: `src/main/services/import-session.service.ts`
 - Modify: `src/main/ipc/courses.ipc.ts`
 - Modify: `src/main/services/vault.service.ts`
@@ -137,6 +156,7 @@ Expected: all tests pass, the original ZIP remains in place, and invalid staged 
 - Create: `test/import-session.test.ts`
 
 **Interfaces:**
+
 - `prepareZipImport(zipPath): ImportPreparationResult` returns opaque `sessionId`, proposal, validation state, warnings, and source kind.
 - `cancelImportSession(sessionId)` destroys only staging data.
 - `commitImportSession({ sessionId, proposal, isExternal, duplicateResolutions })` resolves the source in Main, creates a managed operation plan when needed, journals it, and returns a saved course.
@@ -155,11 +175,17 @@ it('cancels a prepared ZIP import without changing the original ZIP', async () =
 
 it('moves validated staged content to Courses only after commit and journals the move', async () => {
   const prepared = await sessions.prepareZipImport(zipFilePath)
-  const result = await sessions.commit({ sessionId: prepared.sessionId, proposal, isExternal: false })
+  const result = await sessions.commit({
+    sessionId: prepared.sessionId,
+    proposal,
+    isExternal: false
+  })
 
   expect(result.course.course.rootPath).toContain(path.join('Courses', ''))
   expect(databaseService.getFileOperations(result.operationGroupId)).toEqual(
-    expect.arrayContaining([expect.objectContaining({ type: 'move', status: 'completed' })])
+    expect.arrayContaining([
+      expect.objectContaining({ type: 'move', status: 'completed' })
+    ])
   )
 })
 ```
@@ -186,7 +212,10 @@ class ImportSessionService {
   prepareZipImport(zipPath: string): Promise<ImportPreparationResult>
   getApproved(sessionId: string): ImportSession
   cancel(sessionId: string): Promise<void>
-  commit(sessionId: string, operation: ApprovedImportOperation): Promise<CommittedImport>
+  commit(
+    sessionId: string,
+    operation: ApprovedImportOperation
+  ): Promise<CommittedImport>
 }
 ```
 
@@ -195,14 +224,26 @@ Validate the source and session in Main. Sessions expire/clean up on cancel and 
 - [ ] **Step 4: Implement deferred operation planning, rollback, and setting read at commit time**
 
 ```ts
-const destinationRoot = vaultService.createUniqueCourseDirectory(courseId, proposal.suggestedTitle)
-const operation = { type: 'move', sourcePath: preparedRoot, destinationPath: destinationRoot }
-databaseService.recordFileOperation({ ...operation, status: 'pending', isReversible: true })
+const destinationRoot = vaultService.createUniqueCourseDirectory(
+  courseId,
+  proposal.suggestedTitle
+)
+const operation = {
+  type: 'move',
+  sourcePath: preparedRoot,
+  destinationPath: destinationRoot
+}
+databaseService.recordFileOperation({
+  ...operation,
+  status: 'pending',
+  isReversible: true
+})
 try {
   fs.renameSync(preparedRoot, destinationRoot)
   databaseService.saveCourseWithHierarchy(rebasedCourse)
   databaseService.markFileOperationCompleted(operation.operationId)
-  if (appConfigService.getSettings().deleteSourceZipAfterImport) deleteSourceZipAfterCommit()
+  if (appConfigService.getSettings().deleteSourceZipAfterImport)
+    deleteSourceZipAfterCommit()
 } catch (error) {
   rollbackManagedMove(operation)
   databaseService.markFileOperationFailed(operation.operationId, String(error))
@@ -225,6 +266,7 @@ Expected: cancel is non-mutating, commit materializes into `Courses`, source-ZIP
 ### Task 3: Preserve and persist all content as module and lesson resources
 
 **Files:**
+
 - Modify: `src/types/course.ts`
 - Modify: `src/main/utils/file-utils.ts`
 - Modify: `src/main/services/parser.service.ts`
@@ -239,6 +281,7 @@ Expected: cancel is non-mutating, commit materializes into `Courses`, source-ZIP
 - Modify: `test/notes-and-subtitles.test.ts`
 
 **Interfaces:**
+
 - `ContentResource` has course/module ownership, optional lesson ownership, name/path/extension/size/media type, role, and optional fingerprint.
 - `ProposedModule.resources` and `ProposedLesson.resources/subtitles` carry the same inventory through preview and commit.
 - `content_resources` is saved and hydrated with the existing hierarchy transaction.
@@ -247,10 +290,14 @@ Expected: cancel is non-mutating, commit materializes into `Courses`, source-ZIP
 
 ```ts
 it('attaches a matching SRT to its video and preserves module materials', async () => {
-  const proposal = await parserService.parseCourseHierarchy(scannedCourseWithVideoSubtitlePdfAndXlsx)
+  const proposal = await parserService.parseCourseHierarchy(
+    scannedCourseWithVideoSubtitlePdfAndXlsx
+  )
   const module = proposal.modules[0]
 
-  expect(module.lessons[0].subtitles).toEqual([expect.objectContaining({ format: 'srt' })])
+  expect(module.lessons[0].subtitles).toEqual([
+    expect.objectContaining({ format: 'srt' })
+  ])
   expect(module.resources).toEqual(
     expect.arrayContaining([
       expect.objectContaining({ name: 'apostila.pdf', role: 'attachment' }),
@@ -260,8 +307,13 @@ it('attaches a matching SRT to its video and preserves module materials', async 
 })
 
 it('retains a module containing only resources', async () => {
-  const proposal = await parserService.parseCourseHierarchy(scannedMaterialsOnlyModule)
-  expect(proposal.modules[0]).toMatchObject({ lessons: [], resources: [expect.any(Object)] })
+  const proposal = await parserService.parseCourseHierarchy(
+    scannedMaterialsOnlyModule
+  )
+  expect(proposal.modules[0]).toMatchObject({
+    lessons: [],
+    resources: [expect.any(Object)]
+  })
 })
 ```
 
@@ -297,7 +349,9 @@ Keep `isSafeToOpenFile` (or the existing safe-open predicate) separate from `isS
 
 ```ts
 const lessons = files.filter(isPlayableLessonFile).map(buildLesson)
-const resources = files.filter((file) => !isPlayableLessonFile(file)).map(buildResource)
+const resources = files
+  .filter((file) => !isPlayableLessonFile(file))
+  .map(buildResource)
 attachSubtitleResourcesByNormalizedStem(lessons, resources)
 attachCoverResources(lessons, resources)
 
@@ -335,6 +389,7 @@ Expected: all content classes round-trip; safe-open behavior remains separately 
 ### Task 4: Make preview decisions explicit and surface validation failures
 
 **Files:**
+
 - Modify: `src/renderer/src/components/import/ImportWizard.tsx`
 - Modify: `src/renderer/src/components/import/ImportPreview.tsx`
 - Modify: `src/renderer/src/stores/useLibraryStore.ts`
@@ -343,6 +398,7 @@ Expected: all content classes round-trip; safe-open behavior remains separately 
 - Modify: `test/e2e-workflow.test.ts`
 
 **Interfaces:**
+
 - UI stores `sessionId`, validation result, and a user-selected `DuplicateResolution[]` rather than trusting an extracted filesystem path.
 - Preview renders module resource counts and duplicate candidates, requiring an explicit resolution for a recommended exclusion.
 
@@ -358,8 +414,13 @@ it('does not persist or move a prepared ZIP when the preview is cancelled', asyn
 })
 
 it('keeps both duplicate candidates when the user chooses keep-both', async () => {
-  const result = await commitPreparedImport({ sessionId, duplicateResolutions: [{ groupId, action: 'keep-both' }] })
-  expect(result.course.modules.flatMap((module) => module.lessons)).toHaveLength(2)
+  const result = await commitPreparedImport({
+    sessionId,
+    duplicateResolutions: [{ groupId, action: 'keep-both' }]
+  })
+  expect(
+    result.course.modules.flatMap((module) => module.lessons)
+  ).toHaveLength(2)
 })
 ```
 
@@ -390,6 +451,7 @@ Expected: TypeScript accepts the narrowed IPC contracts and preview choices cann
 ### Task 5: Verify the integrated safety contract and review the worktree diff
 
 **Files:**
+
 - Modify only files required by fixes discovered in the steps below.
 
 - [ ] **Step 1: Run the integrated import-focused suite once**

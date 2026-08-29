@@ -73,9 +73,9 @@ describe('source watch vault lifecycle', () => {
     await vi.waitFor(() => {
       expect(fs.existsSync(path.join(vaultPath, '.orbia', 'covers'))).toBe(true)
       expect(beforeVaultChange).toHaveBeenCalledTimes(1)
-      expect(fs.existsSync(path.join(secondVaultPath, '.orbia', 'covers'))).toBe(
-        false
-      )
+      expect(
+        fs.existsSync(path.join(secondVaultPath, '.orbia', 'covers'))
+      ).toBe(false)
     })
 
     releaseFirstChange!()

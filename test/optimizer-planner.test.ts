@@ -19,7 +19,15 @@ describe('OptimizationPlannerService', () => {
         bitRate: 1000000,
         pixelFormat: 'yuv420p'
       },
-      audioStreams: [{ index: 1, codecName: 'aac', channels: 2, sampleRate: 48000, bitRate: 128000 }],
+      audioStreams: [
+        {
+          index: 1,
+          codecName: 'aac',
+          channels: 2,
+          sampleRate: 48000,
+          bitRate: 128000
+        }
+      ],
       subtitleStreams: [],
       chapters: [],
       hasAudio: true,
@@ -56,7 +64,15 @@ describe('OptimizationPlannerService', () => {
         bitRate: 11800000,
         pixelFormat: 'yuv420p'
       },
-      audioStreams: [{ index: 1, codecName: 'aac', channels: 2, sampleRate: 48000, bitRate: 192000 }],
+      audioStreams: [
+        {
+          index: 1,
+          codecName: 'aac',
+          channels: 2,
+          sampleRate: 48000,
+          bitRate: 192000
+        }
+      ],
       subtitleStreams: [],
       chapters: [],
       hasAudio: true,
@@ -96,7 +112,15 @@ describe('OptimizationPlannerService', () => {
         bitRate: 22800000,
         pixelFormat: 'yuv420p'
       },
-      audioStreams: [{ index: 1, codecName: 'aac', channels: 2, sampleRate: 48000, bitRate: 192000 }],
+      audioStreams: [
+        {
+          index: 1,
+          codecName: 'aac',
+          channels: 2,
+          sampleRate: 48000,
+          bitRate: 192000
+        }
+      ],
       subtitleStreams: [],
       chapters: [],
       hasAudio: true,
@@ -135,7 +159,15 @@ describe('OptimizationPlannerService', () => {
         bitRate: 5000000,
         pixelFormat: 'yuv420p'
       },
-      audioStreams: [{ index: 1, codecName: 'aac', channels: 2, sampleRate: 48000, bitRate: 128000 }],
+      audioStreams: [
+        {
+          index: 1,
+          codecName: 'aac',
+          channels: 2,
+          sampleRate: 48000,
+          bitRate: 128000
+        }
+      ],
       subtitleStreams: [{ index: 2, codecName: 'ass', language: 'por' }],
       chapters: [],
       hasAudio: true,

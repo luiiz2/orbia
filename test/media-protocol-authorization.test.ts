@@ -13,9 +13,17 @@ const state = vi.hoisted(() => ({
 vi.mock('electron', () => ({
   protocol: {
     registerSchemesAsPrivileged: vi.fn(),
-    handle: vi.fn((_scheme: string, handler: (request: { url: string; headers: Headers }) => Promise<Response>) => {
-      state.handler = handler
-    })
+    handle: vi.fn(
+      (
+        _scheme: string,
+        handler: (request: {
+          url: string
+          headers: Headers
+        }) => Promise<Response>
+      ) => {
+        state.handler = handler
+      }
+    )
   },
   net: {
     fetch: state.fetch
@@ -62,15 +70,30 @@ describe('media:// path authorization', () => {
   it('allows only exact registered paths plus app-owned cover artifacts', async () => {
     const vaultPath = path.join(tempRoot, 'vault')
     const temporaryCoversPath = path.join(tempRoot, 'temporary-covers')
-    const localVaultLesson = path.join(vaultPath, 'Courses', 'curso', 'aula.mp4')
+    const localVaultLesson = path.join(
+      vaultPath,
+      'Courses',
+      'curso',
+      'aula.mp4'
+    )
     const localRefLesson = path.join(tempRoot, 'external-course', 'audio.mp3')
     const courseCover = path.join(tempRoot, 'external-cover.png')
     const lessonCover = path.join(tempRoot, 'lesson-cover.jpg')
     const resource = path.join(tempRoot, 'external-course', 'guide.pdf')
     const temporaryCover = path.join(temporaryCoversPath, 'cover_1234abcd.svg')
-    const persistedCover = path.join(vaultPath, '.orbia', 'covers', 'course-1-cover.jpg')
+    const persistedCover = path.join(
+      vaultPath,
+      '.orbia',
+      'covers',
+      'course-1-cover.jpg'
+    )
     const arbitraryPdf = path.join(tempRoot, 'private.pdf')
-    const arbitraryVideo = path.join(vaultPath, 'Courses', 'curso', 'unregistered.mp4')
+    const arbitraryVideo = path.join(
+      vaultPath,
+      'Courses',
+      'curso',
+      'unregistered.mp4'
+    )
 
     const authorizer = createMainMediaPathAuthorizer(
       {
@@ -113,7 +136,9 @@ describe('media:// path authorization', () => {
 
     expect(response.status).toBe(403)
     expect(await response.text()).toContain('not registered')
-    expect(authorizer.isPathAuthorized).toHaveBeenCalledWith(path.normalize(arbitraryPdf))
+    expect(authorizer.isPathAuthorized).toHaveBeenCalledWith(
+      path.normalize(arbitraryPdf)
+    )
     expect(state.fetch).not.toHaveBeenCalled()
   })
 

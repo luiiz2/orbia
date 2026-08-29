@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useLibrarySearchStore } from '../src/renderer/src/stores/useLibrarySearchStore'
-import type { FindInLibraryResponse, RelatedContentResponse } from '../src/types/library-search'
+import type {
+  FindInLibraryResponse,
+  RelatedContentResponse
+} from '../src/types/library-search'
 
 describe('useLibrarySearchStore', () => {
   const search = {
@@ -33,7 +36,13 @@ describe('useLibrarySearchStore', () => {
       mode: 'normal',
       results: [],
       groups: [],
-      coverage: { status: 'none', totalSources: 0, indexedSources: 0, missingSources: 0, percentage: 0 },
+      coverage: {
+        status: 'none',
+        totalSources: 0,
+        indexedSources: 0,
+        missingSources: 0,
+        percentage: 0
+      },
       semanticUsed: false,
       semanticUnavailable: false
     } satisfies FindInLibraryResponse)
@@ -67,7 +76,13 @@ describe('useLibrarySearchStore', () => {
   it('loads related content for an anchor result', async () => {
     search.related.mockResolvedValueOnce({
       groups: [{ type: 'lessons', results: [] }],
-      coverage: { status: 'completed', totalSources: 1, indexedSources: 1, missingSources: 0, percentage: 100 },
+      coverage: {
+        status: 'completed',
+        totalSources: 1,
+        indexedSources: 1,
+        missingSources: 0,
+        percentage: 100
+      },
       semanticUsed: true,
       semanticUnavailable: false
     } satisfies RelatedContentResponse)
@@ -84,7 +99,12 @@ describe('useLibrarySearchStore', () => {
       sourceId: 'lesson-1',
       locator: { startTime: 10, endTime: 20 },
       relevanceScore: 0.9,
-      navigation: { type: 'lesson' as const, courseId: 'course-1', moduleId: 'module-1', lessonId: 'lesson-1' }
+      navigation: {
+        type: 'lesson' as const,
+        courseId: 'course-1',
+        moduleId: 'module-1',
+        lessonId: 'lesson-1'
+      }
     }
 
     await useLibrarySearchStore.getState().loadRelated(anchor)
@@ -101,7 +121,9 @@ describe('useLibrarySearchStore', () => {
       })
     )
     expect(useLibrarySearchStore.getState().relatedAnchor).toEqual(anchor)
-    expect(useLibrarySearchStore.getState().relatedResponse?.groups).toHaveLength(1)
+    expect(
+      useLibrarySearchStore.getState().relatedResponse?.groups
+    ).toHaveLength(1)
   })
 
   it('handles API errors gracefully', async () => {

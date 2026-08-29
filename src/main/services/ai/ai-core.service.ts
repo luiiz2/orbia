@@ -119,7 +119,9 @@ export class AiCoreService {
     const config = settings.providers[providerId]
     if (!config)
       throw new AiProviderError('INVALID_CONFIGURATION', 'Unknown AI provider')
-    assertPrivacyAllows(settings.privacyMode, config, {})
+    assertPrivacyAllows(settings.privacyMode, config, {
+      allowUnclassifiedCloud: true
+    })
     if (!config.enabled)
       throw new AiProviderError(
         'PROVIDER_DISABLED',
@@ -140,7 +142,9 @@ export class AiCoreService {
       throw new AiProviderError('INVALID_CONFIGURATION', 'Unknown AI provider')
     if (!config.enabled)
       return { providerId, status: 'DISABLED', ...(modelId ? { modelId } : {}) }
-    assertPrivacyAllows(settings.privacyMode, config, {})
+    assertPrivacyAllows(settings.privacyMode, config, {
+      allowUnclassifiedCloud: true
+    })
     try {
       return await this.getProvider(providerId).health(modelId)
     } catch (error) {

@@ -27,8 +27,8 @@ const api: OrbiaApi = {
     selectFolder: () => ipcRenderer.invoke('courses:select-folder'),
     selectMultiCourseFolder: () =>
       ipcRenderer.invoke('courses:select-multi-course-folder'),
-    scanMultiCourseFolder: (folderPath: string) =>
-      ipcRenderer.invoke('courses:scan-multi-course-folder', { folderPath }),
+    scanMultiCourseFolder: ({ token }) =>
+      ipcRenderer.invoke('courses:scan-multi-course-folder', { token }),
     prepareZipImport: ({ token }) =>
       ipcRenderer.invoke('courses:prepare-zip-import', { token }),
     prepareFolderImport: ({ token }) =>

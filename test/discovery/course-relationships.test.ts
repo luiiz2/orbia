@@ -25,13 +25,20 @@ describe('Course Relationships & Journey Sequences', () => {
 
   it('creates, lists, and deletes course relationships', () => {
     const now = Date.now()
-    db.prepare(`
+    db.prepare(
+      `
       INSERT INTO courses (id, title, slug, source_type, root_path, total_duration, module_count, lesson_count, is_favorite, created_at, updated_at)
       VALUES ('c_part1', 'React Básico', 'react-1', 'local-vault', '/r1', 1000, 1, 1, 0, ?, ?),
              ('c_part2', 'React Avançado', 'react-2', 'local-vault', '/r2', 1000, 1, 1, 0, ?, ?)
-    `).run(now, now, now, now)
+    `
+    ).run(now, now, now, now)
 
-    const rel = courseRelationshipsService.addRelationship(db, 'c_part1', 'c_part2', 'sequel')
+    const rel = courseRelationshipsService.addRelationship(
+      db,
+      'c_part1',
+      'c_part2',
+      'sequel'
+    )
     expect(rel.id).toBeDefined()
     expect(rel.relationshipType).toBe('sequel')
 

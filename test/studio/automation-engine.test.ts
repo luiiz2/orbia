@@ -25,10 +25,12 @@ describe('Local Deterministic Automation Engine', () => {
 
   it('saves and executes automation rules deterministically', () => {
     const now = Date.now()
-    db.prepare(`
+    db.prepare(
+      `
       INSERT INTO library_appearances (id, entity_type, entity_id, root_course_id, display_order, is_reference, is_hidden, tags, custom_metadata, created_at, updated_at)
       VALUES ('app_1', 'lesson', 'less_1', 'course_1', 1, 0, 0, '[]', '{}', ?, ?)
-    `).run(now, now)
+    `
+    ).run(now, now)
 
     const rule = automationEngine.saveRule(db, {
       name: 'Adicionar Tag Revisado para Aulas',
@@ -36,7 +38,9 @@ describe('Local Deterministic Automation Engine', () => {
       isActive: true,
       executionMode: 'manual',
       triggerEvent: 'onManualTrigger',
-      conditions: [{ field: 'entity_type', operator: 'equals', value: 'lesson' }],
+      conditions: [
+        { field: 'entity_type', operator: 'equals', value: 'lesson' }
+      ],
       actions: [{ actionType: 'add_tag', params: { tag: 'Revisado' } }]
     })
 
@@ -46,7 +50,9 @@ describe('Local Deterministic Automation Engine', () => {
     expect(execRes.success).toBe(true)
     expect(execRes.affectedCount).toBe(1)
 
-    const updatedApp = db.prepare(`SELECT tags FROM library_appearances WHERE id = 'app_1'`).get() as { tags: string }
+    const updatedApp = db
+      .prepare(`SELECT tags FROM library_appearances WHERE id = 'app_1'`)
+      .get() as { tags: string }
     expect(JSON.parse(updatedApp.tags)).toContain('Revisado')
   })
 })

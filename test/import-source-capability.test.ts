@@ -21,11 +21,21 @@ describe('secure import source capabilities', () => {
     })
     const source = registry.issue('C:/private/downloads/course.zip', 'zip')
 
-    expect(source).toEqual({ token: 'source-token-1', name: 'course', isZip: true })
+    expect(source).toEqual({
+      token: 'source-token-1',
+      name: 'course',
+      isZip: true
+    })
     expect(JSON.stringify(source)).not.toContain('C:/private')
-    expect(normalizeImportSourceCapabilityToken({ token: source.token })).toBe(source.token)
-    expect(registry.consume(source.token, 'zip')).toBe(path.resolve('C:/private/downloads/course.zip'))
-    expect(() => registry.consume(source.token, 'zip')).toThrow(/invalid or already used/i)
+    expect(normalizeImportSourceCapabilityToken({ token: source.token })).toBe(
+      source.token
+    )
+    expect(registry.consume(source.token, 'zip')).toBe(
+      path.resolve('C:/private/downloads/course.zip')
+    )
+    expect(() => registry.consume(source.token, 'zip')).toThrow(
+      /invalid or already used/i
+    )
   })
 
   it('rejects raw paths, expired tokens, and a mismatched source kind', () => {
@@ -36,7 +46,9 @@ describe('secure import source capabilities', () => {
       ttlMs: 10
     })
 
-    expect(normalizeImportSourceCapabilityToken({ zipPath: 'C:/private/course.zip' })).toBeNull()
+    expect(
+      normalizeImportSourceCapabilityToken({ zipPath: 'C:/private/course.zip' })
+    ).toBeNull()
     expect(
       normalizeImportSourceCapabilityToken({
         token: 'source-token-2',
@@ -45,8 +57,12 @@ describe('secure import source capabilities', () => {
     ).toBeNull()
 
     const mismatched = registry.issue('C:/private/course', 'folder')
-    expect(() => registry.consume(mismatched.token, 'zip')).toThrow(/source kind/i)
-    expect(() => registry.consume(mismatched.token, 'folder')).toThrow(/invalid or already used/i)
+    expect(() => registry.consume(mismatched.token, 'zip')).toThrow(
+      /source kind/i
+    )
+    expect(() => registry.consume(mismatched.token, 'folder')).toThrow(
+      /invalid or already used/i
+    )
 
     const expired = registry.issue('C:/private/course.zip', 'zip')
     now += 11
@@ -57,9 +73,13 @@ describe('secure import source capabilities', () => {
     const registry = new CoverImageSelectionRegistry()
     const selectedPath = registry.issue('C:/private/covers/selected.png')
 
-    expect(registry.consume(selectedPath)).toBe(path.resolve('C:/private/covers/selected.png'))
+    expect(registry.consume(selectedPath)).toBe(
+      path.resolve('C:/private/covers/selected.png')
+    )
     expect(() => registry.consume(selectedPath)).toThrow(/native .*picker/i)
-    expect(() => registry.consume('C:/private/covers/unselected.png')).toThrow(/native .*picker/i)
+    expect(() => registry.consume('C:/private/covers/unselected.png')).toThrow(
+      /native .*picker/i
+    )
   })
 
   it('expires an unused native cover selection', () => {

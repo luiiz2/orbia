@@ -43,8 +43,18 @@ describe('Selection Store (Global Multi-Selection)', () => {
 
   it('selects and deselects groups of items', () => {
     const items = [
-      { id: '1', appearanceId: 'app_1', type: 'lesson' as const, title: 'Aula 1' },
-      { id: '2', appearanceId: 'app_2', type: 'lesson' as const, title: 'Aula 2' }
+      {
+        id: '1',
+        appearanceId: 'app_1',
+        type: 'lesson' as const,
+        title: 'Aula 1'
+      },
+      {
+        id: '2',
+        appearanceId: 'app_2',
+        type: 'lesson' as const,
+        title: 'Aula 2'
+      }
     ]
 
     useSelectionStore.getState().selectGroup(items)
