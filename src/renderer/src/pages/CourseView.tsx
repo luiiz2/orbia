@@ -23,6 +23,7 @@ import {
   Calendar,
   Sparkles,
   MoreVertical,
+  GripVertical,
   Check
 } from 'lucide-react'
 import { useLibraryStore } from '../stores/useLibraryStore'
@@ -246,6 +247,8 @@ export function CourseView(): React.JSX.Element {
   const [isQueueingTranscription, setIsQueueingTranscription] =
     useState<boolean>(false)
   const [queueingModuleId, setQueueingModuleId] = useState<string | null>(null)
+  const [draggedLessonId, setDraggedLessonId] = useState<string | null>(null)
+  const [dragOverLessonId, setDragOverLessonId] = useState<string | null>(null)
 
   const fetchGoal = React.useCallback(async (courseId: string) => {
     try {
@@ -509,6 +512,68 @@ export function CourseView(): React.JSX.Element {
   const handlePlayLesson = async (lesson: Lesson): Promise<void> => {
     await loadHierarchy(course, modules, lesson.id)
     navigateToPlayer(course.id)
+  }
+
+  const handleLessonDragStart = (
+    event: React.DragEvent<HTMLDivElement>,
+    lessonId: string
+  ): void => {
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData('text/plain', lessonId)
+    setDraggedLessonId(lessonId)
+  }
+
+  const handleLessonDragOver = (
+    event: React.DragEvent<HTMLDivElement>,
+    lessonId: string
+  ): void => {
+    event.preventDefault()
+    event.dataTransfer.dropEffect = 'move'
+    if (lessonId !== draggedLessonId) {
+      setDragOverLessonId(lessonId)
+    }
+  }
+
+  const handleLessonDrop = async (
+    event: React.DragEvent<HTMLDivElement>,
+    moduleId: string,
+    targetLessonId: string
+  ): Promise<void> => {
+    event.preventDefault()
+    const sourceLessonId =
+      event.dataTransfer.getData('text/plain') || draggedLessonId
+    const module = modules.find((candidate) => candidate.id === moduleId)
+    const sourceIndex = module?.lessons.findIndex(
+      (lesson) => lesson.id === sourceLessonId
+    )
+    const targetIndex = module?.lessons.findIndex(
+      (lesson) => lesson.id === targetLessonId
+    )
+
+    setDraggedLessonId(null)
+    setDragOverLessonId(null)
+
+    if (
+      !sourceLessonId ||
+      sourceIndex === undefined ||
+      targetIndex === undefined ||
+      sourceIndex === -1 ||
+      targetIndex === -1 ||
+      sourceIndex === targetIndex
+    ) {
+      return
+    }
+
+    await reorderLesson(
+      sourceLessonId,
+      sourceIndex < targetIndex ? 'down' : 'up',
+      targetIndex
+    )
+  }
+
+  const handleLessonDragEnd = (): void => {
+    setDraggedLessonId(null)
+    setDragOverLessonId(null)
   }
 
   const handleChangeCourseCover = async (): Promise<void> => {
@@ -1273,6 +1338,17 @@ export function CourseView(): React.JSX.Element {
                           key={lesson.id}
                           role="button"
                           tabIndex={0}
+                          draggable
+                          onDragStart={(event) =>
+                            handleLessonDragStart(event, lesson.id)
+                          }
+                          onDragOver={(event) =>
+                            handleLessonDragOver(event, lesson.id)
+                          }
+                          onDrop={(event) => {
+                            void handleLessonDrop(event, module.id, lesson.id)
+                          }}
+                          onDragEnd={handleLessonDragEnd}
                           onClick={() => handlePlayLesson(lesson)}
                           onKeyDown={(e) => {
                             if (e.key === 'Enter' || e.key === ' ') {
@@ -1283,7 +1359,11 @@ export function CourseView(): React.JSX.Element {
                           className={cn(
                             'flex items-center justify-between py-2.5 px-3 rounded-xl hover:bg-secondary/70 cursor-pointer transition-colors duration-150 group focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary',
                             problemInfo &&
-                              'bg-destructive/5 hover:bg-destructive/10 border border-destructive/25'
+                              'bg-destructive/5 hover:bg-destructive/10 border border-destructive/25',
+                            draggedLessonId === lesson.id && 'opacity-60',
+                            dragOverLessonId === lesson.id &&
+                              draggedLessonId !== lesson.id &&
+                              'bg-accent/10 ring-1 ring-accent/40'
                           )}
                         >
                           <div className="flex items-center gap-3 overflow-hidden flex-1 min-w-0 mr-2">
@@ -1308,6 +1388,17 @@ export function CourseView(): React.JSX.Element {
                                     : 'Aula pendente'}
                               </TooltipContent>
                             </Tooltip>
+
+                            {/* Drag Handle */}
+                            <span
+                              className="flex h-8 w-5 shrink-0 items-center justify-center text-muted-foreground/50 group-hover:text-primary transition-colors"
+                              title="Arrastar para reordenar"
+                            >
+                              <GripVertical
+                                className="h-4 w-4"
+                                aria-hidden="true"
+                              />
+                            </span>
 
                             {/* Lesson Thumbnail & Cover */}
                             <Tooltip>

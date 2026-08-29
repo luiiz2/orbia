@@ -63,7 +63,7 @@ const SHORTCUTS_DATA: ShortcutItem[] = [
   },
   {
     id: 'tabs',
-    keys: ['Alt', '1-6'],
+    keys: ['Alt', '1-5'],
     descriptionKey: 'shortcuts.switchTabs',
     category: 'general'
   },

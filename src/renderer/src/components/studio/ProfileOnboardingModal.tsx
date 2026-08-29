@@ -21,7 +21,8 @@ export function ProfileOnboardingModal({
   open,
   onFinish
 }: ProfileOnboardingModalProps): React.JSX.Element {
-  const { profiles, updateProfile, setActiveProfile } = useProfileStore()
+  const { profiles, createProfile, updateProfile, setActiveProfile } =
+    useProfileStore()
   const [userName, setUserName] = useState('')
   const [avatarPath, setAvatarPath] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
@@ -58,6 +59,9 @@ export function ProfileOnboardingModal({
           name: finalName,
           avatarPath: avatarPath || null
         })
+      } else {
+        const created = await createProfile(finalName, avatarPath || undefined)
+        if (created) setActiveProfile(created)
       }
       localStorage.setItem('orbia_profile_onboarding_done', 'true')
       onFinish()

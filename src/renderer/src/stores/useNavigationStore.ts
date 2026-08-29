@@ -1,14 +1,7 @@
 import { create } from 'zustand'
 
 export type ViewType =
-  | 'home'
-  | 'discover'
-  | 'course'
-  | 'player'
-  | 'history'
-  | 'review'
-  | 'settings'
-  | 'studio'
+  'home' | 'discover' | 'course' | 'player' | 'history' | 'review' | 'settings'
 
 export interface SourceNavigationIntent {
   courseId: string
@@ -39,7 +32,6 @@ export interface NavigationState {
   navigateToPlayer: (courseId?: string) => void
   navigateToHistory: () => void
   navigateToReview: () => void
-  navigateToStudio: () => void
   navigateToSettings: () => void
   toggleSidebar: () => void
   setSidebarCollapsed: (collapsed: boolean) => void
@@ -115,11 +107,6 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
   navigateToReview: () =>
     set({
       currentView: 'review'
-    }),
-
-  navigateToStudio: () =>
-    set({
-      currentView: 'studio'
     }),
 
   navigateToSettings: () =>

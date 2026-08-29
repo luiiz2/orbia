@@ -9,7 +9,6 @@ export function useGlobalShortcuts(): void {
     setImportModalOpen,
     navigateToHome,
     navigateToDiscover,
-    navigateToStudio,
     navigateToReview,
     navigateToHistory,
     navigateToSettings
@@ -83,7 +82,7 @@ export function useGlobalShortcuts(): void {
         return
       }
 
-      // 5. Quick Tab Switching (Alt+1..6)
+      // 5. Quick Tab Switching (Alt+1..5)
       if (e.altKey && !modifier) {
         switch (e.key) {
           case '1':
@@ -96,17 +95,13 @@ export function useGlobalShortcuts(): void {
             break
           case '3':
             e.preventDefault()
-            navigateToStudio()
+            navigateToReview()
             break
           case '4':
             e.preventDefault()
-            navigateToReview()
-            break
-          case '5':
-            e.preventDefault()
             navigateToHistory()
             break
-          case '6':
+          case '5':
             e.preventDefault()
             navigateToSettings()
             break
@@ -124,7 +119,6 @@ export function useGlobalShortcuts(): void {
       setImportModalOpen,
       navigateToHome,
       navigateToDiscover,
-      navigateToStudio,
       navigateToReview,
       navigateToHistory,
       navigateToSettings

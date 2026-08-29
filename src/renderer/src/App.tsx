@@ -20,7 +20,6 @@ import {
   AutomationRulesModal,
   ProfileSelectorModal,
   ThemeEditorModal,
-  VisualLibraryStudio,
   ProfileOnboardingModal,
   StartupProfilePicker
 } from './components/studio'
@@ -42,6 +41,7 @@ import { useGroundedChatStore } from './stores/useGroundedChatStore'
 import { SummaryViewModal } from './components/summaries/SummaryViewModal'
 import { AiNotePreviewModal } from './components/notes/AiNotePreviewModal'
 import { useGlobalShortcuts } from './hooks'
+import { resolveProfileStartupMode } from './lib/profile-startup'
 
 export function App(): React.JSX.Element {
   useGlobalShortcuts()
@@ -73,6 +73,11 @@ export function App(): React.JSX.Element {
   )
   const [hasSelectedStartupProfile, setHasSelectedStartupProfile] =
     useState<boolean>(false)
+
+  const profileStartupMode = resolveProfileStartupMode(
+    profiles,
+    hasCompletedOnboarding
+  )
 
   useEffect(() => {
     async function preloadData(): Promise<void> {
@@ -111,9 +116,6 @@ export function App(): React.JSX.Element {
       case 'review':
         viewContent = <ReviewView />
         break
-      case 'studio':
-        viewContent = <VisualLibraryStudio />
-        break
       case 'history':
         viewContent = <HistoryView />
         break
@@ -144,16 +146,18 @@ export function App(): React.JSX.Element {
           />
         )}
 
-        {isSplashDone && !hasCompletedOnboarding && (
+        {isSplashDone && profileStartupMode === 'onboarding' && (
           <ProfileOnboardingModal
             open={true}
-            onFinish={() => setHasCompletedOnboarding(true)}
+            onFinish={() => {
+              setHasCompletedOnboarding(true)
+              setHasSelectedStartupProfile(true)
+            }}
           />
         )}
 
         {isSplashDone &&
-          hasCompletedOnboarding &&
-          profiles.length > 1 &&
+          profileStartupMode === 'select' &&
           !hasSelectedStartupProfile && (
             <StartupProfilePicker
               onSelect={(profile) => {
@@ -164,8 +168,9 @@ export function App(): React.JSX.Element {
           )}
 
         {isSplashDone &&
-          (!hasCompletedOnboarding ? null : profiles.length > 1 &&
-            !hasSelectedStartupProfile ? null : !currentVault ? (
+          (profileStartupMode === 'onboarding' ||
+          (profileStartupMode === 'select' &&
+            !hasSelectedStartupProfile) ? null : !currentVault ? (
             <VaultSelector />
           ) : (
             <>

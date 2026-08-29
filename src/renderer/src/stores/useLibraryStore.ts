@@ -55,7 +55,11 @@ export interface LibraryState {
   updateModuleMetadata: (moduleId: string, customTitle: string) => Promise<void>
   updateLessonMetadata: (lessonId: string, customTitle: string) => Promise<void>
   reorderModule: (moduleId: string, direction: 'up' | 'down') => Promise<void>
-  reorderLesson: (lessonId: string, direction: 'up' | 'down') => Promise<void>
+  reorderLesson: (
+    lessonId: string,
+    direction: 'up' | 'down',
+    targetIndex?: number
+  ) => Promise<void>
   toggleLessonFavorite: (lessonId: string) => Promise<boolean>
   toggleModuleCompletion: (moduleId: string, courseId: string) => Promise<void>
   searchGlobal: (query: string) => Promise<import('@shared').SearchResultItem[]>
@@ -594,14 +598,54 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
     }
   },
 
-  reorderLesson: async (lessonId: string, direction: 'up' | 'down') => {
+  reorderLesson: async (
+    lessonId: string,
+    direction: 'up' | 'down',
+    targetIndex?: number
+  ) => {
     try {
-      const res = await window.api.courses.reorderLesson(lessonId, direction)
-      if (res.success) {
-        const { activeCourse } = get()
-        if (activeCourse) {
-          await get().fetchCourseById(activeCourse.id)
+      const hierarchy = get().activeCourseHierarchy
+      const module = hierarchy?.modules.find((candidate) =>
+        candidate.lessons.some((lesson) => lesson.id === lessonId)
+      )
+      if (!module) return
+
+      const currentIndex = module.lessons.findIndex(
+        (lesson) => lesson.id === lessonId
+      )
+      const destinationIndex =
+        targetIndex ?? currentIndex + (direction === 'up' ? -1 : 1)
+      if (
+        currentIndex === -1 ||
+        !Number.isInteger(destinationIndex) ||
+        destinationIndex < 0 ||
+        destinationIndex >= module.lessons.length ||
+        destinationIndex === currentIndex
+      ) {
+        return
+      }
+
+      const moveDirection = destinationIndex < currentIndex ? 'up' : 'down'
+      let position = currentIndex
+      while (position !== destinationIndex) {
+        const res = await window.api.courses.reorderLesson(
+          lessonId,
+          moveDirection
+        )
+        if (!res.success) {
+          const { activeCourse } = get()
+          if (activeCourse) {
+            await get().fetchCourseById(activeCourse.id)
+          }
+          return
         }
+
+        position += moveDirection === 'up' ? -1 : 1
+      }
+
+      const { activeCourse } = get()
+      if (activeCourse) {
+        await get().fetchCourseById(activeCourse.id)
       }
     } catch (err) {
       console.error('Failed to reorder lesson:', err)

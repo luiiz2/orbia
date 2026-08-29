@@ -26,14 +26,11 @@ describe('Global Keyboard Shortcuts & Navigation', () => {
     expect(useNavigationStore.getState().isShortcutsModalOpen).toBe(false)
   })
 
-  it('navigates cleanly across all 6 core view routes', () => {
+  it('navigates cleanly across the core view routes', () => {
     const store = useNavigationStore.getState()
 
     store.navigateToDiscover()
     expect(useNavigationStore.getState().currentView).toBe('discover')
-
-    store.navigateToStudio()
-    expect(useNavigationStore.getState().currentView).toBe('studio')
 
     store.navigateToReview()
     expect(useNavigationStore.getState().currentView).toBe('review')
