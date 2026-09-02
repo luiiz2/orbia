@@ -1,4 +1,5 @@
 import React, { useRef, useEffect } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import {
   Play,
   Pause,
@@ -31,9 +32,28 @@ export function MiniPlayer(): React.JSX.Element | null {
     nextLesson,
     dismissMiniPlayer,
     updateProgress
-  } = usePlayerStore()
+  } = usePlayerStore(
+    useShallow((state) => ({
+      activeLesson: state.activeLesson,
+      activeCourse: state.activeCourse,
+      isPlaying: state.isPlaying,
+      currentTime: state.currentTime,
+      duration: state.duration,
+      volume: state.volume,
+      isMuted: state.isMuted,
+      playbackRate: state.playbackRate,
+      isMiniPlayerActive: state.isMiniPlayerActive,
+      play: state.play,
+      pause: state.pause,
+      seek: state.seek,
+      nextLesson: state.nextLesson,
+      dismissMiniPlayer: state.dismissMiniPlayer,
+      updateProgress: state.updateProgress
+    }))
+  )
 
-  const { currentView, navigateToPlayer } = useNavigationStore()
+  const currentView = useNavigationStore((state) => state.currentView)
+  const navigateToPlayer = useNavigationStore((state) => state.navigateToPlayer)
   const videoRef = useRef<HTMLVideoElement | null>(null)
 
   const isVisible = Boolean(
@@ -130,7 +150,7 @@ export function MiniPlayer(): React.JSX.Element | null {
           <p className="text-xs text-muted-foreground uppercase font-mono tracking-wider">
             Documento em Estudo
           </p>
-          <h4 className="text-sm font-semibold text-white mt-1 line-clamp-1">
+          <h4 className="mt-1 break-words whitespace-normal text-sm font-semibold text-white leading-snug">
             {activeLesson.title}
           </h4>
         </div>
@@ -139,11 +159,11 @@ export function MiniPlayer(): React.JSX.Element | null {
       {/* Top Controls Overlay (Hover) */}
       <div className="absolute top-0 inset-x-0 p-2.5 bg-gradient-to-b from-black/90 via-black/40 to-transparent flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-30">
         <div className="flex-1 min-w-0 pr-2">
-          <h4 className="text-xs font-semibold text-white truncate drop-shadow-sm">
+          <h4 className="break-words whitespace-normal text-xs font-semibold text-white leading-snug drop-shadow-sm">
             {activeLesson.title}
           </h4>
           {activeCourse && (
-            <p className="text-[10px] text-slate-300/80 truncate">
+            <p className="break-words whitespace-normal text-[10px] text-slate-300/80 leading-snug">
               {activeCourse.title}
             </p>
           )}

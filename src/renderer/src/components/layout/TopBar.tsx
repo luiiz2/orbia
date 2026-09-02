@@ -8,8 +8,8 @@ import {
   FolderOpen,
   Plus,
   X,
-  Sparkles,
   HelpCircle,
+  Settings,
   Palette,
   HardDriveDownload,
   MoreHorizontal
@@ -20,11 +20,9 @@ import { useVaultStore } from '../../stores/useVaultStore'
 import { useNavigationStore } from '../../stores/useNavigationStore'
 import { useProfileStore } from '../../stores/useProfileStore'
 import { useOptimizerStore } from '../../stores/useOptimizerStore'
-import { useGroundedChatStore } from '../../stores/useGroundedChatStore'
 import { useTheme } from './ThemeProvider'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
-import { Tooltip, TooltipTrigger, TooltipContent } from '../ui/tooltip'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -125,78 +123,47 @@ export function TopBar(): React.JSX.Element {
 
         {/* Center: dominant global search */}
         <div className="mx-1 flex min-w-0 flex-[1.35] items-center gap-1.5 sm:mx-2 sm:gap-2">
-          <div className="relative min-w-0 flex-1">
+          <form
+            className="relative min-w-0 flex-1"
+            onSubmit={(event) => {
+              event.preventDefault()
+              openLibrarySearch(searchQuery, true)
+            }}
+          >
             <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
               type="text"
               placeholder={`${t('common.search')}...`}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault()
-                  openLibrarySearch(searchQuery, true)
-                }
-              }}
               aria-label={t('common.search')}
               aria-keyshortcuts="Enter"
-              className="h-8.5 w-full rounded-lg border-border/60 bg-black/5 pl-9 pr-8 text-xs text-foreground transition-all placeholder:text-muted-foreground focus-visible:border-primary/50 focus-visible:ring-1 focus-visible:ring-primary/60 dark:bg-white/5"
+              className="h-8.5 w-full rounded-lg border-border/60 bg-black/5 pl-9 pr-16 text-xs text-foreground transition-all placeholder:text-muted-foreground focus-visible:border-primary/50 focus-visible:ring-1 focus-visible:ring-primary/60 dark:bg-white/5"
             />
             {searchQuery && (
               <button
                 type="button"
                 onClick={() => setSearchQuery('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 cursor-pointer rounded-full p-0.5 text-muted-foreground hover:bg-black/10 hover:text-foreground dark:hover:bg-white/10"
+                className="absolute right-9 top-1/2 -translate-y-1/2 cursor-pointer rounded-full p-1 text-muted-foreground hover:bg-black/10 hover:text-foreground dark:hover:bg-white/10"
                 title="Clear search"
                 aria-label="Clear search"
               >
                 <X className="h-3 w-3" />
               </button>
             )}
-          </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => openLibrarySearch(searchQuery, true)}
-            className="h-8.5 shrink-0 gap-1.5 rounded-lg px-2 text-xs sm:px-2.5"
-            aria-label="Find in Library"
-            title="Find in Library"
-          >
-            <Search className="h-3.5 w-3.5" aria-hidden="true" />
-            <span className="hidden min-[1180px]:inline">Find in Library</span>
-          </Button>
+            <button
+              type="submit"
+              className="absolute right-2 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              aria-label={t('search.openLibrary', 'Pesquisar na biblioteca')}
+              title={t('search.openLibrary', 'Pesquisar na biblioteca')}
+            >
+              <Search className="h-3.5 w-3.5" aria-hidden="true" />
+            </button>
+          </form>
         </div>
 
         {/* Right: high-priority actions and secondary controls */}
         <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-1.5">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  useGroundedChatStore
-                    .getState()
-                    .open({ scope: { type: 'vault' } })
-                }
-                className="h-8.5 w-8.5 gap-1.5 rounded-lg border-primary/40 bg-primary/10 px-0 text-xs font-semibold text-primary shadow-xs transition-all hover:bg-primary/20 min-[1180px]:w-auto min-[1180px]:px-2.5"
-                aria-label={t('chat.askOrbia', 'Perguntar à Orbia')}
-              >
-                <Sparkles className="h-3.5 w-3.5 text-primary" />
-                <span className="hidden min-[1180px]:inline">
-                  {t('chat.askOrbia', 'Perguntar à Orbia')}
-                </span>
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">
-              {t(
-                'chat.askOrbiaTooltip',
-                'Fazer perguntas sobre toda a sua biblioteca de cursos'
-              )}
-            </TooltipContent>
-          </Tooltip>
-
           <Button
             size="sm"
             onClick={() => setImportModalOpen(true)}
@@ -219,7 +186,7 @@ export function TopBar(): React.JSX.Element {
             aria-label={currentVault?.name || t('nav.changeVault')}
           >
             <FolderOpen className="h-3.5 w-3.5 text-primary" />
-            <span className="hidden max-w-[120px] truncate font-medium min-[1180px]:inline">
+            <span className="hidden max-w-[120px] break-words whitespace-normal text-left font-medium leading-snug min-[1180px]:inline">
               {currentVault?.name || t('nav.changeVault')}
             </span>
           </Button>
@@ -247,6 +214,14 @@ export function TopBar(): React.JSX.Element {
               <DropdownMenuSeparator className="my-1" />
 
               <DropdownMenuItem
+                onClick={() => setView('settings')}
+                className="gap-2 rounded-lg py-2 text-xs"
+              >
+                <Settings className="h-4 w-4 text-primary" />
+                <span>{t('nav.settings', 'Configurações')}</span>
+              </DropdownMenuItem>
+
+              <DropdownMenuItem
                 onClick={() =>
                   useNavigationStore.getState().setThemeModalOpen(true)
                 }
@@ -266,7 +241,7 @@ export function TopBar(): React.JSX.Element {
                 className="gap-2 rounded-lg py-2 text-xs"
               >
                 <HardDriveDownload className="h-4 w-4 text-accent" />
-                <span className="min-w-0 flex-1 truncate">
+                <span className="min-w-0 flex-1 break-words whitespace-normal leading-snug">
                   {t('optimizer.title', 'Otimizador de Armazenamento de Vídeo')}
                 </span>
                 {queue.some((q) => q.status === 'encoding') && (

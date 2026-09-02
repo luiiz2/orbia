@@ -234,14 +234,6 @@ export function isVideoFile(filePath: string): boolean {
 }
 
 /**
- * Checks if a file is specifically audio
- */
-export function isAudioFile(filePath: string): boolean {
-  const ext = path.extname(filePath).toLowerCase()
-  return AUDIO_EXTENSIONS.has(ext)
-}
-
-/**
  * Checks if a file is an image
  */
 export function isImageFile(filePath: string): boolean {

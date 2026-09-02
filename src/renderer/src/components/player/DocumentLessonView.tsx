@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import { useTranslation } from 'react-i18next'
 import {
   ChevronLeft,
@@ -30,7 +31,14 @@ export function DocumentLessonView({
 }: DocumentLessonViewProps): React.JSX.Element {
   const { t } = useTranslation()
   const { activeCourse, activeLesson, toggleComplete, progressMap } =
-    usePlayerStore()
+    usePlayerStore(
+      useShallow((state) => ({
+        activeCourse: state.activeCourse,
+        activeLesson: state.activeLesson,
+        toggleComplete: state.toggleComplete,
+        progressMap: state.progressMap
+      }))
+    )
   const { setView } = useNavigationStore()
 
   const [linkUrl, setLinkUrl] = useState<string | null>(null)
@@ -125,7 +133,7 @@ export function DocumentLessonView({
     >
       {/* Header */}
       <div className="absolute left-0 right-0 top-0 z-30 flex items-center justify-between bg-gradient-to-b from-black/85 via-black/45 to-transparent p-4">
-        <div className="flex items-center gap-3 overflow-hidden">
+        <div className="min-w-0 flex-1 flex items-start gap-3">
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -146,13 +154,13 @@ export function DocumentLessonView({
             </TooltipContent>
           </Tooltip>
 
-          <div className="flex flex-col overflow-hidden">
+          <div className="min-w-0 flex-1">
             {activeCourse && (
-              <span className="text-[11px] font-medium text-zinc-400 truncate">
+              <span className="block break-words whitespace-normal text-[11px] font-medium text-zinc-400 leading-snug">
                 {activeCourse.title}
               </span>
             )}
-            <h2 className="text-sm font-semibold text-white truncate">
+            <h2 className="break-words whitespace-normal text-sm font-semibold text-white leading-snug">
               {activeLesson.title || 'Lesson'}
             </h2>
           </div>

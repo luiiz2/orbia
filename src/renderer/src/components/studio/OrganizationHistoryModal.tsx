@@ -69,7 +69,7 @@ export function OrganizationHistoryModal(): React.JSX.Element | null {
                       </span>
                     )}
                   </div>
-                  <h4 className="font-semibold text-foreground truncate">
+                  <h4 className="break-words whitespace-normal font-semibold text-foreground leading-snug">
                     {entry.description}
                   </h4>
                 </div>

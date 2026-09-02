@@ -139,11 +139,11 @@ export function VaultSelector(): React.JSX.Element {
                       <div className="w-8 h-8 rounded-lg bg-secondary flex items-center justify-center text-muted-foreground shrink-0 group-hover:text-primary transition-colors">
                         <HardDrive className="w-4 h-4" />
                       </div>
-                      <div className="min-w-0">
-                        <div className="text-xs font-medium text-foreground truncate group-hover:text-primary">
+                      <div className="min-w-0 flex-1">
+                        <div className="break-words whitespace-normal text-xs font-medium text-foreground leading-snug group-hover:text-primary">
                           {vault.name}
                         </div>
-                        <div className="text-[11px] text-muted-foreground truncate max-w-sm font-mono">
+                        <div className="max-w-sm break-words whitespace-normal text-[11px] text-muted-foreground font-mono leading-snug">
                           {vault.path}
                         </div>
                       </div>

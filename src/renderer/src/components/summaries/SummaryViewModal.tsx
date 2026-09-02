@@ -28,7 +28,7 @@ export function SummaryViewModal(): React.JSX.Element {
   const { t } = useTranslation()
   const { isOpen, summary, isLoading, error, generateSummary, closeSummary } =
     useSummariesStore()
-  const { seek } = usePlayerStore()
+  const seek = usePlayerStore((state) => state.seek)
   const [viewMarkdown, setViewMarkdown] = useState(false)
 
   if (!isOpen) return <></>
@@ -81,9 +81,9 @@ export function SummaryViewModal(): React.JSX.Element {
             <div className="p-2 rounded-lg bg-primary/10 text-primary">
               <Sparkles className="h-5 w-5" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <DialogTitle className="text-lg font-bold truncate max-w-md">
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-start gap-2">
+                <DialogTitle className="min-w-0 break-words whitespace-normal text-lg font-bold leading-snug">
                   {summary?.title || t('summaries.title', 'Resumo com IA')}
                 </DialogTitle>
                 {summary && getScopeBadge(summary.scopeType)}
@@ -263,7 +263,7 @@ export function SummaryViewModal(): React.JSX.Element {
                       >
                         <Clock className="h-3 w-3" />
                         <span>{formatTime(ts.timestampSeconds)}</span>
-                        <span className="text-foreground/70 font-normal truncate max-w-[180px]">
+                        <span className="max-w-[180px] break-words whitespace-normal text-foreground/70 font-normal leading-snug">
                           {ts.label}
                         </span>
                       </button>

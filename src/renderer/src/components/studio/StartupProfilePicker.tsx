@@ -176,7 +176,7 @@ export function StartupProfilePicker({
                         handleStartEdit(p)
                       }
                     }}
-                    className="text-sm font-bold text-muted-foreground group-hover:text-foreground transition-colors cursor-pointer text-center truncate max-w-[120px]"
+                    className="max-w-[120px] break-words whitespace-normal text-sm font-bold text-muted-foreground leading-snug group-hover:text-foreground transition-colors cursor-pointer text-center"
                     title={p.name}
                   >
                     {p.name}

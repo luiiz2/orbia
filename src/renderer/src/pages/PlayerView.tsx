@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import { useTranslation } from 'react-i18next'
 import {
   FileText,
@@ -24,7 +25,10 @@ import { FlashcardsPanel } from '../components/player/FlashcardsPanel'
 import { TranscriptPanel } from '../components/player/TranscriptPanel'
 import { PdfViewerModal } from '../components/documents/PdfViewerModal'
 import { CodeViewerModal } from '../components/documents/CodeViewerModal'
-import { usePlayerStore } from '../stores/usePlayerStore'
+import {
+  selectPlayerViewState,
+  usePlayerStore
+} from '../stores/usePlayerStore'
 import { useLibraryStore } from '../stores/useLibraryStore'
 import { useNavigationStore } from '../stores/useNavigationStore'
 import { useGroundedChatStore } from '../stores/useGroundedChatStore'
@@ -115,7 +119,6 @@ export function PlayerView(): React.JSX.Element {
   const {
     activeCourse,
     activeLesson,
-    currentTime,
     modulesWithLessons,
     notes,
     chapters,
@@ -130,7 +133,7 @@ export function PlayerView(): React.JSX.Element {
     deleteLesson,
     seek,
     addNote
-  } = usePlayerStore()
+  } = usePlayerStore(useShallow(selectPlayerViewState))
 
   const {
     transcript,
@@ -297,12 +300,12 @@ export function PlayerView(): React.JSX.Element {
   return (
     <div
       className={cn(
-        'flex h-[calc(100vh-3.5rem)] w-full overflow-hidden bg-background relative',
+        'flex h-[calc(100vh-3.5rem)] w-full min-w-0 flex-col overflow-hidden bg-background relative sm:flex-row',
         isFullscreen && 'h-screen'
       )}
     >
       {/* Main Video Area */}
-      <div className="flex flex-1 flex-col overflow-hidden bg-black">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-black">
         <div className="relative flex-1">
           <VideoPlayer
             onBack={() => activeCourse && setView('course', activeCourse.id)}
@@ -311,24 +314,22 @@ export function PlayerView(): React.JSX.Element {
       </div>
 
       {/* Side Panel (collapsible drawer) */}
-      {!isFullscreen && (
+      {!isFullscreen && !theaterMode && (
         <aside
           className={cn(
-            'border-l border-border/80 bg-card/95 backdrop-blur-xl flex flex-col transition-all duration-300 ease-in-out select-none z-20',
+            'min-h-0 min-w-0 max-w-full border-l border-border/80 bg-card/95 backdrop-blur-xl flex flex-col transition-all duration-300 ease-in-out select-none z-20',
             isSidebarOpen
-              ? theaterMode
-                ? 'w-96'
-                : 'w-80 sm:w-96'
-              : 'w-0 border-l-0 overflow-hidden'
+              ? 'h-[min(60vh,32rem)] w-full sm:h-full sm:w-80 md:w-96'
+              : 'h-0 w-0 border-l-0 overflow-hidden sm:h-full'
           )}
         >
           {/* Side Panel Header */}
           <div className="flex flex-col border-b border-border/80 p-3.5 space-y-3 bg-card/80">
             <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2 overflow-hidden">
+              <div className="flex min-w-0 flex-1 items-start gap-2">
                 <Tv className="h-4 w-4 text-primary shrink-0" />
                 <h3
-                  className="font-bold text-foreground text-sm truncate"
+                  className="min-w-0 flex-1 break-words whitespace-normal font-bold text-foreground text-sm leading-snug"
                   title={activeCourse?.title}
                 >
                   {activeCourse?.title || 'Course'}
@@ -372,7 +373,7 @@ export function PlayerView(): React.JSX.Element {
 
             {/* Grounded AI Action Bar */}
             {activeLesson && (
-              <div className="flex items-center gap-1.5 pt-0.5">
+              <div className="grid min-w-0 grid-cols-1 gap-1.5 pt-0.5 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
                 <button
                   type="button"
                   onClick={() => {
@@ -380,11 +381,11 @@ export function PlayerView(): React.JSX.Element {
                       scope: { type: 'lesson', lessonId: activeLesson.id }
                     })
                   }}
-                  className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-2 py-1.5 text-xs font-semibold text-primary hover:bg-primary/20 transition-all cursor-pointer"
+                  className="inline-flex min-w-0 items-center justify-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-2 py-1.5 text-xs font-semibold text-primary hover:bg-primary/20 transition-all cursor-pointer"
                   title={t('chat.askAboutLesson', 'Perguntar sobre esta aula')}
                 >
                   <Sparkles className="h-3.5 w-3.5 shrink-0" />
-                  <span className="truncate">
+                  <span className="min-w-0 whitespace-normal break-words text-center">
                     {t('chat.askAboutLesson', 'Perguntar sobre a Aula')}
                   </span>
                 </button>
@@ -400,11 +401,13 @@ export function PlayerView(): React.JSX.Element {
                       })
                     }
                   }}
-                  className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-2.5 py-1.5 text-xs font-semibold text-primary hover:bg-primary/20 transition-all cursor-pointer shrink-0"
+                  className="inline-flex min-w-0 items-center justify-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-2.5 py-1.5 text-xs font-semibold text-primary hover:bg-primary/20 transition-all cursor-pointer"
                   title={t('summaries.summarizeLesson', 'Resumir Aula')}
                 >
                   <FileText className="h-3.5 w-3.5 shrink-0" />
-                  <span>{t('summaries.summarize', 'Resumo')}</span>
+                  <span className="min-w-0 whitespace-normal break-words text-center">
+                    {t('summaries.summarize', 'Resumo')}
+                  </span>
                 </button>
                 <button
                   type="button"
@@ -413,24 +416,24 @@ export function PlayerView(): React.JSX.Element {
                       scope: { type: 'lesson', lessonId: activeLesson.id },
                       moment: {
                         lessonId: activeLesson.id,
-                        timestampSeconds: currentTime
+                        timestampSeconds: usePlayerStore.getState().currentTime
                       }
                     })
                     void useGroundedChatStore
                       .getState()
                       .ask('Explain this moment')
                   }}
-                  className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border/80 bg-secondary/50 px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-secondary transition-all cursor-pointer shrink-0"
+                  className="inline-flex min-w-0 items-center justify-center gap-1.5 rounded-lg border border-border/80 bg-secondary/50 px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-secondary transition-all cursor-pointer"
                   title={t(
                     'chat.explainThis',
                     'Explicar este momento do vídeo'
                   )}
                 >
                   <HelpCircle className="h-3.5 w-3.5 text-primary shrink-0" />
-                  <span className="hidden sm:inline">
+                  <span className="hidden min-w-0 whitespace-normal break-words text-center sm:inline">
                     {t('chat.explainThis', 'Explicar Este Momento')}
                   </span>
-                  <span className="sm:hidden">
+                  <span className="min-w-0 whitespace-normal break-words text-center sm:hidden">
                     {t('chat.explain', 'Explicar')}
                   </span>
                 </button>
@@ -439,7 +442,7 @@ export function PlayerView(): React.JSX.Element {
 
             {/* 3 Primary Mode Tabs (Ergonomic, no overflow, accessible) */}
             <div
-              className="flex rounded-xl bg-secondary/80 p-1 text-xs gap-1 border border-border/40 select-none"
+              className="grid min-w-0 grid-cols-3 gap-1 rounded-xl bg-secondary/80 p-1 text-xs border border-border/40 select-none"
               role="tablist"
             >
               <button
@@ -448,14 +451,16 @@ export function PlayerView(): React.JSX.Element {
                 aria-selected={activeMainMode === 'conteudo'}
                 onClick={() => setActiveMainMode('conteudo')}
                 className={cn(
-                  'flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 text-center font-semibold rounded-lg transition-all cursor-pointer relative active:scale-95 duration-150',
+                  'flex min-w-0 flex-wrap items-center justify-center gap-1.5 whitespace-normal break-words py-1.5 px-1.5 text-center font-semibold leading-tight rounded-lg transition-all cursor-pointer relative active:scale-95 duration-150',
                   activeMainMode === 'conteudo'
                     ? 'bg-card text-foreground shadow-xs ring-1 ring-border/60'
                     : 'text-muted-foreground hover:text-foreground'
                 )}
               >
                 <BookOpen className="h-3.5 w-3.5 text-primary" />
-                <span>{t('player.curriculum', 'Conteúdo')}</span>
+                <span className="min-w-0 break-words whitespace-normal">
+                  {t('player.curriculum', 'Conteúdo')}
+                </span>
               </button>
 
               <button
@@ -464,14 +469,16 @@ export function PlayerView(): React.JSX.Element {
                 aria-selected={activeMainMode === 'estudo'}
                 onClick={() => setActiveMainMode('estudo')}
                 className={cn(
-                  'flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 text-center font-semibold rounded-lg transition-all cursor-pointer relative active:scale-95 duration-150',
+                  'flex min-w-0 flex-wrap items-center justify-center gap-1.5 whitespace-normal break-words py-1.5 px-1.5 text-center font-semibold leading-tight rounded-lg transition-all cursor-pointer relative active:scale-95 duration-150',
                   activeMainMode === 'estudo'
                     ? 'bg-card text-foreground shadow-xs ring-1 ring-border/60'
                     : 'text-muted-foreground hover:text-foreground'
                 )}
               >
                 <Edit3 className="h-3.5 w-3.5 text-primary" />
-                <span>{t('player.studyTab', 'Estudo')}</span>
+                <span className="min-w-0 break-words whitespace-normal">
+                  {t('player.studyTab', 'Estudo')}
+                </span>
                 {(notes?.length || 0) +
                   (bookmarks?.length || 0) +
                   (flashcards?.length || 0) >
@@ -490,14 +497,16 @@ export function PlayerView(): React.JSX.Element {
                 aria-selected={activeMainMode === 'ia'}
                 onClick={() => setActiveMainMode('ia')}
                 className={cn(
-                  'flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 text-center font-semibold rounded-lg transition-all cursor-pointer relative active:scale-95 duration-150',
+                  'flex min-w-0 flex-wrap items-center justify-center gap-1.5 whitespace-normal break-words py-1.5 px-1.5 text-center font-semibold leading-tight rounded-lg transition-all cursor-pointer relative active:scale-95 duration-150',
                   activeMainMode === 'ia'
                     ? 'bg-card text-foreground shadow-xs ring-1 ring-border/60'
                     : 'text-muted-foreground hover:text-foreground'
                 )}
               >
                 <Sparkles className="h-3.5 w-3.5 text-primary" />
-                <span>{t('player.aiTab', 'IA & Texto')}</span>
+                <span className="min-w-0 break-words whitespace-normal">
+                  {t('player.aiTab', 'IA & Texto')}
+                </span>
                 {transcript && (
                   <span className="ml-0.5 rounded-full bg-primary/20 px-1 py-0.2 text-[10px] font-bold text-primary">
                     ✓
@@ -508,12 +517,12 @@ export function PlayerView(): React.JSX.Element {
 
             {/* Sub-navigation inside Conteúdo mode */}
             {activeMainMode === 'conteudo' && (
-              <div className="flex items-center gap-1 p-0.5 rounded-lg bg-black/5 dark:bg-white/5 text-[11px] select-none">
+              <div className="grid min-w-0 grid-cols-2 gap-1 p-0.5 rounded-lg bg-black/5 dark:bg-white/5 text-[11px] select-none sm:grid-cols-4">
                 <button
                   type="button"
                   onClick={() => setContentSubTab('aulas')}
                   className={cn(
-                    'flex-1 py-1 px-1.5 text-center font-medium rounded-md transition-all cursor-pointer',
+                    'flex min-w-0 items-center justify-center whitespace-normal break-words py-1 px-1.5 text-center font-medium leading-tight rounded-md transition-all cursor-pointer',
                     contentSubTab === 'aulas'
                       ? 'bg-secondary text-foreground font-semibold shadow-2xs'
                       : 'text-muted-foreground hover:text-foreground'
@@ -525,7 +534,7 @@ export function PlayerView(): React.JSX.Element {
                   type="button"
                   onClick={() => setContentSubTab('capitulos')}
                   className={cn(
-                    'flex-1 py-1 px-1.5 text-center font-medium rounded-md transition-all cursor-pointer',
+                    'flex min-w-0 items-center justify-center whitespace-normal break-words py-1 px-1.5 text-center font-medium leading-tight rounded-md transition-all cursor-pointer',
                     contentSubTab === 'capitulos'
                       ? 'bg-secondary text-foreground font-semibold shadow-2xs'
                       : 'text-muted-foreground hover:text-foreground'
@@ -538,7 +547,7 @@ export function PlayerView(): React.JSX.Element {
                   type="button"
                   onClick={() => setContentSubTab('materiais')}
                   className={cn(
-                    'flex-1 py-1 px-1.5 text-center font-medium rounded-md transition-all cursor-pointer',
+                    'flex min-w-0 items-center justify-center whitespace-normal break-words py-1 px-1.5 text-center font-medium leading-tight rounded-md transition-all cursor-pointer',
                     contentSubTab === 'materiais'
                       ? 'bg-secondary text-foreground font-semibold shadow-2xs'
                       : 'text-muted-foreground hover:text-foreground'
@@ -551,7 +560,7 @@ export function PlayerView(): React.JSX.Element {
                   type="button"
                   onClick={() => setContentSubTab('fila')}
                   className={cn(
-                    'flex-1 py-1 px-1.5 text-center font-medium rounded-md transition-all cursor-pointer',
+                    'flex min-w-0 items-center justify-center whitespace-normal break-words py-1 px-1.5 text-center font-medium leading-tight rounded-md transition-all cursor-pointer',
                     contentSubTab === 'fila'
                       ? 'bg-secondary text-foreground font-semibold shadow-2xs'
                       : 'text-muted-foreground hover:text-foreground'
@@ -565,12 +574,12 @@ export function PlayerView(): React.JSX.Element {
 
             {/* Sub-navigation inside Estudo mode */}
             {activeMainMode === 'estudo' && (
-              <div className="flex items-center gap-1 p-0.5 rounded-lg bg-black/5 dark:bg-white/5 text-[11px] select-none">
+              <div className="grid min-w-0 grid-cols-2 gap-1 p-0.5 rounded-lg bg-black/5 dark:bg-white/5 text-[11px] select-none sm:grid-cols-3">
                 <button
                   type="button"
                   onClick={() => setStudySubTab('anotacoes')}
                   className={cn(
-                    'flex-1 py-1 px-2 text-center font-medium rounded-md transition-all cursor-pointer',
+                    'flex min-w-0 items-center justify-center whitespace-normal break-words py-1 px-2 text-center font-medium leading-tight rounded-md transition-all cursor-pointer',
                     studySubTab === 'anotacoes'
                       ? 'bg-secondary text-foreground font-semibold shadow-2xs'
                       : 'text-muted-foreground hover:text-foreground'
@@ -583,7 +592,7 @@ export function PlayerView(): React.JSX.Element {
                   type="button"
                   onClick={() => setStudySubTab('marcadores')}
                   className={cn(
-                    'flex-1 py-1 px-2 text-center font-medium rounded-md transition-all cursor-pointer',
+                    'flex min-w-0 items-center justify-center whitespace-normal break-words py-1 px-2 text-center font-medium leading-tight rounded-md transition-all cursor-pointer',
                     studySubTab === 'marcadores'
                       ? 'bg-secondary text-foreground font-semibold shadow-2xs'
                       : 'text-muted-foreground hover:text-foreground'
@@ -596,7 +605,7 @@ export function PlayerView(): React.JSX.Element {
                   type="button"
                   onClick={() => setStudySubTab('flashcards')}
                   className={cn(
-                    'flex-1 py-1 px-2 text-center font-medium rounded-md transition-all cursor-pointer',
+                    'flex min-w-0 items-center justify-center whitespace-normal break-words py-1 px-2 text-center font-medium leading-tight rounded-md transition-all cursor-pointer',
                     studySubTab === 'flashcards'
                       ? 'bg-secondary text-foreground font-semibold shadow-2xs'
                       : 'text-muted-foreground hover:text-foreground'
@@ -610,7 +619,7 @@ export function PlayerView(): React.JSX.Element {
           </div>
 
           {/* Side Panel Content Area */}
-          <div className="flex-1 overflow-y-auto p-3 space-y-3">
+          <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto p-3 space-y-3">
             {/* CONTEÚDO MODE */}
             {activeMainMode === 'conteudo' &&
               contentSubTab === 'aulas' &&
@@ -622,12 +631,12 @@ export function PlayerView(): React.JSX.Element {
                     key={module.id}
                     className="rounded-2xl border border-border/80 bg-secondary/20 overflow-hidden shadow-sm"
                   >
-                    <div className="bg-secondary/50 px-3 py-2.5 border-b border-border/60 flex items-center justify-between">
-                      <div className="flex items-center gap-2 overflow-hidden">
+                    <div className="bg-secondary/50 px-3 py-2.5 border-b border-border/60 flex items-start justify-between gap-2">
+                      <div className="flex min-w-0 flex-1 items-start gap-2">
                         <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-secondary text-[10px] font-mono font-bold text-primary">
                           {modIdx + 1}
                         </span>
-                        <span className="text-xs font-bold text-foreground truncate">
+                        <span className="min-w-0 flex-1 break-words whitespace-normal text-xs font-bold leading-snug text-foreground">
                           {module.title}
                         </span>
                       </div>
@@ -669,7 +678,7 @@ export function PlayerView(): React.JSX.Element {
                               }
                             }}
                             className={cn(
-                              'flex items-center justify-between p-2.5 text-xs transition-all cursor-pointer group focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary',
+                              'flex items-start justify-between gap-2 p-2.5 text-xs transition-all cursor-pointer group focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary',
                               isCurrent
                                 ? 'bg-primary/10 font-bold text-primary ring-1 ring-primary/30'
                                 : 'hover:bg-secondary/60 text-muted-foreground hover:text-foreground',
@@ -678,7 +687,7 @@ export function PlayerView(): React.JSX.Element {
                                 'bg-red-500/5 hover:bg-red-500/10'
                             )}
                           >
-                            <div className="flex items-center gap-2 overflow-hidden flex-1 min-w-0 mr-1.5">
+                            <div className="flex min-w-0 flex-1 items-start gap-2 mr-1.5">
                               {/* Toggle completion on check click */}
                               <Tooltip>
                                 <TooltipTrigger asChild>
@@ -726,7 +735,7 @@ export function PlayerView(): React.JSX.Element {
 
                               <span
                                 className={cn(
-                                  'truncate tracking-tight',
+                                  'min-w-0 flex-1 break-words whitespace-normal leading-snug tracking-tight',
                                   isProblem && 'text-red-400 font-medium'
                                 )}
                               >
@@ -734,7 +743,7 @@ export function PlayerView(): React.JSX.Element {
                               </span>
                             </div>
 
-                            <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                            <div className="flex shrink-0 items-start gap-1.5 ml-2">
                               {isProblem && (
                                 <Tooltip>
                                   <TooltipTrigger asChild>
@@ -839,7 +848,7 @@ export function PlayerView(): React.JSX.Element {
                               name: res.name
                             })}
                           >
-                            <div className="flex items-center gap-2.5 overflow-hidden">
+                            <div className="flex min-w-0 items-start gap-2.5">
                               <div
                                 className={cn(
                                   'flex h-8 w-8 shrink-0 items-center justify-center rounded-xl',
@@ -852,11 +861,11 @@ export function PlayerView(): React.JSX.Element {
                               >
                                 <FileText className="h-4 w-4" />
                               </div>
-                              <div className="flex flex-col overflow-hidden">
-                                <span className="font-semibold text-foreground truncate">
+                              <div className="min-w-0 flex-1">
+                                <span className="block break-words whitespace-normal font-semibold leading-snug text-foreground">
                                   {res.name}
                                 </span>
-                                <span className="text-[10px] text-muted-foreground font-mono">
+                                <span className="block break-words text-[10px] text-muted-foreground font-mono leading-snug">
                                   {getResourceTypeLabel(res)} •{' '}
                                   {formatFileSize(res.fileSize)}
                                 </span>
@@ -901,7 +910,6 @@ export function PlayerView(): React.JSX.Element {
               <TranscriptPanel
                 transcript={transcript}
                 subtitleCandidate={subtitleCandidate}
-                currentTime={currentTime}
                 isLoading={isTranscriptLoading}
                 errorMessage={transcriptError}
                 progressPercent={transcriptProgress?.progressPercent}

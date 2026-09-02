@@ -23,7 +23,7 @@ import type { WatchHistoryEntry, StudyAnalytics } from '@shared'
 export function HistoryView(): React.JSX.Element {
   const { t } = useTranslation()
   const { navigateToPlayer } = useNavigationStore()
-  const { loadHierarchy } = usePlayerStore()
+  const loadHierarchy = usePlayerStore((state) => state.loadHierarchy)
   const { importHistory, fetchImportHistory, clearImportHistory } =
     useLibraryStore()
   const { settings } = useSettingsStore()
@@ -232,17 +232,17 @@ export function HistoryView(): React.JSX.Element {
               {importHistory.map((item) => (
                 <div
                   key={item.id}
-                  className="flex items-center justify-between p-3.5 sm:p-4 hover:bg-secondary/40 transition-colors"
+                  className="flex flex-col gap-3 p-3.5 sm:flex-row sm:items-start sm:justify-between sm:p-4 hover:bg-secondary/40 transition-colors"
                 >
-                  <div className="flex items-center gap-3.5 overflow-hidden">
+                  <div className="flex min-w-0 items-start gap-3.5">
                     <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-accent/10 text-accent border border-accent/20 shadow-sm">
                       <FileArchive className="h-4 w-4" />
                     </div>
-                    <div className="flex flex-col overflow-hidden">
-                      <span className="text-sm font-semibold text-foreground truncate">
+                    <div className="min-w-0 flex-1">
+                      <span className="block break-words whitespace-normal text-sm font-semibold text-foreground leading-snug">
                         {item.fileName}
                       </span>
-                      <span className="text-xs text-muted-foreground truncate flex items-center gap-2 mt-0.5">
+                      <span className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                         {item.courseTitle && (
                           <span className="flex items-center gap-1 text-primary">
                             <BookOpen className="h-3 w-3" />
@@ -264,7 +264,7 @@ export function HistoryView(): React.JSX.Element {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3 shrink-0 text-xs text-muted-foreground">
+                  <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground sm:shrink-0">
                     <span className="text-[11px] font-mono">
                       {new Date(item.createdAt).toLocaleDateString(undefined, {
                         day: '2-digit',
@@ -320,26 +320,26 @@ export function HistoryView(): React.JSX.Element {
                       }
                     }}
                     aria-label={`Continuar assistindo ${entry.lessonTitle} do curso ${entry.courseTitle}`}
-                    className="flex items-center justify-between p-3.5 sm:p-4 hover:bg-secondary/60 cursor-pointer transition-colors group focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+                    className="flex flex-col gap-3 p-3.5 hover:bg-secondary/60 cursor-pointer transition-colors group focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary sm:flex-row sm:items-start sm:justify-between sm:p-4"
                   >
-                    <div className="flex items-center gap-3.5 overflow-hidden">
+                    <div className="flex min-w-0 items-start gap-3.5">
                       {/* Play Action Badge */}
                       <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-secondary text-muted-foreground group-hover:bg-primary group-hover:text-primary-foreground group-hover:shadow-md group-hover:shadow-primary/20 transition-all">
                         <Play className="h-4 w-4 fill-current ml-0.5" />
                       </div>
 
-                      <div className="flex flex-col overflow-hidden">
-                        <span className="text-sm font-semibold text-foreground truncate group-hover:text-primary transition-colors">
+                      <div className="min-w-0 flex-1">
+                        <span className="block break-words whitespace-normal text-sm font-semibold text-foreground leading-snug group-hover:text-primary transition-colors">
                           {entry.lessonTitle}
                         </span>
-                        <span className="text-xs text-muted-foreground truncate flex items-center gap-1 mt-0.5">
+                        <span className="mt-0.5 flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
                           <BookOpen className="h-3 w-3" />
                           <span>{entry.courseTitle}</span>
                         </span>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-3 text-xs text-muted-foreground shrink-0 font-mono">
+                    <div className="flex items-center gap-3 text-xs text-muted-foreground font-mono sm:shrink-0">
                       <span className="flex items-center gap-1">
                         <Clock className="h-3 w-3 text-muted-foreground/70" />
                         <span className="font-semibold text-foreground">

@@ -134,15 +134,15 @@ export function ReorganizeCourseModal({
       <DialogContent className="max-w-3xl w-[92vw] max-h-[88vh] p-0 overflow-hidden rounded-2xl flex flex-col gap-0 border-border/80 bg-card shadow-2xl">
         {/* Header Bar */}
         <DialogHeader className="px-5 py-4 border-b border-border/80 bg-card flex flex-row items-center justify-between space-y-0 shrink-0">
-          <div className="flex items-center gap-3 overflow-hidden mr-3">
+          <div className="flex min-w-0 items-start gap-3 mr-3">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary border border-primary/20">
               <FolderSync className="h-5 w-5" />
             </div>
-            <div className="flex flex-col overflow-hidden min-w-0">
-              <DialogTitle className="text-sm sm:text-base font-bold text-foreground truncate">
+            <div className="min-w-0 flex-1">
+              <DialogTitle className="break-words whitespace-normal text-sm sm:text-base font-bold text-foreground leading-snug">
                 Organizar Arquivos no Disco
               </DialogTitle>
-              <DialogDescription className="text-xs text-muted-foreground truncate">
+              <DialogDescription className="break-words whitespace-normal text-xs text-muted-foreground leading-snug">
                 Padronizar pastas e arquivos físicos do curso{' '}
                 <span className="font-semibold text-foreground">
                   "{courseTitle}"
@@ -243,19 +243,19 @@ export function ReorganizeCourseModal({
                   {plan.proposedMutations.map((mut, idx) => (
                     <div
                       key={idx}
-                      className="p-3 text-xs flex items-center justify-between gap-3 hover:bg-secondary/30 transition-colors"
+                      className="p-3 text-xs flex items-start justify-between gap-3 hover:bg-secondary/30 transition-colors"
                     >
-                      <div className="flex items-center gap-2.5 overflow-hidden flex-1 min-w-0">
+                      <div className="flex min-w-0 flex-1 items-start gap-2.5">
                         <FileVideo className="h-4 w-4 text-muted-foreground shrink-0" />
-                        <div className="flex flex-col overflow-hidden min-w-0">
+                        <div className="min-w-0 flex-1">
                           <span
-                            className="text-muted-foreground truncate text-[11px]"
+                            className="block break-words whitespace-normal text-muted-foreground text-[11px] leading-snug"
                             title={mut.originalFileName}
                           >
                             {mut.originalFileName}
                           </span>
                           <span
-                            className="font-semibold text-primary truncate text-xs"
+                            className="block break-words whitespace-normal font-semibold text-primary text-xs leading-snug"
                             title={mut.newFileName}
                           >
                             {mut.newFileName}

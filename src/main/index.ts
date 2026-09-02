@@ -13,6 +13,7 @@ import { vaultService } from './services/vault.service'
 import { databaseService } from './services/database.service'
 import { registerAllIpc } from './ipc'
 import { logger } from './services/logger.service'
+import { googleDriveService } from './services/sources/google/google-drive.service'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -150,7 +151,11 @@ if (!gotTheLock) {
           getCurrentVaultPath: () =>
             vaultService.getCurrentVault()?.path ??
             databaseService.getCurrentVaultPath()
-        })
+        }),
+        remotePlayback: {
+          open: (sessionId, range) =>
+            googleDriveService.openPlayback(sessionId, range)
+        }
       })
       logger.info('[Main] Media protocol initialized')
     } catch (err) {

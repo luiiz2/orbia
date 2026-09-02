@@ -32,9 +32,6 @@ export interface MediaCardProps {
   onAddToQueue?: () => void
   onMoreInfo?: () => void
   onOrganize?: () => void
-  selectionMode?: boolean
-  isSelected?: boolean
-  onToggleSelection?: () => void
   className?: string
   aspectRatio?: 'video' | 'square'
   type?: 'course' | 'lesson'
@@ -57,9 +54,6 @@ export function MediaCard({
   onAddToQueue,
   onMoreInfo,
   onOrganize,
-  selectionMode = false,
-  isSelected = false,
-  onToggleSelection,
   className = '',
   aspectRatio = 'video',
   type = 'course'
@@ -82,7 +76,7 @@ export function MediaCard({
       tabIndex={0}
       onClick={onClick || onPlay}
       onKeyDown={handleKeyDown}
-      className={`group relative flex flex-col cursor-pointer select-none rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background transition-transform duration-200 ease-out hover:-translate-y-1 ${isSelected ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''} ${className}`}
+      className={`group relative flex flex-col cursor-pointer select-none rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background transition-transform duration-200 ease-out hover:-translate-y-1 ${className}`}
     >
       {/* 16:9 Media Artwork Container */}
       <div
@@ -139,38 +133,8 @@ export function MediaCard({
           </div>
         )}
 
-        {selectionMode && onToggleSelection && (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation()
-              onToggleSelection()
-            }}
-            aria-pressed={isSelected}
-            aria-label={
-              isSelected ? `Remover ${title} da seleção` : `Selecionar ${title}`
-            }
-            title={isSelected ? 'Remover da seleção' : 'Selecionar curso'}
-            className={`absolute right-2 top-2 z-30 flex h-8 w-8 items-center justify-center rounded-full border shadow-sm backdrop-blur-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
-              isSelected
-                ? 'border-primary bg-primary text-primary-foreground'
-                : 'border-white/25 bg-black/65 text-white/80 hover:border-primary/60 hover:text-primary'
-            }`}
-          >
-            {isSelected ? (
-              <CheckCircle2 className="h-4 w-4" />
-            ) : (
-              <span className="h-3.5 w-3.5 rounded-full border-2 border-current" />
-            )}
-          </button>
-        )}
-
         {/* Top-Right Badges */}
-        <div
-          className={`absolute top-2 flex items-center gap-1.5 z-30 pointer-events-none ${
-            selectionMode ? 'right-12' : 'right-2'
-          }`}
-        >
+        <div className="absolute top-2 right-2 flex items-center gap-1.5 z-30 pointer-events-none">
           {badge && (
             <Badge
               variant="secondary"
@@ -308,11 +272,11 @@ export function MediaCard({
 
       {/* Metadata Row below card */}
       <div className="pt-2 px-0.5 space-y-0.5">
-        <h3 className="text-[13px] font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-1 leading-snug">
+        <h3 className="break-words whitespace-normal text-[13px] font-semibold text-foreground leading-snug group-hover:text-primary transition-colors">
           {title}
         </h3>
         {subtitle && (
-          <p className="text-[11px] text-muted-foreground line-clamp-1">
+          <p className="break-words whitespace-normal text-[11px] text-muted-foreground leading-snug">
             {subtitle}
           </p>
         )}

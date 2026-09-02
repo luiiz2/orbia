@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { Readable } from 'node:stream'
 
 const state = vi.hoisted(() => ({
   handler: undefined as
@@ -41,6 +42,7 @@ vi.mock('../src/main/services/logger.service', () => ({
 
 import {
   createMainMediaPathAuthorizer,
+  extractRemotePlaybackSessionId,
   setupMediaProtocol,
   type MediaPathAuthorizer
 } from '../src/main/protocol'
@@ -162,5 +164,37 @@ describe('media:// path authorization', () => {
     expect(response.headers.get('Content-Length')).toBe('5')
     const text = await response.text()
     expect(text).toBe('video')
+  })
+
+  it('streams an opaque remote playback session without consulting the local path authorizer', async () => {
+    const sessionId = '00000000-0000-4000-8000-000000000000'
+    const authorizer: MediaPathAuthorizer = {
+      isPathAuthorized: vi.fn().mockResolvedValue(false)
+    }
+    const open = vi.fn().mockResolvedValue({
+      stream: Readable.from(Buffer.from('cdef')),
+      status: 206,
+      mimeType: 'video/mp4',
+      totalSize: 6,
+      contentRange: { start: 2, end: 5 },
+      seekable: true
+    })
+
+    expect(extractRemotePlaybackSessionId(`media://playback/${sessionId}`)).toBe(
+      sessionId
+    )
+    setupMediaProtocol({ authorizer, remotePlayback: { open } })
+
+    const response = await state.handler!({
+      url: `media://playback/${sessionId}`,
+      headers: new Headers({ range: 'bytes=2-5' })
+    })
+
+    expect(response.status).toBe(206)
+    expect(response.headers.get('Content-Range')).toBe('bytes 2-5/6')
+    expect(response.headers.get('Accept-Ranges')).toBe('bytes')
+    expect(await response.text()).toBe('cdef')
+    expect(open).toHaveBeenCalledWith(sessionId, { start: 2, end: 5 })
+    expect(authorizer.isPathAuthorized).not.toHaveBeenCalled()
   })
 })

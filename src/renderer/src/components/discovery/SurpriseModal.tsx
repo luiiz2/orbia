@@ -118,12 +118,12 @@ export function SurpriseModal(): React.JSX.Element | null {
                 </div>
 
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-lg font-bold text-foreground leading-tight mb-2 truncate">
+                  <h3 className="mb-2 break-words whitespace-normal text-lg font-bold text-foreground leading-tight">
                     {surprise.item.course.title}
                   </h3>
 
                   {surprise.item.course.description && (
-                    <p className="text-xs text-muted-foreground line-clamp-2 mb-3">
+                    <p className="mb-3 break-words whitespace-normal text-xs text-muted-foreground leading-snug">
                       {surprise.item.course.description}
                     </p>
                   )}

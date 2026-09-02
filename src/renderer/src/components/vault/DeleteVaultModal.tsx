@@ -110,9 +110,9 @@ export function DeleteVaultModal({
         <div className="space-y-4 my-2">
           {/* Target Vault Details */}
           <div className="p-3.5 rounded-xl border border-border/80 bg-secondary/30 space-y-1">
-            <div className="flex items-center gap-2">
+            <div className="flex items-start gap-2">
               <HardDrive className="h-4 w-4 text-primary shrink-0" />
-              <span className="text-xs font-bold text-foreground truncate">
+              <span className="min-w-0 flex-1 break-words whitespace-normal text-xs font-bold text-foreground leading-snug">
                 {vault.name}
               </span>
               {isCurrentActive && (
@@ -121,7 +121,7 @@ export function DeleteVaultModal({
                 </span>
               )}
             </div>
-            <p className="text-[11px] font-mono text-muted-foreground truncate pl-6">
+            <p className="pl-6 break-words whitespace-normal text-[11px] font-mono text-muted-foreground leading-snug">
               {vault.path}
             </p>
           </div>

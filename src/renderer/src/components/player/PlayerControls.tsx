@@ -351,7 +351,10 @@ export function PlayerControls({
                 side="top"
                 className="bg-black/90 text-white border-white/20"
               >
-                Theater Mode
+                <span>Theater Mode</span>
+                <kbd className="px-1.5 py-0.5 rounded bg-white/20 text-[10px] font-mono">
+                  T
+                </kbd>
               </TooltipContent>
             </Tooltip>
           )}

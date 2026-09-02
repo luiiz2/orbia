@@ -197,15 +197,15 @@ export function VaultModal(): React.JSX.Element {
                           : 'border-border/70 bg-secondary/20 hover:bg-secondary/60 cursor-pointer'
                       }`}
                     >
-                      <div className="flex items-center gap-2.5 overflow-hidden">
+                      <div className="flex min-w-0 items-start gap-2.5">
                         <Database
                           className={`h-4 w-4 shrink-0 ${isActive ? 'text-primary' : 'text-muted-foreground'}`}
                         />
-                        <div className="flex flex-col overflow-hidden">
-                          <span className="font-bold text-foreground truncate">
+                        <div className="min-w-0 flex-1">
+                          <span className="block break-words whitespace-normal font-bold text-foreground leading-snug">
                             {vault.name}
                           </span>
-                          <span className="text-[10px] font-mono text-muted-foreground truncate">
+                          <span className="block break-words whitespace-normal text-[10px] font-mono text-muted-foreground leading-snug">
                             {vault.path}
                           </span>
                         </div>

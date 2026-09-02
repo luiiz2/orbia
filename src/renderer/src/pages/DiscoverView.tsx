@@ -204,8 +204,8 @@ export function DiscoverView(): React.JSX.Element {
                     <CourseCard course={it.course} />
 
                     {/* Explainability Reason & Feedback Actions */}
-                    <div className="mt-2 flex items-center justify-between text-[11px] text-muted-foreground px-1">
-                      <span className="truncate pr-1 font-medium">
+                    <div className="mt-2 flex items-start justify-between gap-2 text-[11px] text-muted-foreground px-1">
+                      <span className="min-w-0 flex-1 break-words whitespace-normal pr-1 font-medium leading-snug">
                         {it.reasons[0]
                           ? it.reasons[0].type === 'because_watched'
                             ? `Similar a ${it.reasons[0].params.targetTitle}`

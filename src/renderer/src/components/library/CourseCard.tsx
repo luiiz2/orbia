@@ -166,7 +166,7 @@ export function CourseCard({
 
       {/* Title row below — minimal, no card chrome */}
       <div className="pt-2 px-0.5">
-        <h3 className="text-[13px] font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-2 leading-snug">
+        <h3 className="break-words whitespace-normal text-[13px] font-semibold text-foreground leading-snug group-hover:text-primary transition-colors">
           {course.title}
         </h3>
         <p className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">

@@ -82,11 +82,13 @@ function ContinueCard({
 
       {/* Meta row below */}
       <div className="pt-2 px-0.5">
-        <h3 className="text-[12px] font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-1">
+        <h3 className="break-words whitespace-normal text-[12px] font-semibold text-foreground leading-snug group-hover:text-primary transition-colors">
           {entry.lessonTitle}
         </h3>
-        <p className="mt-0.5 flex items-center gap-1.5 text-[10px] text-muted-foreground">
-          <span className="truncate">{entry.courseTitle}</span>
+        <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[10px] text-muted-foreground">
+          <span className="min-w-0 flex-1 break-words whitespace-normal leading-snug">
+            {entry.courseTitle}
+          </span>
           {!isPdf && entry.currentTime > 0 && (
             <span className="font-mono text-primary/90 shrink-0 font-medium">
               {formatTime(entry.currentTime)}
@@ -105,7 +107,7 @@ export function ContinueWatchingRail({
 }: ContinueWatchingRailProps): React.JSX.Element | null {
   const { t } = useTranslation()
   const { navigateToPlayer } = useNavigationStore()
-  const { loadHierarchy } = usePlayerStore()
+  const loadHierarchy = usePlayerStore((state) => state.loadHierarchy)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const [history, setHistory] = useState<WatchHistoryEntry[]>([])
   const [isHistoryLoading, setIsHistoryLoading] = useState<boolean>(true)

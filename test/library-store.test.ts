@@ -133,6 +133,11 @@ describe('Zustand Stores', () => {
       activeCourseHierarchy: initialHierarchy
     })
 
+    const loadingStates: boolean[] = []
+    const unsubscribe = useLibraryStore.subscribe((state) => {
+      loadingStates.push(state.isLoading)
+    })
+
     const reorderToIndex = useLibraryStore.getState().reorderLesson as (
       lessonId: string,
       direction: 'up' | 'down',
@@ -140,9 +145,11 @@ describe('Zustand Stores', () => {
     ) => Promise<void>
 
     await reorderToIndex('lesson-1', 'down', 2)
+    unsubscribe()
 
     expect(reorder).toHaveBeenNthCalledWith(1, 'lesson-1', 'down')
     expect(reorder).toHaveBeenNthCalledWith(2, 'lesson-1', 'down')
+    expect(loadingStates).not.toContain(true)
     expect(
       useLibraryStore
         .getState()

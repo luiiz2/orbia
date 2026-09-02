@@ -1,5 +1,6 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useShallow } from 'zustand/react/shallow'
 import {
   Play,
   ChevronLeft,
@@ -45,7 +46,24 @@ export function VideoPlayer({
     markLessonBroken,
     deleteLesson,
     setMiniPlayerActive
-  } = usePlayerStore()
+  } = usePlayerStore(
+    useShallow((state) => ({
+      activeCourse: state.activeCourse,
+      activeLesson: state.activeLesson,
+      activeModule: state.activeModule,
+      theaterMode: state.theaterMode,
+      toggleTheater: state.toggleTheater,
+      notes: state.notes,
+      bookmarks: state.bookmarks,
+      chapters: state.chapters,
+      subtitleTracks: state.subtitleTracks,
+      activeSubtitleTrack: state.activeSubtitleTrack,
+      progressMap: state.progressMap,
+      markLessonBroken: state.markLessonBroken,
+      deleteLesson: state.deleteLesson,
+      setMiniPlayerActive: state.setMiniPlayerActive
+    }))
+  )
   const { setView } = useNavigationStore()
 
   const [bufferedEnd, setBufferedEnd] = useState<number>(0)
@@ -309,7 +327,7 @@ export function VideoPlayer({
           showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'
         )}
       >
-        <div className="flex items-center gap-3 overflow-hidden">
+        <div className="flex min-w-0 flex-1 items-start gap-3">
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -330,14 +348,14 @@ export function VideoPlayer({
             </TooltipContent>
           </Tooltip>
 
-          <div className="flex flex-col overflow-hidden">
+          <div className="min-w-0 flex-1">
             {activeCourse && (
-              <span className="text-[11px] font-medium text-zinc-400 truncate">
+              <span className="block break-words whitespace-normal text-[11px] font-medium text-zinc-400 leading-snug">
                 {activeCourse.title}{' '}
                 {activeModule ? `• ${activeModule.title}` : ''}
               </span>
             )}
-            <h2 className="text-sm font-semibold text-white truncate">
+            <h2 className="break-words whitespace-normal text-sm font-semibold text-white leading-snug">
               {activeLesson?.title || 'Lesson'}
             </h2>
           </div>
@@ -367,15 +385,15 @@ export function VideoPlayer({
       {/* Auto-Advance Countdown Banner */}
       {autoAdvanceCountdown !== null && (
         <div className="absolute inset-x-0 bottom-24 z-30 mx-auto flex max-w-md items-center justify-between rounded-xl border border-white/20 bg-black/80 p-3.5 shadow-2xl backdrop-blur-md text-white animate-in fade-in-0 zoom-in-95">
-          <div className="flex items-center gap-3 overflow-hidden">
+          <div className="flex min-w-0 items-start gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/20 text-primary font-bold text-sm">
               {autoAdvanceCountdown}s
             </div>
-            <div className="flex flex-col overflow-hidden">
+            <div className="min-w-0 flex-1">
               <span className="text-xs text-zinc-400 font-medium">
                 {t('player.nextIn', { seconds: autoAdvanceCountdown })}
               </span>
-              <span className="text-xs font-semibold text-white truncate">
+              <span className="break-words whitespace-normal text-xs font-semibold text-white leading-snug">
                 {nextLessonTitle || t('player.nextLesson')}
               </span>
             </div>

@@ -83,7 +83,9 @@ export function ConversationList({
                   }
                   className="min-w-0 flex-1 rounded px-2 py-1.5 text-left text-xs hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary aria-[current=page]:bg-secondary"
                 >
-                  <span className="block truncate">{conversation.title}</span>
+                  <span className="block break-words whitespace-normal leading-snug">
+                    {conversation.title}
+                  </span>
                 </button>
                 <button
                   type="button"

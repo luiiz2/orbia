@@ -228,11 +228,11 @@ export function ProgressBar({
                 <div className="h-2 w-2 rounded-full bg-primary ring-2 ring-primary shadow-sm shadow-primary/80 hover:scale-150 transition-transform cursor-pointer" />
 
                 {/* Note hover tooltip preview */}
-                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 opacity-0 group-hover/note:opacity-100 transition-opacity bg-popover text-popover-foreground text-[11px] px-2.5 py-1.5 rounded-lg shadow-xl border border-primary/40 pointer-events-none whitespace-nowrap z-40 max-w-[220px] truncate">
+                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 opacity-0 group-hover/note:opacity-100 transition-opacity bg-popover text-popover-foreground text-[11px] px-2.5 py-1.5 rounded-lg shadow-xl border border-primary/40 pointer-events-none z-40 w-max max-w-[220px] break-words whitespace-normal">
                   <div className="font-mono text-primary font-bold text-[10px]">
                     {formatTime(note.timestampSeconds)}
                   </div>
-                  <div className="truncate text-foreground text-[11px]">
+                  <div className="break-words whitespace-normal text-foreground text-[11px] leading-snug">
                     {note.content}
                   </div>
                 </div>
@@ -265,12 +265,12 @@ export function ProgressBar({
                 />
 
                 {/* Bookmark hover tooltip */}
-                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 opacity-0 group-hover/bm:opacity-100 transition-opacity bg-popover text-popover-foreground text-[11px] px-2.5 py-1.5 rounded-lg shadow-xl border border-border pointer-events-none whitespace-nowrap z-40 max-w-[220px] truncate">
+                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 opacity-0 group-hover/bm:opacity-100 transition-opacity bg-popover text-popover-foreground text-[11px] px-2.5 py-1.5 rounded-lg shadow-xl border border-border pointer-events-none z-40 w-max max-w-[220px] break-words whitespace-normal">
                   <div className="flex items-center gap-1 font-mono text-primary font-bold text-[10px]">
                     <span>🔖</span>
                     <span>{formatTime(bm.timestamp)}</span>
                   </div>
-                  <div className="truncate text-foreground text-[11px] mt-0.5">
+                  <div className="break-words whitespace-normal text-foreground text-[11px] mt-0.5 leading-snug">
                     {bm.title}
                   </div>
                 </div>

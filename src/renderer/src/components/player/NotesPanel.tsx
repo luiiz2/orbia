@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import { useTranslation } from 'react-i18next'
 import {
   Clock,
@@ -35,7 +36,20 @@ export function NotesPanel({ className }: NotesPanelProps): React.JSX.Element {
     updateNote,
     deleteNote,
     exportNotes
-  } = usePlayerStore()
+  } = usePlayerStore(
+    useShallow((state) => ({
+      activeCourse: state.activeCourse,
+      activeLesson: state.activeLesson,
+      currentTime: state.currentTime,
+      notes: state.notes,
+      isLoadingNotes: state.isLoadingNotes,
+      seek: state.seek,
+      addNote: state.addNote,
+      updateNote: state.updateNote,
+      deleteNote: state.deleteNote,
+      exportNotes: state.exportNotes
+    }))
+  )
 
   const [newContent, setNewContent] = useState<string>('')
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false)

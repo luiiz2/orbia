@@ -35,9 +35,18 @@ vi.mock('../src/renderer/src/stores/useLibraryStore', () => ({
   })
 }))
 
-vi.mock('../src/renderer/src/stores/usePlayerStore', () => ({
-  usePlayerStore: () => ({ loadHierarchy: async () => undefined })
-}))
+vi.mock('../src/renderer/src/stores/usePlayerStore', () => {
+  const playerState = {
+    loadHierarchy: async () => undefined,
+    addToQueue: vi.fn(),
+    playbackQueue: []
+  }
+
+  return {
+    usePlayerStore: (selector?: (state: typeof playerState) => unknown) =>
+      selector ? selector(playerState) : playerState
+  }
+})
 
 vi.mock('../src/renderer/src/stores/useNavigationStore', () => ({
   useNavigationStore: () => ({

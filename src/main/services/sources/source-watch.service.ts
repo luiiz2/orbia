@@ -88,7 +88,7 @@ export class SourceWatchService {
     )
   }
 
-  public refresh(trigger: SourceSyncTrigger): Promise<void> {
+  public async refresh(trigger: SourceSyncTrigger): Promise<void> {
     return this.refreshRoots(this.manager.listRoots(), trigger)
   }
 

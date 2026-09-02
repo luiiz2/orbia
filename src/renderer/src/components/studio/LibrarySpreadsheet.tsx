@@ -264,12 +264,12 @@ export function LibrarySpreadsheet(): React.JSX.Element {
                       defaultValue={app.customTitle || ''}
                       placeholder="(Título Padrão)"
                       onBlur={(e) => handleTitleBlur(app, e.target.value)}
-                      className="w-full h-6 px-1.5 rounded bg-transparent border border-transparent hover:border-border focus:border-primary focus:bg-background text-xs text-foreground font-sans truncate"
+                      className="w-full h-6 px-1.5 rounded bg-transparent border border-transparent hover:border-border focus:border-primary focus:bg-background text-xs text-foreground font-sans"
                     />
                   </td>
 
                   <td className="p-2">
-                    <span className="text-[11px] text-muted-foreground truncate block max-w-[120px]">
+                    <span className="block max-w-[120px] break-words whitespace-normal text-[11px] text-muted-foreground leading-snug">
                       {app.tags?.length > 0 ? app.tags.join(', ') : '-'}
                     </span>
                   </td>

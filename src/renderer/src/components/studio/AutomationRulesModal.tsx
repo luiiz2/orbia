@@ -138,7 +138,7 @@ export function AutomationRulesModal(): React.JSX.Element | null {
             >
               <div className="space-y-1 min-w-0 flex-1 pr-3">
                 <div className="flex items-center gap-2">
-                  <span className="font-semibold text-foreground truncate">
+                  <span className="break-words whitespace-normal font-semibold text-foreground leading-snug">
                     {rule.name}
                   </span>
                   <span className="px-1.5 py-0.2 rounded bg-primary/10 text-primary font-mono text-[10px] font-bold">

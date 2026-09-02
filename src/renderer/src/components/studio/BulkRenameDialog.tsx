@@ -269,11 +269,11 @@ export function BulkRenameDialog(): React.JSX.Element | null {
                 key={p.appearanceId}
                 className="flex items-center justify-between gap-4 p-1.5 rounded bg-background/50 border border-border/30"
               >
-                <span className="text-muted-foreground truncate flex-1">
+                <span className="min-w-0 flex-1 break-words whitespace-normal text-muted-foreground leading-snug">
                   {p.originalTitle || '(Sem título)'}
                 </span>
                 <span className="text-muted-foreground">➔</span>
-                <span className="text-primary font-semibold truncate flex-1">
+                <span className="min-w-0 flex-1 break-words whitespace-normal text-primary font-semibold leading-snug">
                   {p.newTitle}
                 </span>
               </div>

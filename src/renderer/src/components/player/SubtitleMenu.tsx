@@ -1,4 +1,5 @@
 import React from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import { useTranslation } from 'react-i18next'
 import { Captions, Check } from 'lucide-react'
 import { Button } from '../ui/button'
@@ -22,7 +23,13 @@ export function SubtitleMenu({
 }: SubtitleMenuProps): React.JSX.Element {
   const { t } = useTranslation()
   const { subtitleTracks, activeSubtitleTrack, setSubtitleTrack } =
-    usePlayerStore()
+    usePlayerStore(
+      useShallow((state) => ({
+        subtitleTracks: state.subtitleTracks,
+        activeSubtitleTrack: state.activeSubtitleTrack,
+        setSubtitleTrack: state.setSubtitleTrack
+      }))
+    )
 
   const hasSubtitles = subtitleTracks.length > 0
   const isSubtitlesActive = activeSubtitleTrack !== null
@@ -84,11 +91,13 @@ export function SubtitleMenu({
                 key={track.id}
                 onClick={() => setSubtitleTrack(track.id)}
                 className={cn(
-                  'flex items-center justify-between text-xs py-1.5 px-2 cursor-pointer rounded transition-colors text-white/80 hover:bg-white/20 hover:text-white',
+                  'flex min-w-0 items-start justify-between text-xs py-1.5 px-2 cursor-pointer rounded transition-colors text-white/80 hover:bg-white/20 hover:text-white',
                   isSelected && 'font-bold text-white bg-white/15'
                 )}
               >
-                <span className="truncate">{track.label}</span>
+                <span className="min-w-0 flex-1 break-words whitespace-normal leading-snug">
+                  {track.label}
+                </span>
                 {isSelected && (
                   <Check className="h-3.5 w-3.5 text-primary shrink-0 ml-2" />
                 )}

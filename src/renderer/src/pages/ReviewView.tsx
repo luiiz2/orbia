@@ -60,7 +60,7 @@ export function ReviewView(): React.JSX.Element {
   } = useReviewStore()
 
   const { navigateToCourse, navigateToPlayer } = useNavigationStore()
-  const { loadLesson } = usePlayerStore()
+  const loadLesson = usePlayerStore((state) => state.loadLesson)
   const { courses } = useLibraryStore()
 
   const [activeTab, setActiveTab] = useState<
@@ -564,17 +564,17 @@ export function ReviewView(): React.JSX.Element {
                     <div
                       key={item.id}
                       onClick={() => handlePlayQueueItem(item)}
-                      className="flex items-center justify-between p-3.5 rounded-2xl border border-border/80 bg-card hover:border-primary/50 hover:bg-accent/40 transition-all cursor-pointer group shadow-sm"
+                      className="flex items-start justify-between gap-3 p-3.5 rounded-2xl border border-border/80 bg-card hover:border-primary/50 hover:bg-accent/40 transition-all cursor-pointer group shadow-sm"
                     >
-                      <div className="flex items-center gap-3 overflow-hidden">
+                      <div className="flex min-w-0 flex-1 items-start gap-3">
                         <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-accent/10 text-accent font-mono font-bold text-xs">
                           {idx + 1}
                         </span>
-                        <div className="truncate">
-                          <p className="text-xs font-bold text-foreground truncate group-hover:text-primary transition-colors">
+                        <div className="min-w-0 flex-1">
+                          <p className="break-words whitespace-normal text-xs font-bold text-foreground leading-snug group-hover:text-primary transition-colors">
                             {item.title}
                           </p>
-                          <p className="text-[11px] text-muted-foreground truncate">
+                          <p className="break-words whitespace-normal text-[11px] text-muted-foreground leading-snug">
                             {item.entityType.toUpperCase()}{' '}
                             {item.courseTitle ? `• ${item.courseTitle}` : ''}
                           </p>
@@ -636,15 +636,15 @@ export function ReviewView(): React.JSX.Element {
                           <span className="text-[10px] font-mono font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded">
                             {formatTime(bm.timestamp)}
                           </span>
-                          <span className="text-[10px] text-muted-foreground truncate max-w-[120px]">
+                          <span className="max-w-[120px] break-words whitespace-normal text-[10px] text-muted-foreground leading-snug text-right">
                             {bm.courseTitle}
                           </span>
                         </div>
-                        <p className="text-xs font-semibold text-foreground line-clamp-2 group-hover:text-primary transition-colors">
+                        <p className="break-words whitespace-normal text-xs font-semibold text-foreground leading-snug group-hover:text-primary transition-colors">
                           {bm.title}
                         </p>
                       </div>
-                      <div className="text-[11px] text-muted-foreground mt-2 truncate">
+                      <div className="mt-2 break-words whitespace-normal text-[11px] text-muted-foreground leading-snug">
                         🎬 {bm.lessonTitle}
                       </div>
                     </div>
@@ -731,7 +731,7 @@ export function ReviewView(): React.JSX.Element {
                     </div>
 
                     <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1 border-t border-border/40">
-                      <span className="truncate max-w-[200px]">
+                      <span className="max-w-[200px] break-words whitespace-normal">
                         {card.courseTitle || 'Curso Geral'}
                       </span>
                       {card.timestamp !== undefined &&
@@ -773,9 +773,9 @@ export function ReviewView(): React.JSX.Element {
                       await loadLesson(bm.lessonId)
                     }
                   }}
-                  className="p-3.5 rounded-2xl border border-border/80 bg-card hover:border-primary/50 hover:bg-accent/30 transition-all cursor-pointer flex items-center justify-between gap-4 shadow-sm group"
+                  className="flex items-start justify-between gap-4 p-3.5 rounded-2xl border border-border/80 bg-card hover:border-primary/50 hover:bg-accent/30 transition-all cursor-pointer shadow-sm group"
                 >
-                  <div className="flex items-center gap-3 overflow-hidden">
+                  <div className="flex min-w-0 flex-1 items-start gap-3">
                     <div
                       className="w-3 h-3 rounded-full shrink-0"
                       style={{ backgroundColor: bm.color || '#d08a52' }}
@@ -783,11 +783,11 @@ export function ReviewView(): React.JSX.Element {
                     <span className="font-mono text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-lg shrink-0">
                       {formatTime(bm.timestamp)}
                     </span>
-                    <div className="truncate">
-                      <p className="text-xs font-bold text-foreground truncate group-hover:text-primary transition-colors">
+                    <div className="min-w-0 flex-1">
+                      <p className="break-words whitespace-normal text-xs font-bold text-foreground leading-snug group-hover:text-primary transition-colors">
                         {bm.title}
                       </p>
-                      <p className="text-[11px] text-muted-foreground truncate">
+                      <p className="break-words whitespace-normal text-[11px] text-muted-foreground leading-snug">
                         {bm.courseTitle} • {bm.lessonTitle}
                       </p>
                     </div>
@@ -833,17 +833,17 @@ export function ReviewView(): React.JSX.Element {
               studyQueue.map((item, idx) => (
                 <div
                   key={item.id}
-                  className="p-3.5 rounded-2xl border border-border/80 bg-card hover:border-accent/50 transition-all flex items-center justify-between gap-3 shadow-sm group"
+                  className="p-3.5 rounded-2xl border border-border/80 bg-card hover:border-accent/50 transition-all flex items-start justify-between gap-3 shadow-sm group"
                 >
-                  <div className="flex items-center gap-3 overflow-hidden flex-1">
+                  <div className="flex min-w-0 flex-1 items-start gap-3">
                     <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-accent/10 text-accent font-mono font-bold text-xs">
                       {idx + 1}
                     </span>
-                    <div className="truncate flex-1">
-                      <p className="text-xs font-bold text-foreground truncate">
+                    <div className="min-w-0 flex-1">
+                      <p className="break-words whitespace-normal text-xs font-bold text-foreground leading-snug">
                         {item.title}
                       </p>
-                      <p className="text-[11px] text-muted-foreground truncate">
+                      <p className="break-words whitespace-normal text-[11px] text-muted-foreground leading-snug">
                         {item.entityType.toUpperCase()}{' '}
                         {item.courseTitle ? `• ${item.courseTitle}` : ''}
                       </p>
@@ -920,7 +920,7 @@ export function ReviewView(): React.JSX.Element {
                   {activeCardIndex + 1} de {dueFlashcards.length}
                 </span>
               </div>
-              <span className="text-muted-foreground truncate max-w-[200px]">
+              <span className="max-w-[200px] break-words whitespace-normal text-muted-foreground leading-snug">
                 {currentReviewCard?.courseTitle || 'Curso'}
               </span>
             </div>

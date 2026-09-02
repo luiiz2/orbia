@@ -329,6 +329,264 @@ describe('DatabaseService - Course Merging & Deduplication', () => {
     expect(hierarchy!.modules.map((m) => m.orderIndex)).toEqual([1, 2, 3])
   })
 
+  it('preserves custom titles and manual order when a merge refreshes the hierarchy', () => {
+    const primary: Course = {
+      id: 'organized-primary',
+      title: 'Curso dividido',
+      customTitle: 'Meu curso organizado',
+      slug: 'organized-primary',
+      sourceType: 'local-vault',
+      rootPath: 'C:/Vault/organized-primary',
+      moduleCount: 1,
+      lessonCount: 2,
+      totalDuration: 120,
+      createdAt: 1000,
+      updatedAt: 1000
+    }
+    const primaryModule: Module & { lessons: Lesson[] } = {
+      id: 'organized-primary-module',
+      courseId: primary.id,
+      title: 'Módulo 01',
+      customTitle: 'Módulo que eu organizei',
+      orderIndex: 1,
+      displayOrder: 10,
+      hasManualOrder: true,
+      duration: 120,
+      lessonCount: 2,
+      createdAt: 1000,
+      lessons: [
+        {
+          id: 'organized-primary-lesson-2',
+          moduleId: 'organized-primary-module',
+          courseId: primary.id,
+          title: 'Aula 02',
+          customTitle: 'Aula que eu coloquei depois',
+          orderIndex: 2,
+          displayOrder: 20,
+          hasManualOrder: true,
+          fileName: 'organized-02.mp4',
+          filePath: 'C:/Vault/organized-primary/organized-02.mp4',
+          fileExtension: 'mp4',
+          mediaType: 'video',
+          duration: 60,
+          fileSize: 1000,
+          availability: 'local',
+          createdAt: 1000
+        },
+        {
+          id: 'organized-primary-lesson-1',
+          moduleId: 'organized-primary-module',
+          courseId: primary.id,
+          title: 'Aula 01',
+          customTitle: 'Aula que eu coloquei primeiro',
+          orderIndex: 1,
+          displayOrder: 10,
+          hasManualOrder: true,
+          fileName: 'organized-01.mp4',
+          filePath: 'C:/Vault/organized-primary/organized-01.mp4',
+          fileExtension: 'mp4',
+          mediaType: 'video',
+          duration: 60,
+          fileSize: 1000,
+          availability: 'local',
+          createdAt: 1000
+        }
+      ]
+    }
+    const secondary: Course = {
+      id: 'organized-secondary',
+      title: 'Curso dividido',
+      slug: 'organized-secondary',
+      sourceType: 'local-vault',
+      rootPath: 'C:/Vault/organized-secondary',
+      moduleCount: 1,
+      lessonCount: 1,
+      totalDuration: 60,
+      createdAt: 2000,
+      updatedAt: 2000
+    }
+    const secondaryModule: Module & { lessons: Lesson[] } = {
+      id: 'organized-secondary-module',
+      courseId: secondary.id,
+      title: 'Módulo 02',
+      customTitle: 'Módulo vindo da minha organização',
+      orderIndex: 1,
+      displayOrder: 30,
+      hasManualOrder: true,
+      duration: 60,
+      lessonCount: 1,
+      createdAt: 2000,
+      lessons: [
+        {
+          id: 'organized-secondary-lesson',
+          moduleId: 'organized-secondary-module',
+          courseId: secondary.id,
+          title: 'Aula 03',
+          customTitle: 'Aula também personalizada',
+          orderIndex: 1,
+          displayOrder: 30,
+          hasManualOrder: true,
+          fileName: 'organized-03.mp4',
+          filePath: 'C:/Vault/organized-secondary/organized-03.mp4',
+          fileExtension: 'mp4',
+          mediaType: 'video',
+          duration: 60,
+          fileSize: 1000,
+          availability: 'local',
+          createdAt: 2000
+        }
+      ]
+    }
+
+    dbService.saveCourseWithHierarchy(primary, [primaryModule])
+    dbService.saveCourseWithHierarchy(secondary, [secondaryModule])
+
+    const result = dbService.mergeCoursesByIds([primary.id, secondary.id])
+
+    expect(result.success).toBe(true)
+
+    const merged = dbService.getCourseById(primary.id)
+    expect(merged?.course.customTitle).toBe('Meu curso organizado')
+
+    const mergedPrimaryModule = merged?.modules.find(
+      (module) => module.id === primaryModule.id
+    )
+    expect(mergedPrimaryModule).toMatchObject({
+      customTitle: 'Módulo que eu organizei',
+      displayOrder: 10,
+      hasManualOrder: true
+    })
+    expect(
+      mergedPrimaryModule?.lessons.map((lesson) => ({
+        id: lesson.id,
+        customTitle: lesson.customTitle,
+        displayOrder: lesson.displayOrder,
+        hasManualOrder: lesson.hasManualOrder
+      }))
+    ).toEqual([
+      {
+        id: 'organized-primary-lesson-1',
+        customTitle: 'Aula que eu coloquei primeiro',
+        displayOrder: 10,
+        hasManualOrder: true
+      },
+      {
+        id: 'organized-primary-lesson-2',
+        customTitle: 'Aula que eu coloquei depois',
+        displayOrder: 20,
+        hasManualOrder: true
+      }
+    ])
+
+    const movedSecondaryModule = merged?.modules.find(
+      (module) => module.id === secondaryModule.id
+    )
+    expect(movedSecondaryModule).toMatchObject({
+      customTitle: 'Módulo vindo da minha organização',
+      displayOrder: 30,
+      hasManualOrder: true
+    })
+    expect(movedSecondaryModule?.lessons[0]).toMatchObject({
+      customTitle: 'Aula também personalizada',
+      displayOrder: 30,
+      hasManualOrder: true
+    })
+  })
+
+  it('does not rewrite a course that is already organized when auto-organizing', () => {
+    const course: Course = {
+      id: 'already-organized',
+      title: 'Curso pronto',
+      slug: 'already-organized',
+      sourceType: 'local-vault',
+      rootPath: 'C:/Vault/already-organized',
+      moduleCount: 1,
+      lessonCount: 1,
+      totalDuration: 60,
+      createdAt: 1000,
+      updatedAt: 1000
+    }
+    const module: Module & { lessons: Lesson[] } = {
+      id: 'already-organized-module',
+      courseId: course.id,
+      title: 'Módulo pronto',
+      orderIndex: 1,
+      displayOrder: 10,
+      hasManualOrder: true,
+      duration: 60,
+      lessonCount: 1,
+      createdAt: 1000,
+      lessons: [
+        {
+          id: 'already-organized-lesson',
+          moduleId: 'already-organized-module',
+          courseId: course.id,
+          title: 'Aula pronta',
+          orderIndex: 1,
+          displayOrder: 20,
+          hasManualOrder: true,
+          fileName: 'already-organized.mp4',
+          filePath: 'C:/Vault/already-organized/already-organized.mp4',
+          fileExtension: 'mp4',
+          mediaType: 'video',
+          duration: 60,
+          fileSize: 1000,
+          availability: 'local',
+          createdAt: 1000
+        }
+      ]
+    }
+
+    dbService.saveCourseWithHierarchy(course, [module])
+    const rawDb = dbService.getDatabase()
+    if (!rawDb) throw new Error('Expected connected database')
+
+    const snapshot = {
+      course: rawDb
+        .prepare(
+          `SELECT module_count, lesson_count, total_duration, updated_at FROM courses WHERE id = ?`
+        )
+        .get(course.id),
+      module: rawDb
+        .prepare(
+          `SELECT order_index, display_order, has_manual_order FROM modules WHERE id = ?`
+        )
+        .get(module.id),
+      lesson: rawDb
+        .prepare(
+          `SELECT order_index, display_order, has_manual_order FROM lessons WHERE id = ?`
+        )
+        .get(module.lessons[0].id)
+    }
+
+    const result = dbService.autoOrganizeLibrary()
+
+    expect(result).toMatchObject({
+      success: true,
+      separatedCoursesCount: 0,
+      mergedGroupsCount: 0,
+      deduplicatedModulesCount: 0,
+      details: []
+    })
+    expect({
+      course: rawDb
+        .prepare(
+          `SELECT module_count, lesson_count, total_duration, updated_at FROM courses WHERE id = ?`
+        )
+        .get(course.id),
+      module: rawDb
+        .prepare(
+          `SELECT order_index, display_order, has_manual_order FROM modules WHERE id = ?`
+        )
+        .get(module.id),
+      lesson: rawDb
+        .prepare(
+          `SELECT order_index, display_order, has_manual_order FROM lessons WHERE id = ?`
+        )
+        .get(module.lessons[0].id)
+    }).toEqual(snapshot)
+  })
+
   it('builds a read-only merge preview that merges matching modules, creates new modules, and counts materials', () => {
     const now = 1_000
     const resource = (

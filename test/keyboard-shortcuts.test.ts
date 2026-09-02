@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
+import { isTheaterModeShortcut } from '../src/renderer/src/hooks/usePlayer'
 import { useNavigationStore } from '../src/renderer/src/stores/useNavigationStore'
 
 describe('Global Keyboard Shortcuts & Navigation', () => {
@@ -24,6 +25,12 @@ describe('Global Keyboard Shortcuts & Navigation', () => {
 
     store.setShortcutsModalOpen(false)
     expect(useNavigationStore.getState().isShortcutsModalOpen).toBe(false)
+  })
+
+  it('recognizes T as the theater mode shortcut', () => {
+    expect(isTheaterModeShortcut('T')).toBe(true)
+    expect(isTheaterModeShortcut('t')).toBe(true)
+    expect(isTheaterModeShortcut('F')).toBe(false)
   })
 
   it('navigates cleanly across the core view routes', () => {

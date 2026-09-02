@@ -35,7 +35,6 @@ interface SubtitleCandidate {
 export interface TranscriptPanelProps {
   transcript: Transcript | null
   subtitleCandidate: SubtitleCandidate | null
-  currentTime: number
   isLoading: boolean
   errorMessage: string | null
   progressPercent?: number
@@ -69,7 +68,6 @@ export function highlightTranscriptText(
 export function TranscriptPanel({
   transcript,
   subtitleCandidate,
-  currentTime,
   isLoading,
   errorMessage,
   progressPercent,
@@ -81,6 +79,7 @@ export function TranscriptPanel({
   onAddNote
 }: TranscriptPanelProps): React.JSX.Element {
   const { t } = useTranslation()
+  const currentTime = usePlayerStore((state) => state.currentTime)
   const [query, setQuery] = useState('')
   const [language, setLanguage] = useState('')
   const [selectedText, setSelectedText] = useState<{
@@ -239,7 +238,7 @@ export function TranscriptPanel({
       <div className="flex items-center justify-between gap-2 px-1">
         <div className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
           <FileText className="h-3.5 w-3.5 shrink-0 text-primary" />
-          <span className="truncate">
+          <span className="min-w-0 break-words whitespace-normal leading-snug">
             {t('player.transcript', 'Transcript')}
           </span>
           {transcript && (
@@ -350,9 +349,9 @@ export function TranscriptPanel({
       )}
 
       {selectedText && (
-        <div className="flex items-center justify-between gap-1.5 rounded-xl border border-primary/40 bg-primary/10 p-2 text-xs shadow-sm animate-in fade-in duration-150">
+        <div className="flex items-start justify-between gap-1.5 rounded-xl border border-primary/40 bg-primary/10 p-2 text-xs shadow-sm animate-in fade-in duration-150">
           <span
-            className="truncate max-w-[140px] font-medium text-foreground text-[11px]"
+            className="min-w-0 flex-1 break-words whitespace-normal font-medium text-foreground text-[11px] leading-snug"
             title={selectedText.text}
           >
             "{selectedText.text}"

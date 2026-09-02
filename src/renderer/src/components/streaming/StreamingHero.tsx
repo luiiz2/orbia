@@ -70,9 +70,11 @@ export function StreamingHero({
         {/* Description or In-Progress Lesson */}
         {isStarted && lastLessonTitle ? (
           <div className="space-y-1.5 max-w-xl">
-            <div className="flex items-center gap-2 text-xs sm:text-sm text-slate-300 font-medium">
+            <div className="flex items-start gap-2 text-xs sm:text-sm text-slate-300 font-medium">
               <span className="text-primary font-semibold">Aula Atual:</span>
-              <span className="truncate text-white">{lastLessonTitle}</span>
+              <span className="min-w-0 flex-1 break-words whitespace-normal text-white leading-snug">
+                {lastLessonTitle}
+              </span>
             </div>
             {/* Embedded Mini Progress Bar */}
             <div className="flex items-center gap-3">
@@ -88,7 +90,7 @@ export function StreamingHero({
             </div>
           </div>
         ) : course.description ? (
-          <p className="text-xs sm:text-sm text-slate-300/90 line-clamp-2 leading-relaxed max-w-xl">
+          <p className="max-w-xl break-words whitespace-normal text-xs sm:text-sm text-slate-300/90 leading-relaxed">
             {course.description}
           </p>
         ) : null}

@@ -75,7 +75,7 @@ export function CategoriesModal(): React.JSX.Element | null {
                       }}
                       className="p-3 bg-secondary/20 hover:bg-secondary/60 border border-border/40 hover:border-border rounded-xl text-left transition-all group flex flex-col justify-between cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
                     >
-                      <div className="text-xs font-bold text-foreground group-hover:text-primary transition-colors line-clamp-2 mb-2">
+                      <div className="mb-2 break-words whitespace-normal text-xs font-bold text-foreground leading-snug group-hover:text-primary transition-colors">
                         {c.title}
                       </div>
                       <div className="flex items-center justify-between text-[11px] text-muted-foreground">

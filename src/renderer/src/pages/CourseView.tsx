@@ -60,8 +60,11 @@ function EditableTitle({
 
   if (!isEditing) {
     return (
-      <div className={cn('group flex items-center gap-2', className)}>
-        <span onDoubleClick={() => setIsEditing(true)} className="cursor-text">
+      <div className={cn('group flex min-w-0 items-start gap-2', className)}>
+        <span
+          onDoubleClick={() => setIsEditing(true)}
+          className="min-w-0 flex-1 cursor-text break-words whitespace-normal leading-snug"
+        >
           {initialTitle}
         </span>
         <button
@@ -82,7 +85,7 @@ function EditableTitle({
     <input
       autoFocus
       className={cn(
-        'bg-secondary text-foreground border border-primary/50 rounded px-2 py-0.5 outline-none focus:ring-1 focus:ring-primary/40',
+        'min-w-0 flex-1 bg-secondary text-foreground border border-primary/50 rounded px-2 py-0.5 outline-none focus:ring-1 focus:ring-primary/40',
         className
       )}
       value={value}
@@ -218,7 +221,9 @@ export function CourseView(): React.JSX.Element {
     toggleModuleCompletion,
     isLoading
   } = useLibraryStore()
-  const { loadHierarchy, addToQueue, playbackQueue } = usePlayerStore()
+  const loadHierarchy = usePlayerStore((state) => state.loadHierarchy)
+  const addToQueue = usePlayerStore((state) => state.addToQueue)
+  const playbackQueue = usePlayerStore((state) => state.playbackQueue)
 
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState<boolean>(false)
   const [isDeleting, setIsDeleting] = useState<boolean>(false)
@@ -963,7 +968,7 @@ export function CourseView(): React.JSX.Element {
               </div>
 
               {course.description && (
-                <p className="text-xs sm:text-sm text-muted-foreground line-clamp-3 leading-relaxed">
+                <p className="break-words whitespace-normal text-xs sm:text-sm text-muted-foreground leading-relaxed">
                   {course.description}
                 </p>
               )}
@@ -1165,8 +1170,8 @@ export function CourseView(): React.JSX.Element {
                 className="rounded-2xl border border-border/80 bg-card px-4 overflow-hidden shadow-sm hover:border-border transition-colors duration-200"
               >
                 <AccordionTrigger className="hover:no-underline py-4 cursor-pointer">
-                  <div className="flex flex-1 items-center justify-between pr-4 gap-3">
-                    <div className="flex items-center gap-3 text-left overflow-hidden">
+                  <div className="flex min-w-0 flex-1 flex-col gap-2 pr-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="flex min-w-0 flex-1 items-start gap-3 text-left">
                       <div className="flex flex-col gap-0.5">
                         <button
                           onClick={(e) => {
@@ -1199,11 +1204,11 @@ export function CourseView(): React.JSX.Element {
                         onSave={(newTitle) =>
                           updateModuleMetadata(module.id, newTitle)
                         }
-                        className="font-bold text-foreground text-sm truncate"
+                        className="min-w-0 flex-1 font-bold text-foreground text-sm"
                       />
                     </div>
 
-                    <div className="flex items-center gap-3 text-xs text-muted-foreground shrink-0 font-medium">
+                    <div className="flex w-full flex-wrap items-center justify-start gap-3 text-xs text-muted-foreground font-medium sm:w-auto sm:justify-end">
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <button
@@ -1357,7 +1362,7 @@ export function CourseView(): React.JSX.Element {
                             }
                           }}
                           className={cn(
-                            'flex items-center justify-between py-2.5 px-3 rounded-xl hover:bg-secondary/70 cursor-pointer transition-colors duration-150 group focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary',
+                            'flex items-start justify-between gap-2 py-2.5 px-3 rounded-xl hover:bg-secondary/70 cursor-pointer transition-colors duration-150 group focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary',
                             problemInfo &&
                               'bg-destructive/5 hover:bg-destructive/10 border border-destructive/25',
                             draggedLessonId === lesson.id && 'opacity-60',
@@ -1366,7 +1371,7 @@ export function CourseView(): React.JSX.Element {
                               'bg-accent/10 ring-1 ring-accent/40'
                           )}
                         >
-                          <div className="flex items-center gap-3 overflow-hidden flex-1 min-w-0 mr-2">
+                          <div className="flex min-w-0 flex-1 flex-wrap items-start gap-3 mr-2">
                             {/* Completion or Problem Indicator */}
                             <Tooltip>
                               <TooltipTrigger asChild>
@@ -1468,7 +1473,7 @@ export function CourseView(): React.JSX.Element {
                                 updateLessonMetadata(lesson.id, newTitle)
                               }
                               className={cn(
-                                'text-xs sm:text-sm font-medium truncate group-hover:text-primary transition-colors',
+                                'min-w-0 flex-[1_1_12rem] break-words whitespace-normal text-xs sm:text-sm font-medium group-hover:text-primary transition-colors',
                                 problemInfo
                                   ? 'text-destructive font-semibold'
                                   : 'text-foreground'
@@ -1519,7 +1524,7 @@ export function CourseView(): React.JSX.Element {
                             {/* Attached Resource Chips */}
                             {lessonResources.length > 0 && (
                               <div
-                                className="flex items-center gap-1.5 ml-2 shrink-0"
+                                className="flex max-w-full flex-wrap items-center gap-1.5 ml-2"
                                 aria-label={t('course.lessonMaterials', {
                                   count: lessonResources.length
                                 })}
@@ -1556,7 +1561,7 @@ export function CourseView(): React.JSX.Element {
                                         >
                                           <FileText className="w-3 h-3 text-primary" />
                                           <span className="flex min-w-0 flex-col text-left leading-tight">
-                                            <span className="max-w-[80px] truncate">
+                                            <span className="max-w-[14rem] break-words whitespace-normal">
                                               {res.name}
                                             </span>
                                             <span className="font-mono text-[9px] text-muted-foreground/80">
@@ -1685,7 +1690,7 @@ export function CourseView(): React.JSX.Element {
                                         )
                                       }
                                     }}
-                                    className="flex w-full items-center gap-2 rounded-lg border border-border/60 bg-card/60 px-2.5 py-2 text-left text-xs transition-colors hover:border-primary/40 hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary cursor-pointer"
+                                    className="flex w-full items-start gap-2 rounded-lg border border-border/60 bg-card/60 px-2.5 py-2 text-left text-xs transition-colors hover:border-primary/40 hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary cursor-pointer"
                                     aria-label={t('course.viewResource', {
                                       name: resource.name
                                     })}
@@ -1694,7 +1699,7 @@ export function CourseView(): React.JSX.Element {
                                       className="h-3.5 w-3.5 shrink-0 text-primary"
                                       aria-hidden="true"
                                     />
-                                    <span className="min-w-0 flex-1 truncate font-medium text-foreground">
+                                    <span className="min-w-0 flex-1 break-words whitespace-normal font-medium leading-snug text-foreground">
                                       {resource.name}
                                     </span>
                                     <span className="shrink-0 font-mono text-[10px] text-muted-foreground">
@@ -1871,7 +1876,7 @@ export function CourseView(): React.JSX.Element {
                 <DialogTitle className="text-base font-bold text-foreground">
                   Meta de Estudo do Curso
                 </DialogTitle>
-                <DialogDescription className="text-xs text-muted-foreground truncate max-w-[280px]">
+                <DialogDescription className="max-w-[280px] break-words whitespace-normal text-xs text-muted-foreground">
                   {course.title}
                 </DialogDescription>
               </div>

@@ -157,14 +157,14 @@ export function CourseRelationshipsModal(): React.JSX.Element | null {
               relationships.map((rel) => (
                 <div
                   key={rel.id}
-                  className="flex items-center justify-between p-3 bg-secondary/20 border border-border/40 rounded-xl text-xs"
+                  className="flex items-start justify-between gap-2 p-3 bg-secondary/20 border border-border/40 rounded-xl text-xs"
                 >
-                  <div className="flex items-center gap-3 flex-1 min-w-0 pr-2">
-                    <span className="font-semibold text-foreground truncate">
+                  <div className="flex min-w-0 flex-1 flex-wrap items-start gap-3 pr-2">
+                    <span className="min-w-0 break-words whitespace-normal font-semibold text-foreground leading-snug">
                       {getCourseTitle(rel.sourceCourseId)}
                     </span>
                     <ArrowRight className="w-3.5 h-3.5 text-primary shrink-0" />
-                    <span className="font-semibold text-foreground truncate">
+                    <span className="min-w-0 break-words whitespace-normal font-semibold text-foreground leading-snug">
                       {getCourseTitle(rel.targetCourseId)}
                     </span>
                     <span className="bg-primary/10 text-primary text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0">

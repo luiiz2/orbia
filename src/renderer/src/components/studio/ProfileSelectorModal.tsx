@@ -236,7 +236,7 @@ export function ProfileSelectorModal({
                             handleStartEdit(p)
                           }
                         }}
-                        className="text-xs font-bold text-foreground truncate max-w-[100px] cursor-pointer hover:text-primary transition-colors text-center"
+                        className="max-w-[100px] break-words whitespace-normal text-xs font-bold text-foreground leading-snug cursor-pointer hover:text-primary transition-colors text-center"
                         title={p.name}
                       >
                         {p.name}

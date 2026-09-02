@@ -91,4 +91,29 @@ describe('AppConfigService', () => {
 
     reopenedService.close()
   })
+
+  it('persists Google Drive account metadata and encrypted refresh-token storage fields', () => {
+    service.setGoogleDriveAccount({
+      accountId: 'google-account-1',
+      displayName: 'Study Account',
+      email: 'study@example.com',
+      encryptedRefreshToken: 'ciphertext',
+      scopes: ['https://www.googleapis.com/auth/drive.readonly'],
+      status: 'connected',
+      updatedAt: 123
+    })
+
+    expect(service.getGoogleDriveAccount()).toEqual({
+      accountId: 'google-account-1',
+      displayName: 'Study Account',
+      email: 'study@example.com',
+      encryptedRefreshToken: 'ciphertext',
+      scopes: ['https://www.googleapis.com/auth/drive.readonly'],
+      status: 'connected',
+      updatedAt: 123
+    })
+
+    service.clearGoogleDriveAccount()
+    expect(service.getGoogleDriveAccount()).toBeNull()
+  })
 })

@@ -21,7 +21,7 @@ export function TimePickerModal(): React.JSX.Element | null {
     fetchTimeRecommendations
   } = useDiscoveryStore()
   const { navigateToPlayer } = useNavigationStore()
-  const { loadLesson } = usePlayerStore()
+  const loadLesson = usePlayerStore((state) => state.loadLesson)
 
   const [selectedMinutes, setSelectedMinutes] = useState<number>(30)
   const [hasSearched, setHasSearched] = useState<boolean>(false)
@@ -107,16 +107,16 @@ export function TimePickerModal(): React.JSX.Element | null {
             timeRecommendations.map((rec) => (
               <div
                 key={rec.lessonId}
-                className="group flex items-center justify-between p-3.5 bg-secondary/30 hover:bg-secondary/60 border border-border/40 hover:border-border rounded-xl transition-all"
+                className="group flex items-start justify-between gap-3 p-3.5 bg-secondary/30 hover:bg-secondary/60 border border-border/40 hover:border-border rounded-xl transition-all"
               >
                 <div className="flex-1 min-w-0 pr-4">
-                  <div className="text-[11px] font-semibold uppercase tracking-wider text-primary truncate mb-0.5">
+                  <div className="mb-0.5 break-words whitespace-normal text-[11px] font-semibold uppercase tracking-wider text-primary leading-snug">
                     {rec.courseTitle}
                   </div>
-                  <div className="text-sm font-medium text-foreground truncate group-hover:text-primary transition-colors">
+                  <div className="break-words whitespace-normal text-sm font-medium text-foreground leading-snug group-hover:text-primary transition-colors">
                     {rec.lessonTitle}
                   </div>
-                  <div className="flex items-center gap-3 mt-1.5 text-xs text-muted-foreground">
+                  <div className="mt-1.5 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                     <span className="flex items-center gap-1 font-medium text-foreground/80">
                       <Clock className="w-3.5 h-3.5 text-primary" />
                       Faltam {Math.ceil(rec.remainingDurationSeconds / 60)} min

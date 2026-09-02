@@ -150,6 +150,25 @@ export interface PlayerState {
   reset: () => void
 }
 
+export const selectPlayerViewState = (state: PlayerState) => ({
+  activeCourse: state.activeCourse,
+  activeLesson: state.activeLesson,
+  modulesWithLessons: state.modulesWithLessons,
+  notes: state.notes,
+  chapters: state.chapters,
+  bookmarks: state.bookmarks,
+  flashcards: state.flashcards,
+  playbackQueue: state.playbackQueue,
+  loadLesson: state.loadLesson,
+  toggleComplete: state.toggleComplete,
+  theaterMode: state.theaterMode,
+  isFullscreen: state.isFullscreen,
+  brokenLessonIds: state.brokenLessonIds,
+  deleteLesson: state.deleteLesson,
+  seek: state.seek,
+  addNote: state.addNote
+})
+
 export const usePlayerStore = create<PlayerState>((set, get) => ({
   activeCourse: null,
   activeLesson: null,

@@ -90,7 +90,7 @@ export function MediaRail({
               )}
             </div>
             {subtitle && (
-              <p className="text-[12px] text-muted-foreground line-clamp-1">
+              <p className="break-words whitespace-normal text-[12px] text-muted-foreground leading-snug">
                 {subtitle}
               </p>
             )}

@@ -48,19 +48,10 @@ const api: OrbiaApi = {
       ipcRenderer.invoke('courses:import', { proposal, isExternal }),
     importBatch: (items) =>
       ipcRenderer.invoke('courses:import-batch', { items }),
-    getMergePreview: (courseIds) =>
-      ipcRenderer.invoke('courses:get-merge-preview', { courseIds }),
-    mergeCourses: (courseIds) =>
-      ipcRenderer.invoke('courses:merge-courses', { courseIds }),
-    unmergeCourse: (courseId) =>
-      ipcRenderer.invoke('courses:unmerge-course', courseId),
     generateOrganizationPlan: (courseId) =>
       ipcRenderer.invoke('courses:generate-organization-plan', courseId),
     applyOrganizationPlan: (plan) =>
       ipcRenderer.invoke('courses:apply-organization-plan', plan),
-    autoOrganize: () => ipcRenderer.invoke('courses:auto-organize'),
-    separateMistakenlyMergedCourses: () =>
-      ipcRenderer.invoke('courses:separate-courses'),
     getImportHistory: () => ipcRenderer.invoke('courses:get-import-history'),
     recordImportHistory: (entry) =>
       ipcRenderer.invoke('courses:record-import-history', entry),
@@ -495,7 +486,25 @@ const api: OrbiaApi = {
       }),
     reviewCandidate: (candidateId, decision) =>
       ipcRenderer.invoke('sources:review-candidate', { candidateId, decision }),
-    matchRoot: (rootId) => ipcRenderer.invoke('sources:match-root', { rootId })
+    matchRoot: (rootId) => ipcRenderer.invoke('sources:match-root', { rootId }),
+    googleDrive: {
+      getStatus: () => ipcRenderer.invoke('sources:google-status'),
+      connect: () => ipcRenderer.invoke('sources:google-connect'),
+      disconnect: () => ipcRenderer.invoke('sources:google-disconnect'),
+      listFolder: (folderId, options) =>
+        ipcRenderer.invoke('sources:google-list-folder', {
+          folderId,
+          ...options
+        }),
+      listSharedWithMe: (options) =>
+        ipcRenderer.invoke('sources:google-list-shared-with-me', options),
+      preparePlayback: (input) =>
+        ipcRenderer.invoke('sources:google-prepare-playback', input),
+      download: (input) =>
+        ipcRenderer.invoke('sources:google-download', input),
+      openExternal: (input) =>
+        ipcRenderer.invoke('sources:google-open-external', input)
+    }
   },
 
   // Media Optimization Engine (v0.7)

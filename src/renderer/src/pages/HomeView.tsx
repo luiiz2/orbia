@@ -11,8 +11,6 @@ import {
   Star,
   Sparkles,
   Zap,
-  GitMerge,
-  SlidersHorizontal,
   History
 } from 'lucide-react'
 import { useLibraryStore } from '../stores/useLibraryStore'
@@ -24,9 +22,6 @@ import { useStudioStore } from '../stores/useStudioStore'
 import { Button, Skeleton } from '../components/ui'
 import {
   ContinueWatchingRail,
-  LibraryCourseSelectionBar,
-  LibraryCourseSelectionPanel,
-  MergeCoursesModal,
   QuickCourseOrganizerModal
 } from '../components/library'
 import { StreamingHero, MediaRail, MediaCard } from '../components/streaming'
@@ -54,7 +49,7 @@ export function HomeView(): React.JSX.Element {
     navigateToCourse,
     navigateToReview
   } = useNavigationStore()
-  const { loadHierarchy } = usePlayerStore()
+  const loadHierarchy = usePlayerStore((state) => state.loadHierarchy)
   const { setHistoryModalOpen } = useStudioStore()
   const {
     dueFlashcards,
@@ -63,16 +58,7 @@ export function HomeView(): React.JSX.Element {
     fetchRecentBookmarks,
     fetchStudyQueue
   } = useReviewStore()
-  const [isMergeModalOpen, setIsMergeModalOpen] = useState<boolean>(false)
-  const [mergeModalStartScreen, setMergeModalStartScreen] = useState<
-    'options' | 'manual'
-  >('options')
   const [organizeCourseId, setOrganizeCourseId] = useState<string | null>(null)
-  const [isLibrarySelectionMode, setIsLibrarySelectionMode] =
-    useState<boolean>(false)
-  const [selectedCourseIds, setSelectedCourseIds] = useState<Set<string>>(
-    () => new Set()
-  )
 
   useEffect(() => {
     if (currentVault) {
@@ -89,63 +75,8 @@ export function HomeView(): React.JSX.Element {
     fetchStudyQueue
   ])
 
-  useEffect(() => {
-    const availableIds = new Set(courses.map((course) => course.id))
-    setSelectedCourseIds((current) => {
-      const next = new Set(
-        [...current].filter((courseId) => availableIds.has(courseId))
-      )
-      return next.size === current.size ? current : next
-    })
-  }, [courses])
-
-  const selectedCourses = useMemo(() => {
-    const selectedIds = selectedCourseIds
-    return courses.filter((course) => selectedIds.has(course.id))
-  }, [courses, selectedCourseIds])
-
-  const handleToggleSelectionMode = (): void => {
-    if (isLibrarySelectionMode) {
-      setSelectedCourseIds(new Set())
-    }
-    setIsLibrarySelectionMode((current) => !current)
-  }
-
-  const handleToggleCourseSelection = (courseId: string): void => {
-    setSelectedCourseIds((current) => {
-      const next = new Set(current)
-      if (next.has(courseId)) {
-        next.delete(courseId)
-      } else {
-        next.add(courseId)
-      }
-      return next
-    })
-  }
-
   const handleLibraryCourseClick = (courseId: string): void => {
-    if (isLibrarySelectionMode) {
-      handleToggleCourseSelection(courseId)
-      return
-    }
     navigateToCourse(courseId)
-  }
-
-  const clearCourseSelection = (): void => {
-    setSelectedCourseIds(new Set())
-  }
-
-  const openMergeModal = (): void => {
-    setMergeModalStartScreen(selectedCourseIds.size >= 2 ? 'manual' : 'options')
-    setIsMergeModalOpen(true)
-  }
-
-  const handleMergeModalOpenChange = (open: boolean): void => {
-    setIsMergeModalOpen(open)
-    if (!open) {
-      clearCourseSelection()
-      setIsLibrarySelectionMode(false)
-    }
   }
 
   // Hero: top most recently played in-progress course, or top favorite, or first course
@@ -571,32 +502,6 @@ export function HomeView(): React.JSX.Element {
 
           <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
             <Button
-              size="sm"
-              onClick={openMergeModal}
-              className="gap-1.5 rounded-xl bg-primary text-xs font-bold text-primary-foreground shadow-md shadow-primary/15 transition-all hover:opacity-95 cursor-pointer min-h-[36px]"
-              title="Unir cursos"
-            >
-              <GitMerge className="h-4 w-4" />
-              <span>{t('home.mergeCourses', 'Unir cursos')}</span>
-            </Button>
-
-            <Button
-              variant={isLibrarySelectionMode ? 'secondary' : 'outline'}
-              size="sm"
-              onClick={handleToggleSelectionMode}
-              className="gap-1.5 rounded-xl border-primary/30 text-xs font-semibold text-primary hover:bg-primary/10 hover:text-primary cursor-pointer min-h-[36px]"
-              title="Selecionar cursos para organizar"
-              aria-pressed={isLibrarySelectionMode}
-            >
-              <SlidersHorizontal className="h-4 w-4" />
-              <span>
-                {isLibrarySelectionMode
-                  ? t('home.finishOrganization', 'Concluir seleção')
-                  : t('home.organizeLibrary', 'Organizar biblioteca')}
-              </span>
-            </Button>
-
-            <Button
               variant="ghost"
               size="sm"
               onClick={() => setHistoryModalOpen(true)}
@@ -662,29 +567,6 @@ export function HomeView(): React.JSX.Element {
           })}
         </div>
 
-        {isLibrarySelectionMode && (
-          <div
-            role="status"
-            className="flex flex-col gap-2 rounded-2xl border border-primary/30 bg-primary/5 px-4 py-3 text-xs sm:flex-row sm:items-center sm:justify-between"
-          >
-            <div className="flex items-center gap-2 text-foreground">
-              <SlidersHorizontal className="h-4 w-4 shrink-0 text-primary" />
-              <span>
-                {t(
-                  'home.organizationModeHint',
-                  'Modo de organização ativo: clique nos cursos para selecioná-los e revise a lista ao lado.'
-                )}
-              </span>
-            </div>
-            <span className="shrink-0 font-semibold text-primary">
-              {selectedCourses.length}{' '}
-              {selectedCourses.length === 1
-                ? t('home.selectedCourse', 'selecionado')
-                : t('home.selectedCourses', 'selecionados')}
-            </span>
-          </div>
-        )}
-
         {/* Course Grid */}
         {isLoading ? (
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -723,79 +605,38 @@ export function HomeView(): React.JSX.Element {
             )}
           </div>
         ) : (
-          <div
-            className={`grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_18rem] ${
-              isLibrarySelectionMode && selectedCourses.length > 0
-                ? 'pb-24'
-                : ''
-            }`}
-          >
-            <div className="min-w-0">
-              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {filteredCourses.map((course) => {
-                  const summary = progressSummaries[course.id]
-                  return (
-                    <MediaCard
-                      key={course.id}
-                      id={course.id}
-                      title={course.title}
-                      subtitle={`${course.moduleCount} Módulos • ${course.lessonCount} Aulas`}
-                      coverPath={course.coverPath}
-                      duration={course.totalDuration}
-                      progressPercentage={summary?.percentage || 0}
-                      isCompleted={summary ? summary.percentage >= 100 : false}
-                      isFavorite={course.isFavorite}
-                      badge={
-                        course.sourceType === 'local-ref' ? 'Ref' : undefined
-                      }
-                      selectionMode={isLibrarySelectionMode}
-                      isSelected={selectedCourseIds.has(course.id)}
-                      onToggleSelection={() =>
-                        handleToggleCourseSelection(course.id)
-                      }
-                      onPlay={() => handleQuickPlayCourse(course.id)}
-                      onClick={() => handleLibraryCourseClick(course.id)}
-                      onToggleFavorite={() =>
-                        toggleFavorite(course.id).catch(console.warn)
-                      }
-                      onMoreInfo={() => navigateToCourse(course.id)}
-                      onOrganize={() => setOrganizeCourseId(course.id)}
-                    />
-                  )
-                })}
-              </div>
+          <div className="min-w-0">
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {filteredCourses.map((course) => {
+                const summary = progressSummaries[course.id]
+                return (
+                  <MediaCard
+                    key={course.id}
+                    id={course.id}
+                    title={course.title}
+                    subtitle={`${course.moduleCount} Módulos • ${course.lessonCount} Aulas`}
+                    coverPath={course.coverPath}
+                    duration={course.totalDuration}
+                    progressPercentage={summary?.percentage || 0}
+                    isCompleted={summary ? summary.percentage >= 100 : false}
+                    isFavorite={course.isFavorite}
+                    badge={
+                      course.sourceType === 'local-ref' ? 'Ref' : undefined
+                    }
+                    onPlay={() => handleQuickPlayCourse(course.id)}
+                    onClick={() => handleLibraryCourseClick(course.id)}
+                    onToggleFavorite={() =>
+                      toggleFavorite(course.id).catch(console.warn)
+                    }
+                    onMoreInfo={() => navigateToCourse(course.id)}
+                    onOrganize={() => setOrganizeCourseId(course.id)}
+                  />
+                )
+              })}
             </div>
-
-            {isLibrarySelectionMode && (
-              <LibraryCourseSelectionPanel
-                courses={selectedCourses}
-                onRemove={handleToggleCourseSelection}
-                onClear={clearCourseSelection}
-                onOpenMerge={openMergeModal}
-              />
-            )}
           </div>
         )}
       </div>
-
-      {isLibrarySelectionMode && selectedCourses.length > 0 && (
-        <LibraryCourseSelectionBar
-          selectedCount={selectedCourses.length}
-          onClear={clearCourseSelection}
-          onOpenMerge={openMergeModal}
-        />
-      )}
-
-      {/* Merge Courses Modal */}
-      {isMergeModalOpen && (
-        <MergeCoursesModal
-          open={isMergeModalOpen}
-          onOpenChange={handleMergeModalOpenChange}
-          initialScreen={mergeModalStartScreen}
-          initialSelectedCourseIds={[...selectedCourseIds]}
-        />
-      )}
-
       {/* Quick Course Organizer Modal directly on Library */}
       <QuickCourseOrganizerModal
         courseId={organizeCourseId}

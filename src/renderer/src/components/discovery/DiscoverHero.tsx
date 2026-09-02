@@ -56,7 +56,7 @@ export function DiscoverHero({
           </h1>
 
           {item.course.description && (
-            <p className="text-sm text-muted-foreground line-clamp-2 max-w-2xl">
+            <p className="max-w-2xl break-words whitespace-normal text-sm text-muted-foreground leading-relaxed">
               {item.course.description}
             </p>
           )}

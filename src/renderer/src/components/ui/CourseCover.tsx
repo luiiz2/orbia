@@ -85,7 +85,7 @@ export function CourseCover({
         />
       ) : (
         <div
-          className={`relative h-full w-full flex flex-col justify-between p-3.5 sm:p-4.5 ${palette.bg} border border-white/10 overflow-hidden`}
+          className={`relative h-full w-full flex flex-col justify-between p-3.5 sm:p-4.5 ${palette.bg} border border-white/10`}
         >
           {/* Subtle atmospheric ambient glow */}
           <div
@@ -120,11 +120,11 @@ export function CourseCover({
 
           {/* Bottom Area: Prominent Typography */}
           <div className="relative z-10 mt-auto space-y-1">
-            <h4 className="text-xs sm:text-sm md:text-base font-extrabold text-white leading-snug line-clamp-2 drop-shadow-md tracking-tight">
+            <h4 className="break-words whitespace-normal text-xs sm:text-sm md:text-base font-extrabold text-white leading-snug drop-shadow-md tracking-tight">
               {title || 'Sem título'}
             </h4>
             {subtitle && (
-              <p className="text-[10px] sm:text-[11px] text-slate-300/80 line-clamp-1 font-medium">
+              <p className="break-words whitespace-normal text-[10px] sm:text-[11px] text-slate-300/80 leading-snug font-medium">
                 {subtitle}
               </p>
             )}

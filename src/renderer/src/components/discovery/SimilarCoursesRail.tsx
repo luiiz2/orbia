@@ -56,7 +56,7 @@ export function SimilarCoursesRail({
           <div key={it.course.id} className="relative group">
             <CourseCard course={it.course} />
             {it.reasons[0] && (
-              <div className="mt-1 text-[11px] text-muted-foreground truncate">
+              <div className="mt-1 break-words whitespace-normal text-[11px] text-muted-foreground leading-snug">
                 {it.reasons[0].type === 'shared_tags'
                   ? `Tags: ${it.reasons[0].params.tags}`
                   : 'Alta afinidade'}

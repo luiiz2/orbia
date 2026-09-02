@@ -619,11 +619,11 @@ export function SettingsView(): React.JSX.Element {
           </CardHeader>
           <CardContent className="space-y-3 pt-1">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-border/70 bg-secondary/30 p-3.5">
-              <div className="space-y-0.5 overflow-hidden">
-                <p className="text-sm font-bold text-foreground truncate">
+              <div className="min-w-0 flex-1 space-y-0.5">
+                <p className="break-words whitespace-normal text-sm font-bold text-foreground leading-snug">
                   {currentVault?.name || t('settings.noVault')}
                 </p>
-                <p className="text-xs font-mono text-muted-foreground truncate">
+                <p className="break-words whitespace-normal text-xs font-mono text-muted-foreground leading-snug">
                   {currentVault?.path || t('settings.notAvailable')}
                 </p>
               </div>

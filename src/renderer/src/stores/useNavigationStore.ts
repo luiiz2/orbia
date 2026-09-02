@@ -15,7 +15,6 @@ export interface NavigationState {
   currentView: ViewType
   selectedCourseId: string | null
   sourceNavigationTarget: SourceNavigationIntent | null
-  isSidebarCollapsed: boolean
   isImportModalOpen: boolean
   isVaultModalOpen: boolean
   isThemeModalOpen: boolean
@@ -33,8 +32,6 @@ export interface NavigationState {
   navigateToHistory: () => void
   navigateToReview: () => void
   navigateToSettings: () => void
-  toggleSidebar: () => void
-  setSidebarCollapsed: (collapsed: boolean) => void
   setImportModalOpen: (open: boolean) => void
   setVaultModalOpen: (open: boolean) => void
   setThemeModalOpen: (open: boolean) => void
@@ -46,7 +43,6 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
   currentView: 'home',
   selectedCourseId: null,
   sourceNavigationTarget: null,
-  isSidebarCollapsed: false,
   isImportModalOpen: false,
   isVaultModalOpen: false,
   isThemeModalOpen: false,
@@ -112,16 +108,6 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
   navigateToSettings: () =>
     set({
       currentView: 'settings'
-    }),
-
-  toggleSidebar: () =>
-    set((state) => ({
-      isSidebarCollapsed: !state.isSidebarCollapsed
-    })),
-
-  setSidebarCollapsed: (isSidebarCollapsed) =>
-    set({
-      isSidebarCollapsed
     }),
 
   setImportModalOpen: (isImportModalOpen) =>

@@ -9,8 +9,8 @@ export interface AppShellProps {
 }
 
 export function AppShell({ children }: AppShellProps): React.JSX.Element {
-  const { isFullscreen } = usePlayerStore()
-  const { currentView } = useNavigationStore()
+  const isFullscreen = usePlayerStore((state) => state.isFullscreen)
+  const currentView = useNavigationStore((state) => state.currentView)
 
   // In pure fullscreen playback mode, we allow the video to occupy full screen without shell framing
   const isVideoFullscreen = isFullscreen && currentView === 'player'

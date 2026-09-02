@@ -266,6 +266,18 @@ describe('SourceWatchService', () => {
     expect(manager.syncRoot).toHaveBeenCalledWith(root.id, 'periodic')
   })
 
+  it('turns root-listing failures into rejected refresh promises', async () => {
+    const manager = createManager()
+    manager.listRoots.mockImplementation(() => {
+      throw new Error('source root cannot be mapped')
+    })
+    const service = new SourceWatchService(manager)
+
+    await expect(service.refresh('periodic')).rejects.toThrow(
+      'source root cannot be mapped'
+    )
+  })
+
   it('stops timers and disposes active watchers', async () => {
     vi.useFakeTimers()
     let dirty: ((hint: { reason: 'changed' }) => void) | undefined

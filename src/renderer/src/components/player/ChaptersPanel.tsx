@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import { useTranslation } from 'react-i18next'
 import {
   ListTree,
@@ -31,7 +32,21 @@ export function ChaptersPanel(): React.JSX.Element {
     addChapter,
     updateChapter,
     deleteChapter
-  } = usePlayerStore()
+  } = usePlayerStore(
+    useShallow((state) => ({
+      activeLesson: state.activeLesson,
+      currentTime: state.currentTime,
+      duration: state.duration,
+      chapters: state.chapters,
+      isLoadingChapters: state.isLoadingChapters,
+      isGeneratingChapters: state.isGeneratingChapters,
+      seek: state.seek,
+      generateChapters: state.generateChapters,
+      addChapter: state.addChapter,
+      updateChapter: state.updateChapter,
+      deleteChapter: state.deleteChapter
+    }))
+  )
 
   const [isAdding, setIsAdding] = useState(false)
   const [newTitle, setNewTitle] = useState('')
@@ -271,7 +286,7 @@ export function ChaptersPanel(): React.JSX.Element {
               >
                 <button
                   onClick={() => seek(ch.timestampSeconds)}
-                  className="flex items-center gap-2.5 flex-1 text-left truncate min-w-0"
+                  className="flex min-w-0 flex-1 items-start gap-2.5 text-left"
                 >
                   <div
                     className={`flex items-center justify-center w-5 h-5 rounded shrink-0 ${
@@ -286,7 +301,9 @@ export function ChaptersPanel(): React.JSX.Element {
                       <span className="text-[10px] font-mono">{idx + 1}</span>
                     )}
                   </div>
-                  <span className="truncate flex-1">{ch.title}</span>
+                  <span className="min-w-0 flex-1 break-words whitespace-normal leading-snug">
+                    {ch.title}
+                  </span>
                   <span className="font-mono text-[11px] text-muted-foreground shrink-0">
                     {formatTime(ch.timestampSeconds)}
                   </span>

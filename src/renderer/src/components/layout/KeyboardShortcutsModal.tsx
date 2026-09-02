@@ -106,6 +106,12 @@ const SHORTCUTS_DATA: ShortcutItem[] = [
     category: 'player'
   },
   {
+    id: 'theater',
+    keys: ['T'],
+    descriptionKey: 'shortcuts.toggleTheater',
+    category: 'player'
+  },
+  {
     id: 'subtitles',
     keys: ['C'],
     descriptionKey: 'shortcuts.toggleSubtitles',

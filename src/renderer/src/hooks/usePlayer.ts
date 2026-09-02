@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import { usePlayerStore } from '../stores/usePlayerStore'
 import { useSettingsStore } from '../stores/useSettingsStore'
 
@@ -43,6 +44,10 @@ export interface UsePlayerReturn {
 
 const SPEED_PRESETS = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0]
 
+export function isTheaterModeShortcut(key: string): boolean {
+  return key.toLowerCase() === 't'
+}
+
 export function usePlayer({
   videoRef,
   containerRef
@@ -69,6 +74,7 @@ export function usePlayer({
     toggleMute: storeToggleMute,
     setPlaybackRate: storeSetPlaybackRate,
     setFullscreen: storeSetFullscreen,
+    toggleTheater: storeToggleTheater,
     setPiP: storeSetPiP,
     setSubtitleTrack: storeSetSubtitleTrack,
     setCurrentTime: storeSetCurrentTime,
@@ -78,7 +84,41 @@ export function usePlayer({
     nextLesson: storeNextLesson,
     prevLesson: storePrevLesson,
     addBookmark: storeAddBookmark
-  } = usePlayerStore()
+  } = usePlayerStore(
+    useShallow((state) => ({
+      activeCourse: state.activeCourse,
+      activeLesson: state.activeLesson,
+      modulesWithLessons: state.modulesWithLessons,
+      isPlaying: state.isPlaying,
+      currentTime: state.currentTime,
+      duration: state.duration,
+      volume: state.volume,
+      isMuted: state.isMuted,
+      playbackRate: state.playbackRate,
+      isFullscreen: state.isFullscreen,
+      isPiP: state.isPiP,
+      activeSubtitleTrack: state.activeSubtitleTrack,
+      subtitleTracks: state.subtitleTracks,
+      progressMap: state.progressMap,
+      play: state.play,
+      pause: state.pause,
+      seek: state.seek,
+      setVolume: state.setVolume,
+      toggleMute: state.toggleMute,
+      setPlaybackRate: state.setPlaybackRate,
+      setFullscreen: state.setFullscreen,
+      toggleTheater: state.toggleTheater,
+      setPiP: state.setPiP,
+      setSubtitleTrack: state.setSubtitleTrack,
+      setCurrentTime: state.setCurrentTime,
+      setDuration: state.setDuration,
+      toggleComplete: state.toggleComplete,
+      updateProgress: state.updateProgress,
+      nextLesson: state.nextLesson,
+      prevLesson: state.prevLesson,
+      addBookmark: state.addBookmark
+    }))
+  )
 
   const { settings } = useSettingsStore()
 
@@ -466,6 +506,12 @@ export function usePlayer({
 
       handleUserActivity()
 
+      if (isTheaterModeShortcut(e.key)) {
+        e.preventDefault()
+        storeToggleTheater()
+        return
+      }
+
       switch (e.key) {
         case ' ':
         case 'k':
@@ -591,6 +637,7 @@ export function usePlayer({
     seekRelative,
     toggleMute,
     toggleFullscreen,
+    storeToggleTheater,
     toggleSubtitles,
     togglePiP,
     setVolume,

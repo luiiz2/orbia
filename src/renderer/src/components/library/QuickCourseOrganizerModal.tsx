@@ -335,7 +335,7 @@ export function QuickCourseOrganizerModal({
                   className="rounded-xl border border-border/60 bg-muted/10 overflow-hidden transition-all shadow-xs"
                 >
                   {/* Module Header */}
-                  <div className="p-3 bg-muted/30 flex items-center justify-between gap-3 select-none">
+                  <div className="p-3 bg-muted/30 flex items-start justify-between gap-3 select-none">
                     <div
                       className="flex items-center gap-2.5 flex-1 min-w-0 cursor-pointer"
                       onClick={() => toggleModuleExpand(mod.id)}
@@ -371,7 +371,7 @@ export function QuickCourseOrganizerModal({
                         </div>
                       ) : (
                         <span
-                          className="text-xs font-bold text-foreground truncate hover:text-primary transition-colors cursor-text"
+                          className="min-w-0 flex-1 break-words whitespace-normal text-xs font-bold text-foreground leading-snug hover:text-primary transition-colors cursor-text"
                           title="Clique para renomear"
                           onClick={(e) => {
                             e.stopPropagation()
@@ -431,7 +431,7 @@ export function QuickCourseOrganizerModal({
                           return (
                             <div
                               key={les.id}
-                              className="flex items-center justify-between gap-3 p-2 rounded-lg hover:bg-muted/30 transition-colors text-xs group"
+                              className="flex items-start justify-between gap-3 p-2 rounded-lg hover:bg-muted/30 transition-colors text-xs group"
                             >
                               <div className="flex items-center gap-2.5 flex-1 min-w-0">
                                 {getMediaIcon(les.mediaType)}
@@ -463,7 +463,7 @@ export function QuickCourseOrganizerModal({
                                 ) : (
                                   <span
                                     onClick={() => setEditingLessonId(les.id)}
-                                    className="font-medium text-foreground truncate cursor-text hover:text-primary transition-colors flex-1"
+                                    className="min-w-0 flex-1 break-words whitespace-normal font-medium text-foreground leading-snug cursor-text hover:text-primary transition-colors"
                                     title="Clique para renomear aula"
                                   >
                                     {displayLessonTitle}

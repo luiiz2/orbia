@@ -617,13 +617,13 @@ export function OptimizerDashboardModal(): React.JSX.Element | null {
 
                                   <td className="p-3 max-w-xs">
                                     <div
-                                      className="font-bold text-foreground truncate"
+                                      className="break-words whitespace-normal font-bold text-foreground leading-snug"
                                       title={plan.lessonTitle}
                                     >
                                       {plan.lessonTitle}
                                     </div>
                                     <div
-                                      className="text-[11px] text-muted-foreground truncate"
+                                      className="break-words whitespace-normal text-[11px] text-muted-foreground leading-snug"
                                       title={plan.courseTitle}
                                     >
                                       {plan.courseTitle}
@@ -763,12 +763,12 @@ export function OptimizerDashboardModal(): React.JSX.Element | null {
                       key={item.id}
                       className="p-3.5 rounded-2xl border border-border/70 bg-card shadow-xs space-y-2"
                     >
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="truncate flex-1">
-                          <span className="text-xs font-bold text-foreground block truncate">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <span className="block break-words whitespace-normal text-xs font-bold text-foreground leading-snug">
                             {getBasename(item.sourcePath)}
                           </span>
-                          <span className="text-[11px] text-muted-foreground truncate block">
+                          <span className="block break-words whitespace-normal text-[11px] text-muted-foreground leading-snug">
                             {item.sourcePath}
                           </span>
                         </div>
@@ -884,10 +884,10 @@ export function OptimizerDashboardModal(): React.JSX.Element | null {
                   {records.map((r) => (
                     <div
                       key={r.id}
-                      className="p-3.5 rounded-2xl border border-border/70 bg-card shadow-xs flex items-center justify-between gap-4"
+                      className="p-3.5 rounded-2xl border border-border/70 bg-card shadow-xs flex items-start justify-between gap-4"
                     >
-                      <div className="space-y-1 truncate flex-1">
-                        <span className="text-xs font-bold text-foreground truncate block">
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <span className="block break-words whitespace-normal text-xs font-bold text-foreground leading-snug">
                           {getBasename(r.optimizedPath)}
                         </span>
                         <div className="flex items-center gap-2 text-[11px] text-muted-foreground">

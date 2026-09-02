@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   AlertCircle,
+  Cloud,
   FileArchive,
   FolderArchive,
   FolderOpen,
@@ -34,6 +35,7 @@ import {
 import { useLibraryStore, useNavigationStore } from '../../stores'
 import { useSettingsStore } from '../../stores/useSettingsStore'
 import { ImportPreview } from './ImportPreview'
+import { GoogleDriveBrowserModal } from './GoogleDriveBrowserModal'
 
 type ImportStep = 'select' | 'processing' | 'preview' | 'validation'
 type BatchStatus =
@@ -106,6 +108,7 @@ export function ImportWizard({
   const [globalError, setGlobalError] = useState<string | null>(null)
   const [isCommitting, setIsCommitting] = useState(false)
   const [isSavingZipPreference, setIsSavingZipPreference] = useState(false)
+  const [googleDriveOpen, setGoogleDriveOpen] = useState(false)
 
   const batchItemsRef = useRef<BatchItem[]>([])
   const preparationRunRef = useRef(0)
@@ -514,7 +517,8 @@ export function ImportWizard({
   const isBusy = isCommitting
 
   return (
-    <Dialog
+    <>
+      <Dialog
       open={open}
       onOpenChange={(nextOpen) => {
         if (!nextOpen) void handleClose()
@@ -597,6 +601,22 @@ export function ImportWizard({
                     )}
                   </Button>
                 </div>
+                <p className="mx-auto mt-3 max-w-lg text-[11px] leading-relaxed text-muted-foreground">
+                  {t('import.googleDriveFolderHint')}
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    onOpenChange(false)
+                    setGoogleDriveOpen(true)
+                  }}
+                  className="mt-2 border-primary/40 text-primary hover:bg-primary/10"
+                >
+                  <Cloud className="h-3.5 w-3.5" />
+                  {t('import.selectGoogleDriveFolder')}
+                </Button>
               </div>
 
               <label className="flex cursor-pointer items-start gap-2 rounded-xl border border-border/70 bg-card p-3 text-xs">
@@ -650,7 +670,7 @@ export function ImportWizard({
                       }`}
                     >
                       <FileArchive className="h-4 w-4 shrink-0 text-primary" />
-                      <span className="min-w-0 flex-1 truncate font-medium">
+                      <span className="min-w-0 flex-1 break-words whitespace-normal font-medium leading-snug">
                         {item.preview.suggestedTitle}
                       </span>
                       <input
@@ -736,7 +756,12 @@ export function ImportWizard({
           )}
         </DialogFooter>
       </DialogContent>
-    </Dialog>
+      </Dialog>
+      <GoogleDriveBrowserModal
+        open={googleDriveOpen}
+        onOpenChange={setGoogleDriveOpen}
+      />
+    </>
   )
 }
 
@@ -755,14 +780,14 @@ function ProcessingQueue({ items }: { items: BatchItem[] }): React.JSX.Element {
             key={item.id}
             className="rounded-xl border border-border/70 bg-card p-3"
           >
-            <div className="flex items-center justify-between gap-3 text-xs">
-              <div className="flex min-w-0 items-center gap-2">
+            <div className="flex items-start justify-between gap-3 text-xs">
+              <div className="flex min-w-0 items-start gap-2">
                 {item.isZip ? (
                   <FileArchive className="h-4 w-4 shrink-0 text-primary" />
                 ) : (
                   <FolderOpen className="h-4 w-4 shrink-0 text-primary" />
                 )}
-                <span className="truncate font-medium text-foreground">
+                <span className="min-w-0 flex-1 break-words whitespace-normal font-medium text-foreground leading-snug">
                   {item.name}
                 </span>
               </div>
@@ -778,7 +803,7 @@ function ProcessingQueue({ items }: { items: BatchItem[] }): React.JSX.Element {
                     style={{ width: `${Math.max(4, item.extractProgress)}%` }}
                   />
                 </div>
-                <p className="mt-1.5 truncate text-[11px] text-muted-foreground">
+                <p className="mt-1.5 break-words whitespace-normal text-[11px] text-muted-foreground leading-snug">
                   {item.currentExtractFile || t('import.preparing')}
                 </p>
               </>
@@ -822,9 +847,11 @@ function ValidationAttention({
           key={item.id}
           className="rounded-xl border border-primary/30 bg-card/50 p-3"
         >
-          <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
+          <div className="flex items-start gap-2 text-xs font-semibold text-foreground">
             <XCircle className="h-4 w-4 shrink-0 text-primary" />
-            <span className="truncate">{item.name}</span>
+            <span className="min-w-0 flex-1 break-words whitespace-normal leading-snug">
+              {item.name}
+            </span>
           </div>
           {item.validation?.failedEntries &&
           item.validation.failedEntries.length > 0 ? (
@@ -834,7 +861,10 @@ function ValidationAttention({
               </p>
               <ul className="mt-1 max-h-24 space-y-0.5 overflow-y-auto text-[11px] text-muted-foreground">
                 {item.validation.failedEntries.slice(0, 12).map((entry) => (
-                  <li key={entry} className="truncate">
+                  <li
+                    key={entry}
+                    className="break-words whitespace-normal leading-snug"
+                  >
                     {entry}
                   </li>
                 ))}

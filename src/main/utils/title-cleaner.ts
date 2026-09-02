@@ -270,14 +270,3 @@ export function normalizeModuleKey(rawTitle: string): string {
 
   return key
 }
-
-export function areModuleTitlesEquivalent(
-  titleA: string,
-  titleB: string
-): boolean {
-  if (titleA === titleB) return true
-  if (titleA.trim().toLowerCase() === titleB.trim().toLowerCase()) return true
-  const keyA = normalizeModuleKey(titleA)
-  const keyB = normalizeModuleKey(titleB)
-  return Boolean(keyA && keyB && keyA === keyB)
-}

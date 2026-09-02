@@ -4,6 +4,10 @@ import fs from 'node:fs'
 import { Readable } from 'node:stream'
 import { logger } from './services/logger.service'
 import { TEMP_COVERS_DIR } from './utils/cover-generator'
+import type {
+  ByteRange,
+  SourceReadHandle
+} from './services/sources/source-adapter'
 
 export const MEDIA_SCHEME = 'media'
 
@@ -143,6 +147,10 @@ export interface MediaPathValidationResult {
  */
 export interface MediaPathAuthorizer {
   isPathAuthorized(filePath: string): boolean | Promise<boolean>
+}
+
+export interface RemoteMediaPlayback {
+  open: (sessionId: string, range?: ByteRange) => Promise<SourceReadHandle>
 }
 
 export interface MainMediaPathAuthorizationSource {
@@ -313,12 +321,27 @@ export function registerMediaScheme(): void {
  * Supports HTTP 206 Range requests for seamless video scrubbing.
  */
 export function setupMediaProtocol(
-  options: { authorizer?: MediaPathAuthorizer } = {}
+  options: {
+    authorizer?: MediaPathAuthorizer
+    remotePlayback?: RemoteMediaPlayback
+  } = {}
 ): void {
   const authorizer = options.authorizer ?? denyAllMediaPathAuthorizer
 
   protocol.handle(MEDIA_SCHEME, async (request) => {
     try {
+      const remoteSessionId = extractRemotePlaybackSessionId(request.url)
+      if (remoteSessionId) {
+        if (!options.remotePlayback) {
+          return new Response('Remote playback is unavailable', { status: 404 })
+        }
+        return await handleRemoteMediaRequest(
+          request,
+          remoteSessionId,
+          options.remotePlayback
+        )
+      }
+
       const validation = extractAndValidateMediaPath(request.url)
       if (!validation.valid || !validation.filePath) {
         logger.warn(
@@ -427,6 +450,113 @@ export function setupMediaProtocol(
       })
     }
   })
+}
+
+export function extractRemotePlaybackSessionId(
+  requestUrl: string
+): string | null {
+  try {
+    const url = new URL(requestUrl)
+    if (url.protocol !== `${MEDIA_SCHEME}:` || url.host !== 'playback') {
+      return null
+    }
+    const sessionId = decodeURIComponent(url.pathname.slice(1))
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      sessionId
+    )
+      ? sessionId
+      : null
+  } catch {
+    return null
+  }
+}
+
+async function handleRemoteMediaRequest(
+  request: Request,
+  sessionId: string,
+  remotePlayback: RemoteMediaPlayback
+): Promise<Response> {
+  const rangeHeader = request.headers.get('range')
+  let range: ByteRange | undefined
+  if (rangeHeader) {
+    range = parseRemoteRange(rangeHeader)
+    if (!range) {
+      return new Response(null, {
+        status: 416,
+        statusText: 'Range Not Satisfiable'
+      })
+    }
+  }
+
+  let handle: SourceReadHandle
+  try {
+    handle = await remotePlayback.open(sessionId, range)
+  } catch (error) {
+    const status = getRemotePlaybackStatus(error)
+    logger.warn(
+      `[Protocol] Remote playback request failed with status ${status}`
+    )
+    return new Response('Remote media unavailable', { status })
+  }
+
+  const headers = new Headers({
+    'Content-Type': handle.mimeType || 'application/octet-stream',
+    'Content-Length': String(getContentLength(handle)),
+    'Access-Control-Allow-Origin': '*'
+  })
+  if (handle.seekable) headers.set('Accept-Ranges', 'bytes')
+  if (handle.status === 206 && handle.contentRange) {
+    headers.set(
+      'Content-Range',
+      `bytes ${handle.contentRange.start}-${handle.contentRange.end}/${handle.totalSize}`
+    )
+  }
+
+  return new Response(Readable.toWeb(handle.stream) as ReadableStream, {
+    status: handle.status,
+    statusText: handle.status === 206 ? 'Partial Content' : 'OK',
+    headers
+  })
+}
+
+function parseRemoteRange(value: string): ByteRange | undefined {
+  const match = /^bytes=(\d+)-(\d*)$/i.exec(value.trim())
+  if (!match) return undefined
+  const start = Number(match[1])
+  if (!Number.isSafeInteger(start) || start < 0) return undefined
+  const requestedEnd = match[2] ? Number(match[2]) : start + 1024 * 1024 - 1
+  if (
+    !Number.isSafeInteger(requestedEnd) ||
+    requestedEnd < start ||
+    requestedEnd > Number.MAX_SAFE_INTEGER
+  ) {
+    return undefined
+  }
+  return { start, end: requestedEnd }
+}
+
+function getContentLength(handle: SourceReadHandle): number {
+  if (handle.contentRange) {
+    return handle.contentRange.end - handle.contentRange.start + 1
+  }
+  return handle.totalSize
+}
+
+function getRemotePlaybackStatus(error: unknown): number {
+  if (
+    error &&
+    typeof error === 'object' &&
+    'status' in error &&
+    (error.status === 401 ||
+      error.status === 403 ||
+      error.status === 404 ||
+      error.status === 410 ||
+      error.status === 416 ||
+      error.status === 502)
+  ) {
+    return error.status
+  }
+  return 502
 }
 
 function normalizeAbsolutePathForComparison(filePath: string): string | null {

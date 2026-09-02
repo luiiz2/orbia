@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   AlertTriangle,
   BookOpen,
@@ -348,13 +349,13 @@ function SearchResultCard({
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
               <h4
-                className="truncate text-sm font-semibold text-foreground"
+                className="break-words whitespace-normal text-sm font-semibold text-foreground leading-snug"
                 title={result.title}
               >
                 {result.title}
               </h4>
               <p
-                className="mt-0.5 truncate text-[11px] text-muted-foreground"
+                className="mt-0.5 break-words whitespace-normal text-[11px] text-muted-foreground leading-snug"
                 title={breadcrumb}
               >
                 {breadcrumb || getResultLabel(result)}
@@ -366,7 +367,7 @@ function SearchResultCard({
           </div>
 
           {!compact && result.excerpt && (
-            <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+            <p className="mt-2 break-words whitespace-normal text-xs leading-relaxed text-muted-foreground">
               {result.excerpt}
             </p>
           )}
@@ -429,6 +430,7 @@ function SearchResultCard({
 }
 
 export function LibrarySearchDialog(): React.JSX.Element {
+  const { t } = useTranslation()
   const {
     isOpen,
     query,
@@ -453,7 +455,8 @@ export function LibrarySearchDialog(): React.JSX.Element {
   } = useLibrarySearchStore()
   const courses = useLibraryStore((state) => state.courses)
   const { navigateToCourse, navigateToPlayer } = useNavigationStore()
-  const { loadHierarchy, setCurrentTime } = usePlayerStore()
+  const loadHierarchy = usePlayerStore((state) => state.loadHierarchy)
+  const setCurrentTime = usePlayerStore((state) => state.setCurrentTime)
 
   const [openingResultId, setOpeningResultId] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
@@ -543,11 +546,13 @@ export function LibrarySearchDialog(): React.JSX.Element {
               <div>
                 <DialogTitle className="flex items-center gap-2 text-base font-bold">
                   <Search className="h-4 w-4 text-primary" aria-hidden="true" />
-                  Find in Library
+                  {t('search.libraryTitle', 'Pesquisar na biblioteca')}
                 </DialogTitle>
                 <DialogDescription className="mt-1 text-xs">
-                  Pesquise cursos, aulas, transcrições e materiais da biblioteca
-                  local.
+                  {t(
+                    'search.libraryDescription',
+                    'Pesquise cursos, aulas, transcrições e materiais da biblioteca local.'
+                  )}
                 </DialogDescription>
               </div>
               {response && (
@@ -574,8 +579,14 @@ export function LibrarySearchDialog(): React.JSX.Element {
                   autoFocus
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Ex.: dependency injection ou hooks condicionais"
-                  aria-label="Buscar na biblioteca"
+                  placeholder={t(
+                    'search.libraryPlaceholder',
+                    'Ex.: dependency injection ou hooks condicionais'
+                  )}
+                  aria-label={t(
+                    'search.libraryInputLabel',
+                    'Pesquisar na biblioteca'
+                  )}
                   className="h-10 pl-9 pr-9 text-sm"
                 />
                 {query && (

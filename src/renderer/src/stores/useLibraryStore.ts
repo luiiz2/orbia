@@ -13,6 +13,10 @@ export interface CourseHierarchy {
   modules: (Module & { lessons: Lesson[] })[]
 }
 
+interface FetchCourseOptions {
+  silent?: boolean
+}
+
 export type CourseFilterStatus =
   'all' | 'in_progress' | 'completed' | 'favorites'
 
@@ -30,7 +34,10 @@ export interface LibraryState {
 
   // Actions
   fetchCourses: () => Promise<void>
-  fetchCourseById: (id: string) => Promise<CourseHierarchy | null>
+  fetchCourseById: (
+    id: string,
+    options?: FetchCourseOptions
+  ) => Promise<CourseHierarchy | null>
   fetchCourseProgress: (id: string) => Promise<void>
   importCourse: (
     proposal: ProposedCourseStructure,
@@ -74,10 +81,6 @@ export interface LibraryState {
     removedCount: number
     error?: string
   }>
-  autoOrganizeLibrary: () => Promise<import('@shared').AutoOrganizeResult>
-  separateMistakenlyMergedCourses: () => Promise<
-    import('@shared').SeparateCoursesResult
-  >
   toggleFavorite: (courseId: string) => Promise<boolean>
   setSearchQuery: (query: string) => void
   setFilterStatus: (
@@ -125,22 +128,23 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
     }
   },
 
-  fetchCourseById: async (id: string) => {
-    set({ isLoading: true, error: null })
+  fetchCourseById: async (id: string, options?: FetchCourseOptions) => {
+    const showLoading = !options?.silent
+    set(showLoading ? { isLoading: true, error: null } : { error: null })
     try {
       const hierarchy = await window.api.courses.getById(id)
       if (hierarchy) {
         set({
           activeCourseHierarchy: hierarchy,
           activeCourse: hierarchy.course,
-          isLoading: false
+          ...(showLoading ? { isLoading: false } : {})
         })
         return hierarchy
       } else {
         set({
           activeCourseHierarchy: null,
           activeCourse: null,
-          isLoading: false
+          ...(showLoading ? { isLoading: false } : {})
         })
         return null
       }
@@ -148,7 +152,7 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
       const errorMessage = err instanceof Error ? err.message : String(err)
       set({
         error: errorMessage,
-        isLoading: false
+        ...(showLoading ? { isLoading: false } : {})
       })
       return null
     }
@@ -380,54 +384,6 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
       return { success: false, fixedCount: 0, removedCount: 0, error: errorMsg }
     }
   },
-
-  autoOrganizeLibrary: async () => {
-    try {
-      set({ isLoading: true, error: null })
-      const res = await window.api.courses.autoOrganize()
-      await get().fetchCourses()
-      const active = get().activeCourse
-      if (active) {
-        await get().fetchCourseById(active.id)
-      }
-      set({ isLoading: false })
-      return res
-    } catch (err: unknown) {
-      const errorMsg = err instanceof Error ? err.message : String(err)
-      set({ isLoading: false, error: errorMsg })
-      return {
-        success: false,
-        separatedCoursesCount: 0,
-        mergedGroupsCount: 0,
-        deduplicatedModulesCount: 0,
-        reindexedCoursesCount: 0,
-        details: [{ action: 'separated', message: errorMsg }]
-      }
-    }
-  },
-
-  separateMistakenlyMergedCourses: async () => {
-    try {
-      set({ isLoading: true, error: null })
-      const res = await window.api.courses.separateMistakenlyMergedCourses()
-      await get().fetchCourses()
-      const active = get().activeCourse
-      if (active) {
-        await get().fetchCourseById(active.id)
-      }
-      set({ isLoading: false })
-      return res
-    } catch (err: unknown) {
-      const errorMsg = err instanceof Error ? err.message : String(err)
-      set({ isLoading: false, error: errorMsg })
-      return {
-        separatedCoursesCount: 0,
-        createdCoursesCount: 0,
-        details: []
-      }
-    }
-  },
-
   toggleFavorite: async (courseId: string) => {
     const current =
       get().courses.find((c) => c.id === courseId) || get().activeCourse
@@ -590,7 +546,7 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
       if (res.success) {
         const { activeCourse } = get()
         if (activeCourse) {
-          await get().fetchCourseById(activeCourse.id)
+          await get().fetchCourseById(activeCourse.id, { silent: true })
         }
       }
     } catch (err) {
@@ -635,7 +591,7 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
         if (!res.success) {
           const { activeCourse } = get()
           if (activeCourse) {
-            await get().fetchCourseById(activeCourse.id)
+            await get().fetchCourseById(activeCourse.id, { silent: true })
           }
           return
         }
@@ -645,7 +601,7 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
 
       const { activeCourse } = get()
       if (activeCourse) {
-        await get().fetchCourseById(activeCourse.id)
+        await get().fetchCourseById(activeCourse.id, { silent: true })
       }
     } catch (err) {
       console.error('Failed to reorder lesson:', err)

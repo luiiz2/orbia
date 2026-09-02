@@ -2,7 +2,6 @@ import type {
   ContentResource,
   Course,
   MediaType,
-  MergePreview,
   Module,
   Lesson,
   ProposedCourseStructure
@@ -14,6 +13,14 @@ import type {
   CourseProgressSummary
 } from './progress'
 import type { LessonNote } from './notes'
+import type {
+  GoogleDriveConnectionStatus,
+  GoogleDriveDownloadInput,
+  GoogleDriveDownloadResult,
+  GoogleDriveFolderListing,
+  GoogleDrivePlayback,
+  GoogleDrivePlaybackInput
+} from './google-drive'
 import type {
   AiChatInput,
   AiChatResponse,
@@ -217,9 +224,6 @@ export type CommitImportSessionResult =
 export type CancelImportSessionResult =
   { success: true } | { success: false; error: string }
 
-export type GetMergePreviewResult =
-  { success: true; preview: MergePreview } | { success: false; error: string }
-
 /**
  * Typed IPC Bridge interface exposed to the Renderer process via window.api
  */
@@ -287,19 +291,6 @@ export interface OrbiaApi {
     importBatch: (
       items: { proposal: ProposedCourseStructure; isExternal: boolean }[]
     ) => Promise<{ success: boolean; courses?: Course[]; error?: string }>
-    getMergePreview: (courseIds: string[]) => Promise<GetMergePreviewResult>
-    mergeCourses: (courseIds: string[]) => Promise<{
-      success: boolean
-      canonicalCourseId?: string
-      error?: string
-      mergedGroupsCount?: number
-      removedCoursesCount?: number
-    }>
-    unmergeCourse: (courseId: string) => Promise<{
-      success: boolean
-      restoredCoursesCount?: number
-      error?: string
-    }>
     generateOrganizationPlan: (courseId: string) => Promise<{
       success: boolean
       plan?: import('./course').OrganizationPlan
@@ -308,10 +299,6 @@ export interface OrbiaApi {
     applyOrganizationPlan: (
       plan: import('./course').OrganizationPlan
     ) => Promise<{ success: boolean; appliedCount?: number; error?: string }>
-    autoOrganize: () => Promise<import('./course').AutoOrganizeResult>
-    separateMistakenlyMergedCourses: () => Promise<
-      import('./course').SeparateCoursesResult
-    >
     getImportHistory: () => Promise<import('./course').ImportHistoryEntry[]>
     recordImportHistory: (
       entry: Omit<import('./course').ImportHistoryEntry, 'id' | 'createdAt'>
@@ -868,6 +855,24 @@ export interface OrbiaApi {
     matchRoot: (
       rootId: string
     ) => Promise<import('./source').SourceMatchSummary>
+    googleDrive: {
+      getStatus: () => Promise<GoogleDriveConnectionStatus>
+      connect: () => Promise<GoogleDriveConnectionStatus>
+      disconnect: () => Promise<boolean>
+      listFolder: (
+        folderId?: string,
+        options?: { driveId?: string; pageToken?: string }
+      ) => Promise<GoogleDriveFolderListing>
+      listSharedWithMe: (options?: { pageToken?: string }) =>
+        Promise<GoogleDriveFolderListing>
+      preparePlayback: (
+        input: GoogleDrivePlaybackInput
+      ) => Promise<GoogleDrivePlayback>
+      download: (
+        input: GoogleDriveDownloadInput
+      ) => Promise<GoogleDriveDownloadResult>
+      openExternal: (input: GoogleDrivePlaybackInput) => Promise<boolean>
+    }
   }
 
   // Media Optimization Engine (v0.7)

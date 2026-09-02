@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import { useTranslation } from 'react-i18next'
 import { Bookmark, Plus, Trash2, Clock, Check, X } from 'lucide-react'
 import { usePlayerStore } from '../../stores/usePlayerStore'
@@ -24,7 +25,17 @@ export function BookmarksPanel(): React.JSX.Element {
     isLoadingBookmarks,
     addBookmark,
     deleteBookmark
-  } = usePlayerStore()
+  } = usePlayerStore(
+    useShallow((state) => ({
+      activeLesson: state.activeLesson,
+      currentTime: state.currentTime,
+      seek: state.seek,
+      bookmarks: state.bookmarks,
+      isLoadingBookmarks: state.isLoadingBookmarks,
+      addBookmark: state.addBookmark,
+      deleteBookmark: state.deleteBookmark
+    }))
+  )
 
   const [isCreating, setIsCreating] = useState(false)
   const [newTitle, setNewTitle] = useState('')
@@ -180,7 +191,7 @@ export function BookmarksPanel(): React.JSX.Element {
                     {formatTime(bm.timestamp)}
                   </span>
                 </div>
-                <p className="text-xs font-medium text-foreground mt-1 line-clamp-2">
+                <p className="mt-1 break-words whitespace-normal text-xs font-medium text-foreground leading-snug">
                   {bm.title}
                 </p>
               </div>

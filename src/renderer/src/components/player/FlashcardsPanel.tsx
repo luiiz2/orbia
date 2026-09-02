@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import { useTranslation } from 'react-i18next'
 import { Sparkles, Plus, Trash2, Clock, Check, X, Layers } from 'lucide-react'
 import { usePlayerStore } from '../../stores/usePlayerStore'
@@ -15,7 +16,16 @@ export function FlashcardsPanel(): React.JSX.Element {
     isLoadingFlashcards,
     addFlashcard,
     deleteFlashcard
-  } = usePlayerStore()
+  } = usePlayerStore(
+    useShallow((state) => ({
+      currentTime: state.currentTime,
+      seek: state.seek,
+      flashcards: state.flashcards,
+      isLoadingFlashcards: state.isLoadingFlashcards,
+      addFlashcard: state.addFlashcard,
+      deleteFlashcard: state.deleteFlashcard
+    }))
+  )
 
   const [isCreating, setIsCreating] = useState(false)
   const [question, setQuestion] = useState('')

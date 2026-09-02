@@ -2098,7 +2098,8 @@ export class DatabaseService {
     const lessonsStmt = this.db!.prepare(`
       SELECT
         id, module_id as moduleId, course_id as courseId, title, custom_title as customTitle,
-        order_index as orderIndex, display_order as displayOrder, is_favorite as isFavorite,
+        order_index as orderIndex, display_order as displayOrder,
+        has_manual_order as hasManualOrder, is_favorite as isFavorite,
         file_path as filePath, file_name as fileName,
         file_extension as fileExtension, media_type as mediaType,
         duration, file_size as fileSize, availability, cover_path as coverPath,
@@ -2109,8 +2110,8 @@ export class DatabaseService {
     `)
     const allLessons = lessonsStmt.all(courseId) as (Omit<
       Lesson,
-      'isFavorite'
-    > & { isFavorite: number })[]
+      'isFavorite' | 'hasManualOrder'
+    > & { isFavorite: number; hasManualOrder: number })[]
 
     const resourcesStmt = this.db!.prepare(`
       SELECT
@@ -2154,6 +2155,7 @@ export class DatabaseService {
       const formattedLesson: Lesson = {
         ...lesson,
         isFavorite: Boolean(lesson.isFavorite),
+        hasManualOrder: Boolean(lesson.hasManualOrder),
         coverPath: lesson.coverPath || undefined,
         ...(contentResources.length > 0 ? { contentResources } : {}),
         ...(attachedResources.length > 0
@@ -4428,24 +4430,28 @@ export class DatabaseService {
     if (!hierarchy || hierarchy.modules.length === 0)
       return { moduleCount: 0, lessonCount: 0, totalDuration: 0 }
 
-    const sortedModules = [...hierarchy.modules].sort(
-      (a, b) =>
-        (a.displayOrder || a.orderIndex) - (b.displayOrder || b.orderIndex) ||
-        naturalCompare(a.title, b.title)
-    )
+    const sortedModules = [...hierarchy.modules].sort((a, b) => {
+      const orderDifference =
+        (a.displayOrder || a.orderIndex) - (b.displayOrder || b.orderIndex)
+      if (orderDifference !== 0) return orderDifference
+      if (a.hasManualOrder || b.hasManualOrder) return 0
+      return naturalCompare(a.title, b.title)
+    })
 
     let totalCourseLessons = 0
     let totalCourseDuration = 0
+    let hasChanges = false
 
     const tx = this.db!.transaction(() => {
       for (let mIdx = 0; mIdx < sortedModules.length; mIdx++) {
         const mod = sortedModules[mIdx]
-        const sortedLessons = [...mod.lessons].sort(
-          (a, b) =>
-            (a.displayOrder || a.orderIndex) -
-              (b.displayOrder || b.orderIndex) ||
-            naturalCompare(a.title, b.title)
-        )
+        const sortedLessons = [...mod.lessons].sort((a, b) => {
+          const orderDifference =
+            (a.displayOrder || a.orderIndex) - (b.displayOrder || b.orderIndex)
+          if (orderDifference !== 0) return orderDifference
+          if (a.hasManualOrder || b.hasManualOrder) return 0
+          return naturalCompare(a.title, b.title)
+        })
 
         let modDuration = 0
         for (let lIdx = 0; lIdx < sortedLessons.length; lIdx++) {
@@ -4453,11 +4459,17 @@ export class DatabaseService {
           modDuration += les.duration || 0
           const finalDisplayOrder =
             les.hasManualOrder && les.displayOrder ? les.displayOrder : lIdx + 1
-          this.db!.prepare(
+          if (
+            les.orderIndex !== lIdx + 1 ||
+            les.displayOrder !== finalDisplayOrder
+          ) {
+            this.db!.prepare(
+              `
+              UPDATE lessons SET order_index = ?, display_order = ? WHERE id = ?
             `
-            UPDATE lessons SET order_index = ?, display_order = ? WHERE id = ?
-          `
-          ).run(lIdx + 1, finalDisplayOrder, les.id)
+            ).run(lIdx + 1, finalDisplayOrder, les.id)
+            hasChanges = true
+          }
         }
 
         totalCourseLessons += sortedLessons.length
@@ -4465,30 +4477,48 @@ export class DatabaseService {
         const finalModDisplayOrder =
           mod.hasManualOrder && mod.displayOrder ? mod.displayOrder : mIdx + 1
 
-        this.db!.prepare(
+        if (
+          mod.orderIndex !== mIdx + 1 ||
+          mod.displayOrder !== finalModDisplayOrder ||
+          mod.lessonCount !== sortedLessons.length ||
+          mod.duration !== modDuration
+        ) {
+          this.db!.prepare(
+            `
+            UPDATE modules SET order_index = ?, display_order = ?, lesson_count = ?, duration = ? WHERE id = ?
           `
-          UPDATE modules SET order_index = ?, display_order = ?, lesson_count = ?, duration = ? WHERE id = ?
-        `
-        ).run(
-          mIdx + 1,
-          finalModDisplayOrder,
-          sortedLessons.length,
-          modDuration,
-          mod.id
-        )
+          ).run(
+            mIdx + 1,
+            finalModDisplayOrder,
+            sortedLessons.length,
+            modDuration,
+            mod.id
+          )
+          hasChanges = true
+        }
       }
 
-      this.db!.prepare(
+      if (
+        hierarchy.course.moduleCount !== sortedModules.length ||
+        hierarchy.course.lessonCount !== totalCourseLessons ||
+        hierarchy.course.totalDuration !== totalCourseDuration
+      ) {
+        hasChanges = true
+      }
+
+      if (hasChanges) {
+        this.db!.prepare(
+          `
+          UPDATE courses SET module_count = ?, lesson_count = ?, total_duration = ?, updated_at = ? WHERE id = ?
         `
-        UPDATE courses SET module_count = ?, lesson_count = ?, total_duration = ?, updated_at = ? WHERE id = ?
-      `
-      ).run(
-        sortedModules.length,
-        totalCourseLessons,
-        totalCourseDuration,
-        Date.now(),
-        courseId
-      )
+        ).run(
+          sortedModules.length,
+          totalCourseLessons,
+          totalCourseDuration,
+          Date.now(),
+          courseId
+        )
+      }
     })
 
     tx()

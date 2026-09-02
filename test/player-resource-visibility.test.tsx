@@ -25,7 +25,8 @@ vi.mock('react-i18next', () => ({
 }))
 
 vi.mock('../src/renderer/src/stores/usePlayerStore', () => ({
-  usePlayerStore: () => state.player
+  usePlayerStore: () => state.player,
+  selectPlayerViewState: (player: Record<string, unknown>) => player
 }))
 
 vi.mock('../src/renderer/src/stores/useNavigationStore', () => ({
@@ -147,6 +148,14 @@ describe('PlayerView resources', () => {
       theaterMode: false,
       isFullscreen: false
     }
+  })
+
+  it('hides the curriculum panel while theater mode is active', () => {
+    state.player = { ...state.player!, theaterMode: true }
+
+    const markup = renderToStaticMarkup(React.createElement(PlayerView))
+
+    expect(markup).not.toContain('<aside')
   })
 
   it('lists canonical lesson materials in the resource panel instead of their legacy projection', () => {

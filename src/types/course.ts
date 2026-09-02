@@ -8,14 +8,6 @@ export type ContentSourceType =
 export type AvailabilityState =
   'local' | 'remote-only' | 'cached' | 'downloading' | 'offline-ready'
 
-export interface ContentSource {
-  id: string
-  type: ContentSourceType
-  rootIdentifier: string // Vault relative path, absolute path, or remote drive folder ID
-  displayName?: string
-  isAvailable: boolean
-}
-
 /**
  * Core Course Entity
  */

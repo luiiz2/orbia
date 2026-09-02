@@ -18,7 +18,7 @@ const TIMER_PRESETS = [
 
 export function FocusTimer(): React.JSX.Element {
   const { t } = useTranslation()
-  const { activeCourse } = usePlayerStore()
+  const activeCourse = usePlayerStore((state) => state.activeCourse)
 
   const [selectedDuration, setSelectedDuration] = useState<number>(25 * 60)
   const [timeLeft, setTimeLeft] = useState<number>(25 * 60)

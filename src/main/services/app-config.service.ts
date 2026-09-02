@@ -19,6 +19,16 @@ import {
   type AiTask
 } from '../../types/ai'
 
+export interface GoogleDriveAccountConfigRecord {
+  accountId: string
+  displayName: string
+  email: string | null
+  encryptedRefreshToken: string
+  scopes: string[]
+  status: 'connected' | 'auth-required' | 'disconnected'
+  updatedAt: number
+}
+
 function getAppUserDataPath(): string {
   try {
     // Dynamic require so non-Electron test runtimes don't crash
@@ -131,6 +141,17 @@ export class AppConfigService {
         provider_id       TEXT PRIMARY KEY,
         encrypted_secret TEXT NOT NULL,
         updated_at       INTEGER NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS google_drive_accounts (
+        id                    TEXT PRIMARY KEY,
+        account_id            TEXT NOT NULL UNIQUE,
+        display_name          TEXT NOT NULL,
+        email                 TEXT,
+        encrypted_refresh_token TEXT NOT NULL,
+        scopes_json           TEXT NOT NULL,
+        status                TEXT NOT NULL CHECK(status IN ('connected', 'auth-required', 'disconnected')),
+        updated_at            INTEGER NOT NULL
       );
     `)
 
@@ -654,6 +675,89 @@ export class AppConfigService {
     this.db!.prepare(`DELETE FROM ai_credentials WHERE provider_id = ?`).run(
       providerId
     )
+  }
+
+  public getGoogleDriveAccount(): GoogleDriveAccountConfigRecord | null {
+    this.ensureInitialized()
+    const row = this.db!.prepare(
+      `
+      SELECT account_id, display_name, email, encrypted_refresh_token,
+             scopes_json, status, updated_at
+      FROM google_drive_accounts
+      WHERE id = 'default'
+    `
+    ).get() as
+      | {
+          account_id: string
+          display_name: string
+          email: string | null
+          encrypted_refresh_token: string
+          scopes_json: string
+          status: GoogleDriveAccountConfigRecord['status']
+          updated_at: number
+        }
+      | undefined
+
+    if (!row) return null
+    let scopes: string[] = []
+    try {
+      const parsed: unknown = JSON.parse(row.scopes_json)
+      if (Array.isArray(parsed)) {
+        scopes = parsed.filter((scope): scope is string => typeof scope === 'string')
+      }
+    } catch {
+      scopes = []
+    }
+
+    return {
+      accountId: row.account_id,
+      displayName: row.display_name,
+      email: row.email,
+      encryptedRefreshToken: row.encrypted_refresh_token,
+      scopes,
+      status: row.status,
+      updatedAt: row.updated_at
+    }
+  }
+
+  public setGoogleDriveAccount(account: GoogleDriveAccountConfigRecord): void {
+    this.ensureInitialized()
+    if (
+      !account.accountId ||
+      !account.displayName ||
+      !account.encryptedRefreshToken
+    ) {
+      throw new Error('Google Drive account is incomplete')
+    }
+    this.db!.prepare(
+      `
+      INSERT INTO google_drive_accounts (
+        id, account_id, display_name, email, encrypted_refresh_token,
+        scopes_json, status, updated_at
+      ) VALUES ('default', ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        account_id = excluded.account_id,
+        display_name = excluded.display_name,
+        email = excluded.email,
+        encrypted_refresh_token = excluded.encrypted_refresh_token,
+        scopes_json = excluded.scopes_json,
+        status = excluded.status,
+        updated_at = excluded.updated_at
+    `
+    ).run(
+      account.accountId,
+      account.displayName,
+      account.email,
+      account.encryptedRefreshToken,
+      JSON.stringify(account.scopes),
+      account.status,
+      account.updatedAt
+    )
+  }
+
+  public clearGoogleDriveAccount(): void {
+    this.ensureInitialized()
+    this.db!.prepare(`DELETE FROM google_drive_accounts WHERE id = 'default'`).run()
   }
 
   private saveAiSettings(settings: AiSettingsSnapshot): void {

@@ -109,18 +109,18 @@ export function CodeViewerModal({
       <DialogContent className="max-w-5xl w-[94vw] h-[90vh] p-0 overflow-hidden rounded-2xl flex flex-col gap-0 border-border/80 bg-card shadow-2xl">
         {/* Header Bar */}
         <DialogHeader className="px-5 py-3.5 border-b border-border/80 bg-card flex flex-row items-center justify-between space-y-0 shrink-0">
-          <div className="flex items-center gap-3 overflow-hidden mr-3">
+          <div className="flex min-w-0 items-start gap-3 mr-3">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-accent/15 text-accent border border-accent/20">
               <Code2 className="h-5 w-5" />
             </div>
-            <div className="flex flex-col overflow-hidden min-w-0">
+            <div className="min-w-0 flex-1">
               <DialogTitle
-                className="text-sm sm:text-base font-bold text-foreground truncate"
+                className="break-words whitespace-normal text-sm sm:text-base font-bold text-foreground leading-snug"
                 title={resource.name}
               >
                 {resource.name}
               </DialogTitle>
-              <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-0.5">
+              <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
                 {ext && (
                   <Badge
                     variant="outline"
