@@ -25,6 +25,7 @@ Most self-learners accumulate gigabytes of course materials: video lessons, lect
 - **Portable & Self-Contained**: The entire library database (`.orbia/library.db`) lives inside your vault folder. Copy or back up the vault folder, and you preserve your entire library, watch history, and notes.
 - **Dual SQLite Topology**: Global preferences and vault registry live in `%APPDATA%/orbia/config.db`, while course contents and study metadata live in the vault database with WAL mode and foreign key integrity.
 - **Hybrid Flexibility**: Store courses directly inside the vault (`Courses/`) or link to existing directories anywhere on your disk by reference without duplicating files.
+- **Google Drive Online**: Connect a Google account through the internet, browse selected folders, and stream supported videos, audio, PDFs, images, and text on demand without Google Drive for desktop or a full local download. Configure `ORBIA_GOOGLE_DRIVE_CLIENT_ID` with a Google Cloud OAuth Desktop client ID before launching Orbia.
 
 ### 🎬 2. Cinematic Video Player & Learning Engine
 
@@ -77,6 +78,7 @@ Most self-learners accumulate gigabytes of course materials: video lessons, lect
 | `↑` / `↓`              | Volume Up / Down (±10%)                                            | Player |
 | `M`                    | Toggle Mute                                                        | Player |
 | `F`                    | Toggle Fullscreen                                                  | Player |
+| `T`                    | Toggle Theater Mode                                                | Player |
 | `C`                    | Toggle Subtitles (CC)                                              | Player |
 | `P`                    | Toggle Picture-in-Picture                                          | Player |
 | `>` / `<`              | Increase / Decrease Playback Speed                                 | Player |
@@ -162,6 +164,17 @@ npm run build:win    # Windows installer (.exe NSIS)
 npm run build:mac    # macOS disk image (.dmg)
 npm run build:linux  # Linux package (AppImage / deb)
 ```
+
+### Google Drive online
+
+The online Drive browser uses OAuth in the system browser and does not depend on Google Drive for desktop. Create a Google Cloud OAuth client of type **Desktop app**, enable the Google Drive API, and start Orbia with its public client ID:
+
+```powershell
+$env:ORBIA_GOOGLE_DRIVE_CLIENT_ID = "your-desktop-client-id.apps.googleusercontent.com"
+npm run dev
+```
+
+Orbia stores only the encrypted refresh token in the operating-system credential store. Access tokens stay in memory, and supported files are requested from Drive as the player needs them; the course is not downloaded or copied to the vault.
 
 ---
 
